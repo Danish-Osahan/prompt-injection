@@ -342,6 +342,13 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < 18; i++) gap.lineStyle(1, 0x78e4e8, 0.06 + i * 0.004).lineBetween(80 + i * 64, 250, 80 + i * 64 + 20, 322);
       gap.lineStyle(2, 0x78e4e8, 0.4).lineBetween(80, 250, 1200, 250).lineBetween(80, 322, 1200, 322);
       this.hazards.push({ x: 80, y: 254, w: 1120, h: 64 });
+      if (this.art) {   // art-v9 fix: light falls up the shaft so the gap reads as depth, not a black band
+        const sh = this.add.graphics().setDepth(-940).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(sh);
+        for (let i = 0; i < 12; i++) { const t = i / 11; sh.fillStyle(0x2a6f7a, 0.05 + 0.09 * t).fillRect(80, 250 + 6 * i, 1120, 72 - 6 * i); }
+        for (let i = 0; i < 9; i++) sh.fillStyle(0x78e4e8, 0.07).fillRect(140 + i * 120, 252, 34, 68);
+        sh.lineStyle(2, 0x78e4e8, 0.35).lineBetween(80, 321, 1200, 321);
+        this.tweens.add({ targets: sh, alpha: { from: 0.85, to: 1 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+      }
       if (this.art && this.fgImgs.door_panel) this.roomVis.doorPanel = this.fgImgs.door_panel;
       else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
       this.addPrompt('dash', 640, 342, 'SPACE TO DASH', 'TAP DASH', () => this.y < 240, () => this.y < 400);

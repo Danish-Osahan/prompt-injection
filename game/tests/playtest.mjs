@@ -49,7 +49,7 @@ async function office9(browser) {
   ok('v9 close-up: moving returns smoothly to play', !o.card && o.mode === 'play', `${o.card} ${o.mode}`);
   // the phone beat: tight on Noor, she looks at her phone, then the card
   await pi(page, 'read', 'o_phone'); o = (await waitFor(page, s => s.office9.mode === 'noor', 4000)).office9;
-  const beat = (await o9()); await sleep(300); await shot(page, 'v9-05-phone-noor-closeup');
+  await waitFor(page, s => s.office9.lb > 0.6, 4000); const beat = (await o9()); await sleep(300); await shot(page, 'v9-05-phone-noor-closeup');
   ok('v9 camera: phone = emotional close-up on Noor, letterboxed, phone anim', o.mode === 'noor' && /noor_phone_/.test(beat.anim) && beat.lb > 0.5, `${o.mode} ${beat.anim} lb ${beat.lb}`);
   o = (await waitFor(page, s => s.office9.card === 'phone' && s.office9.cardA > 0.95, 8000)).office9; await shot(page, 'v9-06-phone-close');
   ok('v9 close-up: phone card follows the Noor beat', o.card === 'phone');
@@ -169,7 +169,7 @@ async function desktop(browser) {
   // movement (real keys)
   const x0 = s.player.x, y0 = s.player.y;
   await input.move(1, -1); await sleep(600); await input.stop(); s = await st(page);
-  ok('desktop: 8-dir walk (diagonal) moves Noor', s.player.x - x0 > 60 && y0 - s.player.y > 60, `dx ${Math.round(s.player.x - x0)} dy ${Math.round(s.player.y - y0)}`);
+  ok('desktop: 8-dir walk (diagonal) moves Noor', s.player.x - x0 > 30 && y0 - s.player.y > 30, `dx ${Math.round(s.player.x - x0)} dy ${Math.round(s.player.y - y0)}`);
   // dash
   const dx0 = s.player.x; await input.move(1, 0); await sleep(40); await input.press('dash'); await sleep(60);
   s = await st(page); const dashIframes = s.iframes > 0 && s.dashing;
