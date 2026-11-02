@@ -81,3 +81,112 @@ No mounted world signs. Plates are data (`game/src/rooms.ts`); each object has a
   | (secret) Fern | Fern, at her desk. She was always here first. | `fern.awake = true;` (lens only) |
   | (secret) wall | A wall where a door should be. Painted in. | `wall.solid = TRUE;` (lens only) |
 - Puzzles are unchanged (same words, same order rules); only the presentation moved from signs to captions + code lines.
+
+## Linger layer (art-v8, 2 Nov 2026)
+
+Optional, off the main path. Every room has at least 4 story objects to inspect (E or tap), 2+ Blender-rendered ambient loops, a code-vision **toy pair** (two inspectables whose last words swap only with each other), one collectible **unsent line** (the six lines build `unsent.txt` in the pause journal; the HUD shows `unsent n/6`), a stand-still line after 6 s (a different one on revisit), and an inspect-all unlock that reveals one extra code line. Some objects read differently on revisit. Source of truth: `game/src/linger.ts`.
+
+### office
+- **o_phone**: Your phone, face up on a desk that isn’t yours. Thirty-seven unread.  
+  *revisit:* Your phone, face up. Thirty-eight unread now. One came while you were gone.  
+  `phone.unread = 37;`
+- **o_calendar**: A calendar stuck on August. Nobody’s fault, it says.  
+  `calendar.fault = NOOR;`
+- **o_sticky**: A sticky note on the whiteboard: CALL, and a name scratched out hard.  
+  `note.name = null;`
+- **o_printer**: The printer jammed on page one. Page one was the apology.  
+  `printer.job = "sorry.pdf";`
+- **o_photo**: A photo, face down. Easier for everyone.  
+  `photo.side = DOWN;`
+- **o_rain** *(toy: RAIN FEELS SAD)*: Rain on the glass, taking its time. It feels {}.  
+  `rain.mood = undefined;`
+- **o_lamp** *(toy: LAMP FEELS HAPPY)*: A floor lamp nobody switches off. It feels {}.  
+  `lamp.mood = undefined;`
+- *stand still:* You stand still. The office does too. It’s had practice. / *revisit:* The rain hasn’t moved on either.
+- *inspect-all:* You’ve read the whole room. One thing is missing, and it’s you. `office.missing = "noor";`
+- *toy swapped:* The rain cheers up. The lamp takes it personally. / *swapped back:* Everyone goes back to how they were. It’s easier.
+
+### hub
+- **h_mirror** *(toy: MIRROR RUNS FORWARD)*: A mirror that copies you a beat late. It runs {}.  
+  `mirror.dir = undefined;`
+- **h_clock** *(toy: CLOCK RUNS BACKWARD)*: The clock disagrees with the mirror. It runs {}.  
+  `clock.dir = undefined;`
+- **h_coat**: The coat rack from upstairs, one floor too far. It holds nothing, carefully.  
+  `rack.holds = null;`
+- **h_notes**: A stack of sticky notes on Fern’s desk. Every one says good morning.  
+  *revisit:* The sticky stack on Fern’s desk is one note taller.  
+  `fern.notes = 214;`
+- **h_plant**: The office plant, but greener. Somebody here remembers to water it.  
+  `plant.thirsty = FALSE;`
+- *stand still:* Stand still long enough and the room starts copying you. It’s flattering. It isn’t. / *revisit:* The clock has lost another hour. It looks relieved.
+- *inspect-all:* Everything here is a reflection. Some of it is running late. `mirror.lag = 0.4s;`
+- *toy swapped:* The mirror gets ahead of you. The clock finally goes somewhere. / *swapped back:* The mirror falls back in line. Late, as usual.
+
+### corridor
+- **c_moth** *(toy: MOTH WANTS LAMP)*: A moth keeps the lamp company. It wants the {}.  
+  `moth.wants = undefined;`
+- **c_bucket** *(toy: BUCKET WANTS DRIP)*: A bucket under a slow leak. It wants the {}.  
+  `bucket.wants = undefined;`
+- **c_umbrella**: An umbrella, bone dry, in a corridor with no weather.  
+  `umbrella.wet = FALSE;`
+- **c_tape**: Tape on the floor where a desk used to be. It left in a hurry.  
+  `desk.owner = "kabir";`
+- **c_drip**: Something upstairs is leaking, one patient drop at a time.  
+  `leak.source = "floor 3";`
+- *stand still:* In the dark you can hear the building think. Mostly about you. / *revisit:* The moth has moved an inch to the left. It calls this progress.
+- *inspect-all:* You touched everything in a dark corridor. Brave, or just lonely. `corridor.length = "longer than yesterday";`
+- *toy swapped:* The moth goes to the bucket. The bucket looks up at the lamp. Nothing drips upward. / *swapped back:* The moth remembers the lamp. The bucket stops hoping.
+
+### archive
+- **a_radio**: A radio tuned between two stations. It can’t commit either.  
+  `radio.station = BETWEEN;`
+- **a_duck** *(toy: DUCK STAYS AFLOAT)*: A rubber duck, on duty. It stays {}.  
+  `duck.state = undefined;`
+- **a_memo** *(toy: MEMO STAYS SUNK)*: A memo under the water, still legible. It stays {}.  
+  `memo.state = undefined;`
+- **a_boots**: Wellies by the wall, lined up neat. Somebody planned for this.  
+  `boots.owner = "dez";`
+- **a_leak**: A pipe over the pit, keeping time with drips.  
+  `pipe.fixed = FALSE;`
+- *stand still:* Water keeps the only honest record in here. Every step, a ripple. / *revisit:* The duck has drifted. It doesn’t explain itself.
+- *inspect-all:* Nothing in here was ever thrown away. That was the problem. `archive.deleted = 0;`
+- *toy swapped:* The duck goes down with dignity. The memo comes up for air. / *swapped back:* The duck bobs back up, unbothered. The memo sinks, relieved.
+
+### arena
+- **r_bin**: A bin of crumpled drafts. Nine of them, all yours.  
+  *revisit:* The bin of drafts. Ten now. You don’t remember the tenth.  
+  `drafts.binned = 9;`
+- **r_chair**: One chair, facing the ring. Somebody always watches you rehearse.  
+  `audience.size = 1;`
+- **r_scrap**: A draft that got as far as one word. Honestly,  
+  `draft.opening = "Honestly,";`
+- **r_lamp** *(toy: LIGHT RUNS WARM)*: The one lamp, holding the room together. It runs {}.  
+  `light.temp = undefined;`
+- **r_rim** *(toy: RIM RUNS COLD)*: A ring of light around the floor. It runs {}.  
+  `rim.temp = undefined;`
+- *stand still:* The arena is quiet the way a page is quiet before you ruin it. / *revisit:* The bin has one more draft in it than last time.
+- *inspect-all:* Nine drafts. You only ever sent the first one. `draft.version = 9;`
+- *toy swapped:* The room changes its mind about the weather. / *swapped back:* The lamp is warm again. The rim pretends it never wasn’t.
+
+### message
+- **m_bench**: A bench for waiting. It has been waiting longest.  
+  `bench.waiting = TRUE;`
+- **m_plant**: A plant that only grows toward the screen.  
+  `plant.light = SCREEN;`
+- **m_lamp**: A lamp left on for somebody coming home late.  
+  `lamp.for = "kabir";`
+- **m_kabir** *(toy: KABIR IS AWAY)*: Kabir’s name in the contact list. He is {}.  
+  `kabir.status = undefined;`
+- **m_papa** *(toy: PAPA IS TYPING)*: Papa’s name, three dots beside it. He is {}.  
+  `papa.status = undefined;`
+- *stand still:* Nobody types in here. The silence has three dots in it. / *revisit:* Papa’s last message is still the last message.
+- *inspect-all:* Somebody read every word in this room. The receipt says so. `kabir.read = TRUE;`
+- *toy swapped:* Kabir is typing. Kabir has been typing for three years. / *swapped back:* Kabir is away again. Papa picks the dots back up.
+
+### Unsent lines (collectibles, one per room)
+- office: "Kabir. I'm sorry I made it about the claim."
+- hub: "Papa asks about you like you're the weather."
+- corridor: "I still leave the hallway light on. Habit."
+- archive: "I filed everything except the part where I miss you."
+- arena: "I wrote this nine times. This is the honest one."
+- message: "Come home for Diwali. I'll make the bad chai."

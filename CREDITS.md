@@ -134,3 +134,9 @@ No new third-party assets. Everything added is original work made here:
 - art-v7b props in `art-v7/tools/rooms7.py` (office storytelling props, cables, nook, printer; hub mirror pane, reversed clock, ghost desks, door panel; archive hinged bridge with chains) are procedural Blender geometry. New procedural textures `art-v7/tex/whiteboard.png`, `rain_light.png`, `clock_mirror.png`, `mon_mirror.png` (PIL, no text, no third-party images). Office and hub furniture reuse the already-credited Kenney Furniture Kit / Mini Characters (CC0).
 - Noor dash hair secondary motion (`art-v7/tools/noor7.py`), jab/slash/hit FX (code-drawn in `game/src/game.ts`).
 - `game/public/assets/sprites/fern_seated.png` is the existing Fern sheet with the baked speech text and ring masked out (same masking as the mock-words `fern_clean.png`).
+
+## Session 5 (2 Nov 2026): art-v8 linger layer + weak-spot pass
+No new third-party asset packs. Added in this session:
+- `art/tex/` (made by `art/tools/make_tex_v8.py`, PIL, original): calendar_aug, phone_37, sticky_call, sticky_gm, lostline, memo, saver_00..11, chatglow_00..07, clock_blank. Their lettering uses the already-shipped OFL-1.1 fonts JetBrains Mono / IBM Plex Mono (`game/public/assets/fonts`).
+- New props in `art/tools/rooms8.py` are procedural Blender geometry (phone, bucket, umbrella, tape, pipe, duck, radio, wellies, moth, drips, flakes, rim) plus Kenney Furniture Kit `chair` and `coatRackStanding` (CC0, Kenney.nl, already credited above).
+- Ambient loops in `game/public/assets/rooms/amb/` and the wireframe Noor sheets `game/public/assets/sprites/noor_*_wire.*` (`art/tools/wire8.py`, edge pass over our own Noor renders) are our own Blender renders. No AI-generated imagery.

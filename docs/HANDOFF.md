@@ -225,3 +225,12 @@ A better long-term fix is to make the scripts read the `GAMES_ROOT` and `BLENDER
 - Noor dash: bun lumps, flyaways, pencil and face locks are regrouped under pivots in `noor7.py` and rotated per dash frame (trail in the burst, overshoot + settle in the skid). Run `HAIRSIGN=-1 LEAN=-1 blender -b --python noor7.py -- dash ../render/sprites 24`, then `pack7.py`.
 - FX: jab = caret stab flash + glyph sparks; slash = arc ribbon with the word streaming along it; enemies get a white hit pop + squash.
 - Batch renders: `/tmp/rr8.sh` and `/tmp/rr9.sh` (not kept); the commands are in this section and in `art-v7/tools/scene7.py`.
+
+## 10. Session 5 (2 Nov 2026): weak-spot pass + "linger" layer (art-v8)
+- **Caption bar:** the world camera is letterboxed above the bar (viewport 1113x626, zoom 626/720, centred; thin pillars). HUD/caption objects (scrollFactor 0) are routed to a full-screen `ui` camera every `prerender` (`GameScene.setupCameras`). Use `toWorld()/toScreen()` for pointer maths. Applies to every room.
+- **Hub:** calmer plate (grid emission 0.02, ghost desks/static motes/floor dial removed), coral focal spot on the door. Two plates `hub_shut` / `hub_open`; open crossfades to a plate rendered without the coral light, so the pink floor reflection is gone.
+- **Corridor:** the cyan floor bars were baked ptile emissive quads in rooms7.py, now removed; warm pools at x 640/1000 when lit.
+- **Hair:** noor dash re-rendered with HAIRAMP 1.45 plus in-game additive hair echoes (`hairEcho`, cropped head region, warm tint).
+- **Code-vision Noor:** `art/tools/wire8.py` makes `noor_*_wire` sheets with the same frame JSON, so the ghost stays in sync with animation.
+- **Linger layer:** `game/src/linger.ts` (content), `art/tools/rooms8.py` (props + ambient loops, AMBPASS in scene7.py, strips via post7/sync_game → `RoomArt.amb`). Save fields `looked, lines, visits, idle, toys`. Lines are in docs/story/phase-1-levels.md "Linger layer".
+- **Render:** `art/tools/render_rooms8.sh` (about 7 min at 64 samples), then `npm run build && npm run playtest` (127 checks, including the `linger` block; `ONLY_LINGER=1 node tests/playtest.mjs` runs just that block). Kill any stale `vite preview` on :4175 first, or the test runs against old dist.
