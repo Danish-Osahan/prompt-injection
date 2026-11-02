@@ -1538,7 +1538,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v6 pack5.py",
+  "app": "prompt-injection art-v10 pack10.py",
   "version": "1.0",
   "image": "noor_type3.png",
   "format": "RGBA8888",
@@ -1552,7 +1552,7 @@
    96,
    160
   ],
-  "fps": 20,
+  "fps": 22,
   "rows": [
    "S",
    "SE",
@@ -1648,7 +1648,6 @@
     "noor_type3_SW_07"
    ]
   },
-  "tell": "OVERHEAD SLAM: frames 0-2 both arms rise overhead (tell, longest), 3 slam down (hit), 4-7 heavy follow-through + recover",
   "hit_frame": 3
  }
 }

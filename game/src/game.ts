@@ -18,7 +18,7 @@ const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
 const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const MAX_HP = 4;
-const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
+const WALK = 200, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
 const READ_R = 90, FOCUS_R = 120;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -67,7 +67,7 @@ export class GameScene extends Phaser.Scene {
   words!: WordUI; fgImgs: Record<string, Phaser.GameObjects.Image> = {};
   litMask: Phaser.Textures.CanvasTexture | null = null; litImg: Phaser.GameObjects.Image | null = null;
   // art-v8: letterbox (world camera framed above the caption bar) + a full-screen UI camera
-  uiCam!: Phaser.Cameras.Scene2D.Camera; frameZoom = 1;
+  uiCam!: Phaser.Cameras.Scene2D.Camera; frameZoom = 1; stopT = 0; handT = 0;
   // art-v8 linger layer
   amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
   idleT = 0; idleSaid = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
@@ -279,7 +279,7 @@ export class GameScene extends Phaser.Scene {
     if (art) this.buildAmbient(id);
     this.words.resetRoom();
     // Noor
-    this.shadow = this.add.ellipse(0, 0, 46, 14, 0x000000, 0.45); this.objs.push(this.shadow);
+    this.shadow = this.add.ellipse(0, 0, 40, 12, 0x000000, 0.22); this.objs.push(this.shadow);   // art-v10: soft AO only (the contact shadow is rendered into the sprite)
     this.noor = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192); this.objs.push(this.noor);
     this.noor.play('noor_idle_S');
     this.noor.on('animationcomplete', (a: Phaser.Animations.Animation) => { if (/^noor_(attack|dash|type)/.test(a.key)) this.noor.play(`noor_idle_${this.dir}`); });
@@ -447,7 +447,7 @@ export class GameScene extends Phaser.Scene {
       if (p.done()) {
         this.save.tutorials.push(p.id); writeSave(this.save); this.prompts.splice(this.prompts.indexOf(p), 1);
         this.tweens.add({ targets: p.text, alpha: 0, duration: 400, onComplete: () => p.text.destroy() });
-      } else { const show = p.when() && !this.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > 680 ? this.y - 150 : this.y + 46)).setAlpha(show ? 0.9 : 0); }
+      } else { const show = p.when() && !this.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > 680 ? this.y - 190 : this.y + 46)).setAlpha(show ? 0.9 * (1 - this.words.codeA) : 0); }
     }
   }
 
@@ -623,7 +623,7 @@ export class GameScene extends Phaser.Scene {
     if (p.def.slot < 0) return true;   // fixed: the caption already says it
     // pick up the swappable word as a fragment (one held at a time)
     for (const q of this.plates) if (q.opts.selected) q.setOpts({ ...q.opts, selected: false });
-    this.hand = { word: p.slotWord!, from: p.def.id };
+    this.hand = { word: p.slotWord!, from: p.def.id }; this.handT = 0;
     p.setOpts({ ...p.opts, selected: true });
     if (this.inCombat()) { this.rewriteT = 2.0; this.rewriteN++; }
     return true;
@@ -1075,6 +1075,11 @@ export class GameScene extends Phaser.Scene {
     } else this.hud.skip.setVisible(false);
     // REWRITE bullet time: ~2 s real time while a word is held in combat
     if (this.rewriteT > 0) { this.rewriteT -= dt; if (!this.hand) this.rewriteT = 0; }
+    // art-v10: a picked-up word does not linger: it drops back when Noor walks away from it or after a while unused
+    if (this.hand && !this.inCombat() && this.room.id !== 'arena') {
+      this.handT += dt; const src = this.plateById(this.hand.from);
+      if (this.handT > 12 || (src && Math.hypot(src.def.sx - this.x, src.def.sy - this.y) > 420)) { src?.setOpts({ ...src.opts, selected: false }); this.hand = null; }
+    } else this.handT = 0;
     this.timeScale = this.rewriteT > 0 || (this.words.codeOn && this.inCombat()) ? 0.25 : 1;
     this.slowVeil?.setVisible(this.timeScale < 1);
     let edt = dt * this.timeScale;
@@ -1123,7 +1128,21 @@ export class GameScene extends Phaser.Scene {
     const cur = this.noor.anims.currentAnim?.key ?? '';
     const held = /^noor_(attack|dash|type)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look)/.test(cur));   // art-v9 reactions hold while still
     if (!held || !this.noor.anims.isPlaying) {
-      const want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`; if (cur !== want && !(held && /look/.test(cur))) this.noor.play(want, true);
+      let want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`;
+      const fi = this.noor.anims.currentFrame?.index ?? 1, nf = this.noor.anims.currentAnim?.frames.length ?? 1;
+      // art-v10: stopping finishes the step to the next planted-feet frame (0 or n/2) instead of popping to idle mid-stride
+      if (!moving && cur.startsWith('noor_walk_') && !held) {
+        this.stopT += dt; const planted = fi === 1 || fi === 1 + Math.floor(nf / 2);
+        if (!planted && this.stopT < 0.22) want = cur;
+      } else this.stopT = 0;
+      if (cur !== want && !(held && /look/.test(cur))) {
+        // a change of facing mid-walk keeps the stride phase (no restart, no foot pop)
+        if (cur.startsWith('noor_walk_') && want.startsWith('noor_walk_')) this.noor.play({ key: want, startFrame: fi - 1 }, false);
+        else this.noor.play(want, true);
+      }
+      // feet stay planted: the cycle rate follows the actual ground speed (stride calibrated in pack10.py)
+      if (want.startsWith('noor_walk_')) { const sp = Math.hypot(this.x - ox, this.y - oy) / Math.max(dt, 1e-3); this.noor.anims.timeScale = moving ? Phaser.Math.Clamp(sp / WALK, 0.3, 1.3) : 0.8; }
+      else this.noor.anims.timeScale = 1;
     }
     this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);

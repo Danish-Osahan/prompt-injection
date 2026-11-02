@@ -174,7 +174,7 @@ async function desktop(browser) {
   const dx0 = s.player.x; await input.move(1, 0); await sleep(40); await input.press('dash'); await sleep(60);
   s = await st(page); const dashIframes = s.iframes > 0 && s.dashing;
   await sleep(150); await input.stop(); s = await st(page);
-  ok('desktop: dash bursts forward with i-frames', s.player.x - dx0 > 120 && dashIframes, `moved ${Math.round(s.player.x - dx0)}px, iframes during dash ${dashIframes}`);
+  ok('desktop: dash bursts forward with i-frames', s.player.x - dx0 > 100 && dashIframes, `moved ${Math.round(s.player.x - dx0)}px, iframes during dash ${dashIframes}`);
   ok('desktop: dash cooldown ~1s', s.dashCd > 0.6 && s.dashCd <= 1.0, `cd left ${s.dashCd.toFixed(2)}`);
   // inspect coffee with a real E press
   await pi(page, 'teleport', 232, 655); await sleep(900); s = await st(page);
@@ -284,7 +284,7 @@ async function desktop(browser) {
   ok('archive: step 1 HIGH <-> LOW drains the water, reveals stairs plate', s.flags.drained && s.plates.a_stairs.visible, `${s.plates.a_water.words} / ${s.plates.a_drawer.words}`);
   await pi(page, 'swap', 'a_stairs', 'a_bridge'); await sleep(200); s = await st(page);
   ok('archive: step 2 UP <-> DOWN lowers the bridge', s.flags.bridge && s.plates.a_bridge.words === 'BRIDGE IS DOWN', s.plates.a_stairs.words);
-  await pi(page, 'teleport', 420, 420); await input.move(1, 0); await sleep(1900); await input.stop(); s = await st(page);
+  await pi(page, 'teleport', 420, 420); await input.move(1, 0); await sleep(2400); await input.stop(); s = await st(page);
   ok('archive: Noor walks across the bridge', s.player.x > 840, `x ${Math.round(s.player.x)}`);
   await shot(page, 'desktop-11-archive-bridge');
   // crack swaps

@@ -22,7 +22,7 @@ export class BootScene extends Phaser.Scene {
     for (const l of O.fg) this.load.image('o9fg_' + l.name, A(l.file));
     for (const v of O.var) this.load.image('o9v_' + v.file, A(v.file));
     for (const m of O.amb) this.load.spritesheet('o9a_' + m.name, A(m.file), { frameWidth: m.w, frameHeight: m.h });
-    for (const [k, c] of Object.entries(O.close)) { this.load.image('o9c_' + k, A(c.img)); this.load.image('o9c_' + k + '_code', A(c.code)); }
+    for (const [k, c] of Object.entries(O.close)) { this.load.image('o9c_' + k, A(c.img)); this.load.image('o9c_' + k + '_code', A(c.code)); (c.dolly ?? []).forEach((f, i) => this.load.image(`o9d_${k}_${i}`, A(f))); }
     this.load.image('code_office9', A(O.code));
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
     const t = this.add.text(640, 360, '> loading_', { fontFamily: 'JetBrains Mono', fontSize: '18px', color: '#B4EEF0' }).setOrigin(0.5);
@@ -35,7 +35,7 @@ export class BootScene extends Phaser.Scene {
       const dirs = new Set(names.map(n => n.split('_').slice(-2, -1)[0]));
       for (const d of dirs) {
         const frames = names.filter(n => n.split('_').slice(-2, -1)[0] === d).sort();
-        const FPS: Record<string, number> = { noor_phone: 4, noor_shadow: 5, noor_surprise: 14, noor_attack: 22, noor_walk: 12, noor_dash: 30, noor_type1: 24, noor_type2: 24, noor_type3: 22 };
+        const FPS: Record<string, number> = { noor_phone: 4, noor_shadow: 5, noor_surprise: 14, noor_attack: 24, noor_walk: 30, noor_idle: 8, noor_dash: 30, noor_type1: 24, noor_type2: 24, noor_type3: 22 };
         const once = ['noor_phone', 'noor_shadow', 'noor_surprise', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3'].includes(s);
         this.anims.create({ key: `${s}_${d}`, frames: frames.map(f => ({ key: s, frame: f })), frameRate: FPS[s] ?? 8, repeat: once ? 0 : -1 });
       }

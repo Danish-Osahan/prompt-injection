@@ -144,6 +144,54 @@
     "y": 0.8333333333333334
    }
   },
+  "noor_idle_S_06": {
+   "frame": {
+    "x": 1152,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_S_07": {
+   "frame": {
+    "x": 1344,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
   "noor_idle_SE_00": {
    "frame": {
     "x": 0,
@@ -267,6 +315,54 @@
   "noor_idle_SE_05": {
    "frame": {
     "x": 960,
+    "y": 192,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_SE_06": {
+   "frame": {
+    "x": 1152,
+    "y": 192,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_SE_07": {
+   "frame": {
+    "x": 1344,
     "y": 192,
     "w": 192,
     "h": 192
@@ -432,6 +528,54 @@
     "y": 0.8333333333333334
    }
   },
+  "noor_idle_E_06": {
+   "frame": {
+    "x": 1152,
+    "y": 384,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_E_07": {
+   "frame": {
+    "x": 1344,
+    "y": 384,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
   "noor_idle_NE_00": {
    "frame": {
     "x": 0,
@@ -555,6 +699,54 @@
   "noor_idle_NE_05": {
    "frame": {
     "x": 960,
+    "y": 576,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_NE_06": {
+   "frame": {
+    "x": 1152,
+    "y": 576,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_NE_07": {
+   "frame": {
+    "x": 1344,
     "y": 576,
     "w": 192,
     "h": 192
@@ -720,6 +912,54 @@
     "y": 0.8333333333333334
    }
   },
+  "noor_idle_N_06": {
+   "frame": {
+    "x": 1152,
+    "y": 768,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_N_07": {
+   "frame": {
+    "x": 1344,
+    "y": 768,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
   "noor_idle_NW_00": {
    "frame": {
     "x": 0,
@@ -843,6 +1083,54 @@
   "noor_idle_NW_05": {
    "frame": {
     "x": 960,
+    "y": 960,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_NW_06": {
+   "frame": {
+    "x": 1152,
+    "y": 960,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_NW_07": {
+   "frame": {
+    "x": 1344,
     "y": 960,
     "w": 192,
     "h": 192
@@ -1008,6 +1296,54 @@
     "y": 0.8333333333333334
    }
   },
+  "noor_idle_W_06": {
+   "frame": {
+    "x": 1152,
+    "y": 1152,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_W_07": {
+   "frame": {
+    "x": 1344,
+    "y": 1152,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
   "noor_idle_SW_00": {
    "frame": {
     "x": 0,
@@ -1151,15 +1487,63 @@
     "x": 0.5,
     "y": 0.8333333333333334
    }
+  },
+  "noor_idle_SW_06": {
+   "frame": {
+    "x": 1152,
+    "y": 1344,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "noor_idle_SW_07": {
+   "frame": {
+    "x": 1344,
+    "y": 1344,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
   }
  },
  "meta": {
-  "app": "prompt-injection art-v6 pack5.py",
+  "app": "prompt-injection art-v10 pack10.py",
   "version": "1.0",
   "image": "noor_idle.png",
   "format": "RGBA8888",
   "size": {
-   "w": 1152,
+   "w": 1536,
    "h": 1536
   },
   "scale": "1",
@@ -1179,7 +1563,7 @@
    "W",
    "SW"
   ],
-  "cols": 6,
+  "cols": 8,
   "loop": true,
   "note": "rows = facing direction (screen space, S = towards camera), cols = frame index; pivot = feet. Rendered 1:1 with the 1280x720 mocks. Outline + glow are baked (no shader needed).",
   "animations": {
@@ -1189,7 +1573,9 @@
     "noor_idle_S_02",
     "noor_idle_S_03",
     "noor_idle_S_04",
-    "noor_idle_S_05"
+    "noor_idle_S_05",
+    "noor_idle_S_06",
+    "noor_idle_S_07"
    ],
    "noor_idle_SE": [
     "noor_idle_SE_00",
@@ -1197,7 +1583,9 @@
     "noor_idle_SE_02",
     "noor_idle_SE_03",
     "noor_idle_SE_04",
-    "noor_idle_SE_05"
+    "noor_idle_SE_05",
+    "noor_idle_SE_06",
+    "noor_idle_SE_07"
    ],
    "noor_idle_E": [
     "noor_idle_E_00",
@@ -1205,7 +1593,9 @@
     "noor_idle_E_02",
     "noor_idle_E_03",
     "noor_idle_E_04",
-    "noor_idle_E_05"
+    "noor_idle_E_05",
+    "noor_idle_E_06",
+    "noor_idle_E_07"
    ],
    "noor_idle_NE": [
     "noor_idle_NE_00",
@@ -1213,7 +1603,9 @@
     "noor_idle_NE_02",
     "noor_idle_NE_03",
     "noor_idle_NE_04",
-    "noor_idle_NE_05"
+    "noor_idle_NE_05",
+    "noor_idle_NE_06",
+    "noor_idle_NE_07"
    ],
    "noor_idle_N": [
     "noor_idle_N_00",
@@ -1221,7 +1613,9 @@
     "noor_idle_N_02",
     "noor_idle_N_03",
     "noor_idle_N_04",
-    "noor_idle_N_05"
+    "noor_idle_N_05",
+    "noor_idle_N_06",
+    "noor_idle_N_07"
    ],
    "noor_idle_NW": [
     "noor_idle_NW_00",
@@ -1229,7 +1623,9 @@
     "noor_idle_NW_02",
     "noor_idle_NW_03",
     "noor_idle_NW_04",
-    "noor_idle_NW_05"
+    "noor_idle_NW_05",
+    "noor_idle_NW_06",
+    "noor_idle_NW_07"
    ],
    "noor_idle_W": [
     "noor_idle_W_00",
@@ -1237,7 +1633,9 @@
     "noor_idle_W_02",
     "noor_idle_W_03",
     "noor_idle_W_04",
-    "noor_idle_W_05"
+    "noor_idle_W_05",
+    "noor_idle_W_06",
+    "noor_idle_W_07"
    ],
    "noor_idle_SW": [
     "noor_idle_SW_00",
@@ -1245,7 +1643,9 @@
     "noor_idle_SW_02",
     "noor_idle_SW_03",
     "noor_idle_SW_04",
-    "noor_idle_SW_05"
+    "noor_idle_SW_05",
+    "noor_idle_SW_06",
+    "noor_idle_SW_07"
    ]
   }
  }

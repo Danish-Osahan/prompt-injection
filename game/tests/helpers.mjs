@@ -32,7 +32,7 @@ async function toPage(page, x, y) {
   return page.evaluate(([x, y]) => { const s = window.__game.scale; const b = s.canvasBounds; return { x: b.left + x / s.displayScale.x, y: b.top + y / s.displayScale.y }; }, [x, y]);
 }
 
-function keyInput(page) {
+export function keyInput(page) {
   const held = new Set();
   const set = async (want) => {
     for (const k of [...held]) if (!want.has(k)) { await page.keyboard.up(k); held.delete(k); }

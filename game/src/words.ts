@@ -271,7 +271,7 @@ export class WordUI {
     const wk = s.noor.texture.key + '_wire';
     this.ghost!.setAlpha(a).setPosition(s.noor.x, s.noor.y).setTexture(s.textures.exists(wk) ? wk : s.noor.texture.key, s.noor.frame.name);
     s.noor.setAlpha(s.noor.alpha * (1 - a));
-    this.noorLine!.setAlpha(a).setPosition(Math.round(s.x), Math.round(Math.min(s.y + 10, BAR_Y - 48)));
+    this.noorLine!.setOrigin(0.5, 1).setAlpha(a).setPosition(s.x, Math.max(s.y - 158, 40));   // art-v10: above her head, clear of the prompt (below her feet) and the plates
     for (const l of this.codeLines) {
       const held = s.hand?.from === l.plate.def.id;
       for (const t of l.objs) t.setAlpha(a);

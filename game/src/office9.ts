@@ -24,17 +24,25 @@ export class ViewMap {
 
 /** world bounds of the rendered overscan in view space */
 const VB = { x0: -80, y0: -45, x1: 1360, y1: 765 };
-export type CamMode = 'establish' | 'play' | 'inspect' | 'close' | 'noor';
-
-/** The directing camera: establishing pull-back on entry, slow drift + look-ahead in play, push-in on inspect,
- *  a tight close-up on Noor for the phone beat, letterbox bars for story beats. Stays still and snappy in combat.
- *  Reduce-motion: no drift / look-ahead / zooms (cuts + bars only). */
+export type CamMode = 'establish' | 'play' | 'inspect' | 'close' | 'noor' | 'enter';
+const smooth = (u: number) => { u = Phaser.Math.Clamp(u, 0, 1); return u * u * (3 - 2 * u); };
+/** critically damped spring step (implicit, stable at any dt): no overshoot, no jitter, velocity carries across mode changes */
+function spring(x: number, v: number, t: number, w: number, dt: number): [number, number] {
+  const f = 1 + 2 * dt * w, oo = w * w, hoo = dt * oo, hhoo = dt * hoo, det = 1 / (f + hhoo);
+  return [(f * x + dt * v + hhoo * t) * det, (v + hoo * (t - x)) * det];
+}
+const EST_T = 3.4;
+/** The directing camera (art-v10: every move is a critically damped spring, so nothing pops or cuts):
+ *  one continuous establishing move on entry, slow drift + eased look-ahead in play, push-in on inspect, an exact
+ *  "entry framing" that matches the first frame of each rendered close-up dolly, a tight Noor close-up for the phone beat,
+ *  letterbox bars eased the same way. Stays still and snappy in combat. Reduce-motion: cuts + bars only. */
 export class DirectorCam {
   mode: CamMode = 'play'; modeT = 0; zoom: number; cx = 640; cy = 360; lb = 0; lbWant = 0;
-  look = { x: 0, y: 0 }; focus: { x: number; y: number } | null = null; holdUntil = 0;
+  vz = 0; vx = 0; vy = 0; vlb = 0; flat = 0;
+  look = { x: 0, y: 0 }; focus: { x: number; y: number; z?: number } | null = null; holdUntil = 0;
   bars: Phaser.GameObjects.Rectangle[]; title: Phaser.GameObjects.Text;
   constructor(private s: GameScene, public base: number) {
-    this.zoom = base * 1.07;
+    this.zoom = base * 1.07; s.cameras.main.roundPixels = false;
     const vw = Math.round(1280 * base), px = Math.round((1280 - vw) / 2);
     this.bars = [0, 1].map(i => s.add.rectangle(px, i ? BAR_Y : 0, vw, 1, 0x000000, 1).setOrigin(0, i ? 1 : 0).setScrollFactor(0).setDepth(3960));
     this.title = s.add.text(640, BAR_Y - 30, '', { fontFamily: 'JetBrains Mono', fontSize: '15px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 4 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setScrollFactor(0).setDepth(3961).setAlpha(0);
@@ -42,42 +50,56 @@ export class DirectorCam {
   }
   get reduce() { return !!this.s.save.settings?.reduceMotion; }
   get playZoom() { return this.base * (this.s.inCombat() ? 1.0 : 1.07); }
-  set(mode: CamMode, focus: { x: number; y: number } | null = null, hold = 0) { this.mode = mode; this.modeT = 0; this.focus = focus; this.holdUntil = this.s.t + hold; }
+  set(mode: CamMode, focus: { x: number; y: number; z?: number } | null = null, hold = 0) { this.mode = mode; this.modeT = 0; this.focus = focus; this.holdUntil = this.s.t + hold; }
   establish(title: string) {
     this.title.setText(title);
     if (this.reduce) { this.lb = this.lbWant = 0; this.set('play'); this.snap(); this.s.tweens.add({ targets: this.title, alpha: { from: 0, to: 1 }, duration: 300, yoyo: true, hold: 1400 }); return; }
-    this.set('establish', null, 2.3); this.zoom = this.base * 0.905; this.cx = 640; this.cy = 345; this.lb = 1;
-    this.s.tweens.add({ targets: this.title, alpha: { from: 0, to: 1 }, duration: 500, delay: 250 });
-    this.s.tweens.add({ targets: this.title, alpha: 0, duration: 500, delay: 2000 });
+    // ONE continuous move: wide + letterboxed, easing (smoothstep) into the play framing over EST_T seconds
+    this.set('establish', null, EST_T); this.zoom = this.base * 0.905; this.cx = 640; this.cy = 345; this.lb = 1; this.vz = this.vx = this.vy = this.vlb = 0;
+    this.s.tweens.add({ targets: this.title, alpha: { from: 0, to: 1 }, duration: 600, delay: 200, ease: 'Sine.easeInOut' });
+    this.s.tweens.add({ targets: this.title, alpha: 0, duration: 700, delay: 1900, ease: 'Sine.easeInOut' });
   }
-  snap() { const t = this.target(); this.zoom = t.z; this.cx = t.x; this.cy = t.y; }
+  snap() { const t = this.target(); this.zoom = t.z; this.cx = t.x; this.cy = t.y; this.vz = this.vx = this.vy = 0; }
+  private playTarget() {
+    const s = this.s, n = s.vm!.P(s.x, s.y), r = this.reduce;
+    let x = n.x + (r ? 0 : this.look.x), y = n.y - 40 + (r ? 0 : this.look.y);
+    if (!r && !s.inCombat()) { x += Math.sin(s.t * 0.21) * 5; y += Math.sin(s.t * 0.17 + 1) * 3; }
+    return { z: this.playZoom, x, y };
+  }
   private target() {
     const s = this.s, n = s.vm!.P(s.x, s.y), r = this.reduce;
-    let z = this.playZoom, x = n.x + (r ? 0 : this.look.x), y = n.y - 40 + (r ? 0 : this.look.y), lb = 0;
-    if (this.mode === 'establish') { z = this.base * 0.905; x = 640; y = 345; lb = 1; }
+    let { z, x, y } = this.playTarget(), lb = 0;
+    if (this.mode === 'establish') { const e = smooth(this.modeT / EST_T); z = this.base * 0.905 + (z - this.base * 0.905) * e; x = 640 + (x - 640) * e; y = 345 + (y - 345) * e; lb = 1 - e; }
     if (this.mode === 'inspect' && this.focus) { z = r ? this.playZoom : this.playZoom * 1.13; x = (n.x + this.focus.x) / 2; y = (n.y - 40 + this.focus.y) / 2; lb = 0.55; }
     if (this.mode === 'close' && this.focus) { z = r ? this.playZoom : this.playZoom * 1.2; x = this.focus.x; y = this.focus.y; lb = 1; }
+    if (this.mode === 'enter' && this.focus) { z = this.focus.z ?? this.playZoom * 1.6; x = this.focus.x; y = this.focus.y; lb = 0; }
     if (this.mode === 'noor') { z = r ? this.playZoom : this.base * 1.85; x = n.x; y = n.y - 70 * s.vm!.s(s.x, s.y); lb = 1; }
-    if (!r && this.mode === 'play' && !s.inCombat()) { x += Math.sin(s.t * 0.21) * 5; y += Math.sin(s.t * 0.17 + 1) * 3; }
     this.lbWant = lb;
+    // clamp the TARGET (not the output) so the spring eases into the room edge instead of stopping dead
+    const cam = s.cameras.main, hw = cam.width / z / 2, hh = cam.height / z / 2;
+    x = Phaser.Math.Clamp(x, VB.x0 + hw, VB.x1 - hw); y = Phaser.Math.Clamp(y, VB.y0 + hh, VB.y1 - hh);
     return { z, x, y };
   }
+  /** close enough to the entry framing that the first dolly frame lines up */
+  settled() { const t = this.target(); return Math.abs(t.z - this.zoom) / t.z < 0.006 && Math.hypot(t.x - this.cx, t.y - this.cy) < 1.2 && Math.hypot(this.vx, this.vy) < 6; }
   update(dt: number, mvx: number, mvy: number) {
-    const s = this.s; this.modeT += dt;
-    if (this.mode === 'establish' && s.t > this.holdUntil) this.set('play');
+    const s = this.s; this.modeT += dt; dt = Math.min(dt, 1 / 20);
+    if (this.mode === 'establish' && this.modeT >= EST_T) this.set('play');
     if ((this.mode === 'inspect' || this.mode === 'noor') && s.t > this.holdUntil && this.holdUntil > 0) this.set('play');
-    // look-ahead toward where Noor is heading (eased, never in combat)
+    // look-ahead toward where Noor is heading (critically damped too, so a change of direction never snaps)
     const la = this.reduce || s.inCombat() ? 0 : 1;
-    this.look.x += (mvx * 70 * la - this.look.x) * Math.min(1, dt * 1.5); this.look.y += (mvy * 40 * la - this.look.y) * Math.min(1, dt * 1.5);
+    this.look.x += (mvx * 70 * la - this.look.x) * (1 - Math.exp(-dt * 1.4)); this.look.y += (mvy * 40 * la - this.look.y) * (1 - Math.exp(-dt * 1.4));
     const t = this.target();
-    const k = this.reduce ? 60 : s.inCombat() ? 6 : this.mode === 'establish' ? 0.9 : this.mode === 'play' ? 1.7 : 3.2;
-    const a = 1 - Math.exp(-dt * k);
-    this.zoom += (t.z - this.zoom) * a; this.cx += (t.x - this.cx) * a; this.cy += (t.y - this.cy) * a;
-    this.lb += (this.lbWant - this.lb) * (1 - Math.exp(-dt * (this.reduce ? 30 : 5)));
+    const w = this.mode === 'establish' ? 9 : s.inCombat() ? 7 : this.mode === 'play' ? 2.2 : this.mode === 'enter' ? 5.5 : 3.4;
+    if (this.reduce) { this.zoom = t.z; this.cx = t.x; this.cy = t.y; this.vz = this.vx = this.vy = 0; }
+    else { [this.zoom, this.vz] = spring(this.zoom, this.vz, t.z, w, dt); [this.cx, this.vx] = spring(this.cx, this.vx, t.x, w, dt); [this.cy, this.vy] = spring(this.cy, this.vy, t.y, w, dt); }
+    if (this.mode === 'establish') this.lb = this.lbWant; else if (this.reduce) this.lb = this.lbWant; else [this.lb, this.vlb] = spring(this.lb, this.vlb, this.lbWant, 6, dt);
+    this.lb = Phaser.Math.Clamp(this.lb, 0, 1);
+    this.flat += ((this.mode === 'enter' || this.mode === 'close' ? 1 : 0) - this.flat) * (1 - Math.exp(-dt * 6));
     const cam = s.cameras.main; const hw = cam.width / this.zoom / 2, hh = cam.height / this.zoom / 2;
     const cx = Phaser.Math.Clamp(this.cx, VB.x0 + hw, VB.x1 - hw), cy = Phaser.Math.Clamp(this.cy, VB.y0 + hh, VB.y1 - hh);
     cam.setZoom(this.zoom).centerOn(cx, cy);
-    const h = Math.round(46 * this.lb); for (const b of this.bars) { b.height = h; b.setVisible(h > 0); }
+    const h = 46 * this.lb; for (const b of this.bars) { b.height = h; b.setVisible(h > 0.25); }   // sub-pixel bars: no 1 px stepping
   }
 }
 
@@ -93,7 +115,9 @@ const CLOSE_FOR: Record<string, (s: GameScene) => string | null> = {
 export class Office9 {
   vm: ViewMap; cam: DirectorCam; layers: Layer[] = []; vars: Record<string, { im: Img; layer: string }[]> = {};
   card: Phaser.GameObjects.Container; cardImg: Img; cardCode: Img; cardLine: Phaser.GameObjects.Text; cardOn: string | null = null; cardT = 0; cardPlate = '';
-  cardTw: Phaser.Tweens.Tween | null = null;
+  cardTw: Phaser.Tweens.Tween | null = null; cardB: Img; cardStill: Img; vw = 1113; rainRefl: { im: Img; a: number }[] | null = null;
+  /** close-up transition: approach (camera spring to the dolly's first frame) -> fade -> dolly -> still (+ slow push) -> reverse */
+  ph: '' | 'approach' | 'fade' | 'dolly' | 'still' | 'back' | 'out' = ''; phT = 0; dolly: string[] = [];
   // Noor reactions
   idle9 = 0; idleK = 0; lookT = 0; reacting = '';
   // pressure
@@ -129,53 +153,86 @@ export class Office9 {
     // close-up card (UI camera, inside the framed world viewport)
     const vw = Math.round(1280 * s.frameZoom), px = Math.round((1280 - vw) / 2);
     this.card = s.add.container(640, BAR_Y / 2).setScrollFactor(0).setDepth(3950).setVisible(false); s.objs.push(this.card);
-    this.cardImg = s.add.image(0, 0, '__WHITE'); this.cardCode = s.add.image(0, 0, '__WHITE').setAlpha(0);
+    this.cardImg = s.add.image(0, 0, '__WHITE'); this.cardB = s.add.image(0, 0, '__WHITE').setAlpha(0); this.cardStill = s.add.image(0, 0, '__WHITE').setAlpha(0);
+    this.cardCode = s.add.image(0, 0, '__WHITE').setAlpha(0);
     this.cardLine = s.add.text(0, BAR_Y / 2 - 96, '', { fontFamily: 'JetBrains Mono', fontSize: '22px', fontStyle: 'bold', color: C.inkBright, backgroundColor: 'rgba(2,16,20,0.85)', padding: { x: 12, y: 6 } }).setOrigin(0.5).setAlpha(0);
-    this.card.add([this.cardImg, this.cardCode, this.cardLine]); this.card.setSize(vw, BAR_Y); void px;
+    this.card.add([this.cardImg, this.cardB, this.cardStill, this.cardCode, this.cardLine]); this.card.setSize(vw, BAR_Y); void px;
+    this.vw = vw;
     this.cam = new DirectorCam(s, s.frameZoom);
   }
 
   /** render-time parallax: each layer is placed relative to the camera centre by its depth factor */
   parallax() {
     const cam = this.s.cameras.main, c = cam.midPoint, zr = cam.zoom / (this.cam.base * 1.07);
-    for (const l of this.layers) {
-      if (l.f === 1) { l.o.x = l.x; l.o.y = l.y; l.o.setScale(1); continue; }
+    const fl = this.cam.flat;
+    for (const L of this.layers) {
+      const l = { ...L, f: 1 + (L.f - 1) * (1 - fl) };   // flattened toward the render's own projection while entering a close-up
+      if (Math.abs(l.f - 1) < 1e-4) { l.o.x = l.x; l.o.y = l.y; l.o.setScale(1); continue; }
       const S = (1 + (zr - 1) * l.f) / zr, dx = (c.x - 640) * (1 - l.f), dy = (c.y - 360) * (1 - l.f);
       l.o.setScale(S); l.o.x = c.x + (l.x - c.x) * S + dx; l.o.y = c.y + (l.y - c.y) * S + dy;
     }
   }
 
-  // ---------- inspect: push-in, then the rendered close-up card ----------
+  // ---------- inspect: one continuous shot from the room into the rendered close-up ----------
   inspect(id: string) {
     const s = this.s, a = OFFICE9.view.anchors[id]; if (!a) return;
     const name = CLOSE_FOR[id]?.(s) ?? null;
     if (!name || !s.textures.exists('o9c_' + name)) { this.cam.set('inspect', { x: a[0], y: a[1] }, 1.6); return; }
-    if (id === 'o_phone' && !this.reacting) {    // the emotional beat: tight on Noor, she looks at the phone, then the card
+    if (id === 'o_phone' && !this.reacting) {    // the emotional beat: tight on Noor, she looks at the phone, then the object
       this.cam.set('noor', null, 1.5); this.react('phone', 1);
       s.time.delayedCall(this.cam.reduce ? 200 : 1300, () => this.openCard(name, id));
       return;
     }
-    this.cam.set('inspect', { x: a[0], y: a[1] }, 0);
-    s.time.delayedCall(this.cam.reduce ? 0 : 380, () => this.openCard(name, id));
+    this.openCard(name, id);
+  }
+  private fit(im: Img, k = 1) { im.setDisplaySize(this.vw * k, BAR_Y * k); }
+  private dframe(f: number) {   // fractional frame: crossfade the two neighbours (sub-frame smooth at any playback rate)
+    const n = this.dolly.length; f = Phaser.Math.Clamp(f, 0, n - 1); const i = Math.floor(f), j = Math.min(n - 1, i + 1), u = f - i;
+    this.cardImg.setTexture(this.dolly[i]); this.cardB.setTexture(this.dolly[j]).setAlpha(u); this.fit(this.cardImg); this.fit(this.cardB);
   }
   openCard(name: string, id: string) {
     const s = this.s, a = OFFICE9.view.anchors[id]; if (!s.plateById(id)) return;
-    this.cam.set('close', { x: a[0], y: a[1] });
-    const vw = Math.round(1280 * s.frameZoom), tex = s.textures.get('o9c_' + name).getSourceImage() as HTMLImageElement;
-    const sc = Math.max(vw / tex.width, BAR_Y / tex.height);
-    this.cardImg.setTexture('o9c_' + name).setTint(name === 'rain_happy' ? 0xffd6a8 : 0xffffff); this.cardCode.setTexture('o9c_' + name + '_code');
-    this.cardOn = name; this.cardPlate = id; this.cardT = 0;
+    const c = OFFICE9.close[name];
+    this.dolly = (c.dolly ?? []).map((_, k) => `o9d_${name}_${k}`).filter(k => s.textures.exists(k));
+    this.cardStill.setTexture('o9c_' + name).setAlpha(0); this.cardCode.setTexture('o9c_' + name + '_code').setAlpha(0); this.fit(this.cardStill); this.fit(this.cardCode);
+    this.cardOn = name; this.cardPlate = id; this.cardT = 0; this.phT = 0;
     const L = s.plateById(id)!.codeLine(); this.cardLine.setText(`${L.lhs}${L.val};`);
     this.cardTw?.stop(); this.card.setVisible(true).setAlpha(0);
-    const k = { v: 0 };
-    this.cardTw = s.tweens.add({ targets: k, v: 1, duration: this.cam.reduce ? 120 : 420, ease: 'Sine.easeOut', onUpdate: () => {
-      this.card.setAlpha(k.v); const z = sc * (this.cam.reduce ? 1 : 1.08 - 0.08 * k.v); this.cardImg.setScale(z); this.cardCode.setScale(z);
-    } });
-    const ov = s.words.override; if (ov && ov.id === id) ov.until = s.t + 6;
+    if (this.dolly.length && c.cx !== undefined && !this.cam.reduce) {
+      this.cam.set('enter', { x: c.cx, y: c.cy!, z: this.vw / c.w! }); this.ph = 'approach'; this.dframe(0);
+    } else {   // reduce motion / no dolly: a soft dissolve straight to the still
+      this.cam.set('close', { x: a[0], y: a[1] }); this.ph = 'still'; this.cardImg.setTexture('o9c_' + name); this.fit(this.cardImg); this.cardB.setAlpha(0); this.cardStill.setAlpha(1);
+      this.cardTw = s.tweens.add({ targets: this.card, alpha: 1, duration: this.cam.reduce ? 160 : 500, ease: 'Sine.easeInOut' });
+    }
+    const ov = s.words.override; if (ov && ov.id === id) ov.until = s.t + 7;
   }
   closeCard() {
-    if (!this.cardOn) return; const s = this.s; this.cardOn = null; this.cam.set('play');
-    this.cardTw?.stop(); this.cardTw = s.tweens.add({ targets: this.card, alpha: 0, duration: this.cam.reduce ? 80 : 340, onComplete: () => this.card.setVisible(false) });
+    if (!this.cardOn) return; this.cardOn = null;
+    if (this.ph === 'approach' || !this.dolly.length || this.cam.reduce) { this.ph = 'out'; this.phT = 0; return; }
+    this.ph = 'back'; this.phT = 0;
+  }
+  /** per-frame driver of the close-up shot */
+  private cardStep(dt: number) {
+    const s = this.s; this.phT += dt; const n = this.dolly.length;
+    const FADE = 0.55, DOLLY = 0.9, STILL_X = 0.3, BACK = 0.7, OUT = 0.5;
+    switch (this.ph) {
+      case 'approach': if (this.cam.settled() || this.phT > 1.4) { this.ph = 'fade'; this.phT = 0; this.cam.flat = 1; }   // the camera stays on the entry framing under the card break;
+      case 'fade': this.card.setAlpha(smooth(this.phT / FADE)); if (this.phT >= FADE) { this.ph = 'dolly'; this.phT = 0; } break;
+      case 'dolly': this.card.setAlpha(1); this.dframe((n - 1) * this.phT / DOLLY);   // the frames are eased in the render: play them linearly
+        if (this.phT >= DOLLY) { this.ph = 'still'; this.phT = 0; } break;
+      case 'still': {   // crossfade to the hero still (same framing), then a slow continuing push
+        this.card.setAlpha(1); this.cardStill.setAlpha(Math.max(this.cardStill.alpha, smooth(this.phT / STILL_X)));
+        const k = 1 + 0.035 * smooth(this.phT / 9); this.fit(this.cardStill, k); this.fit(this.cardCode, k); break;
+      }
+      case 'back': {   // reverse: the still releases its push and dissolves into the last dolly frame, the dolly runs backwards
+        const u = this.phT / BACK; this.cardStill.setAlpha(Math.max(0, 1 - this.phT / 0.18)); this.cardCode.setAlpha(Math.min(this.cardCode.alpha, 1 - this.phT / 0.18));
+        this.dframe((n - 1) * (1 - smooth(u)));
+        if (u >= 1) { this.ph = 'out'; this.phT = 0; } break;
+      }
+      case 'out': this.card.setAlpha(Math.min(this.card.alpha, 1 - smooth(this.phT / OUT)));
+        if (this.phT >= OUT) { this.ph = ''; this.card.setVisible(false); this.cardStill.setAlpha(0); this.cardB.setAlpha(0); this.cam.set('play'); } break;
+    }
+    void s;
   }
 
   // ---------- swaps visibly change the room ----------
@@ -184,7 +241,14 @@ export class Office9 {
     const happy = w('o_rain') === 'HAPPY', flipped = w('o_photo') === 'UP';
     this.fade('toys', happy ? 1 : 0, initial ? 0 : 1600);
     this.rainK = happy ? 0.4 : 1;
-    for (const a of s.amb.filter(a => a.def.name === 'rain')) { a.speed = this.rainK; a.spr.setTint(happy ? 0xffe2b0 : 0xffffff); }
+    // art-v10: HAPPY rain is visibly different: slower, lighter (fewer, fainter streaks), warm light, and the floor reflection turns gold
+    for (const a of s.amb.filter(a => a.def.name === 'rain')) { a.speed = this.rainK; a.spr.setTint(happy ? 0xffd9a0 : 0xffffff); s.tweens.add({ targets: a.spr, alpha: happy ? 0.45 : 1, duration: initial ? 0 : 1600 }); }
+    if (!this.rainRefl) {
+      const W = OFFICE9.view.window, x0 = Math.min(...W.map(p => p[0])), x1 = Math.max(...W.map(p => p[0])), y1 = Math.max(...W.map(p => p[1]));
+      const mk = (y: number, sx: number, sy: number, a: number) => { const im = s.add.image((x0 + x1) / 2, y, 'pool').setBlendMode(Phaser.BlendModes.ADD).setTint(0xffb066).setScale(sx, sy).setAlpha(0).setDepth(-998.4); s.vs.add(im); s.objs.push(im); return { im, a }; };
+      this.rainRefl = [mk(y1 + 70, (x1 - x0) / 120, 0.9, 0.55), mk(y1 + 10, (x1 - x0) / 160, 0.35, 0.7), mk((y1 + 60) / 2, (x1 - x0) / 140, 1.6, 0.22)];
+    }
+    for (const r of this.rainRefl) { s.tweens.killTweensOf(r.im); s.tweens.add({ targets: r.im, alpha: happy ? r.a : 0, duration: initial ? 0 : 1800, ease: 'Sine.easeInOut' }); }
     const vs = this.vars.flip ?? [];
     if (initial) for (const v of vs) v.im.setAlpha(flipped ? 1 : 0).setScale(1, 1);
     else for (const v of vs) {   // the photo / phone flip: squash closed, swap, open
@@ -218,11 +282,13 @@ export class Office9 {
     const s = this.s; const calm = !s.busy && !s.cutscene && !s.dying && !s.composer;
     this.roomT += dt;
     // card: code vision during a close-up shows the object's code line; any move or E closes it
+    if (this.ph) this.cardStep(dt);
     if (this.cardOn) {
-      this.cardT += dt; const ca = s.words.codeA;
-      this.cardCode.setAlpha(ca); this.cardImg.setAlpha(1 - ca * 0.85); this.cardLine.setAlpha(ca).setColor(ca > 0.5 ? C.state : C.inkBright);
-      if (this.cardT > 0.5 && (moving || (interact && ca < 0.1))) this.closeCard();
-      else if (this.cardT > 7 && ca < 0.1) this.closeCard();
+      this.cardT += dt; const ca = this.ph === 'still' ? s.words.codeA : 0;
+      this.cardCode.setAlpha(ca * this.cardStill.alpha); this.cardLine.setAlpha(ca).setColor(ca > 0.5 ? C.state : C.inkBright);
+      if (this.ph === 'still' && ca > 0) this.cardStill.setAlpha(Math.min(this.cardStill.alpha, 1 - ca * 0.85));
+      if (this.cardT > 0.5 && (moving || (interact && s.words.codeA < 0.1))) this.closeCard();
+      else if (this.ph === 'still' && this.phT > 7 && s.words.codeA < 0.1) this.closeCard();
     }
     if (Math.hypot(mvx, mvy) > 0.1 || !calm) { this.idle9 = 0; if (this.reacting && this.reacting !== 'surprise') { this.reacting = ''; } }
     else this.idle9 += dt;
@@ -272,18 +338,22 @@ export class Office9 {
   draftGlimpse() {
     const s = this.s; this.draftShown = true; const W = OFFICE9.view.window;
     const x0 = Math.min(...W.map(p => p[0])), x1 = Math.max(...W.map(p => p[0])), y1 = Math.max(...W.map(p => p[1]));
-    const g = s.add.sprite(x0 - 30, y1 + 8, 'noor_walk').setOrigin(96 / 192, 160 / 192).play('noor_walk_E').setScale(0.62).setTint(0x020406).setAlpha(0).setDepth(-999.6);
+    const g = s.add.sprite(x0 - 30, y1 + 8, 'noor_walk').setOrigin(96 / 192, 160 / 192).play('noor_walk_E').setScale(1.05).setTint(0x010203).setAlpha(0).setDepth(-999.45);   // above the (opaque, full-frame) toys back variant
     s.vs.add(g); s.objs.push(g); this.glimpse = g;
     this.win = { x0: x0 + 6, x1: x1 - 6, y0: 70, y1: y1 - 4 };
-    s.tweens.add({ targets: g, alpha: 0.78, duration: 500 });
-    s.tweens.add({ targets: g, x: x1 + 30, duration: 3600, ease: 'Sine.easeInOut', onComplete: () => { g.destroy(); this.glimpse = null; } });
-    s.tweens.add({ targets: g, alpha: 0, delay: 3000, duration: 600 });
+    s.tweens.add({ targets: g, alpha: 0.92, duration: 700 }); g.anims.timeScale = 0.55;
+    const xm = (x0 + x1) / 2;   // walks in, stops mid-window and faces the room for a beat, walks on (no sliding: still while idle)
+    s.tweens.chain({ targets: g, tweens: [
+      { x: xm, duration: 2600, ease: 'Sine.easeOut', onComplete: () => g.play('noor_idle_S') },
+      { x: xm, duration: 1000, onComplete: () => g.play('noor_walk_E') },
+      { x: x1 + 40, duration: 2700, ease: 'Sine.easeIn', onComplete: () => { g.destroy(); this.glimpse = null; } }] });
+    s.tweens.add({ targets: g, alpha: 0, delay: 5400, duration: 900 });
     // Noor glances at the window
     s.time.delayedCall(900, () => { if (!this.reacting && !s.busy) { const k = `noor_lookR_${s.dir}`; if (s.anims.exists(k)) s.noor.play(k, true); } });
   }
   state() {
     return { mode: this.cam.mode, zoom: +this.cam.zoom.toFixed(3), base: this.cam.base, lb: +this.cam.lb.toFixed(2), card: this.cardOn, cardA: +this.card.alpha.toFixed(2), cardCode: +this.cardCode.alpha.toFixed(2), cardLine: this.cardLine.text,
       vars: Object.fromEntries(Object.entries(this.vars).map(([k, v]) => [k, +(v[0]?.im.alpha ?? 0).toFixed(2)])), rainK: this.rainK, reacting: this.reacting, anim: this.s.noor.anims.currentAnim?.key ?? '',
-      glitchN: this.glitchN, cx: Math.round(this.s.cameras.main.midPoint.x), cy: Math.round(this.s.cameras.main.midPoint.y), playZoom: this.cam.playZoom, draft: this.draftShown, glimpse: !!this.glimpse, unread: this.s.save.unread ?? 37, roomT: this.roomT, reduce: this.cam.reduce, layers: this.layers.length };
+      glitchN: this.glitchN, ph: this.ph, flat: +this.cam.flat.toFixed(2), cx: Math.round(this.s.cameras.main.midPoint.x), cy: Math.round(this.s.cameras.main.midPoint.y), playZoom: this.cam.playZoom, draft: this.draftShown, glimpse: !!this.glimpse, unread: this.s.save.unread ?? 37, roomT: this.roomT, reduce: this.cam.reduce, layers: this.layers.length };
   }
 }
