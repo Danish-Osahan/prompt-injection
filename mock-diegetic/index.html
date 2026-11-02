@@ -1,0 +1,194 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Prompt Injection — diegetic words mockup</title>
+<style>
+@font-face{font-family:Plex;src:url(../game/public/assets/fonts/IBMPlexMono-Medium.ttf)}
+html,body{margin:0;background:#05080b;height:100%;display:flex;align-items:center;justify-content:center}
+canvas{width:min(100vw,177.78vh);aspect-ratio:16/9;display:block}
+</style></head><body><canvas id=c width=1280 height=720></canvas>
+<script>
+// DIEGETIC WORDS MOCKUP (not the game): words are paint ON surfaces; peel them, carry them, flick/throw them.
+// Scripted 16 s flow on a loop; ?t=SECONDS freezes one frame. All lettering is drawn in code (canvas), not rendered in Blender.
+const A='../game/public/assets/', cv=document.getElementById('c'), g=cv.getContext('2d');
+const W=1280,H=720, TOP=50, BOT=50, R=(H-TOP-BOT)/720, OX=(W-1280*R)/2, OY=TOP, NS=0.78;
+const P=(x,y)=>[OX+x*R,OY+y*R];
+const img=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
+const J=async n=>[await img(A+'sprites/'+n+'.png'),(await (await fetch(A+'sprites/'+n+'.json')).json()).frames];
+const ease=u=>u<0?0:u>1?1:u*u*(3-2*u), lerp=(a,b,u)=>a+(b-a)*u, cl=(v,a,b)=>Math.max(a,Math.min(b,v)), seg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+let I={};
+function rnd(s){return()=>{s=(s*16807)%2147483647;return s/2147483647;}}
+function rr(x,y,w,h,r){g.beginPath();g.roundRect(x,y,w,h,r);}
+function text(s,x,y,size,col,al='center',wt=''){g.font=`${wt} ${size}px Plex`;g.textAlign=al;g.textBaseline='middle';g.fillStyle=col;g.fillText(s,x,y);}
+const W2=()=>{g.setTransform(R,0,0,R,OX,OY);g.globalAlpha=1;}, SC=()=>{g.setTransform(1,0,0,1,0,0);g.globalAlpha=1;g.filter='none';g.shadowBlur=0;};
+
+// ---- PAINTED LETTERS: each letter its own little textured canvas (paint speckle, worn edges, drips) -------
+// style: stencil (cream road-paint with stencil bridges), marker (whiteboard marker), scrawl (charcoal on the dummy), print (printer label)
+function makeWord(word,{h,col,font,style,seed,track=1,skew=0}){const rn=rnd(seed),S=4,L=[];let x=0;
+  for(const ch of word){const c=document.createElement('canvas'),fs=h*S;const m=c.getContext('2d');m.font=`${font} ${fs}px ${style=='stencil'?"'DejaVu Sans'":"Plex"}`;
+    const w=Math.ceil(m.measureText(ch).width)+fs*.4;c.width=w;c.height=fs*1.7;m.font=`${font} ${fs}px ${style=='stencil'?"'DejaVu Sans'":"Plex"}`;m.textBaseline='middle';m.textAlign='center';
+    const rot=style=='scrawl'||style=='marker'?(rn()-.5)*.22:0;m.translate(w/2,fs*.75);m.rotate(rot);m.fillStyle=col;
+    if(style=='scrawl'){m.lineJoin='round';m.strokeStyle=col;m.lineWidth=fs*.07;m.strokeText(ch,0,0);}
+    m.fillText(ch,0,0);m.setTransform(1,0,0,1,0,0);
+    m.globalCompositeOperation='destination-out';
+    if(style=='stencil'){m.fillRect(w/2-fs*.035,0,fs*.07,c.height);}
+    const n=style=='print'?30:160;for(let i=0;i<n;i++){m.globalAlpha=.15+rn()*.6;m.beginPath();m.arc(rn()*w,rn()*c.height,rn()*fs*(style=='marker'?.018:.026),0,7);m.fill();}
+    m.globalAlpha=1;m.globalCompositeOperation='source-atop';
+    const gr=m.createLinearGradient(0,0,0,c.height);gr.addColorStop(0,'rgba(0,0,0,.28)');gr.addColorStop(.5,'rgba(0,0,0,0)');gr.addColorStop(1,'rgba(0,0,0,.18)');m.fillStyle=gr;m.fillRect(0,0,w,c.height);
+    if(style=='stencil'||style=='scrawl'){m.globalCompositeOperation='source-over';m.fillStyle=col;for(let i=0;i<2;i++){if(rn()<.55){const dx=w*(.25+rn()*.5),dl=fs*(.15+rn()*.35);m.globalAlpha=.8;m.fillRect(dx,fs*1.1,fs*.035,dl);m.beginPath();m.arc(dx+fs*.017,fs*1.1+dl,fs*.03,0,7);m.fill();}}}
+    L.push({c,x:x/S,w:w/S,h:c.height/S});x+=(w-fs*.4)*track+fs*.4*(track-1)+fs*.05;}
+  const tw=(L.at(-1).x+L.at(-1).w);return {L,tw,h,skew,word,col};}
+// draw word at world box centre (cx,cy), width fit; peel = per-letter progress fn returning null (on surface) or {x,y,rot,s,a}
+function drawWord(Wd,cx,cy,{a=1,shim=-1,ghost=0,letterAt=null,scaleX=1,rot=0,splat=-1}={}){W2();const sx=scaleX;
+  Wd.L.forEach((l,i)=>{let X=cx+(l.x-Wd.tw/2)*sx,Y=cy-l.h/2,lp=letterAt?letterAt(i,X+l.w*sx/2,cy):null;
+    if(lp&&lp.off){ if(ghost>0){g.globalAlpha=ghost;g.drawImage(l.c,X,Y,l.w*sx,l.h);} return; }
+    g.save();
+    if(lp){g.translate(lp.x,lp.y);g.rotate(lp.rot);g.scale(lp.s,lp.s*(lp.sy??1));g.globalAlpha=lp.a;if(lp.glow){g.shadowColor='rgba(255,250,230,.9)';g.shadowBlur=6;}g.drawImage(l.c,-l.w/2,-l.h/2,l.w,l.h);}
+    else{g.translate(cx,cy);g.rotate(rot);g.translate(-cx,-cy);g.globalAlpha=a;
+      let sq=1;if(splat>=0&&splat<1){const k=cl(splat*3-i*.25,0,1);sq=1+.6*Math.sin(k*Math.PI)*(1-k);g.globalAlpha=a*cl(k*2,0,1);}
+      g.translate(X+l.w*sx/2,cy);g.scale(sq,1/sq);g.drawImage(l.c,-l.w*sx/2,-l.h/2,l.w*sx,l.h);
+      if(shim>=0){// wet-ink sheen: a soft bright band sweeping through the letter, only on painted pixels
+        const t=document.createElement('canvas');t.width=l.c.width;t.height=l.c.height;const m=t.getContext('2d');m.drawImage(l.c,0,0);m.globalCompositeOperation='source-atop';
+        const p=((shim*.55-i*.12)%1.4+1.4)%1.4-.2,gr=m.createLinearGradient(t.width*(p-.3),0,t.width*(p+.3),t.height*.6);gr.addColorStop(0,'rgba(255,255,255,0)');gr.addColorStop(.5,'rgba(255,255,255,.75)');gr.addColorStop(1,'rgba(255,255,255,0)');
+        m.fillStyle=gr;m.fillRect(0,0,t.width,t.height);g.globalAlpha=a;g.drawImage(t,-l.w*sx/2,-l.h/2,l.w*sx,l.h);}}
+    g.restore();});SC();}
+function splash(cx,cy,u,col,seed,rad=26){if(u<=0||u>=1)return;const rn=rnd(seed);W2();g.fillStyle=col;
+  for(let i=0;i<18;i++){const an=rn()*7,d=rad*(.4+rn())*ease(u*1.6),r=1+rn()*2.6;g.globalAlpha=(1-u)*.95;g.beginPath();g.arc(cx+Math.cos(an)*d,cy+Math.sin(an)*d*.7+u*u*8,r*(1-u*.5),0,7);g.fill();}SC();}
+// ---- characters ------------------------------------------------------------
+function noorAt(sheet,dir,f,x,y){const [im,fr]=I[sheet];const F=fr[`${sheet}_${dir}_${String(f).padStart(2,'0')}`]||fr[`${sheet}_S_00`];W2();const s=NS;
+  g.globalAlpha=.28;g.fillStyle='#000';g.beginPath();g.ellipse(x,y,24*s,7*s,0,0,7);g.fill();g.globalAlpha=1;g.drawImage(im,F.frame.x,F.frame.y,192,192,x-96*s,y-160*s,192*s,192*s);SC();}
+const DV={E:[1,0],W:[-1,0],N:[0,-1],S:[0,1],NE:[.7,-.7],NW:[-.7,-.7],SE:[.7,.7],SW:[-.7,.7]};
+function hand(n){const d=DV[n.dir];return {x:n.x+d[0]*20,y:n.y-62+d[1]*6};}
+function dirOf(dx,dy){const a=Math.atan2(dy,dx)*180/Math.PI;return ['E','SE','S','SW','W','NW','N','NE'][(Math.round(a/45)+8)%8];}
+// carried ink words: tiny, orbiting the hand (no panel, no buttons)
+function carried(n,words,t,sel){const h=hand(n);words.forEach((w,i)=>{const an=t*1.6+i*Math.PI*2/words.length,ox=Math.cos(an)*26,oy=Math.sin(an)*9-8;
+  const s=sel===i?.8:.6;drawWord(w,0,0,{letterAt:(k,lx)=>({x:h.x+ox+(w.L[k].x-w.tw/2+w.L[k].w/2)*s,y:h.y+oy,rot:0,s,a:Math.sin(an)<-.2?.55:1,glow:sel===i})});});}
+// dummy: real render, paper-ified by u, torn by tear
+function dummy(u,tear,hit,t,aim){const D=I.D,x0=820-27,y0=610-158;W2();
+  const draw=(clip,dx,dy,r)=>{g.save();g.translate(820+dx,560+dy);g.rotate(r);g.translate(-820,-560);if(clip)clip();
+    const wob=Math.sin(hit*30)*hit*.08;g.translate(820,610);g.rotate(wob);g.translate(-820,-610);
+    g.drawImage(D,x0,y0);if(u>0){g.globalAlpha=u;g.filter='grayscale(1) brightness(2.1) contrast(.75)';g.drawImage(D,x0,y0);g.filter='none';
+      // creases (drawn only inside the silhouette)
+      const c=I.crease;g.globalAlpha=u*.8;g.drawImage(c,x0,y0);}g.restore();};
+  g.globalAlpha=.3;g.fillStyle='#000';g.beginPath();g.ellipse(820,610,30,9,0,0,7);g.fill();g.globalAlpha=1;
+  if(tear<=0)draw(null,0,0,0);else{const e=ease(tear);const cut=s=>()=>{g.beginPath();const pts=[[790,560],[800,548],[808,566],[818,540],[826,560],[836,534],[850,546]];
+      if(s){g.moveTo(780,440);pts.forEach(p=>g.lineTo(...p));g.lineTo(860,440);}else{g.moveTo(780,640);pts.forEach(p=>g.lineTo(...p));g.lineTo(860,640);}g.closePath();g.clip();};
+    draw(cut(1),-26*e,46*e*e,-1.0*e);draw(cut(0),10*e,0,.18*e);}
+  SC();if(aim>0){const [sx,sy]=P(820,525);g.save();g.globalAlpha=aim;g.strokeStyle='#78e4e8';g.lineWidth=2;const b=50*R+3*Math.sin(t*6);[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,c])=>{g.beginPath();g.moveTo(sx+a*b*.7,sy+c*b);g.lineTo(sx+a*b*.7,sy+c*(b-10));g.moveTo(sx+a*b*.7,sy+c*b);g.lineTo(sx+a*(b*.7-10),sy+c*b);g.stroke();});g.restore();}}
+function scraps(u,seed){if(u<=0)return;const rn=rnd(seed);W2();for(let i=0;i<16;i++){const an=-Math.PI*(.1+rn()*.8),sp=40+rn()*70,x=812+Math.cos(an)*sp*u,y=545+Math.sin(an)*sp*u+120*u*u;
+  if(y>612)continue;g.save();g.translate(x,y);g.rotate(rn()*7+u*8);g.globalAlpha=1-u*.5;g.fillStyle=rn()<.5?'#efe8d8':'#d8cfba';g.fillRect(-3,-2,6+rn()*4,4+rn()*3);g.restore();}SC();}
+function slash(x,y,u,k){if(u<=0||u>=1)return;const [sx,sy]=P(x,y);g.save();g.globalAlpha=1-u;g.strokeStyle='#fff8e8';g.shadowColor='#fff';g.shadowBlur=10;g.lineWidth=5*(1-u)+1;
+  const a0=[-.9,.6,-.2][k],r=55*R;g.beginPath();g.arc(sx-16*R,sy,r,a0-1.1*u,a0+.9+.3*u);g.stroke();g.restore();}
+// ---- room ------------------------------------------------------------------
+function room(doorK){W2();g.drawImage(I.office,0,0);const k=Math.round(cl(doorK,0,1)*9);g.drawImage(I.door[k],112,62);SC();}
+// door paint splits with the panels as they slide into the wall
+const DOOR={x0:150,x1:262,y0:80,y1:200,mid:206};
+function doorPaint(Wd,cy,doorK,o){const sh=ease(doorK)*56;if(doorK<=0){drawWord(Wd,DOOR.mid,cy,o);return;}
+  [[DOOR.x0,DOOR.mid,-sh],[DOOR.mid,DOOR.x1,sh]].forEach(([a,b,d])=>{W2();g.save();g.beginPath();g.rect(Math.max(a+d,DOOR.x0)-0,DOOR.y0,Math.min(b+d,DOOR.x1)-Math.max(a+d,DOOR.x0),DOOR.y1-DOOR.y0);g.clip();
+    g.save();g.beginPath();g.rect(a,0,b-a,999);g.restore();SC();
+    // draw only the half that was on this panel, shifted with it
+    const ctxClip=()=>{};g.restore();W2();g.save();g.beginPath();const L=Math.max(a+d,DOOR.x0),Rr=Math.min(b+d,DOOR.x1);if(Rr>L){g.rect(L,DOOR.y0,Rr-L,DOOR.y1-DOOR.y0);g.clip();SC();
+      g.save();const m=g.getTransform();g.translate(d*R,0);drawWordT(Wd,cy,o,d);g.restore();}g.restore();SC();});}
+function drawWordT(Wd,cy,o,d){const save=g.getTransform();// drawWord resets transform; emulate the shift by offsetting centre
+  drawWord(Wd,DOOR.mid+d,cy,o);g.setTransform(save);}
+// ---- UI: one objective pill, one caption line, a pointer for taps ---------------------------------
+function caption(s){if(!s)return;g.save();let z=24;g.font=`${z}px Plex`;const w=g.measureText(s).width+44;g.fillStyle='rgba(6,10,14,.82)';rr(W/2-w/2,H-BOT/2-20,w,40,8);g.fill();text(s,W/2,H-BOT/2,z,'#e8eef2');g.restore();}
+function objective(s,done){g.save();g.font='20px Plex';const w=g.measureText(s).width+58;g.fillStyle='rgba(6,10,14,.85)';rr(W/2-w/2,8,w,34,17);g.fill();
+  g.strokeStyle=done?'#7be3a0':'#78e4e8';g.lineWidth=1.5;g.stroke();text(done?'✓':'◆',W/2-w/2+22,25,18,done?'#7be3a0':'#78e4e8');text(s,W/2+12,26,20,'#e8eef2');g.restore();}
+function pointer(wx,wy,press){const [x,y]=P(wx,wy);g.save();g.translate(x,y);g.scale(press?.9:1,press?.9:1);g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.moveTo(0,0);g.lineTo(0,26);g.lineTo(7,20);g.lineTo(12,31);g.lineTo(17,29);g.lineTo(12,18);g.lineTo(21,18);g.closePath();g.fill();g.stroke();
+  if(press){g.strokeStyle='rgba(255,255,255,.8)';g.lineWidth=2;g.beginPath();g.arc(0,0,14,0,7);g.stroke();}g.restore();}
+// ---- peel / fly helpers --------------------------------------------------------
+function bez(a,c,b,u){return {x:(1-u)*(1-u)*a.x+2*u*(1-u)*c.x+u*u*b.x,y:(1-u)*(1-u)*a.y+2*u*(1-u)*c.y+u*u*b.y};}
+// letter i peels at t0+i*st: curls up off the surface (squash in y, lifts), then swirls to the hand
+function peelFn(t,t0,st,to,n){return (i,lx,ly)=>{const u=(t-t0-i*st)/.75;if(u<=0)return null;if(u>=1)return {off:1};
+  const lift=cl(u/.3,0,1),fl=cl((u-.3)/.7,0,1),a={x:lx,y:ly-lift*5},c={x:(lx+to.x)/2+(i-n/2)*10,y:Math.min(ly,to.y)-40},p=bez(a,c,to,ease(fl));
+  return {x:p.x,y:p.y,rot:fl*(i%2?-3:3)+lift*.3,s:lerp(1,.45,ease(fl)),sy:lift<1?1-.7*Math.sin(lift*Math.PI):1,a:1,glow:fl>0};};}
+function flyFn(from,to,u,n,arc=50,spin=0){return (i)=>{const v=cl(u*1.25-i*.06,0,1);if(v>=1)return {off:1};const c={x:(from.x+to.x)/2,y:Math.min(from.y,to.y)-arc},p=bez(from,c,to,ease(v));
+  return {x:p.x+(i-n/2)*8*v*0+(i-(n-1)/2)*lerp(4,9,v),y:p.y,rot:spin*v*(i%2?1:-1),s:lerp(.7,1.25,Math.sin(v*Math.PI)*.6+v*.6),a:1,glow:true};};}
+// ---- the scripted flow -------------------------------------------------------
+const P_WB={x:612,y:236}, P_DOOR={x:206,y:262}, P_FIGHT={x:672,y:598};
+let WORDS;
+function frameAt(t){SC();g.fillStyle='#05080b';g.fillRect(0,0,W,H);
+  const {SHUT,OPEN,ARMORED,PAPER,PAPERlabel}=WORDS, fight=t>=10.1;
+  let n={x:P_WB.x,y:P_WB.y,dir:'N'},sheet='noor_idle',f=0,cap='',obj=['Get through the lift door',false],carry=[],sel=-1,doorK=0;
+  if(!fight){
+    // 0–1.7 peel OPEN off the whiteboard (marker)
+    if(t<.5){sheet='noor_idle';}else if(t<1.7){sheet='noor_type1';f=Math.min(5,Math.floor((t-.5)*10));}
+    if(t>=1.7&&t<4){const u=ease(seg(t,1.7,4));n={x:lerp(P_WB.x,P_DOOR.x,u),y:lerp(P_WB.y,P_DOOR.y,u)+Math.sin(u*Math.PI)*40,dir:dirOf(-1,.12)};sheet='noor_walk';f=Math.floor(t*12)%8;}
+    if(t>=4){n={...P_DOOR,dir:'N'};sheet='noor_idle';}
+    if(t>=4.6&&t<6.0){sheet='noor_type1';f=Math.min(5,Math.floor((t-4.6)*10));}
+    if(t>=6.9&&t<7.7){sheet='noor_attack';f=Math.min(7,Math.floor((t-6.9)*12));}
+    if(t>=9.0){const u=ease(seg(t,9.0,10.1));n={x:P_DOOR.x,y:lerp(P_DOOR.y,190,u),dir:'N'};sheet='noor_walk';f=Math.floor(t*12)%8;}
+    doorK=seg(t,8.0,9.1);
+    room(doorK);
+    // whiteboard OPEN in red marker
+    const hN=hand(n);
+    drawWord(OPEN,602,124,{ghost:.13,letterAt:t>=.6?peelFn(t,.6,.12,hN,4):null,shim:t<.6?t*2+1:-1});
+    // printer label (source of PAPER, collected off-screen earlier — stays ghosted)
+    drawWord(PAPERlabel,120,206,{ghost:.12,letterAt:()=>({off:1})});
+    // SHUT stencilled on the lift doors
+    const near=t>=3.6&&t<4.75;
+    if(t<7.65) doorPaint(SHUT,142,0,{ghost:.07,shim:near?(t-3.6)*2.2:-1,letterAt:t>=4.75?peelFn(t,4.75,.14,hN,4):null});
+    else{ W2();g.globalAlpha=.10;SC(); }
+    // ghost of SHUT stays faintly under (adhesive residue) after peel
+    if(t>=4.75&&t<7.65){} 
+    // OPEN flicked onto the door, splats and dries into paint
+    const fl=seg(t,7.05,7.6);
+    if(t>=7.05&&t<7.6){drawWord(OPEN,0,0,{letterAt:flyFn(hN,{x:DOOR.mid,y:142},fl,4,40,4)});}
+    if(t>=7.55){doorPaint(OPEN,142,doorK,{splat:seg(t,7.55,8.0)});splash(DOOR.mid,142,seg(t,7.55,8.2),'#c8473c',7,34);}
+    // carried words orbit her hand
+    if(t>=1.5&&t<7.05)carry.push(OPEN); if(t>=5.75)carry.push(SHUT);
+    if(t>=6.35&&t<7.05)sel=0;
+    noorAt(sheet,n.dir,f,n.x,n.y);
+    if(carry.length)carried(n,carry,t,sel);
+    if(t>=6.1&&t<6.6)pointer(hN.x-20,hN.y-6,t>6.35); if(t>=6.6&&t<7.05)pointer(DOOR.mid,150,t>6.85);
+    if(t<1.7)cap='Words are paint. Tap one to peel it.';else if(t<4.6)cap='';else if(t<6.1)cap='SHUT peels off the door.';else if(t<8.0)cap='Tap a carried word, then a surface.';else cap='OPEN. The door listens.';
+    if(doorK>.6){obj=['Door open. Walk through',true];}
+    if(t>9.6){g.fillStyle=`rgba(0,0,0,${seg(t,9.6,10.1)})`;g.fillRect(0,0,W,H);}
+  } else {
+    const c=t-10.1;room(0);obj=['Practice: tear the dummy',false];
+    n={...P_FIGHT,dir:'E'};sheet='noor_idle';
+    const throwU=seg(c,1.25,1.85),paperU=seg(c,1.85,2.6),tear=seg(c,4.0,5.0);
+    if(c>=1.05&&c<1.6){sheet='noor_attack';f=Math.min(7,Math.floor((c-1.05)*14));}
+    let hit=0;if(c>=3.0&&c<4.2){sheet='noor_attack';const k=Math.min(2,Math.floor((c-3)/.4)),cu=(c-3-k*.4)/.4;f=Math.min(7,Math.floor(cu*8));hit=cu>.35&&cu<.8?1-(cu-.35)/.45:0;}
+    const hN=hand(n);
+    noorAt(sheet,n.dir,f,n.x,n.y);
+    dummy(paperU,tear,c>=1.85&&c<2.3?1-seg(c,1.85,2.3):hit,t,tear>0?1-tear:1);
+    // ARMORED scrawled across the chest, then buried under the PAPER splat
+    const chest={x:820,y:522},rot=-.42;
+    if(c<1.85)drawWord(ARMORED,chest.x,chest.y,{rot,shim:c>.2&&c<1.0?c*2:-1,scaleX:1});
+    else if(tear<=0)drawWord(ARMORED,chest.x,chest.y,{rot,a:.35*(1-seg(c,1.85,2.4))});
+    if(c>=1.85&&tear<=0){W2();g.save();g.globalAlpha=.9*seg(c,1.85,2.0);g.fillStyle='#f2ecdc';g.translate(chest.x,chest.y);g.rotate(rot);g.beginPath();
+      for(let i=0;i<14;i++){const a=i/14*7,r=(i%2?11:15)+((i*7)%5);g.lineTo(Math.cos(a)*r*1.5,Math.sin(a)*r*.7);}g.closePath();g.fill();g.restore();SC();
+      drawWord(PAPER,chest.x,chest.y,{rot,splat:seg(c,1.85,2.25)});}
+    splash(chest.x,chest.y,seg(c,1.85,2.5),'#f2ecdc',11,30);
+    if(c>=1.25&&c<1.85)drawWord(PAPER,0,0,{letterAt:flyFn(hN,chest,throwU,5,46,1.5)});
+    // ink trail behind the thrown word
+    if(c>=1.25&&c<1.95){W2();for(let k=0;k<10;k++){const v=cl(throwU-k*.05,0,1);if(v<=0)continue;const cc={x:(hN.x+chest.x)/2,y:Math.min(hN.y,chest.y)-46},p=bez(hN,cc,chest,ease(v));g.globalAlpha=.5*(1-k/10);g.fillStyle='#f2ecdc';g.beginPath();g.arc(p.x,p.y+3,2.2-k*.15,0,7);g.fill();}SC();}
+    if(c>=3.0&&c<4.2){const k=Math.min(2,Math.floor((c-3)/.4));slash(820,525,(c-3-k*.4)/.3,k);}
+    scraps(tear,5);
+    if(c<1.25)carry=[SHUT,PAPER];else carry=[SHUT];if(c>=.6&&c<1.25)sel=1;
+    carried(n,carry,t,sel);
+    if(c>=.4&&c<.9)pointer(hN.x-24,hN.y-4,c>.65);
+    if(c<1.2)cap='ARMORED: blades bounce. Tap PAPER, then attack.';else if(c<3)cap='PAPER over ARMORED.';else if(c<5.2)cap='Paper tears.';else cap='';
+    if(tear>.5)obj=['Dummy torn',true];
+    if(c<.4){g.fillStyle=`rgba(0,0,0,${1-c/.4})`;g.fillRect(0,0,W,H);}
+  }
+  caption(cap);objective(...obj);
+}
+const END=16;
+(async()=>{await document.fonts.load('20px Plex');
+  I.office=await img(A+'rooms/office.jpg');I.D=await img(A+'office11/dummy.png');I.door=[];for(let i=0;i<10;i++)I.door.push(await img(A+`office11/door/lift_0${i}.jpg`));
+  for(const n of ['noor_idle','noor_walk','noor_attack','noor_type1'])I[n]=await J(n);
+  // crease map for the paper dummy: random folds clipped to the dummy silhouette
+  {const c=document.createElement('canvas');c.width=54;c.height=175;const m=c.getContext('2d');m.drawImage(I.D,0,0);m.globalCompositeOperation='source-in';m.fillStyle='rgba(0,0,0,0)';m.fillRect(0,0,54,175);
+   m.globalCompositeOperation='source-over';const k=document.createElement('canvas');k.width=54;k.height=175;const q=k.getContext('2d');const rn=rnd(3);q.strokeStyle='rgba(90,80,60,.55)';q.lineWidth=.8;
+   for(let i=0;i<14;i++){q.beginPath();let x=rn()*54,y=rn()*130;q.moveTo(x,y);for(let j=0;j<3;j++){x+=(rn()-.5)*30;y+=(rn()-.3)*20;q.lineTo(x,y);}q.stroke();}
+   q.globalCompositeOperation='destination-in';q.drawImage(I.D,0,0);I.crease=k;}
+  WORDS={SHUT:makeWord('SHUT',{h:22,col:'#e6dcc0',font:'bold',style:'stencil',seed:11,track:.98}),
+    OPEN:makeWord('OPEN',{h:17,col:'#c8473c',font:'bold',style:'marker',seed:5}),
+    ARMORED:makeWord('ARMORED',{h:10,col:'#1d140d',font:'bold',style:'scrawl',seed:9}),
+    PAPER:makeWord('PAPER',{h:10,col:'#2a3550',font:'bold',style:'print',seed:4}),
+    PAPERlabel:makeWord('PAPER',{h:7,col:'#2a3550',font:'bold',style:'print',seed:4})};
+  const q=new URLSearchParams(location.search);window.frameAt=frameAt;window.END=END;window.ready=true;
+  if(q.has('t')){frameAt(+q.get('t'));return;}
+  const t0=performance.now();(function loop(){frameAt(((performance.now()-t0)/1000)%END);requestAnimationFrame(loop);})();
+})();
+</script></body></html>
