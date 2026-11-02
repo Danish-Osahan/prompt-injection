@@ -1,0 +1,124 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Prompt Injection — clarity mockup</title>
+<style>
+@font-face{font-family:Plex;src:url(../game/public/assets/fonts/IBMPlexMono-Medium.ttf)}
+html,body{margin:0;background:#05080b;height:100%;display:flex;align-items:center;justify-content:center}
+canvas{width:min(100vw,177.78vh);aspect-ratio:16/9;display:block}
+</style></head><body><canvas id=c width=1280 height=720></canvas>
+<script>
+// CLARITY MOCKUP (not the game): a scripted 26 s flow on a loop; ?t=SECONDS freezes one frame
+const A='../game/public/assets/', cv=document.getElementById('c'), g=cv.getContext('2d');
+const W=1280,H=720, TOP=50, BOT=50, R=(H-TOP-BOT)/720, OX=(W-1280*R)/2, OY=TOP, NS=0.78;
+const P=(x,y)=>[OX+x*R,OY+y*R];
+const img=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.src=s});
+const J=async n=>[await img(A+'sprites/'+n+'.png'),(await (await fetch(A+'sprites/'+n+'.json')).json()).frames];
+let I={};
+const DOOR={x0:150,x1:262,y0:80,y1:200}, TAG={x:206,y:150}, KAB={x0:606,y0:200,x1:730,y1:302};
+const ease=u=>u<0?0:u>1?1:u*u*(3-2*u), lerp=(a,b,u)=>a+(b-a)*u, cl=(v,a,b)=>Math.max(a,Math.min(b,v));
+function noor(sheet,dir,f,x,y,flash){const [im,fr]=I[sheet];const k=`${sheet}_${dir}_${String(f).padStart(2,'0')}`;const F=fr[k]||fr[`${sheet}_S_00`];const [sx,sy]=P(x,y);const s=NS*R;
+  g.save();g.globalAlpha=.28;g.fillStyle='#000';g.beginPath();g.ellipse(sx,sy,24*s,7*s,0,0,7);g.fill();g.restore();
+  g.drawImage(im,F.frame.x,F.frame.y,192,192,sx-96*s,sy-160*s,192*s,192*s);}
+function dirOf(dx,dy){const a=Math.atan2(dy,dx)*180/Math.PI;const D=['E','SE','S','SW','W','NW','N','NE'];return D[(Math.round(a/45)+8)%8];}
+function rr(x,y,w,h,r){g.beginPath();g.roundRect(x,y,w,h,r);}
+function text(s,x,y,size,col,al='center',wt=''){g.font=`${wt} ${size}px Plex`;g.textAlign=al;g.textBaseline='middle';g.fillStyle=col;g.fillText(s,x,y);}
+// ONE caption line, always fits: shrink to fit, never wraps
+function caption(s,a=1){if(!s||a<=0)return;g.save();g.globalAlpha=a;let z=26;g.font=`${z}px Plex`;while(g.measureText(s).width>W-160&&z>18){z--;g.font=`${z}px Plex`;}
+  const w=g.measureText(s).width+44;g.fillStyle='rgba(6,10,14,.82)';rr(W/2-w/2,H-BOT/2-20,w,40,8);g.fill();text(s,W/2,H-BOT/2,z,'#e8eef2');g.restore();}
+function objective(s,done,a=1){g.save();g.globalAlpha=a;g.font='20px Plex';const w=g.measureText(s).width+58;g.fillStyle='rgba(6,10,14,.85)';rr(W/2-w/2,8,w,34,17);g.fill();
+  g.strokeStyle=done?'#7be3a0':'#78e4e8';g.lineWidth=1.5;g.stroke();text(done?'✓':'◆',W/2-w/2+22,25,18,done?'#7be3a0':'#78e4e8');text(s,W/2+12,26,20,'#e8eef2');g.restore();}
+function room(doorU){const o=I.office;g.drawImage(o,OX,OY,1280*R,720*R);
+  if(doorU>0){const [x0,y0]=P(DOOR.x0,DOOR.y0),[x1,y1]=P(DOOR.x1,DOOR.y1),w=x1-x0,h=y1-y0,m=w/2;
+    const gr=g.createLinearGradient(0,y0,0,y1);gr.addColorStop(0,'#c9a46a');gr.addColorStop(1,'#f3dca8');g.fillStyle=gr;g.fillRect(x0,y0,w,h);
+    g.save();g.beginPath();g.rect(x0,y0,w,h);g.clip();const sh=m*.92*ease(doorU);
+    g.drawImage(o,DOOR.x0,DOOR.y0,(DOOR.x1-DOOR.x0)/2,DOOR.y1-DOOR.y0,x0-sh,y0,m,h);
+    g.drawImage(o,(DOOR.x0+DOOR.x1)/2,DOOR.y0,(DOOR.x1-DOOR.x0)/2,DOOR.y1-DOOR.y0,x0+m+sh,y0,m,h);g.restore();
+    g.save();g.globalAlpha=.35*ease(doorU);const sp=g.createRadialGradient(x0+m,y1+30,5,x0+m,y1+30,170*R);sp.addColorStop(0,'#f3d9a0');sp.addColorStop(1,'rgba(243,217,160,0)');
+    g.fillStyle=sp;g.beginPath();g.moveTo(x0,y1);g.lineTo(x1,y1);g.lineTo(x1+90*R,y1+150*R);g.lineTo(x0-70*R,y1+150*R);g.fill();g.restore();}}
+function glowBox(b,a,t){if(a<=0)return;const [x0,y0]=P(b.x0,b.y0),[x1,y1]=P(b.x1,b.y1);g.save();g.globalAlpha=a*(.65+.35*Math.sin(t*4));g.shadowColor='#78e4e8';g.shadowBlur=16;
+  g.strokeStyle='rgba(120,228,232,.9)';g.lineWidth=2;rr(x0-4,y0-4,x1-x0+8,y1-y0+8,8);g.stroke();g.restore();}
+// the swappable word lives ON the object: a small glowing tag pinned to the door
+function tag(word,near,t,a=1,col='#78e4e8'){const [x,y]=P(TAG.x,TAG.y);g.save();g.globalAlpha=a;g.font='bold 17px Plex';const w=g.measureText(word).width+20,p=.5+.5*Math.sin(t*3);
+  g.shadowColor=col;g.shadowBlur=near?18+8*p:8+4*p;g.fillStyle='rgba(6,14,18,.92)';rr(x-w/2,y-14,w,28,5);g.fill();g.shadowBlur=0;g.strokeStyle=col;g.lineWidth=near?2:1.4;g.stroke();
+  text(word,x,y+1,17,col,'center','bold');g.restore();return [x,y,w];}
+function picker(t,hov,a){const [x,y]=P(TAG.x,TAG.y);g.save();g.globalAlpha=a;const bx=x+44,by=y-62,bw=190,bh=112;g.fillStyle='rgba(6,12,16,.95)';rr(bx,by,bw,bh,10);g.fill();g.strokeStyle='#78e4e8';g.lineWidth=1.5;g.stroke();
+  g.beginPath();g.moveTo(bx,y-8);g.lineTo(bx-14,y);g.lineTo(bx,y+8);g.fillStyle='#78e4e8';g.fill();
+  text('the door is…',bx+16,by+20,15,'#8fa6ad','left');
+  [['SHUT',0],['OPEN',1]].forEach(([w,i])=>{const yy=by+52+i*36,on=i==1;g.fillStyle=hov==i?'rgba(120,228,232,.22)':'rgba(255,255,255,.04)';rr(bx+12,yy-15,bw-24,30,6);g.fill();
+    if(on){g.shadowColor='#78e4e8';g.shadowBlur=10+6*Math.sin(t*5);}text(w,bx+30,yy+1,18,on?'#78e4e8':'#5f747a','left','bold');g.shadowBlur=0;if(!on)text('(now)',bx+bw-24,yy+1,13,'#5f747a','right');});
+  g.restore();return [bx+60,by+88];}
+function pointer(x,y,press){g.save();g.translate(x,y);g.scale(press?.9:1,press?.9:1);g.fillStyle='#fff';g.strokeStyle='#000';g.lineWidth=2;g.beginPath();g.moveTo(0,0);g.lineTo(0,26);g.lineTo(7,20);g.lineTo(12,31);g.lineTo(17,29);g.lineTo(12,18);g.lineTo(21,18);g.closePath();g.fill();g.stroke();
+  if(press){g.strokeStyle='rgba(120,228,232,.8)';g.lineWidth=2;g.beginPath();g.arc(0,0,16,0,7);g.stroke();}g.restore();}
+function heading(a){if(a<=0)return;g.save();g.globalAlpha=a;text('INT. OPEN-PLAN OFFICE, FLOOR 2 — 11:48 PM',W/2,OY+330*R+(1-a)*8,24,'#e8eef2');g.restore();}
+function card(u,t,line){if(u<=0)return;const e=ease(u);g.save();g.fillStyle=`rgba(3,5,8,${.72*e})`;g.fillRect(0,0,W,H);
+  const cw=820,ch=461,cx=W/2-cw/2,cy=H/2-ch/2-30+(1-e)*24;g.globalAlpha=e;g.fillStyle='#0a1116';rr(cx-14,cy-14,cw+28,ch+88,14);g.fill();g.strokeStyle='rgba(120,228,232,.5)';g.lineWidth=1.5;g.stroke();
+  g.save();rr(cx,cy,cw,ch,6);g.clip();const im=I.kabir,z=1.0+.05*t;g.drawImage(im,cx-(cw*z-cw)/2,cy-(ch*z-ch)/2,cw*z,ch*z);g.restore();
+  text(line,W/2,cy+ch+36,23,'#e8eef2');text('E  close',cx+cw,cy-30,14,'#8fa6ad','right');g.restore();}
+function dummy(x,y,hit,aim,t){const [sx,sy]=P(x,y),s=R,wob=Math.sin(hit*30)*hit*10;g.save();g.translate(sx,sy);
+  g.globalAlpha=.3;g.fillStyle='#000';g.beginPath();g.ellipse(0,0,30*s,9*s,0,0,7);g.fill();g.globalAlpha=1;
+  g.fillStyle='#4a3a2a';g.fillRect(-4*s,-60*s,8*s,60*s);g.rotate(wob*Math.PI/180);
+  g.fillStyle=hit>.5?'#f1e4c8':'#b38d5c';g.beginPath();g.ellipse(0,-92*s,28*s,40*s,0,0,7);g.fill();g.strokeStyle='#6d5333';g.lineWidth=2;g.stroke();
+  g.beginPath();g.arc(0,-140*s,17*s,0,7);g.fillStyle=hit>.5?'#f1e4c8':'#c29c6a';g.fill();g.stroke();
+  g.setLineDash([4,4]);g.beginPath();g.moveTo(0,-128*s);g.lineTo(0,-56*s);g.stroke();g.setLineDash([]);
+  g.strokeStyle='#a2372e';g.lineWidth=3;g.beginPath();g.arc(0,-95*s,12*s,0,7);g.stroke();g.beginPath();g.arc(0,-95*s,4*s,0,7);g.fillStyle='#a2372e';g.fill();g.restore();
+  if(aim>0){g.save();g.globalAlpha=aim;g.strokeStyle='#78e4e8';g.lineWidth=2;const b=58*s+4*Math.sin(t*6),cy=sy-95*s;[[-1,-1],[1,-1],[1,1],[-1,1]].forEach(([a,c])=>{g.beginPath();g.moveTo(sx+a*b,cy+c*b*.6);g.lineTo(sx+a*b,cy+c*(b*.6-12));g.moveTo(sx+a*b,cy+c*b*.6);g.lineTo(sx+a*(b-12),cy+c*b*.6);g.stroke();});g.restore();}}
+function slash(x,y,u,k){if(u<=0||u>=1)return;const [sx,sy]=P(x,y);g.save();g.globalAlpha=1-u;g.strokeStyle='#e8fbff';g.shadowColor='#78e4e8';g.shadowBlur=14;g.lineWidth=5*(1-u)+1;
+  const a0=[-.9,.6,-.2][k],r=70*R;g.beginPath();g.arc(sx-20*R,sy-95*R,r,a0-1.1*u,a0+.9-1.1*u+1.4*u);g.stroke();g.restore();}
+function beam(x0,y0,x1,y1,u,t){const [ax,ay]=P(x0,y0),[bx,by]=P(x1,y1),s='rephrase(this) rephrase(this) ',n=26;g.save();g.font='bold 18px Plex';g.textAlign='center';g.textBaseline='middle';
+  for(let i=0;i<n;i++){const v=i/n;if(v>u)break;const x=lerp(ax,bx,v),y=lerp(ay,by,v)+Math.sin(v*14-t*12)*5;g.fillStyle=`rgba(120,228,232,${.45+.55*v})`;g.shadowColor='#78e4e8';g.shadowBlur=10;g.fillText(s[(i+Math.floor(t*20))%s.length],x,y);}g.restore();}
+function charge(x,y,u,t){const [sx,sy]=P(x,y);g.save();g.strokeStyle='#78e4e8';g.lineWidth=3;g.shadowColor='#78e4e8';g.shadowBlur=12;g.beginPath();g.arc(sx,sy-70*R,46*R,-Math.PI/2,-Math.PI/2+u*Math.PI*2);g.stroke();g.restore();}
+// --- the scripted flow ---------------------------------------------------------
+const START={x:640,y:560}, DOORSTAND={x:206,y:262}, KABSTAND={x:668,y:362};
+function walkPos(a,b,u){return {x:lerp(a.x,b.x,ease(u)),y:lerp(a.y,b.y,ease(u))};}
+function frameAt(t){g.clearRect(0,0,W,H);g.fillStyle='#05080b';g.fillRect(0,0,W,H);
+  const doorU=cl((t-10)/1.2,0,1); room(doorU);
+  let n={...START},sheet='noor_idle',dir='S',f=Math.floor(t*6)%6,cap='',capA=1;
+  if(t>=2.6&&t<6){const u=(t-2.6)/3.4;n=walkPos(START,DOORSTAND,u);sheet='noor_walk';dir=dirOf(DOORSTAND.x-START.x,DOORSTAND.y-START.y);f=Math.floor(t*12)%8;}
+  else if(t>=6&&t<12.2){n={...DOORSTAND};dir='N';}
+  else if(t>=12.2&&t<14){const u=(t-12.2)/1.8;n=walkPos(DOORSTAND,KABSTAND,u);sheet='noor_walk';dir=dirOf(1,.4);f=Math.floor(t*12)%8;}
+  else if(t>=14&&t<20){n={...KABSTAND};dir='N';}
+  const fight=t>=20;
+  if(fight){room(1);n={x:t-21<1.8?700:560,y:548};}
+  const nearDoor=!fight&&Math.hypot(n.x-DOORSTAND.x,n.y-DOORSTAND.y)<80, nearKab=!fight&&t>=13.6&&t<20;
+  glowBox(KAB,nearKab?1:0,t);
+  if(!fight){glowBox(DOOR,nearDoor&&t<10?1:0,t);}
+  // fight sheet/state
+  let hit=0,aim=0,DX=810,DY=545;
+  if(fight){aim=1;dir='E';const c=t-21;
+    if(c>=0&&c<1.5){sheet='noor_attack';const k=Math.min(2,Math.floor(c/.5)),cu=(c-k*.5)/.5;f=Math.min(7,Math.floor(cu*8));hit=cu>.35&&cu<.8?1-(cu-.35)/.45:0;}
+    else if(c>=2&&c<4.6){sheet='noor_type1';f=Math.floor(t*10)%6;}
+  }
+  // world draw order: dummy behind/in front by y
+  const drawN=()=>noor(sheet,dir,f,n.x,n.y);
+  if(fight){drawN();const c=t-21;let bh=0;if(c>=3.6&&c<4.6)bh=1-(c-3.6);dummy(DX,DY,Math.max(hit,bh>0?.6*bh:0),aim,t);
+    if(c>=0&&c<1.5){const k=Math.min(2,Math.floor(c/.5));slash(DX,DY,(c-k*.5)/.35,k);}
+    if(c>=2&&c<3.4)charge(n.x,n.y,(c-2)/1.4,t);
+    if(c>=3.4&&c<4.6)beam(n.x+30,n.y-80,DX-10,DY-95,Math.min(1,(c-3.4)/.25),t);}
+  else drawN();
+  // door tag (on the object)
+  if(!fight){let word='SHUT',col='#78e4e8',a=1;if(t>=9.4){word='OPEN';col='#7be3a0';a=1-cl((t-11.4)/.6,0,1);} if(a>0)tag(word,nearDoor,t,a,col);}
+  // picker + pointer
+  if(t>=7.2&&t<9.6){const pa=cl((t-7.2)/.25,0,1)*(1-cl((t-9.35)/.25,0,1));const [px,py]=picker(t,t>8.6?1:-1,pa);
+    const [tx,ty]=P(TAG.x,TAG.y);const u=ease((t-7.5)/1.0);pointer(lerp(tx+6,px,u),lerp(ty+4,py,u),t>8.9&&t<9.2);}
+  if(t>=6.4&&t<7.3){const [tx,ty]=P(TAG.x,TAG.y);pointer(tx+6,ty+4,t>6.95);}
+  // the ONE caption line
+  if(t>=6&&t<7.2)cap='Tap the glowing word.';else if(t>=7.2&&t<9.4)cap='Pick OPEN.';else if(t>=9.4&&t<12.2)cap='SHUT → OPEN. The door listens.';
+  else if(t>=13.6&&t<14.6)cap='E  look closer';
+  else if(t>=20&&t<23)cap='Tap attack: 3-hit combo. It aims for you.';else if(t>=23&&t<25.6)cap='Hold, then release: the typed beam.';
+  caption(cap,capA);
+  // objective (top) + heading (entry only)
+  const objA=cl((t-1.4)/.6,0,1);
+  if(fight)objective('Practice: knock the dummy over',false);else if(t<11)objective('Get through the door',false,objA);else objective('Door open. Walk through',true);
+  heading(t<.4?t/.4:t<2.2?1:1-cl((t-2.2)/.6,0,1));
+  // inspect card
+  const cu=t<14.6?0:t<19.2?cl((t-14.6)/.45,0,1):1-cl((t-19.2)/.45,0,1);
+  card(cu,t-14.6,'A sticky note on Kabir’s screen: “miss you.”');
+  if(t>=19.65&&t<20.3){g.fillStyle=`rgba(0,0,0,${1-Math.abs(t-19.97)/.33})`;g.fillRect(0,0,W,H);}
+}
+const END=26;
+(async()=>{await document.fonts.load('20px Plex');
+  I.office=await img(A+'rooms/office.jpg');I.kabir=await img(A+'office8c/close/kabir.jpg');
+  for(const n of ['noor_idle','noor_walk','noor_attack','noor_type1'])I[n]=await J(n);
+  const q=new URLSearchParams(location.search);window.frameAt=frameAt;window.END=END;window.ready=true;
+  if(q.has('t')){frameAt(+q.get('t'));return;}
+  const t0=performance.now();(function loop(){frameAt(((performance.now()-t0)/1000)%END);requestAnimationFrame(loop);})();
+})();
+</script></body></html>
