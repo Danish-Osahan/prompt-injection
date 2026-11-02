@@ -146,3 +146,4 @@ No new third-party asset packs. Added in this session:
 - Textures: generated procedurally with PIL (`make_tex_v9.py`); code text set in JetBrains Mono (OFL).
 - Props: Kenney furniture kits (CC0), reused.
 - art-v10: Noor full-body sheets and the office close-up dolly sequences are original Blender renders (noor10.py, office9.py). They use the same Kenney CC0 Mini Characters rig, with no new third-party assets.
+- art-v11: old-angle office close-ups and dollies are original Blender renders of the existing Kenney CC0 office scene (office8c.py). No new third-party assets.
