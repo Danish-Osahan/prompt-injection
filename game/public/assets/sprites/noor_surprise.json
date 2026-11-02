@@ -962,7 +962,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_surprise.png",
   "format": "RGBA8888",
@@ -1047,6 +1047,7 @@
     "noor_surprise_SW_03",
     "noor_surprise_SW_04"
    ]
-  }
+  },
+  "tell": "small jolt after a word swap: lean back, arms twitch, settle"
  }
 }

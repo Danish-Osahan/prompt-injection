@@ -1154,7 +1154,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_type2.png",
   "format": "RGBA8888",
@@ -1168,7 +1168,7 @@
    96,
    160
   ],
-  "fps": 24,
+  "fps": 22,
   "rows": [
    "S",
    "SE",
@@ -1248,6 +1248,7 @@
     "noor_type2_SW_05"
    ]
   },
+  "tell": "SIDE SLASH: frame 0-1 torso twists away, blade low, 2 slash across (hit), 3-5 follow-through twist + settle",
   "hit_frame": 2
  }
 }

@@ -1538,7 +1538,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_dash.png",
   "format": "RGBA8888",
@@ -1552,7 +1552,7 @@
    96,
    160
   ],
-  "fps": 30,
+  "fps": 24,
   "rows": [
    "S",
    "SE",
@@ -1647,6 +1647,7 @@
     "noor_dash_SW_06",
     "noor_dash_SW_07"
    ]
-  }
+  },
+  "tell": "frames 0-1 anticipation (crouch + lean), 2-5 burst (low, stretched, arms back, smear), 6-7 skid recovery; i-frames are game-side"
  }
 }

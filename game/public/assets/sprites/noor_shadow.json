@@ -434,7 +434,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_shadow.png",
   "format": "RGBA8888",
@@ -482,6 +482,7 @@
     "noor_shadow_SW_04",
     "noor_shadow_SW_05"
    ]
-  }
+  },
+  "tell": "idle: looks down and over her shoulder, where her shadow should be"
  }
 }

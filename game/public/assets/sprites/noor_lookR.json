@@ -194,7 +194,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_lookR.png",
   "format": "RGBA8888",
@@ -247,6 +247,7 @@
    "noor_lookR_SW": [
     "noor_lookR_SW_00"
    ]
-  }
+  },
+  "tell": "head turned right toward a nearby object"
  }
 }

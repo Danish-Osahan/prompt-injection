@@ -363,8 +363,9 @@ EXTRA_LOG = {}
 exec(open(T5+'rooms6.py').read())
 exec(open(T5+'rooms7.py').read())
 exec(open(T5+'rooms8.py').read())
-if MODE.startswith('R9_'): exec(open(T5+'office9.py').read())
-if MODE.startswith('R7_'): CAM_T = (unproj(640, 360, 0.5).x, unproj(640, 360, 0.5).y)
+if MODE.startswith('R9_') or MODE.startswith('R8C_'): exec(open(T5+'office9.py').read())
+if MODE.startswith('R8C_'): exec(open(T5+'office8c.py').read())
+if MODE.startswith('R7_') or MODE.startswith('R8C_'): CAM_T = (unproj(640, 360, 0.5).x, unproj(640, 360, 0.5).y)
 if ROOM:
     if MODE in ROOMS6: ROOMS6[MODE]()
     else: {1: floor1, 2: floor2, 3: floor3}[FLOOR]()
@@ -429,4 +430,5 @@ if os.environ.get('AMBPASS'):                 # art-v8 ambient loops: each frame
         for o in a['objs']: o.hide_render = True
         sc.render.use_border = False
 if MODE.startswith('R9_'): passes9()
+if MODE.startswith('R8C_'): closeups8(os.environ.get('CLOSE9', ','.join(CLOSE)).split(','), OUT)
 print('DONE', MODE)

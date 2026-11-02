@@ -434,7 +434,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v10 pack10.py",
+  "app": "prompt-injection art-v6 pack5.py",
   "version": "1.0",
   "image": "noor_phone.png",
   "format": "RGBA8888",
@@ -448,7 +448,7 @@
    96,
    160
   ],
-  "fps": 4,
+  "fps": 6,
   "rows": [
    "S",
    "SE",
@@ -482,6 +482,7 @@
     "noor_phone_SW_04",
     "noor_phone_SW_05"
    ]
-  }
+  },
+  "tell": "idle: lifts her phone, reads it (head down, tiny tilts)"
  }
 }
