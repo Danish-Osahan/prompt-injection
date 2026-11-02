@@ -18,7 +18,7 @@ const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
 const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const MAX_HP = 4;
-const WALK = 200, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
+const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
 const READ_R = 90, FOCUS_R = 120;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -129,7 +129,7 @@ export class GameScene extends Phaser.Scene {
   viewRestore() { for (const [o, x, y, sx, sy] of this.vsaved) { o.x = x; o.y = y; o.scaleX = sx; o.scaleY = sy; } this.vsaved.length = 0; }
   /** screen/world (view) point -> logical floor point (identity outside the art-v9 office) */
   toLogical(x: number, y: number) { return this.vm ? this.vm.L(x, y) : { x, y }; }
-  use9() { return !new URLSearchParams(location.search).has('v8') && this.textures.exists('o9_mid'); }
+  use9() { return new URLSearchParams(location.search).has('v9') && this.textures.exists('o9_mid'); }   // art-v11: the lower office9 angle is EXPERIMENTAL (?v9); the old-angle office is the default
   toWorld(x: number, y: number) { const p = this.cameras.main.getWorldPoint(x, y); return { x: p.x, y: p.y }; }
   toScreen(x: number, y: number) { const c = this.cameras.main; return { x: c.x + (x - c.worldView.x) * c.zoom, y: c.y + (y - c.worldView.y) * c.zoom }; }
 
@@ -275,7 +275,7 @@ export class GameScene extends Phaser.Scene {
       else if (d.kind === 'line') p.setVisibleState(true);
       if (d.kind === 'unlock') p.setVisibleState(sv.tutorials.includes('all:' + id));
     }
-    if (v9) { this.office = new Office9(this); Plate.vars.N = String(sv.unread ?? 37); }
+    if (id === 'office') { this.office = new Office9(this, !v9); Plate.vars.N = String(sv.unread ?? 37); }   // legacy (default) = old-angle plate + directing camera + close-up shots
     if (art) this.buildAmbient(id);
     this.words.resetRoom();
     // Noor
@@ -754,7 +754,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- art-v8 linger layer: ambient loops, toys, idle lines, inspect-all, lost lines ----------
   /** rendered ambient loops (Blender frames, one strip per loop) + a few code particles where light catches dust */
   buildAmbient(id: RoomId) {
-    for (const d of this.office ? [] : ROOMART[id]?.amb ?? []) {
+    for (const d of this.office && !this.office.legacy ? [] : ROOMART[id]?.amb ?? []) {
       if (!this.textures.exists(d.key)) continue;
       const spr = this.add.sprite(d.x, d.y, d.key, 0).setOrigin(0).setDepth(d.baseY < 0 ? -998 : d.baseY); this.objs.push(spr);
       this.amb.push({ def: d, spr, dir: 1, speed: 1, t: Math.random() * 10, ox: d.x, oy: d.y });

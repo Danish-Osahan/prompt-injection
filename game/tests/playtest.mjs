@@ -19,82 +19,87 @@ async function meanLum(page, clip) {
 }
 
 /** art-v9 OFFICE test level: directing camera, layers, close-ups, swap visuals, Noor reactions, pressure, reduce motion */
-async function office9(browser) {
+async function office9(browser, legacy = false) {
+  // art-v11: legacy = the DEFAULT old-angle office (same directing camera / close-up shots / reactions); the lower angle runs with ?v9
   const log = { errors: [], external: [] };
-  const { ctx, page, input } = await open(browser, DESKTOP, URL_, log);
+  const { ctx, page, input } = await open(browser, DESKTOP, legacy ? URL_ : URL_ + '&v9', log);
+  const T = legacy ? 'office' : 'v9';
   await page.waitForFunction(() => window.__pi, null, { timeout: 10000 });
   const o9 = async () => (await st(page)).office9;
   let o = await o9(), s;
-  ok('v9: office runs the art-v9 perspective level', !!o && o.layers >= 10, JSON.stringify(o && { layers: o.layers }));
-  ok('v9 camera: room entry opens on an establishing shot with letterbox bars', o.mode === 'establish' && o.lb > 0.5 && o.zoom < o.base, `${o.mode} lb ${o.lb} zoom ${o.zoom}`);
-  await shot(page, 'v9-01-establishing');
+  ok(legacy ? 'office: the default office is the old-angle plate (office9 only behind ?v9)' : 'v9: office runs the art-v9 perspective level', !!o && (legacy ? o.legacy && o.layers === 0 : o.layers >= 10), JSON.stringify(o && { layers: o.layers, legacy: o.legacy }));
+  ok(T + ' camera: room entry opens on an establishing shot with letterbox bars', o.mode === 'establish' && o.lb > 0.5 && (legacy ? o.zoom > o.base * 1.2 : o.zoom < o.base), `${o.mode} lb ${o.lb} zoom ${o.zoom}`);
+  await shot(page, (legacy ? 'v11-' : 'v9-') + '01-establishing');
   o = (await waitFor(page, s => s.office9.mode === 'play' && s.office9.lb < 0.1, 20000)).office9;
-  ok('v9 camera: establishing shot settles to gameplay framing', o.mode === 'play' && o.lb < 0.1, `${o.mode} lb ${o.lb}`);
-  await shot(page, 'v9-02-office-new-angle');
+  ok(T + ' camera: establishing shot settles to gameplay framing', o.mode === 'play' && o.lb < 0.1, `${o.mode} lb ${o.lb}`);
+  await shot(page, (legacy ? 'v11-' : 'v9-') + '02-office-new-angle');
   // drift + look-ahead: walking right moves the camera centre right of Noor's last position
   await pi(page, 'teleport', 560, 450); await sleep(2500); const c0 = (await o9()).cx; await input.move(1, 0); await sleep(900); await input.stop(); o = await o9();
-  ok('v9 camera: follows with look-ahead (centre moves with Noor)', o.cx > c0 + 20, `cx ${c0} -> ${o.cx}`);
+  if (!legacy) ok(T + ' camera: follows with look-ahead (centre moves with Noor)', o.cx > c0 + 20, `cx ${c0} -> ${o.cx}`);
+  else ok('office camera: the whole room stays framed in play (soft clamp, no jitter)', Math.abs(o.cx - 640) <= 1 && Math.abs(o.cy - 360) <= 1, `cx ${o.cx} cy ${o.cy}`);
   // push-in on inspect (no close-up for Dez's desk)
   await pi(page, 'read', 'o_dez'); o = (await waitFor(page, s => s.office9.mode === 'inspect' && s.office9.zoom > s.office9.playZoom * 1.05, 6000)).office9;
-  ok('v9 camera: inspect pushes in', o.mode === 'inspect' && o.zoom > o.playZoom * 1.05, `zoom ${o.zoom} play ${o.playZoom.toFixed(3)}`);
-  await shot(page, 'v9-03-inspect-push-in');
+  ok(T + ' camera: inspect pushes in', o.mode === 'inspect' && o.zoom > o.playZoom * 1.05, `zoom ${o.zoom} play ${o.playZoom.toFixed(3)}`);
+  await shot(page, (legacy ? 'v11-' : 'v9-') + '03-inspect-push-in');
   await waitFor(page, s => s.office9.mode === 'play', 8000);
   // rendered close-up + code vision inside it
   await pi(page, 'read', 'o_kabir'); o = (await waitFor(page, s => s.office9.card === 'kabir' && s.office9.cardA > 0.95, 8000)).office9;
-  ok('v9 close-up: inspecting Kabir\'s note cuts to its rendered close-up', o.card === 'kabir' && o.cardA > 0.95, JSON.stringify({ card: o.card, a: o.cardA }));
-  await shot(page, 'v9-04-kabir-close');
-  await page.keyboard.down('e'); o = (await waitFor(page, s => s.office9.cardCode > 0.9, 4000)).office9; await shot(page, 'v9-04b-kabir-close-code'); await page.keyboard.up('e');
-  ok('v9 close-up: code vision shows that object\'s code line on the card', o.cardCode > 0.9 && o.cardLine === 'kabir.note = "miss you";', o.cardLine);
+  ok(T + ' close-up: inspecting Kabir\'s note cuts to its rendered close-up', o.card === 'kabir' && o.cardA > 0.95, JSON.stringify({ card: o.card, a: o.cardA }));
+  { const seen = new Set([o.ph]); const t0 = Date.now(); while (Date.now() - t0 < 4000 && o.ph !== 'still') { o = await o9(); seen.add(o.ph); await sleep(60); }
+  ok(T + ' close-up: one continuous shot (approach -> dissolve -> rendered dolly -> still)', o.ph === 'still' && seen.has('dolly'), [...seen].join('>')); }
+  await shot(page, (legacy ? 'v11-' : 'v9-') + '04-kabir-close');
+  await page.keyboard.down('e'); o = (await waitFor(page, s => s.office9.cardCode > 0.9, 4000)).office9; await shot(page, (legacy ? 'v11-' : 'v9-') + '04b-kabir-close-code'); await page.keyboard.up('e');
+  ok(T + ' close-up: code vision shows that object\'s code line on the card', o.cardCode > 0.9 && o.cardLine === 'kabir.note = "miss you";', o.cardLine);
   await sleep(300); await input.move(0, 1); await sleep(250); await input.stop(); o = (await waitFor(page, s => !s.office9.card && s.office9.mode === 'play', 4000)).office9;
-  ok('v9 close-up: moving returns smoothly to play', !o.card && o.mode === 'play', `${o.card} ${o.mode}`);
+  ok(T + ' close-up: moving returns smoothly to play', !o.card && o.mode === 'play', `${o.card} ${o.mode}`);
   // the phone beat: tight on Noor, she looks at her phone, then the card
   await pi(page, 'read', 'o_phone'); o = (await waitFor(page, s => s.office9.mode === 'noor', 4000)).office9;
-  await waitFor(page, s => s.office9.lb > 0.6, 4000); const beat = (await o9()); await sleep(300); await shot(page, 'v9-05-phone-noor-closeup');
-  ok('v9 camera: phone = emotional close-up on Noor, letterboxed, phone anim', o.mode === 'noor' && /noor_phone_/.test(beat.anim) && beat.lb > 0.5, `${o.mode} ${beat.anim} lb ${beat.lb}`);
-  o = (await waitFor(page, s => s.office9.card === 'phone' && s.office9.cardA > 0.95, 8000)).office9; await shot(page, 'v9-06-phone-close');
-  ok('v9 close-up: phone card follows the Noor beat', o.card === 'phone');
+  await waitFor(page, s => s.office9.lb > 0.6, 4000); const beat = (await o9()); await sleep(300); await shot(page, (legacy ? 'v11-' : 'v9-') + '05-phone-noor-closeup');
+  ok(T + ' camera: phone = emotional close-up on Noor, letterboxed, phone anim', o.mode === 'noor' && /noor_phone_/.test(beat.anim) && beat.lb > 0.5, `${o.mode} ${beat.anim} lb ${beat.lb}`);
+  o = (await waitFor(page, s => s.office9.card === 'phone' && s.office9.cardA > 0.95, 8000)).office9; await shot(page, (legacy ? 'v11-' : 'v9-') + '06-phone-close');
+  ok(T + ' close-up: phone card follows the Noor beat', o.card === 'phone');
   await pi(page, 'o9', 'closeCard'); await waitFor(page, s => s.office9.mode === 'play', 4000);
   // swaps visibly change the room
-  await pi(page, 'teleport', 900, 300); await sleep(1200); await shot(page, 'v9-07a-rain-sad');
+  await pi(page, 'teleport', 900, 300); await sleep(1200); await shot(page, (legacy ? 'v11-' : 'v9-') + '07a-rain-sad');
   await pi(page, 'swap', 'o_rain', 'o_lamp'); o = await o9();
-  ok('v9 Noor: a swap gets a surprised reaction', o.reacting === 'surprise' && /noor_surprise_/.test(o.anim), `${o.reacting} ${o.anim}`);
-  o = (await waitFor(page, s => s.office9.vars.toys > 0.98, 8000)).office9; await sleep(300); await shot(page, 'v9-07b-rain-happy');
-  ok('v9 swap: rain SAD -> HAPPY warms the window light and slows the rain', o.vars.toys > 0.98 && o.rainK < 0.5, JSON.stringify(o.vars) + ' rainK ' + o.rainK);
-  await pi(page, 'swap', 'o_photo', 'o_phone'); o = (await waitFor(page, s => s.office9.vars.flip > 0.98, 6000)).office9;
+  ok(T + ' Noor: a swap gets a surprised reaction', o.reacting === 'surprise' && /noor_surprise_/.test(o.anim), `${o.reacting} ${o.anim}`);
+  o = (await waitFor(page, s => legacy || s.office9.vars.toys > 0.98, 8000)).office9; await sleep(1900); o = await o9(); await shot(page, (legacy ? 'v11-' : 'v9-') + '07b-rain-happy');
+  ok(T + ' swap: rain SAD -> HAPPY warms the window light and slows the rain', (legacy ? o.refl > 0.3 : o.vars.toys > 0.98) && o.rainK < 0.5, JSON.stringify(o.vars) + ' rainK ' + o.rainK);
+  await pi(page, 'swap', 'o_photo', 'o_phone'); o = (await waitFor(page, s => legacy || s.office9.vars.flip > 0.98, 6000)).office9;
   s = await st(page);
-  ok('v9 swap: PHOTO LIES DOWN <-> PHONE LIES UP flips the photo (and the phone)', o.vars.flip > 0.98 && s.plates.o_photo.words === 'PHOTO LIES UP' && s.plates.o_phone.words === 'PHONE LIES DOWN', `${s.plates.o_photo.words} / ${s.plates.o_phone.words}`);
-  ok('v9 swap: toy pairs only trade inside their pair', !(await pi(page, 'swap', 'o_photo', 'o_rain')));
-  await pi(page, 'teleport', 330, 640); await sleep(1400); await shot(page, 'v9-08-photo-flipped');
-  await pi(page, 'read', 'o_photo'); o = (await waitFor(page, s => s.office9.card === 'photo_up' && s.office9.cardA > 0.95, 8000)).office9; await shot(page, 'v9-08b-photo-up-close');
-  ok('v9 close-up: the flipped photo has its own face-up close-up', o.card === 'photo_up');
+  ok(T + ' swap: PHOTO LIES DOWN <-> PHONE LIES UP flips the photo (and the phone)', (legacy || o.vars.flip > 0.98) && s.plates.o_photo.words === 'PHOTO LIES UP' && s.plates.o_phone.words === 'PHONE LIES DOWN', `${s.plates.o_photo.words} / ${s.plates.o_phone.words}`);
+  ok(T + ' swap: toy pairs only trade inside their pair', !(await pi(page, 'swap', 'o_photo', 'o_rain')));
+  await pi(page, 'teleport', 330, 640); await sleep(1400); await shot(page, (legacy ? 'v11-' : 'v9-') + '08-photo-flipped');
+  await pi(page, 'read', 'o_photo'); o = (await waitFor(page, s => s.office9.card === 'photo_up' && s.office9.cardA > 0.95, 8000)).office9; await shot(page, (legacy ? 'v11-' : 'v9-') + '08b-photo-up-close');
+  ok(T + ' close-up: the flipped photo has its own face-up close-up', o.card === 'photo_up');
   await pi(page, 'o9', 'closeCard'); await sleep(400);
   // claim: code vision near the monitor reveals DENIED and the monitor stays red
   await pi(page, 'teleport', 990, 642); await sleep(900);
-  await page.keyboard.down('e'); s = await waitFor(page, s => s.office9.vars.claim > 0.5 && s.codeView, 5000); await sleep(400); await shot(page, 'v9-09-code-vision-new-angle'); await page.keyboard.up('e');
-  ok('v9 code vision: perspective wireframe + code lines anchored at the new angle', s.codeView && s.codeLines.includes('claim.status = DENIED;') && s.codeLines.length >= 4, s.codeLines.join(' | '));
-  o = (await waitFor(page, s => s.office9.vars.claim > 0.98, 4000)).office9; await sleep(500); await shot(page, 'v9-10-claim-red');
-  ok('v9 swap visuals: claim.status DENIED turns the monitor red after the reveal', o.vars.claim > 0.98);
+  await page.keyboard.down('e'); s = await waitFor(page, s => (legacy || s.office9.vars.claim > 0.5) && s.codeView, 5000); await sleep(400); await shot(page, (legacy ? 'v11-' : 'v9-') + '09-code-vision-new-angle'); await page.keyboard.up('e');
+  ok(T + ' code vision: perspective wireframe + code lines anchored at the new angle', s.codeView && s.codeLines.includes('claim.status = DENIED;') && s.codeLines.length >= 4, s.codeLines.join(' | '));
+  if (!legacy) { o = (await waitFor(page, s => s.office9.vars.claim > 0.98, 4000)).office9; await sleep(500); await shot(page, (legacy ? 'v11-' : 'v9-') + '10-claim-red');
+  ok(T + ' swap visuals: claim.status DENIED turns the monitor red after the reveal', o.vars.claim > 0.98); }
   // Noor reacts: gaze toward the nearest inspectable, idles after a few seconds
   await pi(page, 'teleport', 330, 560); await input.move(0, 1); await sleep(60); await input.stop(); o = (await waitFor(page, s => /noor_look[LR]_/.test(s.office9.anim), 4000)).office9;
-  ok('v9 Noor: head turns toward the nearest inspectable while standing', /noor_look[LR]_/.test(o.anim), o.anim);
+  ok(T + ' Noor: head turns toward the nearest inspectable while standing', /noor_look[LR]_/.test(o.anim), o.anim);
   await pi(page, 'teleport', 640, 500); await sleep(200); await pi(page, 'o9', 'idle', 4.5); o = (await waitFor(page, s => /noor_(phone|shadow)_/.test(s.office9.anim), 4000)).office9;
-  await sleep(400); await shot(page, 'v9-11-noor-idle');
-  ok('v9 Noor: idles after a few seconds still (phone / looks for her shadow)', /noor_(phone|shadow)_/.test(o.anim), o.anim);
+  await sleep(400); await shot(page, (legacy ? 'v11-' : 'v9-') + '11-noor-idle');
+  ok(T + ' Noor: idles after a few seconds still (phone / looks for her shadow)', /noor_(phone|shadow)_/.test(o.anim), o.anim);
   // pressure: unread ticks, glitch, the Draft in the glass
   const u0 = o.unread; await pi(page, 'o9', 'unread'); await pi(page, 'teleport', 165, 400); s = await waitFor(page, s => s.caption.includes(`${u0 + 1} unread`), 4000);
-  ok('v9 pressure: the phone unread count ticks up (and the caption says so)', s.office9.unread === u0 + 1 && s.caption.includes(`${u0 + 1} unread`), s.caption.slice(0, 90));
+  ok(T + ' pressure: the phone unread count ticks up (and the caption says so)', s.office9.unread === u0 + 1 && s.caption.includes(`${u0 + 1} unread`), s.caption.slice(0, 90));
   const g0 = s.office9.glitchN; await pi(page, 'o9', 'glitch'); o = await o9();
-  ok('v9 pressure: a subtle chromatic glitch can fire', o.glitchN === g0 + 1);
-  await pi(page, 'teleport', 900, 260); await sleep(1500); await pi(page, 'o9', 'draft'); o = (await waitFor(page, s => s.office9.glimpse, 3000)).office9; await sleep(1400); await shot(page, 'v9-12-draft-glimpse');
-  ok('v9 pressure: a brief Draft silhouette passes behind the glass', o.draft && o.glimpse);
-  ok('v9 pressure: never punishes lingering (no damage, no timer)', (await st(page)).hp === 4);
+  ok(T + ' pressure: a subtle chromatic glitch can fire', o.glitchN === g0 + 1);
+  await pi(page, 'teleport', 900, 260); await sleep(1500); await pi(page, 'o9', 'draft'); o = (await waitFor(page, s => s.office9.glimpse, 3000)).office9; await sleep(1400); await shot(page, (legacy ? 'v11-' : 'v9-') + '12-draft-glimpse');
+  ok(T + ' pressure: a brief Draft silhouette passes behind the glass', o.draft && o.glimpse);
+  ok(T + ' pressure: never punishes lingering (no damage, no timer)', (await st(page)).hp === 4);
   // reduce motion
   await pi(page, 'reduceMotion', true); await pi(page, 'goto', 'office'); s = await waitFor(page, s => s.room === 'office' && s.office9 && s.office9.roomT > 0.2, 8000); o = s.office9;
-  ok('v9 reduce motion: no establishing move, bars off', o.reduce && o.mode === 'play' && o.lb < 0.1, `${o.mode} lb ${o.lb}`);
+  ok(T + ' reduce motion: no establishing move, bars off', o.reduce && o.mode === 'play' && o.lb < 0.1, `${o.mode} lb ${o.lb}`);
   await pi(page, 'read', 'o_dez'); await sleep(700); o = await o9();
-  ok('v9 reduce motion: no push-in zoom', Math.abs(o.zoom - o.playZoom) < 0.01, `zoom ${o.zoom} play ${o.playZoom}`);
+  ok(T + ' reduce motion: no push-in zoom', Math.abs(o.zoom - o.playZoom) < 0.01, `zoom ${o.zoom} play ${o.playZoom}`);
   await pi(page, 'reduceMotion', false);
-  ok('v9: zero console errors', log.errors.length === 0, log.errors.slice(0, 5).join(' | '));
+  ok(T + ': zero console errors', log.errors.length === 0, log.errors.slice(0, 5).join(' | '));
   await ctx.close();
 }
 
@@ -442,7 +447,7 @@ async function mobile(browser) {
 
 const server = await serve();
 const browser = await launch();
-try { if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office9(browser); await mobile(browser); } }
+try { if (process.env.ONLY_V9) { await office9(browser, true); if (process.env.V9) await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office9(browser, true); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, e.message + (process.env.ONLY_LINGER ? ' ' + e.stack : '')); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);
