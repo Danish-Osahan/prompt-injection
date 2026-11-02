@@ -69,6 +69,8 @@ async function touchInput(page) {
       await sleep(40);
       if (pts.length) await send('touchMove', pts); else await send('touchEnd', []);
     },
+    async hold(btn, ms) { const p = await toPage(page, btnPos[btn].x, btnPos[btn].y); await send('touchStart', [{ x: p.x, y: p.y, id: 2 }]); await sleep(ms); await send('touchEnd', []); },
+    async tap(x, y) { const p = await toPage(page, x, y); await send('touchStart', [{ x: p.x, y: p.y, id: 4 }]); await sleep(40); await send('touchEnd', []); },
     async restart() { const p = await toPage(page, 640, 300); await send('touchStart', [{ x: p.x, y: p.y, id: 3 }]); await sleep(40); await send('touchEnd', []); joy = null; },
   };
 }

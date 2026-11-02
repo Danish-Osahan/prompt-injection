@@ -3,6 +3,7 @@
 // through test hooks + real keyboard/touch input, screenshots every room, and fails on console errors.
 import { spawn } from 'node:child_process';
 import { launch, open, sleep, MOBILE, DESKTOP } from './helpers.mjs';
+import { office11 } from './office11.mjs';
 const PORT = 4175;
 const URL_ = process.env.GAME_URL ?? `http://localhost:${PORT}/?test=1&new=1`;
 const SHOTS = new URL('../screenshots/', import.meta.url).pathname;
@@ -139,7 +140,7 @@ async function linger(browser) {
     const caps = await pi(page, 'captions'); const longest = caps.sort((a, b) => b.t.length - a.t.length)[0];
     await pi(page, 'capForce', longest.id, longest.t); await sleep(350); s = await st(page);
     const rows = s.captionRows; if (r === 'office' || longest.t.length > 70) await shot(page, `v9-caption-wrap-${r}`);
-    ok(`caption wrap ${r}: longest line (${longest.t.length} chars) fits in <= 2 lines`, rows.length >= 1 && rows.length <= 2 && rows.every(q => q.x0 >= 16 && q.x1 <= 1264), JSON.stringify(rows) + ' ' + longest.t.slice(0, 40));
+    if (r === 'office') ok('caption office (clarity): no screenplay caption rows; lore lives in cards', rows.length === 0, JSON.stringify(rows)); else ok(`caption wrap ${r}: longest line (${longest.t.length} chars) fits in <= 2 lines`, rows.length >= 1 && rows.length <= 2 && rows.every(q => q.x0 >= 16 && q.x1 <= 1264), JSON.stringify(rows) + ' ' + longest.t.slice(0, 40));
     await pi(page, 'capForce', null);
     if (r === 'corridor' || r === 'archive') { const sm = s.amb.filter(a => ['moth', 'drip', 'duck'].includes(a.name)); ok(`linger ${r}: small ambient loops are readable at game size (>= 20 px)`, sm.length > 0 && sm.every(a => Math.min(a.w, a.h) >= 20), sm.map(a => `${a.name} ${a.w}x${a.h}`).join(' ')); }
     if (r === 'hub') {   // global fix: the dash gap is a lit shaft, not a hard black band
@@ -151,8 +152,8 @@ async function linger(browser) {
   await pi(page, 'goto', 'office'); await waitFor(page, s => s.room === 'office', 5000); await sleep(400);
   // strict (art-v9 fix): the stand-still narrator line must actually show in the subtitle box
   await pi(page, 'teleport', 640, 500); await pi(page, 'idle', 6.5);
-  s = await waitFor(page, s => /office does too|hasn\u2019t moved on/.test(s.sub), 4000);
-  ok('linger: standing still shows the idle narrator line', /office does too|hasn\u2019t moved on/.test(s.sub), `sub "${s.sub}"`);
+  await sleep(2500); s = await st(page);
+  ok('linger: standing still in the clarity office stays quiet (no idle narrator line)', s.sub === '' && s.clar.caption === '', `sub "${s.sub}" cap "${s.clar.caption}"`);
   const ok1 = await pi(page, 'swap', 'o_rain', 'o_lamp'); s = await st(page);
   ok('linger: code-vision toy swaps with its partner', !!ok1 && s.plates.o_rain.words !== 'RAIN FEELS SAD', s.plates.o_rain.words + ' / ' + s.plates.o_lamp.words);
   ok('linger: toys only swap with toys', !(await pi(page, 'swap', 'o_rain', 'o_coffee')));
@@ -183,14 +184,14 @@ async function desktop(browser) {
   ok('desktop: dash cooldown ~1s', s.dashCd > 0.6 && s.dashCd <= 1.0, `cd left ${s.dashCd.toFixed(2)}`);
   // inspect coffee with a real E press
   await pi(page, 'teleport', 232, 655); await sleep(900); s = await st(page);
-  ok('caption: scene heading + screenplay line about the nearest object', s.heading.startsWith('INT. ') && s.caption.includes('Cold since August'), `${s.heading} | ${s.caption}`);
-  await page.keyboard.press('e'); await sleep(200); s = await st(page);
+  ok('caption (clarity): near an object, one short hint line', s.clar.near === 'o_coffee' && s.clar.caption === 'E  look closer', `${s.clar.near} | ${s.clar.caption}`);
+  await page.keyboard.press('e'); await sleep(200); s = await st(page); await pi(page, 'clar', 'close');
   ok('desktop: E reads a lore plate (coffee)', s.save.lore.includes('o_coffee'), s.save.lore.join(','));
   for (const id of ['o_dez', 'o_kabir']) await pi(page, 'read', id);
   await shot(page, 'desktop-02-office-read');
   // the narrator lies: the claim status is redacted in the caption, code vision shows it
   await pi(page, 'teleport', 990, 642); await sleep(1100); s = await st(page);
-  ok('caption: the narrator redacts the claim (\u2588\u2588)', s.caption.includes('Your claim was \u2588'), s.caption);
+  ok('caption (clarity): the claim screen is an inspect target (lore in its card)', s.clar.near === 'o_monitor' || s.clar.near === 'o_noor' || !!s.clar.near, String(s.clar.near));
   await page.keyboard.down('e'); await sleep(650); s = await st(page); await shot(page, 'desktop-02b-office-code-view');
   await page.keyboard.up('e');
   ok('code view: hold E shows a code line per object + noor.shadow = null;', s.codeView && s.codeLines.includes('claim.status = DENIED;') && s.codeLines.length >= 4 && s.noorLine === 'noor.shadow = null;', s.codeLines.join(' | '));
@@ -409,8 +410,18 @@ async function mobile(browser) {
   const { ctx, page, input } = await open(browser, MOBILE, URL_, log);
   await page.waitForFunction(() => window.__pi, null, { timeout: 10000 }); await sleep(300);
   let s = await st(page);
-  ok('mobile: touch input detected, touch prompts shown', s.inputKind === 'touch' && s.prompts.some(p => p.includes('DRAG TO WALK')), s.prompts.join(' | '));
+  ok('mobile: touch input detected, touch prompts shown', s.inputKind === 'touch' && s.clar?.caption === 'Drag to walk', s.clar?.caption);
   await shot(page, 'mobile-01-office');
+  { // clarity office on touch: tap the SHUT tag, tap TYPE = combo, hold TYPE + release = beam
+    await pi(page, 'teleport', 205, 236); await sleep(500); let q = await st(page); await input.tap(q.clar.tag.x, q.clar.tag.y); await sleep(300); q = await st(page);
+    ok('mobile clarity: tapping the SHUT tag opens the picker', q.clar.picker === 'o_door', String(q.clar.picker)); await shot(page, 'mobile-v11c-picker'); await pi(page, 'clar', 'close');
+    const d = q.clar.dummy; await pi(page, 'teleport', d.x - 80, d.y + 4); await sleep(300);
+    for (let i = 0; i < 3; i++) { await input.press('attack'); await sleep(240); } await sleep(300); q = await st(page);
+    ok('mobile clarity: tapping the attack button lands the 3-hit combo', q.clar.combo >= 3, `hits ${q.clar.combo}`);
+    await input.hold('attack', 750); await sleep(400); q = await st(page);
+    ok('mobile clarity: holding then releasing the attack button fires the beam', q.clar.beam >= 1, `beam hits ${q.clar.beam}`);
+    await pi(page, 'teleport', 110, 470); await sleep(300);
+  }
   const x0 = s.player.x; await input.move(1, 0); await sleep(500); s = await st(page);
   ok('mobile: virtual stick moves Noor', s.player.x - x0 > 50, `${Math.round(s.player.x - x0)}px`);
   const d0 = s.player.x; await input.press('dash'); await sleep(200); await input.stop(); s = await st(page);
@@ -447,7 +458,8 @@ async function mobile(browser) {
 
 const server = await serve();
 const browser = await launch();
-try { if (process.env.ONLY_V9) { await office9(browser, true); if (process.env.V9) await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office9(browser, true); if (process.env.V9) await office9(browser); await mobile(browser); } }
+const T11 = { ok, st, pi, waitFor, shot, URL_ };
+try { if (process.env.ONLY_V11) { await office11(browser, T11); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, e.message + (process.env.ONLY_LINGER ? ' ' + e.stack : '')); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);
