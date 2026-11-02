@@ -1,0 +1,41 @@
+{
+ "actors": [],
+ "cam_target": [
+  0.0,
+  0.0
+ ],
+ "extra": {
+  "fg": [
+   {
+    "idx": 30,
+    "base_y": 450,
+    "name": "dez_desk"
+   },
+   {
+    "idx": 31,
+    "base_y": 330,
+    "name": "kabir_desk"
+   },
+   {
+    "idx": 32,
+    "base_y": 515,
+    "name": "noor_desk"
+   },
+   {
+    "idx": 33,
+    "base_y": 615,
+    "name": "mug_desk"
+   },
+   {
+    "idx": 34,
+    "base_y": 720,
+    "name": "fg_plant"
+   },
+   {
+    "idx": 35,
+    "base_y": 645,
+    "name": "nook"
+   }
+  ]
+ }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "prompt-injection",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview --port 4175 --strictPort",
+    "playtest": "node tests/playtest.mjs"
+  },
+  "dependencies": { "phaser": "^4.2.1" },
+  "devDependencies": { "playwright": "^1.64.1", "typescript": "^7.0.2", "vite": "^8.3.5" }
+}

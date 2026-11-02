@@ -1,0 +1,133 @@
+{
+ "frames": {
+  "fern_seated_S_00": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "sourceSize": {
+    "w": 384,
+    "h": 384
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.875
+   }
+  },
+  "fern_seated_S_01": {
+   "frame": {
+    "x": 384,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "sourceSize": {
+    "w": 384,
+    "h": 384
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.875
+   }
+  },
+  "fern_seated_S_02": {
+   "frame": {
+    "x": 768,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "sourceSize": {
+    "w": 384,
+    "h": 384
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.875
+   }
+  },
+  "fern_seated_S_03": {
+   "frame": {
+    "x": 1152,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 384,
+    "h": 384
+   },
+   "sourceSize": {
+    "w": 384,
+    "h": 384
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.875
+   }
+  }
+ },
+ "meta": {
+  "app": "prompt-injection art-v6 pack5.py",
+  "version": "1.0",
+  "image": "fern_seated.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1536,
+   "h": 384
+  },
+  "scale": "1",
+  "frameSize": 384,
+  "pivot_px": [
+   192,
+   336
+  ],
+  "fps": 4,
+  "rows": [
+   "S"
+  ],
+  "cols": 4,
+  "loop": true,
+  "note": "rows = facing direction (screen space, S = towards camera), cols = frame index; pivot = feet. Rendered 1:1 with the 1280x720 mocks. Outline + glow are baked (no shader needed).",
+  "animations": {
+   "fern_seated_S": [
+    "fern_seated_S_00",
+    "fern_seated_S_01",
+    "fern_seated_S_02",
+    "fern_seated_S_03"
+   ]
+  },
+  "direction_map": "single row: use for every facing (symmetric / always faces the camera)",
+  "tell": "phase 3: seated at the table in Kabir's chair, slow breathing loop"
+ }
+}

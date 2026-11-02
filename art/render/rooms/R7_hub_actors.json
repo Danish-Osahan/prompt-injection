@@ -1,0 +1,36 @@
+{
+ "actors": [],
+ "cam_target": [
+  0.0,
+  0.0
+ ],
+ "extra": {
+  "fg": [
+   {
+    "idx": 30,
+    "base_y": 435,
+    "name": "door_panel"
+   },
+   {
+    "idx": 31,
+    "base_y": 434,
+    "name": "partition"
+   },
+   {
+    "idx": 32,
+    "base_y": 512,
+    "name": "lamp"
+   },
+   {
+    "idx": 33,
+    "base_y": 590,
+    "name": "fern_desk"
+   },
+   {
+    "idx": 34,
+    "base_y": 720,
+    "name": "fg_plant"
+   }
+  ]
+ }
+}

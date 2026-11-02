@@ -1,0 +1,965 @@
+{
+ "office": {
+  "id": "office",
+  "title": "the_real_office",
+  "path": "~/floor-2/open-plan/ 11:48 PM",
+  "floor": {
+   "base": 1449252,
+   "line": 2042419,
+   "tile": 64
+  },
+  "walk": [
+   {
+    "x": 70,
+    "y": 200,
+    "w": 1140,
+    "h": 480
+   }
+  ],
+  "walls": [],
+  "props": [
+   {
+    "x": 70,
+    "y": 70,
+    "w": 1140,
+    "h": 130,
+    "color": 856857,
+    "top": 1186338
+   },
+   {
+    "x": 760,
+    "y": 82,
+    "w": 400,
+    "h": 100,
+    "color": 1714746,
+    "glow": 4876938,
+    "label": "rain"
+   },
+   {
+    "x": 330,
+    "y": 380,
+    "w": 130,
+    "h": 60,
+    "color": 2898500,
+    "top": 3820118,
+    "solid": true
+   },
+   {
+    "x": 350,
+    "y": 362,
+    "w": 50,
+    "h": 20,
+    "color": 7327968,
+    "glow": 7327968
+   },
+   {
+    "x": 620,
+    "y": 260,
+    "w": 130,
+    "h": 60,
+    "color": 2898500,
+    "top": 3820118,
+    "solid": true
+   },
+   {
+    "x": 640,
+    "y": 242,
+    "w": 50,
+    "h": 20,
+    "color": 9089248,
+    "glow": 9089248
+   },
+   {
+    "x": 920,
+    "y": 450,
+    "w": 140,
+    "h": 64,
+    "color": 3422268,
+    "top": 4474956,
+    "solid": true
+   },
+   {
+    "x": 950,
+    "y": 432,
+    "w": 56,
+    "h": 22,
+    "color": 1711134
+   },
+   {
+    "x": 220,
+    "y": 560,
+    "w": 26,
+    "h": 26,
+    "color": 6965812,
+    "top": 9069640
+   }
+  ],
+  "plates": [
+   {
+    "id": "o_coffee",
+    "words": [
+     "COFFEE"
+    ],
+    "slot": -1,
+    "x": 232,
+    "y": 625,
+    "sx": 233,
+    "sy": 540,
+    "mount": "string",
+    "kind": "lore",
+    "text": "COLD SINCE AUGUST."
+   },
+   {
+    "id": "o_dez",
+    "words": [
+     "DEZ’S",
+     "DESK"
+    ],
+    "slot": -1,
+    "x": 395,
+    "y": 470,
+    "sx": 375,
+    "sy": 340,
+    "mount": "screws",
+    "kind": "lore",
+    "text": "DEZ: BACK MONDAY :)"
+   },
+   {
+    "id": "o_kabir",
+    "words": [
+     "KABIR’S",
+     "NOTE"
+    ],
+    "slot": -1,
+    "x": 685,
+    "y": 350,
+    "sx": 665,
+    "sy": 222,
+    "mount": "tape",
+    "kind": "lore",
+    "note": true,
+    "text": "MISS YOU AROUND HERE."
+   },
+   {
+    "id": "o_monitor",
+    "words": [
+     "MONITOR"
+    ],
+    "slot": -1,
+    "x": 990,
+    "y": 548,
+    "sx": 978,
+    "sy": 412,
+    "mount": "bracket",
+    "kind": "lore",
+    "text": "CLAIM #4471: PLEASE REPHRASE."
+   }
+  ],
+  "spawn": {
+   "x": 140,
+   "y": 600
+  }
+ },
+ "hub": {
+  "id": "hub",
+  "title": "mirror_office",
+  "path": "~/hub/",
+  "floor": {
+   "base": 792102,
+   "line": 1454154,
+   "tile": 64
+  },
+  "walk": [
+   {
+    "x": 80,
+    "y": 150,
+    "w": 1120,
+    "h": 530
+   }
+  ],
+  "walls": [
+   {
+    "x": 80,
+    "y": 400,
+    "w": 520,
+    "h": 34
+   },
+   {
+    "x": 680,
+    "y": 400,
+    "w": 520,
+    "h": 34
+   }
+  ],
+  "props": [
+   {
+    "x": 590,
+    "y": 366,
+    "w": 100,
+    "h": 34,
+    "color": 1848400,
+    "label": "doorframe"
+   },
+   {
+    "x": 300,
+    "y": 322,
+    "w": 8,
+    "h": 44,
+    "color": 5927040,
+    "top": 7922920
+   },
+   {
+    "x": 300,
+    "y": 322,
+    "w": 120,
+    "h": 4,
+    "color": 5927040
+   },
+   {
+    "x": 80,
+    "y": 40,
+    "w": 1120,
+    "h": 110,
+    "color": 528416,
+    "top": 792624
+   },
+   {
+    "x": 580,
+    "y": 60,
+    "w": 120,
+    "h": 92,
+    "color": 1057850,
+    "glow": 7922920,
+    "label": "exit"
+   },
+   {
+    "x": 80,
+    "y": 400,
+    "w": 520,
+    "h": 34,
+    "color": 1254202,
+    "top": 1848400
+   },
+   {
+    "x": 680,
+    "y": 400,
+    "w": 520,
+    "h": 34,
+    "color": 1254202,
+    "top": 1848400
+   },
+   {
+    "x": 930,
+    "y": 530,
+    "w": 150,
+    "h": 60,
+    "color": 1715268,
+    "top": 2637918,
+    "solid": true
+   },
+   {
+    "x": 240,
+    "y": 470,
+    "w": 40,
+    "h": 40,
+    "color": 3813408,
+    "glow": 16172676
+   }
+  ],
+  "plates": [
+   {
+    "id": "h_lamp",
+    "words": [
+     "LAMP",
+     "IS",
+     "OPEN"
+    ],
+    "slot": 2,
+    "x": 300,
+    "y": 560,
+    "sx": 260,
+    "sy": 452,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "h_door",
+    "words": [
+     "DOOR",
+     "IS",
+     "SHUT"
+    ],
+    "slot": 2,
+    "x": 640,
+    "y": 480,
+    "sx": 640,
+    "sy": 384,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "h_gap",
+    "words": [
+     "GAP",
+     "IS",
+     "WIDE"
+    ],
+    "slot": -1,
+    "x": 430,
+    "y": 365,
+    "sx": 360,
+    "sy": 342,
+    "mount": "bracket",
+    "kind": "fixed"
+   },
+   {
+    "id": "h_exit",
+    "words": [
+     "EXIT",
+     "IS",
+     "NOOR’S"
+    ],
+    "slot": -1,
+    "x": 640,
+    "y": 185,
+    "sx": 640,
+    "sy": 48,
+    "mount": "screws",
+    "kind": "fixed"
+   }
+  ],
+  "spawn": {
+   "x": 640,
+   "y": 630
+  },
+  "exit": {
+   "rect": {
+    "x": 580,
+    "y": 150,
+    "w": 120,
+    "h": 14
+   },
+   "to": "corridor"
+  }
+ },
+ "corridor": {
+  "id": "corridor",
+  "title": "dark_corridor",
+  "path": "~/hub/corridor/",
+  "floor": {
+   "base": 659480,
+   "line": 1186856,
+   "tile": 48
+  },
+  "walk": [
+   {
+    "x": 60,
+    "y": 330,
+    "w": 960,
+    "h": 140
+   },
+   {
+    "x": 140,
+    "y": 230,
+    "w": 130,
+    "h": 100
+   },
+   {
+    "x": 1000,
+    "y": 220,
+    "w": 220,
+    "h": 400
+   }
+  ],
+  "walls": [],
+  "props": [
+   {
+    "x": 60,
+    "y": 296,
+    "w": 80,
+    "h": 34,
+    "color": 923170,
+    "top": 1318444
+   },
+   {
+    "x": 270,
+    "y": 296,
+    "w": 730,
+    "h": 34,
+    "color": 923170,
+    "top": 1318444
+   },
+   {
+    "x": 355,
+    "y": 270,
+    "w": 10,
+    "h": 30,
+    "color": 3818576
+   },
+   {
+    "x": 340,
+    "y": 262,
+    "w": 40,
+    "h": 12,
+    "color": 4866096,
+    "top": 16172676
+   },
+   {
+    "x": 190,
+    "y": 196,
+    "w": 30,
+    "h": 22,
+    "color": 2765888,
+    "top": 3820120
+   },
+   {
+    "x": 1092,
+    "y": 196,
+    "w": 36,
+    "h": 36,
+    "color": 1713200,
+    "top": 2765888,
+    "label": "clock"
+   },
+   {
+    "x": 1190,
+    "y": 360,
+    "w": 30,
+    "h": 120,
+    "color": 1845820,
+    "top": 2767954,
+    "label": "alcove_door"
+   }
+  ],
+  "plates": [
+   {
+    "id": "c_light",
+    "words": [
+     "LIGHT",
+     "IS",
+     "OFF"
+    ],
+    "slot": 2,
+    "x": 360,
+    "y": 430,
+    "sx": 360,
+    "sy": 312,
+    "mount": "bracket",
+    "kind": "rule"
+   },
+   {
+    "id": "c_switch",
+    "words": [
+     "SWITCH",
+     "IS",
+     "ON"
+    ],
+    "slot": 2,
+    "x": 205,
+    "y": 270,
+    "sx": 205,
+    "sy": 226,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "c_note",
+    "words": [
+     "FERN’S",
+     "NOTE"
+    ],
+    "slot": -1,
+    "x": 860,
+    "y": 365,
+    "sx": 860,
+    "sy": 318,
+    "mount": "tape",
+    "kind": "lore",
+    "note": true,
+    "hidden": true,
+    "text": "YOU ALWAYS SAID GOOD MORNING."
+   },
+   {
+    "id": "c_dummy",
+    "words": [
+     "DUMMY",
+     "IS",
+     "STILL"
+    ],
+    "slot": 2,
+    "x": 1090,
+    "y": 585,
+    "sx": 1110,
+    "sy": 418,
+    "mount": "string",
+    "kind": "rule"
+   },
+   {
+    "id": "c_clock",
+    "words": [
+     "CLOCK",
+     "IS",
+     "QUICK"
+    ],
+    "slot": 2,
+    "x": 1110,
+    "y": 255,
+    "sx": 1110,
+    "sy": 262,
+    "mount": "bracket",
+    "kind": "rule"
+   }
+  ],
+  "spawn": {
+   "x": 110,
+   "y": 400
+  },
+  "exit": {
+   "rect": {
+    "x": 1205,
+    "y": 360,
+    "w": 15,
+    "h": 120
+   },
+   "to": "archive"
+  }
+ },
+ "archive": {
+  "id": "archive",
+  "title": "flooded_archive",
+  "path": "~/hub/archive/",
+  "floor": {
+   "base": 923680,
+   "line": 1583155,
+   "tile": 56
+  },
+  "walk": [
+   {
+    "x": 60,
+    "y": 180,
+    "w": 380,
+    "h": 500
+   },
+   {
+    "x": 840,
+    "y": 180,
+    "w": 380,
+    "h": 500
+   }
+  ],
+  "walls": [],
+  "props": [
+   {
+    "x": 256,
+    "y": 60,
+    "w": 14,
+    "h": 120,
+    "color": 3820632,
+    "top": 5927040
+   },
+   {
+    "x": 246,
+    "y": 104,
+    "w": 34,
+    "h": 26,
+    "color": 2767428,
+    "top": 10148080
+   },
+   {
+    "x": 420,
+    "y": 330,
+    "w": 16,
+    "h": 52,
+    "color": 4864554,
+    "top": 6968384
+   },
+   {
+    "x": 520,
+    "y": 170,
+    "w": 80,
+    "h": 14,
+    "color": 1582126
+   },
+   {
+    "x": 962,
+    "y": 176,
+    "w": 26,
+    "h": 30,
+    "color": 790046,
+    "top": 3820138
+   },
+   {
+    "x": 1176,
+    "y": 260,
+    "w": 14,
+    "h": 70,
+    "color": 4866104,
+    "top": 15130832
+   },
+   {
+    "x": 900,
+    "y": 650,
+    "w": 100,
+    "h": 26,
+    "color": 5915696,
+    "top": 8020032
+   },
+   {
+    "x": 1150,
+    "y": 600,
+    "w": 50,
+    "h": 70,
+    "color": 2503742,
+    "top": 3425358
+   },
+   {
+    "x": 60,
+    "y": 60,
+    "w": 1160,
+    "h": 120,
+    "color": 659994,
+    "top": 1055782
+   },
+   {
+    "x": 80,
+    "y": 120,
+    "w": 60,
+    "h": 90,
+    "color": 2503742,
+    "top": 3425358,
+    "solid": true
+   },
+   {
+    "x": 150,
+    "y": 120,
+    "w": 60,
+    "h": 90,
+    "color": 2503742,
+    "top": 3425358,
+    "solid": true
+   },
+   {
+    "x": 70,
+    "y": 610,
+    "w": 60,
+    "h": 60,
+    "color": 2767428,
+    "top": 3820632,
+    "solid": true,
+    "label": "drawer"
+   },
+   {
+    "x": 1100,
+    "y": 120,
+    "w": 60,
+    "h": 90,
+    "color": 2503742,
+    "top": 3425358,
+    "solid": true
+   }
+  ],
+  "plates": [
+   {
+    "id": "a_water",
+    "words": [
+     "WATER",
+     "IS",
+     "HIGH"
+    ],
+    "slot": 2,
+    "x": 240,
+    "y": 260,
+    "sx": 268,
+    "sy": 150,
+    "mount": "string",
+    "kind": "rule"
+   },
+   {
+    "id": "a_bridge",
+    "words": [
+     "BRIDGE",
+     "IS",
+     "UP"
+    ],
+    "slot": 2,
+    "x": 310,
+    "y": 470,
+    "sx": 390,
+    "sy": 350,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "a_drawer",
+    "words": [
+     "DRAWER",
+     "IS",
+     "LOW"
+    ],
+    "slot": 2,
+    "x": 210,
+    "y": 610,
+    "sx": 100,
+    "sy": 594,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "a_ink",
+    "words": [
+     "INK",
+     "IS",
+     "WET"
+    ],
+    "slot": 2,
+    "x": 975,
+    "y": 240,
+    "sx": 975,
+    "sy": 160,
+    "mount": "string",
+    "kind": "rule"
+   },
+   {
+    "id": "a_towel",
+    "words": [
+     "TOWEL",
+     "IS",
+     "DRY"
+    ],
+    "slot": 2,
+    "x": 1140,
+    "y": 300,
+    "sx": 1140,
+    "sy": 248,
+    "mount": "bracket",
+    "kind": "rule"
+   },
+   {
+    "id": "a_notes",
+    "words": [
+     "NOTES",
+     "STICK",
+     "TOGETHER"
+    ],
+    "slot": 2,
+    "x": 950,
+    "y": 610,
+    "sx": 950,
+    "sy": 640,
+    "mount": "tape",
+    "kind": "rule"
+   },
+   {
+    "id": "a_books",
+    "words": [
+     "BOOKS",
+     "SIT",
+     "APART"
+    ],
+    "slot": 2,
+    "x": 1150,
+    "y": 560,
+    "sx": 1170,
+    "sy": 590,
+    "mount": "screws",
+    "kind": "rule"
+   },
+   {
+    "id": "a_stairs",
+    "words": [
+     "STAIRS",
+     "GO",
+     "DOWN"
+    ],
+    "slot": 2,
+    "x": 495,
+    "y": 600,
+    "sx": 560,
+    "sy": 200,
+    "mount": "screws",
+    "kind": "rule",
+    "hidden": true
+   }
+  ],
+  "spawn": {
+   "x": 100,
+   "y": 420
+  },
+  "exit": {
+   "rect": {
+    "x": 1205,
+    "y": 380,
+    "w": 15,
+    "h": 90
+   },
+   "to": "arena"
+  }
+ },
+ "arena": {
+  "id": "arena",
+  "title": "draft_arena",
+  "path": "~/floor-1/r1/",
+  "floor": {
+   "base": 658964,
+   "line": 1317926,
+   "tile": 64,
+   "round": {
+    "x": 640,
+    "y": 420,
+    "r": 300
+   }
+  },
+  "walk": [
+   {
+    "x": 380,
+    "y": 150,
+    "w": 520,
+    "h": 540
+   }
+  ],
+  "walls": [],
+  "props": [
+   {
+    "x": 590,
+    "y": 70,
+    "w": 100,
+    "h": 82,
+    "color": 1057850,
+    "glow": 7922920,
+    "label": "exit"
+   },
+   {
+    "x": 392,
+    "y": 230,
+    "w": 22,
+    "h": 80,
+    "color": 2765888,
+    "top": 3820120,
+    "solid": true
+   },
+   {
+    "x": 300,
+    "y": 170,
+    "w": 70,
+    "h": 40,
+    "color": 1712168,
+    "top": 14209212
+   }
+  ],
+  "plates": [
+   {
+    "id": "r_guard",
+    "words": [
+     "THE",
+     "DRAFT",
+     "IS",
+     "STRONG"
+    ],
+    "slot": 3,
+    "x": 640,
+    "y": 340,
+    "sx": 640,
+    "sy": 200,
+    "mount": "string",
+    "kind": "rule"
+   },
+   {
+    "id": "r_weak",
+    "words": [
+     "PAPER",
+     "IS",
+     "WEAK"
+    ],
+    "slot": 2,
+    "x": 450,
+    "y": 330,
+    "sx": 403,
+    "sy": 222,
+    "mount": "screws",
+    "kind": "rule"
+   }
+  ],
+  "spawn": {
+   "x": 640,
+   "y": 660
+  },
+  "exit": {
+   "rect": {
+    "x": 590,
+    "y": 150,
+    "w": 100,
+    "h": 14
+   },
+   "to": "message"
+  }
+ },
+ "message": {
+  "id": "message",
+  "title": "message_room",
+  "path": "~/floor-1/messages/",
+  "floor": {
+   "base": 791064,
+   "line": 1449768,
+   "tile": 48
+  },
+  "walk": [
+   {
+    "x": 360,
+    "y": 260,
+    "w": 560,
+    "h": 400
+   }
+  ],
+  "walls": [],
+  "props": [
+   {
+    "x": 860,
+    "y": 240,
+    "w": 60,
+    "h": 40,
+    "color": 1318440,
+    "top": 1845814
+   },
+   {
+    "x": 360,
+    "y": 60,
+    "w": 560,
+    "h": 200,
+    "color": 528408,
+    "top": 792096,
+    "label": "chatwall"
+   },
+   {
+    "x": 860,
+    "y": 280,
+    "w": 60,
+    "h": 120,
+    "color": 1318440,
+    "top": 1845814,
+    "label": "stairs"
+   }
+  ],
+  "plates": [
+   {
+    "id": "m_stairs",
+    "words": [
+     "FLOOR",
+     "1:",
+     "DOWN"
+    ],
+    "slot": -1,
+    "x": 800,
+    "y": 430,
+    "sx": 890,
+    "sy": 262,
+    "mount": "screws",
+    "kind": "fixed",
+    "hidden": true
+   }
+  ],
+  "spawn": {
+   "x": 640,
+   "y": 620
+  }
+ }
+}

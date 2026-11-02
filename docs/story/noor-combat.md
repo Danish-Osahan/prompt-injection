@@ -1,0 +1,11 @@
+# Noor combat kit, the Caret (design locked, animations to render later)
+- TYPE (tap): 3-hit combo: slash, slash, stab that leaves a blinking "|" mark. Main damage.
+- SELECT (hold and drag): drag a highlight line across enemies, release to hit all of them. Damage scales with the number hit. Short wind-up, cannot be spammed.
+- BACKSPACE (dash button plus attack): a backward sweep through an enemy with knockback. Escape tool.
+- CUT AND PASTE: after a perfect dodge, the dodged attack is stored; the next hit pastes it back at the enemy.
+- REWRITE: ~2 s bullet-time word swap on an enemy or room plate (fragments drop on hit or perfect dodge).
+- FERN ROOT: once per fight, pins an enemy briefly.
+- Dash: i-frames, ~1 s cooldown.
+- Mobile controls: tap, hold, dash button, fragment tap.
+- Upgrades: P2 Select can curve; P3 Cut and Paste stores 2 attacks; P4 Type gains a 4th hit, "Enter" finisher.
+- Render later: Noor slash, hold pose, dash and release animations. Everything else (glow lines, cursor marks, highlight) is code effects.

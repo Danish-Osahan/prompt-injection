@@ -1,0 +1,182 @@
+{
+ "frames": {
+  "caret_idle_S_00": {
+   "frame": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "caret_idle_S_01": {
+   "frame": {
+    "x": 192,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "caret_idle_S_02": {
+   "frame": {
+    "x": 384,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "caret_idle_S_03": {
+   "frame": {
+    "x": 576,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "caret_idle_S_04": {
+   "frame": {
+    "x": 768,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  },
+  "caret_idle_S_05": {
+   "frame": {
+    "x": 960,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "rotated": false,
+   "trimmed": false,
+   "spriteSourceSize": {
+    "x": 0,
+    "y": 0,
+    "w": 192,
+    "h": 192
+   },
+   "sourceSize": {
+    "w": 192,
+    "h": 192
+   },
+   "pivot": {
+    "x": 0.5,
+    "y": 0.8333333333333334
+   }
+  }
+ },
+ "meta": {
+  "app": "prompt-injection art-v5 pack5.py",
+  "version": "1.0",
+  "image": "caret_idle.png",
+  "format": "RGBA8888",
+  "size": {
+   "w": 1152,
+   "h": 192
+  },
+  "scale": "1",
+  "frameSize": 192,
+  "pivot_px": [
+   96,
+   160
+  ],
+  "fps": 8,
+  "rows": [
+   "S"
+  ],
+  "cols": 6,
+  "loop": true,
+  "note": "rows = facing direction (screen space, S = towards camera), cols = frame index; pivot = feet. Rendered 1:1 with the 1280x720 mocks. Outline + glow are baked (no shader needed).",
+  "animations": {
+   "caret_idle_S": [
+    "caret_idle_S_00",
+    "caret_idle_S_01",
+    "caret_idle_S_02",
+    "caret_idle_S_03",
+    "caret_idle_S_04",
+    "caret_idle_S_05"
+   ]
+  },
+  "direction_map": "single row: use for every facing (symmetric / always faces the camera)"
+ }
+}
