@@ -243,3 +243,18 @@ A better long-term fix is to make the scripts read the `GAMES_ROOT` and `BLENDER
 - Playtest: 163/163 (`ONLY_V9=1` for office9 block). GIFs: `game/screenshots/v9-*.gif`.
 - Known weak: hub band still dark in centre (a fg crop sits above the glow), toys crop soft rectangle, tiny Draft glimpse, dark face-down photo close-up, Noor sheets at 38° not 30°.
 - Rollout per room: re-render + post9 + anchors + close-ups + reaction sheets (~1 session each).
+
+## 12. Session 7: art-v10 (office feedback pass)
+- **Noor full body:** `art/tools/noor10.py`. It renders at the office9 camera elevation (30°) with legs lengthened (`LEG_K` 1.85; hook in `noor.py`, default off). The cardigan stops above the legs. Walk is 12 frames (`LEGAMP` 1.2), feet are snapped to the floor every frame, and a contact shadow is baked in. Packed by `pack10.py`, then `wire8.py`. These sheets now replace Noor in ALL rooms; the other rooms are still 38° art.
+- **Walk:** WALK speed is now 200 px/s and the walk plays at 30 fps. The cadence follows the actual ground speed, a stop finishes the step on a planted frame, and turning keeps the stride phase.
+- **Camera:** `DirectorCam` uses critically damped springs. The establishing shot is one smoothstep move over 3.4 s; targets are clamped instead of the output, and the letterbox is sub-pixel.
+- **Close-ups:** `office9.py closeups()` renders a hero still plus an 18-frame dolly from the exact room-camera crop to the close-up camera. FOV is interpolated, and lights, exposure and DoF ramp up with it. Re-render with `SKIPMAIN=1 PASSES9=close blender -b --python scene7.py -- R9_office ../render/rooms9 1440 810 32` (about 18 min). Then merge `view.close` into the actors JSON (the full-run copy) and run `post9.py`.
+- **Game side:** `Office9.cardStep` runs approach (spring to the entry framing, parallax flattened) → fade 0.55 s → dolly 0.9 s (sub-frame crossfade) → still with a slow 3.5% push → the same in reverse.
+- **Fixes:**
+  - Hub black band: the motes strip was 15488 px wide, over the GPU texture limit. post7/post9 now wrap strips into grids of at most 4096 px.
+  - Toys swap is a full-layer crossfade.
+  - Hand chip drops back after 12 s or 420 px away.
+  - Prompts hide in code vision; the noor.* line sits above her head.
+  - Draft glimpse is life-size, pauses mid-window, and sits above the toys layer.
+  - Happy rain is fainter and warmer, with a gold floor reflection, and the close-up has a warm grade.
+- **Verify:** `node tests/motion10.mjs` records real-time video and cuts clips into `game/screenshots/motion10/`; `node tests/stills10.mjs` writes `screenshots/v10-*.png`.
