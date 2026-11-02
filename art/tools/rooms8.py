@@ -23,10 +23,11 @@ def drop(name, sx, sy, z, r, mat):
 def ring(name, sx, sy, z, r, mat, minor=0.004):
     q = unproj(sx, sy, z); bpy.ops.mesh.primitive_torus_add(major_radius=r, minor_radius=minor, location=q); o = bpy.context.object; o.name = name; o.data.materials.append(mat); return o
 def moth_mesh(mat):
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=4, radius=0.012, location=(0, 0, 0)); body = bpy.context.object; body.scale = (1, 2.4, 1); body.data.materials.append(mat)
+    # art-v9: ~2x bigger so the loop reads at game size (was a 3-px speck)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=8, ring_count=4, radius=0.024, location=(0, 0, 0)); body = bpy.context.object; body.scale = (1, 2.4, 1); body.data.materials.append(mat)
     wings = []
     for sgn in (-1, 1):
-        w = plane('wing', 0.05, 0.04, mat, (sgn*0.028, 0, 0)); w.parent = body; wings.append(w)
+        w = plane('wing', 0.1, 0.08, mat, (sgn*0.056, 0, 0)); w.parent = body; wings.append(w)
     return body, wings
 
 # ---------------- OFFICE ----------------
@@ -104,8 +105,8 @@ def L_corridor():
     bm = srgb('bucket', (70, 96, 120), rough=0.4); q = unproj(724, 344)
     bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.12, depth=0.2, location=(q.x, q.y, 0.1)); bk = bpy.context.object; bk.data.materials.append(bm)
     wq = srgb('bwater', (30, 50, 66), rough=0.05); bpy.ops.mesh.primitive_circle_add(vertices=20, radius=0.11, fill_type='NGON', location=(q.x, q.y, 0.17)); bpy.context.object.data.materials.append(wq)
-    dm = srgb('drip', (180, 210, 230), rough=0.05); rmat = emit_mat('dring', (150, 200, 220), 0.6)
-    d0 = drop('drop', 724, 344, 0.9, 0.012, dm); r0 = ring('dripring', 724, 344, 0.172, 0.03, rmat)
+    dm = emit_mat('drip', (190, 225, 240), 0.5); rmat = emit_mat('dring', (150, 200, 220), 0.9)
+    d0 = drop('drop', 724, 344, 0.9, 0.026, dm); r0 = ring('dripring', 724, 344, 0.172, 0.05, rmat, 0.008)   # art-v9: bigger drop + ring
     def drip_pose(k, N=10):
         if k < 7: d0.hide_render = False; d0.location.z = 0.9 - (0.9 - 0.18)*(k/6)**2; r0.hide_render = True
         else: d0.hide_render = True; r0.hide_render = False; s = 0.6 + (k - 7)*0.7; r0.scale = (s, s, 1)
@@ -117,7 +118,7 @@ def L_corridor():
     for (x, y, w, h) in ((770, 398, 28, 4), (770, 398, 4, 14), (870, 398, 28, 4), (894, 398, 4, 14), (770, 450, 28, 4), (770, 440, 4, 14), (870, 450, 28, 4), (894, 440, 4, 14)):
         floor_rect(x, y, w, h, tape, z=0.003, solid=0.0)
     # a moth that keeps the lamp company (ambient): pale wings, a little self-lit so it reads in the dark too
-    mm = emit_mat('moth', (220, 210, 190), 0.55 if not lit else 0.8); body, wings = moth_mesh(mm)
+    mm = emit_mat('moth', (230, 220, 196), 0.9 if not lit else 1.1); body, wings = moth_mesh(mm)
     lp = unproj(360, 330); n = away(360, 330); cen = Vector((lp.x - n.x*0.25, lp.y - n.y*0.25, zpx(330 - 262)))
     def moth_pose(k, N=16):
         a = 2*math.pi*k/N; body.location = cen + Vector((math.cos(a)*0.22, math.sin(a)*0.14, 0.05*math.sin(2*a) - 0.04)); body.rotation_euler = (0, 0, a + R(90))
@@ -135,10 +136,10 @@ def L_archive():
     on_wall(694, 706, 56, 150, 180, met, eps=0.05, name='pipe2')
     p0 = unproj(700, 180); n = away(700, 180); top = Vector((p0.x - n.x*0.12, p0.y - n.y*0.12, zpx(180 - 150)))
     bpy.ops.mesh.primitive_cylinder_add(vertices=12, radius=0.04, depth=0.22, location=top, rotation=(R(90), 0, math.atan2(RIGHT.y, RIGHT.x) + R(90))); bpy.context.object.data.materials.append(met)
-    dm = srgb('adrip', (180, 210, 230), rough=0.05); rmat = emit_mat('aring', (150, 210, 230), 0.5)
-    tip = top - Vector((n.x*0.1, n.y*0.1, 0.04)); d0 = drop('adrop', 0, 0, 0, 0.014, dm); d0.location = tip
+    dm = emit_mat('adrip', (190, 225, 240), 0.5); rmat = emit_mat('aring', (150, 210, 230), 0.9)
+    tip = top - Vector((n.x*0.1, n.y*0.1, 0.04)); d0 = drop('adrop', 0, 0, 0, 0.03, dm); d0.location = tip
     from bpy_extras.object_utils import world_to_camera_view
-    hit = Vector((tip.x, tip.y, wz)); r0 = ring('aripple', 0, 0, 0, 0.05, rmat, 0.005); r0.location = hit; r1 = ring('aripple2', 0, 0, 0, 0.05, rmat, 0.004); r1.location = hit
+    hit = Vector((tip.x, tip.y, wz)); r0 = ring('aripple', 0, 0, 0, 0.08, rmat, 0.009); r0.location = hit; r1 = ring('aripple2', 0, 0, 0, 0.08, rmat, 0.007); r1.location = hit
     def drip_pose(k, N=14):
         if k < 8: d0.hide_render = False; d0.location = tip.lerp(hit, (k/7)**2); r0.hide_render = r1.hide_render = True
         else:
@@ -146,12 +147,12 @@ def L_archive():
     amb('drip', [d0, r0, r1], 14, drip_pose, 200, 10)
     # the rubber duck (toy: AFLOAT) and the memo that wants to float (toy: SUNK)
     yel = srgb('duck', (240, 200, 70), rough=0.3); dq = unproj(560, 470, wz)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.07, location=(dq.x, dq.y, wz + 0.04)); db = bpy.context.object; db.scale = (1.3, 1, 0.8); db.data.materials.append(yel)
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.045, location=(dq.x - 0.05, dq.y - 0.03, wz + 0.11)); dh_ = bpy.context.object; dh_.data.materials.append(yel)
-    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.02, radius2=0.0, depth=0.04, location=(dq.x - 0.095, dq.y - 0.05, wz + 0.105), rotation=(0, R(-90), R(SCR_RZ))); bk = bpy.context.object; bk.data.materials.append(srgb('beak', (230, 120, 50)))
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.12, location=(dq.x, dq.y, wz + 0.07)); db = bpy.context.object; db.scale = (1.3, 1, 0.8); db.data.materials.append(yel)
+    bpy.ops.mesh.primitive_uv_sphere_add(segments=12, ring_count=8, radius=0.075, location=(dq.x - 0.085, dq.y - 0.05, wz + 0.19)); dh_ = bpy.context.object; dh_.data.materials.append(yel)
+    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.034, radius2=0.0, depth=0.07, location=(dq.x - 0.16, dq.y - 0.085, wz + 0.18), rotation=(0, R(-90), R(SCR_RZ))); bk = bpy.context.object; bk.data.materials.append(srgb('beak', (230, 120, 50)))
     duck = [db, dh_, bk]; base = [o.location.copy() for o in duck]
     def duck_pose(k, N=12):
-        dz = 0.012*math.sin(2*math.pi*k/N) if high else 0.0; tilt = R(5)*math.sin(2*math.pi*k/N + 1) if high else R(12)
+        dz = 0.02*math.sin(2*math.pi*k/N) if high else 0.0; tilt = R(5)*math.sin(2*math.pi*k/N + 1) if high else R(12)
         for o, b in zip(duck, base): o.location = b + Vector((0, 0, dz))
         db.rotation_euler = (tilt, 0, 0)
     amb('duck', duck, 12 if high else 1, duck_pose, 471, 6)

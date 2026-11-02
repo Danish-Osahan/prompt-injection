@@ -220,6 +220,14 @@ def P_hub():
     # the dash gap: no floor, a deep shaft with faint falling glyph motes, cyan rims
     # (the falling glyph motes are an ambient loop now: rooms8.py)
     glow_edge(80, 1200, 254, (120, 228, 232), 1.4); glow_edge(80, 1200, 318, (120, 228, 232), 1.4)
+    # art-v9 fix: the gap read as a hard black band. Now it is a shaft you can see into: the far inner wall drops away
+    # (dark blue panel, not black) with faint floor-level strips of the storeys below, and a cold glow far down.
+    a = unproj(80, 254); b = unproj(1200, 254); d = b - a; nn = away(640, 254)
+    sw = box('shaftwall', (d.length, 0.03, 3.0), ((a + b)/2 + nn*0.02 + Vector((0, 0, -1.5))), srgb('shaftw', (22, 32, 48), rough=0.7)); sw.rotation_euler = (0, 0, math.atan2(d.y, d.x))
+    for k, zz in enumerate((-0.14, -0.34, -0.6, -0.92, -1.3)):
+        bar_between(80, 1200, 254, zz, emit_mat('sstrip%d' % k, (90, 180, 210), 0.9*0.62**k), 0.012)
+    floor_rect(80, 254, 1120, 64, emit_mat('sbottom', (30, 80, 110), 0.35), z=-3.0, solid=0.0)
+    L_at('POINT', 640, 286, -1.2, 6, (0.47, 0.85, 0.95), 1.5)
     # rail post + rail beside the gap (GAP IS WIDE hangs here)
     met = srgb('rail', (70, 90, 104), rough=0.35, metal=0.8)
     post_at(304, 366, 44, met, 0.05); post_at(420, 366, 44, met, 0.05); bar_between(304, 420, 366, zpx(44), met, 0.035)

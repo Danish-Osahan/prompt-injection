@@ -363,11 +363,14 @@ EXTRA_LOG = {}
 exec(open(T5+'rooms6.py').read())
 exec(open(T5+'rooms7.py').read())
 exec(open(T5+'rooms8.py').read())
+if MODE.startswith('R9_'): exec(open(T5+'office9.py').read())
 if MODE.startswith('R7_'): CAM_T = (unproj(640, 360, 0.5).x, unproj(640, 360, 0.5).y)
 if ROOM:
     if MODE in ROOMS6: ROOMS6[MODE]()
     else: {1: floor1, 2: floor2, 3: floor3}[FLOOR]()
-    tune_props(); finish_lighting(); camera(CAM_T[0], CAM_T[1], globals().get('CAM_O', 8.4))
+    tune_props(); finish_lighting()
+    if MODE.startswith('R9_'): camera9()
+    else: camera(CAM_T[0], CAM_T[1], globals().get('CAM_O', 8.4))
 else:
     cast(MODE)
 render_setup()
@@ -425,4 +428,5 @@ if os.environ.get('AMBPASS'):                 # art-v8 ambient loops: each frame
             iso_render([o for o in a['objs'] if not o.hide_render], os.path.join(OUT, MODE + '_amb_%s_%02d.png' % (a['name'], k)), max(16, SAMPLES//2))
         for o in a['objs']: o.hide_render = True
         sc.render.use_border = False
+if MODE.startswith('R9_'): passes9()
 print('DONE', MODE)
