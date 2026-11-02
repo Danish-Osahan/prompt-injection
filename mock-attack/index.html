@@ -135,7 +135,7 @@ function fade(t,a,b){if(VIEW[0]===R&&t>=a&&t<b){g.setTransform(1,0,0,1,0,0);g.fi
 function scene(t,V,focus){VIEW=V.slice();let cap='',obj='Practice: the dummy',tag='';
   const {PAPER,ARMORED,OPEN}=WORDS;
   if(t<5.6){// COMBO x2, real speed
-    const sc=t<SC1.t1+0.35?SC1:SC1b;const s=at(sc,t),hs=hitState(sc,t);if(hs.shake)VIEW=[R,OX+(Math.random()-.5)*hs.shake*2,OY+(Math.random()-.5)*hs.shake];
+    const sc=t<SC1.t1+0.35?SC1:SC1b;const s=at(sc,t),hs=hitState(sc,t);if(hs.shake)VIEW=[V[0],V[1]+(Math.random()-.5)*hs.shake*2,V[2]+(Math.random()-.5)*hs.shake];
     room();dummyHit(0,hs.wob,hs.flash,t);noorN(s&&!s.done?s:null,'E',F0.x,F0.y);
     cap='Tap: jab · swipe · spin. Real speed, with hit-stop.';tag=s&&!s.done?`${s.an} f${s.k}${s.ev?' · '+s.ev.toUpperCase():''}${t<s.stopEnd?' · HIT-STOP':''}`:'idle';fade(t,0,.35);
   } else if(t<9.2){// PEEL a word off the whiteboard
@@ -157,7 +157,7 @@ function scene(t,V,focus){VIEW=V.slice();let cap='',obj='Practice: the dummy',ta
     cap='Wind up, flick, follow through. PAPER over ARMORED.';tag=live?`throw f${s.k}${s.ev?' · '+s.ev.toUpperCase():''}`:'idle';fade(t,9.2,9.55);
   } else {// BEAM: charge (loop) + release
     room();let s,ph='';if(t<SCB.t1){s=at(SCB,t);ph='charge_in';}else if(t<SCB.rel.t0){s=holdAt(t);ph='charge_hold (loop)';}else{s=at(SCB.rel,t);ph='release';}
-    const live=s&&!s.done,hs=hitState(SCB.rel,t);if(hs.shake)VIEW=[R,OX+(Math.random()-.5)*hs.shake*2,OY];
+    const live=s&&!s.done,hs=hitState(SCB.rel,t);if(hs.shake)VIEW=[V[0],V[1]+(Math.random()-.5)*hs.shake*2,V[2]];
     room();dummyHit(1,hs.wob,hs.flash,t);drawWord(PAPER,CHEST.x,CHEST.y,{rot:-.42});
     const X=F0.x-30;const p=noorN(live?s:null,'E',X,F0.y);
     if(live&&t>=SCB.t0&&t<SCB.rel.t0){const hn=handN(s,'E',X,F0.y);chargeRing(hn.x,hn.y,Math.min(1,(t-SCB.t0)/1.2),t);}

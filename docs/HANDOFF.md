@@ -277,3 +277,10 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Noor idle (global): a single held frame with a breathing scale. The old idle frames 1–3 swayed her head (the "tilt"). Office9 look reactions are removed.
 - Tests: `tests/office11.mjs` (in `npm run playtest`; `ONLY_V11=1` runs it alone). Real-speed clips: `node tests/motion12.mjs` → `game/screenshots/motion12/`.
 - Next: give the other rooms the same footprint collision and depth pass (they still use the old rects), and make enemies solid outside the office.
+
+## 15. art-v12 Noor attack set (PREVIEW only, not wired into game/src)
+- Kept the 38° art-v7/v8 Noor style: `art/tools/noor12.py` is `noor7.py`'s exact camera/lights/rig (Kenney `character-female-d` via `noor.py`, `rig5.py`) with new anims: `combo1` jab, `combo2` cross-body swipe, `combo3` spinning finisher, `peel`, `throw`, `charge_in` + `charge_hold` (loop) + `release`. 8 directions, no props (blade / keys / shards removed).
+- Arms are posed by direction (`D(forward, outward, up)` in torso space → bone quaternion), smears are 7 accumulated sub-frame renders under a solid final pose, hair pivots + a cardigan-hem Hook modifier follow a damped spring (overlap / follow-through), a paw emissive + point light makes the charge glow, two finger nubs do the pinch.
+- `pack12.py` → `art/out/sprites12/` (+ `noor_attacks12.json`: dur_ms, hit/release/pinch/peel events, hit-stop, smear frames, root-motion step, chain window, paw position per frame per dir) and `mock-attack/assets/`. Sheets ≤ 2112 px wide. `closeups12.py` → `mock-attack/closeups/`.
+- Raw frames (`art/render/sprites12/*.png`, 59 MB) are NOT committed, only `meta12.json`; re-render with `blender -b --python art/tools/noor12.py -- all art/render/sprites12 24` (~70 min).
+- Preview: `mock-attack/` (README has the timing table and weak spots). To wire in: add the sheets to `boot.ts SHEETS`, play with per-frame `dur_ms`, apply `hitstop_ms` to Noor + target, move Noor by `step_px*0.78`, spawn words/beam at `hand[dir][k]`.
