@@ -11,6 +11,7 @@ import { sfx } from './sfx';
 import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
 import { Office9, ViewMap } from './office9';
+import { Clarity, DOOR_DEF } from './clarity';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -20,12 +21,14 @@ const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const MAX_HP = 4;
 const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
 const READ_R = 90, FOCUS_R = 120;
+const HOLD_T = 0.22, CHARGE_T = 0.5, AIM_R = 150, BEAM_R = 560;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 type EKind = 'dummy' | 'scribble' | 'note' | 'draft';
 export interface Enemy {
   kind: EKind; x: number; y: number; hp: number; maxHp: number; g: Phaser.GameObjects.Container; body: Phaser.GameObjects.Graphics;
   state: string; t: number; kx: number; ky: number; tx: number; ty: number; hx: number; hy: number; dead: boolean; hitBy: number; phase: number;
+  practice?: boolean;   // art-v11: the office's stuffed practice dummy (takes hits forever, never fights back)
   flash?: Phaser.GameObjects.Graphics; pinT?: number; rootG?: Phaser.GameObjects.Graphics;
 }
 interface Prompt { id: string; kb: string; touch: string; text: Phaser.GameObjects.Text; done: () => boolean }
@@ -79,6 +82,9 @@ export class GameScene extends Phaser.Scene {
   vsaved: [Phaser.GameObjects.GameObject & { x: number; y: number; scaleX: number; scaleY: number }, number, number, number, number][] = [];
   bridgeK = 0; bridgeImg: Phaser.GameObjects.Image | null = null; bridgeTw: Phaser.Tweens.Tween | null = null;
 
+  // art-v11 clarity office + the new attack input (tap = combo, hold/release = typed beam)
+  clar: Clarity | null = null; debugCollision = false; hudBlur: Phaser.GameObjects.Image | null = null;
+  atkPending = false; atkHeldT = 0; chargeG: Phaser.GameObjects.Graphics | null = null; aimG: Phaser.GameObjects.Graphics | null = null; beamN = 0; beamHits = 0; comboHits = 0;
   constructor() { super('game'); }
 
   create() {
@@ -91,7 +97,7 @@ export class GameScene extends Phaser.Scene {
     this.ctl.onKindChange = () => this.refreshPrompts();
     this.makeTextures();
     this.buildHud();
-    this.debugOn = q.has('debug');
+    this.debugOn = q.has('debug') && q.get('debug') !== 'collision'; this.debugCollision = q.get('debug') === 'collision';
     this.input.keyboard!.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
     this.setupCameras();
     this.buildRoom(this.save.room, true);
@@ -154,7 +160,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- HUD ----------
   buildHud() {
     const D = 4000, f = (s: number, w = 500, fam = 'JetBrains Mono') => ({ fontFamily: fam, fontSize: `${s}px`, fontStyle: w >= 700 ? 'bold' : 'normal', color: C.ink });
-    const blur = this.add.image(150, 70, 'pool').setScale(2.4, 1.2).setTint(0x000000).setAlpha(0.9).setScrollFactor(0).setDepth(D - 1);
+    const blur = this.hudBlur = this.add.image(150, 70, 'pool').setScale(2.4, 1.2).setTint(0x000000).setAlpha(0.9).setScrollFactor(0).setDepth(D - 1);
     const path = this.add.text(30, 30, '', f(12)).setColor(C.dim).setScrollFactor(0).setDepth(D);
     const title = this.add.text(30, 46, '', f(18, 700)).setColor(C.inkBright).setScrollFactor(0).setDepth(D);
     const caret = this.add.rectangle(0, 50, 10, 19, hex(C.cyan)).setOrigin(0, 0).setScrollFactor(0).setDepth(D);
@@ -190,8 +196,8 @@ export class GameScene extends Phaser.Scene {
 
   updateHud() {
     const h = this.hud;
-    h.path.setText(this.room.path); h.title.setText(this.room.title);
-    h.caret.setX(32 + h.title.width + 4).setVisible(Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
+    h.path.setText(this.room.path); h.title.setText(this.room.title); for (const o of [h.path, h.title, h.meta]) o.setVisible(!this.clar); this.hudBlur?.setVisible(!this.clar);
+    h.caret.setX(32 + h.title.width + 4).setVisible(!this.clar && Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
     h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off'));
     const st = fernStage(this.save.fernGrowth);
     h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}${this.save.lines.length ? `   unsent ${this.save.lines.length}/${LINES.length}` : ''}`);
@@ -213,7 +219,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- dialogue ----------
-  say(who: 'noor' | 'ai' | 'fern' | 'papa' | 'floor', line: string, ms = 2200) { this.subQueue.push({ who, line, ms }); if (!this.subBusy) this.nextSub(); }
+  say(who: 'noor' | 'ai' | 'fern' | 'papa' | 'floor', line: string, ms = 2200) { if (this.clar && !this.cutscene && !this.composer && !this.busy) { this.clar.say((who === 'fern' ? 'fern  ' : who === 'noor' ? 'noor  ' : '') + line, ms); return; } this.subQueue.push({ who, line, ms }); if (!this.subBusy) this.nextSub(); }
   nextSub() {
     const n = this.subQueue.shift(); const h = this.hud;
     if (!n) { this.subBusy = false; h.sub.setVisible(false); h.fern.setVisible(false); return; }
@@ -224,6 +230,8 @@ export class GameScene extends Phaser.Scene {
       const col = n.who === 'ai' ? C.fern : n.who === 'papa' ? '#F6E6C8' : n.who === 'floor' ? C.ink : C.inkBright;
       const name = n.who === 'ai' ? 'AI  ' : n.who === 'papa' ? 'PAPA  ' : n.who === 'floor' ? '' : 'noor  ';
       h.sub.setText(name + n.line).setColor(col).setVisible(true);
+      // global (art-v11): one line, shrinks to fit, never wraps off-screen
+      let z = 17; h.sub.setFontSize(z); while (h.sub.width > 1220 && z > 13) { z--; h.sub.setFontSize(z); }
     }
     this.time.delayedCall(n.ms, () => this.nextSub());
   }
@@ -244,7 +252,8 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
-    this.office = null; this.vm = null; this.vsaved.length = 0; this.cameras.main.setZoom(this.frameZoom).centerOn(640, 360);
+    this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
+    { const vw = Math.round(1280 * this.frameZoom); this.cameras.main.setViewport(Math.round((1280 - vw) / 2), 0, vw, BAR_Y).setZoom(this.frameZoom).centerOn(640, 360); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
@@ -254,28 +263,29 @@ export class GameScene extends Phaser.Scene {
     this.clearRoom();
     const r = this.room = ROOMS[id];
     const art = ROOMART[id]; this.art = !!art; this.bg = {};
-    const v9 = id === 'office' && this.use9();
+    const v9 = id === 'office' && this.use9(); const clar = id === 'office' && !v9;   // art-v11: the clarity office is the default
     if (v9) { /* layers are built by Office9 once the plates exist */ }
     else if (art) {
       // rendered clean plate(s) (art-v7) + foreground overlays depth-sorted by their screen base y
       const bk = this.add.rectangle(0, 0, 1280, 720, 0x04080c).setOrigin(0).setDepth(-1001); this.objs.push(bk);
       Object.keys(art.images).forEach((st, i) => { const im = this.add.image(0, 0, `bg_${id}_${st}`).setOrigin(0).setDepth(-1000 + i * 0.01).setAlpha(i === 0 ? 1 : 0); this.objs.push(im); this.bg[st] = im; });
       this.fgImgs = {};
-      for (const l of art.fg) { const im = this.add.image(l.x, l.y, l.key).setOrigin(0).setDepth(l.baseY); this.objs.push(im); this.fgImgs[l.name] = im; }
+      for (const l of clar ? [] : art.fg) { const im = this.add.image(l.x, l.y, l.key).setOrigin(0).setDepth(l.baseY); this.objs.push(im); this.fgImgs[l.name] = im; }
       if (art.bridge) { this.bridgeImg = this.add.image(art.bridge.x, art.bridge.y, 'bridge_0').setOrigin(0).setDepth(379); this.objs.push(this.bridgeImg); }
     } else this.drawFloor(r);
     for (const p of r.props) this.drawProp(p);
     const sv = this.save; sv.visits[id] = (sv.visits[id] ?? 0) + 1;
     const lg = LINGER[id];
     const unlock: PlateDef = { id: id + '_all', words: ['ALL'], slot: -1, x: lg.all.sx, y: lg.all.sy, sx: lg.all.sx, sy: lg.all.sy, kind: 'unlock', code: lg.all.code, val: lg.all.val, hidden: true };
-    for (const d of [...r.plates, ...lg.plates, unlock]) {
+    for (const d of [...r.plates, ...lg.plates, unlock, ...(clar ? [DOOR_DEF] : [])]) {
       const words = [...d.words]; if (d.slot >= 0 && this.save.plates[d.id]) words[d.slot] = this.save.plates[d.id];
       const p = new Plate(this, d, words); p.alt = sv.visits[id] > 1; this.plates.push(p);
       if (d.kind === 'line' && (sv.lines.includes(d.id) || (d.after === 'draft' && !sv.defeated.includes('draft')))) p.setVisibleState(false);
       else if (d.kind === 'line') p.setVisibleState(true);
       if (d.kind === 'unlock') p.setVisibleState(sv.tutorials.includes('all:' + id));
     }
-    if (id === 'office') { this.office = new Office9(this, !v9); Plate.vars.N = String(sv.unread ?? 37); }   // legacy (default) = old-angle plate + directing camera + close-up shots
+    if (id === 'office' && clar) { this.clar = new Clarity(this); Plate.vars.N = String(sv.unread ?? 37); }
+    else if (id === 'office') { this.office = new Office9(this, !v9); Plate.vars.N = String(sv.unread ?? 37); }   // legacy (default) = old-angle plate + directing camera + close-up shots
     if (art) this.buildAmbient(id);
     this.words.resetRoom();
     // Noor
@@ -290,7 +300,10 @@ export class GameScene extends Phaser.Scene {
     this.caret.setPosition(this.x - 40, this.y - 40);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
+    this.words.quiet = !!this.clar;
     this.setupRoom(id);
+    this.clar?.start();
+    this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
     this.cameras.main.fadeIn(220, 4, 8, 12);
   }
@@ -328,10 +341,11 @@ export class GameScene extends Phaser.Scene {
     if (id === 'office') {
       if (!this.art) { const lamp = this.add.image(990, 520, 'pool').setScale(1.6).setTint(0xf6c684).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(lamp); }
       // global fix: the 11:48 card no longer sits over the room; in the art-v9 office it is folded into the establishing shot
-      if (this.office) this.office.cam.establish(s.seen.includes('sc1') ? 'FLOOR 2  \u00b7  STILL 11:48 PM' : '11:48 PM');
+      if (this.clar) { /* clarity: the heading shows once, no camera move, no floor prompts */ }
+      else if (this.office) this.office.cam.establish(s.seen.includes('sc1') ? 'FLOOR 2  \u00b7  STILL 11:48 PM' : '11:48 PM');
       else if (!s.seen.includes('sc1')) { this.floorText(640, 140, '11:48 PM', C.inkBright, 30, 1300); }
-      this.addPrompt('move', 160, 520, 'WASD TO WALK', 'DRAG TO WALK', () => this.moved > 80);
-      this.addPrompt('read', 232, 700, 'E TO READ', 'TAP READ', () => s.lore.length > 0, () => Math.hypot(this.x - 232, this.y - 640) < 220);
+      if (!this.clar) this.addPrompt('move', 160, 520, 'WASD TO WALK', 'DRAG TO WALK', () => this.moved > 80);
+      if (!this.clar) this.addPrompt('read', 232, 700, 'E TO READ', 'TAP READ', () => s.lore.length > 0, () => Math.hypot(this.x - 232, this.y - 640) < 220);
     }
     if (id === 'hub') {
       const fern = this.add.sprite(1005, 545, 'fern_seated').setOrigin(0.5, 0.83).setScale(0.75).play('fern_seated_S').setDepth(560); this.objs.push(fern);
@@ -400,7 +414,7 @@ export class GameScene extends Phaser.Scene {
         this.fight = new DraftFight(this);
         this.startCutscene('sc4', 1500, () => { this.say('fern', "No shadow. It's a copy. Fight.", 2400); }, () => { if (this.fight) { this.fight.real.g.setAlpha(1); this.fight.real.t = 0; } });
         this.addPrompt('rewrite', 0, 0, 'E AT "PAPER IS WEAK": SLOW-MO REWRITE', 'READ "PAPER IS WEAK": SLOW-MO REWRITE', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
-        this.addPrompt('select', 0, 0, 'HOLD J / MOUSE TO SELECT', 'HOLD TYPE TO SELECT', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
+        this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
         this.addPrompt('root', 0, 0, 'R: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
       } else { this.plateById('r_guard')?.setVisibleState(false); this.plateById('r_weak')?.setVisibleState(false); }
     }
@@ -470,6 +484,13 @@ export class GameScene extends Phaser.Scene {
   }
   hurtEnemy(e: Enemy, dmg: number, kx: number, ky: number, mark = false) {
     if (e.dead) return;
+    if (e.practice) {   // the office's stuffed practice dummy: flash, wobble, count; never breaks
+      sfx('hit'); const fl = this.add.ellipse(e.x, e.y - 60, 70, 100, 0xffffff, 0.7).setDepth(e.y + 2).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(fl);
+      this.tweens.add({ targets: fl, alpha: 0, scale: 1.2, duration: 130, onComplete: () => fl.destroy() });
+      this.tweens.killTweensOf(e.g); e.g.setRotation(0); const sgn = Math.sign(kx || 1);
+      this.tweens.add({ targets: e.g, rotation: { from: 0.16 * sgn * Math.min(2, dmg), to: 0 }, duration: 520, ease: 'Elastic.easeOut' });
+      return;
+    }
     if (e.kind === 'dummy' && !this.flags.quick) { if (!this.roomVis.dummyMsg) { this.roomVis.dummyMsg = this.floorText(e.x, e.y - 110, "IT ISN'T AWAKE.", C.dim, 16, 1600); this.time.delayedCall(1800, () => delete this.roomVis.dummyMsg); } return; }
     if (e.kind === 'draft' && this.fight) dmg = this.fight.modify(e, dmg);
     if (e.kind === 'scribble' && this.flags.dry) { dmg *= 2; this.floorText(e.x, e.y - 70, 'CRACK x2', C.ok, 13, 500); }
@@ -503,6 +524,7 @@ export class GameScene extends Phaser.Scene {
       e.t -= dt; e.x += e.kx * dt; e.y += e.ky * dt; e.kx *= Math.pow(0.02, dt); e.ky *= Math.pow(0.02, dt);
       const dx = this.x - e.x, dy = this.y - e.y, d = Math.hypot(dx, dy) || 1;
       const fl = e.flash!; fl.clear();
+      if (e.practice) { e.g.setPosition(e.x, e.y).setDepth(e.y); continue; }
       if (e.kind === 'dummy') {
         if (!this.flags.quick) { e.state = 'idle'; e.g.setRotation(0); }
         else {
@@ -548,6 +570,7 @@ export class GameScene extends Phaser.Scene {
     const walk = [...this.room.walk, ...Object.values(this.extraWalk).filter(Boolean) as Rect[]];
     if (!walk.some(r => inR(r, x, y))) return false;
     if (this.room.walls.some(r => inR(r, x, y))) return false;
+    if (this.clar) { if (this.clar.blocked(x, y)) return false; return !Object.entries(this.dyn).some(([k, r]) => r && !k.startsWith('prop') && inR(r, x, y)); }   // real footprints replace the old prop boxes
     if (Object.values(this.dyn).some(r => r && inR(r, x, y))) return false;
     return true;
   }
@@ -601,6 +624,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   interact() {
+    if (this.clar) return this.clar.interact();
     const p = this.nearestPlate(READ_R); if (!p) return false;
     if (this.hand && p.def.slot >= 0 && p.def.id !== this.hand.from) return this.swap(this.hand.from, p.def.id);
     return this.read(p);
@@ -683,6 +707,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(4200, () => { this.caret.setVisible(true).setAlpha(0); this.tweens.add({ targets: this.caret, alpha: 1, duration: 500 }); this.say('fern', "It'll help. It likes you.", 2200); });
       }
     }
+    if (id === 'office' && this.clar) this.clar.setDoor(w('o_door') === 'OPEN', initial);
     if (id === 'corridor') {
       f.lit = w('c_light') === 'ON';
       this.dyn.dark = f.lit ? null : { x: 600, y: 330, w: 24, h: 140 };
@@ -851,7 +876,7 @@ export class GameScene extends Phaser.Scene {
     // stand still ~6 s: the narrator notices (once per room visit)
     const calm = !this.busy && !this.cutscene && (!this.fight || this.fight.won);
     if (active || !calm || this.dying || this.composer || this.subBusy) this.idleT = 0; else this.idleT += dt;
-    if (this.idleT > 6 && !this.idleSaid) {
+    if (this.idleT > 6 && !this.idleSaid && !this.clar) {
       this.idleSaid = true; const lg = LINGER[this.room.id], v = this.save.visits[this.room.id] ?? 1;
       this.say('floor', v > 1 ? lg.idle[1] : lg.idle[0], 3400);
       const tag = `${this.room.id}:${v}`; if (!this.save.idle.includes(tag)) { this.save.idle.push(tag); writeSave(this.save); }
@@ -987,27 +1012,63 @@ export class GameScene extends Phaser.Scene {
   }
   markSeen(id: string) { if (!this.seenEver.includes(id)) { this.seenEver.push(id); try { localStorage.setItem('pi.seenEver', JSON.stringify(this.seenEver)); } catch { /* */ } } }
   inCombat() { return (this.room.id === 'arena' && !!this.fight && !this.fight.won) || (this.room.id === 'archive' && this.x > 820 && this.enemies.some(e => !e.dead)); }
-  aimVec() {
-    const p = this.input.activePointer;
-    if (this.ctl.last === 'kb' && p.isDown && !p.wasTouch) { const w0 = this.toWorld(p.x, p.y), wp = this.toLogical(w0.x, w0.y); const dx = wp.x - this.x, dy = wp.y - (this.y - 30), l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; }
-    return this.dirVec();
+  /** nearest live enemy within r (the Draft's fake copy counts: it is a valid target) */
+  aimTarget(r: number) {
+    let best: Enemy | null = null, bd = r;
+    for (const e of this.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - this.x, e.y - this.y); if (d < bd) { bd = d; best = e; } }
+    return best;
   }
-  drawSelect() {
-    if (!this.selectG) { this.selectG = this.add.graphics(); this.objs.push(this.selectG); }
-    const v = this.aimVec(), g = this.selectG; g.clear().setDepth(this.y + 3);
-    const x0 = this.x, y0 = this.y - 20, x1 = x0 + v.x * this.selectLen, y1 = y0 + v.y * this.selectLen;
-    g.lineStyle(22, hex(C.cyan), 0.22).lineBetween(x0, y0, x1, y1).lineStyle(2, hex(C.cyan), 0.9).lineBetween(x0, y0, x1, y1);
-    g.fillStyle(hex(C.cyan), 1).fillRect(x1 - 2, y1 - 12, 4, 24);
+  /** move with smooth sliding: full step, else each axis, else along the blocking edge (rotated probes), so corners never stick */
+  slide(dx: number, dy: number) {
+    if (!dx && !dy) return;
+    if (this.canStand(this.x + dx, this.y + dy)) { this.x += dx; this.y += dy; return; }
+    const L = Math.hypot(dx, dy);
+    if (dx && this.canStand(this.x + dx, this.y)) { this.x += dx; if (dy && this.canStand(this.x, this.y + dy * 0.3)) this.y += dy * 0.3; return; }
+    if (dy && this.canStand(this.x, this.y + dy)) { this.y += dy; if (dx && this.canStand(this.x + dx * 0.3, this.y)) this.x += dx * 0.3; return; }
+    for (const a of [0.5, -0.5, 1.0, -1.0, 1.35, -1.35]) {
+      const c = Math.cos(a), sn = Math.sin(a), k = Math.max(0.35, Math.cos(a)); const ux = (dx * c - dy * sn) / L * L * k, uy = (dx * sn + dy * c) / L * L * k;
+      if (this.canStand(this.x + ux, this.y + uy)) { this.x += ux; this.y += uy; return; }
+    }
   }
-  releaseSelect() {
-    if (this.selectLen < 60) return;
-    const v = this.aimVec(), x0 = this.x, y0 = this.y, L = this.selectLen;
-    const hit = this.enemies.filter(e => { if (e.dead) return false; const t = Phaser.Math.Clamp(((e.x - x0) * v.x + (e.y - y0) * v.y) / L, 0, 1); return Math.hypot(e.x - (x0 + v.x * L * t), e.y - (y0 + v.y * L * t)) < 34; });
-    this.selectN++; this.selectHits += hit.length; this.selectCd = 1.5;
-    const dmg = 1 + 0.5 * (hit.length - 1);  // scales with the number hit
-    for (const e of hit) this.hurtEnemy(e, dmg, v.x * 160, v.y * 160);
+  /** aim bracket on the auto-aim target (combo range; the beam's longer range while charging) + the charge ring */
+  drawAim() {
+    const g = this.aimG, cg = this.chargeG; if (!g || !cg) return; g.clear(); cg.clear();
+    const charging = this.atkPending && this.atkHeldT > HOLD_T;
+    const e = this.aimTarget(charging ? BEAM_R : AIM_R);
+    if (e && !this.busy) {
+      const b = (e.kind === 'note' ? 26 : 44) + 3 * Math.sin(this.t * 6), cy = e.y - (e.kind === 'note' ? 20 : e.practice ? 70 : 46), h = b * (e.practice ? 1.25 : 0.8), L = 12;
+      g.lineStyle(2, hex(C.cyan), charging ? 1 : 0.75);
+      for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const x = e.x + sx * b, y = cy + sy * h; g.lineBetween(x, y, x - sx * L, y).lineBetween(x, y, x, y - sy * L); }
+      g.setDepth(e.y + 5);
+    }
+    if (charging) {
+      const u = Math.min(1, (this.atkHeldT - HOLD_T) / CHARGE_T), r = 40;
+      cg.lineStyle(3, hex(C.cyan), 0.25).strokeCircle(this.x, this.y - 64, r);
+      cg.lineStyle(4, hex(u >= 1 ? C.inkBright : C.cyan), 1); cg.beginPath(); cg.arc(this.x, this.y - 64, r, -Math.PI / 2, -Math.PI / 2 + u * Math.PI * 2); cg.strokePath();
+      cg.setDepth(this.y + 4);
+    }
+  }
+  /** HOLD then RELEASE: the typed beam. Auto-aims at the nearest enemy in range; hits everything along the line. */
+  fireBeam(charge: number) {
+    const tgt = this.aimTarget(BEAM_R); let v = this.dirVec();
+    if (tgt) { const dx = tgt.x - this.x, dy = tgt.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; }
+    const L = tgt ? Math.min(BEAM_R, Math.hypot(tgt.x - this.x, tgt.y - this.y) + 50) : 360, x0 = this.x, y0 = this.y;
+    const hit = this.enemies.filter(e => { if (e.dead) return false; const t = Phaser.Math.Clamp(((e.x - x0) * v.x + (e.y - y0) * v.y) / L, 0, 1); return Math.hypot(e.x - (x0 + v.x * L * t), e.y - (y0 + v.y * L * t)) < 40; });
+    this.selectN++; this.beamN++; this.selectHits += hit.length; this.beamHits += hit.length;
+    const dmg = 1 + charge + 0.5 * Math.max(0, hit.length - 1);
+    this.noor.play(`noor_type3_${this.dir}`, true); this.swingT = 0.3; sfx('paste');
+    for (const e of hit) this.hurtEnemy(e, dmg, v.x * 220, v.y * 220, true);
+    if (hit.length) { this.hitStopT = 0.06; this.noor.anims.pause(); this.cameras.main.shake(110, 0.005); if (this.clar && hit.some(e => e.practice)) { this.markTut('o11beam'); this.clar.beamHits++; } }
     if (!this.save.tutorials.includes('select')) { this.save.tutorials.push('select'); }
-    this.cameras.main.flash(60, 120, 228, 232);
+    // the visual: a stream of typed glyphs racing out, then deleting back
+    const str = 'rephrase(this) '.repeat(4), step = 15, n = Math.max(4, Math.floor(L / step)), ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
+    const rot = Math.atan2(v.y, v.x), flip = Math.abs(rot) > Math.PI / 2 ? rot + Math.PI : rot;
+    const glow = this.add.graphics().setDepth(y0 + 3).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(glow);
+    glow.lineStyle(28, hex(C.cyan), 0.14 + 0.1 * charge).lineBetween(ox, oy, ox + v.x * L, oy + v.y * L).lineStyle(2, hex(C.inkBright), 0.6).lineBetween(ox, oy, ox + v.x * L, oy + v.y * L);
+    const ch: Phaser.GameObjects.Text[] = [];
+    for (let i = 0; i < n; i++) { const t = this.glyph(ox + v.x * step * (i + 0.5), oy + v.y * step * (i + 0.5) + Math.sin(i * 0.9) * 3, str[i % str.length], i > n - 4 && hit.length ? C.lamp : C.cyan, 19, y0 + 4).setRotation(flip).setAlpha(0); ch.push(t); this.tweens.add({ targets: t, alpha: 1, delay: i * 6, duration: 40 }); }
+    this.time.delayedCall(n * 6 + 160, () => { ch.forEach((t, i) => this.tweens.add({ targets: t, alpha: 0, y: t.y - 6, delay: (n - i) * 5, duration: 90, onComplete: () => t.destroy() })); this.tweens.add({ targets: glow, alpha: 0, duration: 260, delay: 80, onComplete: () => glow.destroy() }); });
+    if (tgt) this.fragments(tgt.x, tgt.y - 50, 'rephrase', hit.length ? C.lamp : C.cyan, 8);
   }
   paste() {
     const src = this.stored!; this.stored = null; this.pasteN++; sfx('paste');
@@ -1061,6 +1122,7 @@ export class GameScene extends Phaser.Scene {
   update(_t: number, dms: number) {
     const dt = Math.min(dms / 1000, 0.05);
     const f: Frame = this.ctl.read();
+    if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
     if (f.debug) this.debugOn = !this.debugOn;
     if (this.paused) return;
@@ -1086,7 +1148,8 @@ export class GameScene extends Phaser.Scene {
     if (this.hitStopT > 0) { this.hitStopT -= dt; edt = 0; if (this.hitStopT <= 0) this.noor.anims.resume(); }
     this.selectCd -= dt;
     if (this.composer && (f.attack || f.interact)) this.typeKey();
-    const control = !this.busy && !this.dying && !this.transitioning;
+    if (this.clar?.modal && f.interact) { this.clar.interact(); f.interact = false; }
+    const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
     if (control && f.dash && this.dashCd <= 0 && this.dashT <= 0) {
       const v = Math.hypot(mx, my) > 0.1 ? { x: mx, y: my } : this.dirVec();
@@ -1096,27 +1159,28 @@ export class GameScene extends Phaser.Scene {
       this.noor.play(`noor_dash_${this.dir}`, true); this.dashKick(); this.trailT = 0;
     }
     if (control && f.dash && this.dashT === DASH_T) { this.dashStartAt = this.t; sfx('dash'); }
+    // art-v11 attack input (global): TAP = the 3-hit combo, HOLD then RELEASE = the typed beam. Both auto-aim.
     if (control && f.attack) {
       if (this.stored) this.paste();
-      else if (this.dashT > 0 || this.sinceDash < 0.15) this.backspace(); else this.typeAttack();
+      else if (this.dashT > 0 || this.sinceDash < 0.15) this.backspace(); else { this.atkPending = true; this.atkHeldT = 0; }
+    }
+    if (this.atkPending) {
+      if (control && f.attackHeld) { this.atkHeldT += dt; this.selecting = this.atkHeldT > HOLD_T; }
+      else {
+        if (control && this.atkHeldT <= HOLD_T) this.typeAttack();
+        else if (control && this.atkHeldT - HOLD_T >= 0.18) this.fireBeam(Math.min(1, (this.atkHeldT - HOLD_T) / CHARGE_T));
+        this.atkPending = false; this.atkHeldT = 0; this.selecting = false;
+      }
     }
     if (control && f.root) this.fernRoot();
-    // SELECT: hold attack. 0.3 s wind-up, then a highlight line grows; release hits everything on it.
-    if (control && f.attackHeld && this.selectCd <= 0) {
-      this.holdT += dt;
-      if (this.holdT > 0.3) { this.selecting = true; this.selectLen = Math.min(300, this.selectLen + 600 * dt); this.drawSelect(); }
-    } else {
-      if (this.selecting) this.releaseSelect();
-      this.holdT = 0; this.selecting = false; this.selectLen = 0; this.selectG?.clear();
-    }
+    this.drawAim();
     let vx = mx * WALK, vy = my * WALK;
     if (this.swingT > 0 || this.selecting) { vx *= 0.35; vy *= 0.35; }
     if (this.dashT > 0) { this.dashTrail(dt); this.hairEcho(dt); this.dashT -= dt; vx = this.dashVec.x * DASH_SPEED; vy = this.dashVec.y * DASH_SPEED; if (this.dashT <= 0) this.sinceDash = 0; }
     if (this.bsT > 0) { this.bsT -= dt; for (const e of this.enemies) if (!e.dead && !this.bsHit.has(e) && Math.hypot(e.x - this.x, e.y - this.y) < 70) { this.bsHit.add(e); const a = Math.atan2(e.y - this.y, e.x - this.x); this.hurtEnemy(e, 1, Math.cos(a) * 520, Math.sin(a) * 520); } }
     const ox = this.x, oy = this.y;
     if (!this.dying) {
-      const nx = this.x + vx * dt; if (this.canStand(nx, this.y)) this.x = nx;
-      const ny = this.y + vy * dt; if (this.canStand(this.x, ny)) this.y = ny;
+      this.slide(vx * dt, vy * dt);
     }
     this.moved += Math.hypot(this.x - ox, this.y - oy);
     if (!this.dying && this.dashT <= 0 && this.hazards.some(h => inR(h, this.x, this.y))) {
@@ -1144,6 +1208,8 @@ export class GameScene extends Phaser.Scene {
       if (want.startsWith('noor_walk_')) { const sp = Math.hypot(this.x - ox, this.y - oy) / Math.max(dt, 1e-3); this.noor.anims.timeScale = moving ? Phaser.Math.Clamp(sp / WALK, 0.3, 1.3) : 0.8; }
       else this.noor.anims.timeScale = 1;
     }
+    const breathe = !this.dying && (this.noor.anims.currentAnim?.key ?? '').startsWith('noor_idle_') && !this.tweens.isTweening(this.noor);
+    if (breathe) { const b = Math.sin(this.t * 2.1); this.noor.setScale(1 - 0.004 * b, 1 + 0.013 * b); } else if (!this.dying && !this.tweens.isTweening(this.noor) && this.noor.scaleY !== 1) this.noor.setScale(1);
     this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     if (this.caret.visible) { this.caret.x += (this.x - 46 - this.caret.x) * Math.min(1, dt * 6); this.caret.y += (this.y - 56 - this.caret.y) * Math.min(1, dt * 6); this.caret.setDepth(this.y + 1); }
@@ -1153,6 +1219,7 @@ export class GameScene extends Phaser.Scene {
     this.words.update(dt, f.interactHeld);
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
+    this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
@@ -1170,8 +1237,11 @@ export class GameScene extends Phaser.Scene {
     if (this.swingT > 0) return;
     this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
     const hit = this.combo; this.comboT = 0.5; this.swingT = hit === 3 ? 0.30 : 0.2;
+    // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
+    const tg = this.aimTarget(AIM_R); let v = this.dirVec();
+    if (tg) { const dx = tg.x - this.x, dy = tg.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; if (l > 74) this.slide(v.x * Math.min(26, l - 70), v.y * Math.min(26, l - 70)); }
     this.noor.play(`noor_type${hit}_${this.dir}`, true);
-    const v = this.dirVec(), a0 = Math.atan2(v.y, v.x), ox = this.x, oy = this.y;
+    const a0 = Math.atan2(v.y, v.x), ox = this.x, oy = this.y;
     // damage lands on the sheet's hit_frame (type1/2 frame 2 @24 fps, type3 frame 3 @22 fps); anticipation frames read first
     const at = hit === 3 ? 120 : 70;
     this.time.delayedCall(at, () => {
@@ -1182,6 +1252,7 @@ export class GameScene extends Phaser.Scene {
         let da = Math.abs(Math.atan2(dy, dx) - a0); if (da > Math.PI) da = 2 * Math.PI - da;
         if (d < 92 && (da < 1.3 || d < 30)) { struck.push(e); this.hurtEnemy(e, hit === 3 ? 2 : 1, v.x * 140, v.y * 140, hit === 3); }
       }
+      if (struck.some(e => e.practice) && this.clar) { this.clar.comboHits++; this.comboHits++; if (hit === 3) this.markTut('o11combo'); }
       if (struck.length) { this.hitStopT = hit === 3 ? 0.07 : 0.05; this.noor.anims.pause(); this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003); }
       if (hit === 1) this.fxJab(v, struck.length > 0);
       else if (hit === 2) this.fxSlash(a0, struck.length > 0);
@@ -1323,7 +1394,7 @@ export class GameScene extends Phaser.Scene {
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
       hand: this.hand, flags: { ...this.flags },
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
-      office9: this.office ? this.office.state() : null, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
+      office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })),
       ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
@@ -1344,6 +1415,8 @@ export class GameScene extends Phaser.Scene {
       goto: (r: RoomId) => this.goRoom(r),
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
+      clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },
+      noorAnim: () => ({ key: this.noor.anims.currentAnim?.key ?? '', frame: this.noor.frame.name, sy: this.noor.scaleY }),
       reduceMotion: (on: boolean) => this.setReduceMotion(on),
       o9: (k: string, v?: number) => { const o = this.office; if (!o) return false; if (k === 'unread') o.tickUnread(); if (k === 'glitch') o.glitch(); if (k === 'draft') o.draftGlimpse(); if (k === 'idle') o.idle9 = v ?? 4.5; if (k === 'closeCard') o.closeCard(); if (k === 'roomT') o.roomT = v ?? 0; return true; },
       capForce: (id: string | null, text = '') => { this.words.force = id ? { id, text } : null; this.words.key = ''; return true; },

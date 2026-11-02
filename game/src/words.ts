@@ -42,6 +42,8 @@ export class WordUI {
   secretText: Phaser.GameObjects.Text | null = null; secret: Plate | null = null; revealT = 0; lensA = 0;
   lens = { x: 0, y: 0, r: 130 };
 
+  quiet = false;   // art-v11 clarity office: no caption rows / chips / heading here (the Clarity layer owns the one line); code vision stays
+  pil!: Phaser.GameObjects.Graphics;
   constructor(private s: GameScene) {
     const sc = s;
     sc.input.dragDistanceThreshold = 8;
@@ -51,7 +53,7 @@ export class WordUI {
     // art-v8 letterbox: the world is framed above the bar (see GameScene.setupCameras); thin pillars + a hairline frame
     const vw = Math.round(1280 * BAR_Y / 720), px = Math.round((1280 - vw) / 2);
     // pillars sit at the bottom of the UI camera's draw order, so the HUD text stays on top of them
-    const pil = sc.add.graphics().setScrollFactor(0).setDepth(-100000);
+    const pil = this.pil = sc.add.graphics().setScrollFactor(0).setDepth(-100000);
     pil.fillStyle(0x02060a, 1).fillRect(0, 0, px, BAR_Y).fillRect(1280 - px, 0, px, BAR_Y);
     pil.lineStyle(1, hex(C.faint), 0.35).lineBetween(px, 0, px, BAR_Y).lineBetween(1280 - px, 0, 1280 - px, BAR_Y).lineBetween(px, BAR_Y, 1280 - px, BAR_Y);
     this.heading = sc.add.text(640, BAR_Y + 16, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: C.dim, letterSpacing: 2 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setScrollFactor(0).setDepth(D + 1);
@@ -102,6 +104,7 @@ export class WordUI {
   }
   tap(plate: Plate) {
     const s = this.s; s.markTut('tapchip');
+    if (this.quiet && s.clar) { s.clar.openPicker(plate.def.id); return; }   // clarity office: code-line words open the same attached picker
     if (s.hand && s.hand.from !== plate.def.id) { s.swap(s.hand.from, plate.def.id); return; }
     if (s.hand && s.hand.from === plate.def.id) { s.hand = null; plate.setOpts({ ...plate.opts, selected: false }); return; }
     s.read(plate);
@@ -198,7 +201,15 @@ export class WordUI {
     const s = this.s;
     const hide = s.busy && !!s.composer;
     const vis = !s.composer && !s.paused;
-    this.bar.setVisible(true); this.heading.setVisible(vis); this.chipG.setVisible(vis);
+    this.bar.setVisible(true); this.heading.setVisible(vis && !this.quiet); this.chipG.setVisible(vis && !this.quiet); this.pil.setVisible(!this.quiet);
+    if (this.quiet) {
+      if (this.key !== 'quiet') { this.key = 'quiet'; this.clearLine(); }
+      for (const p of s.plates) p.setFocus(false);
+      this.hl.forEach(im => im.setAlpha(0));
+      this.chipG.setVisible(vis && this.codeA > 0.05); this.drawChips();
+      for (const p of s.plates) p.glowT = Math.max(0, p.glowT - dt);
+      this.updateCode(dt, readHeld); return;
+    }
     // subjects + highlight
     this.subjects = this.pickSubjects();
     if (this.override) { const p = s.plateById(this.override.id); if (!p || this.override.until < s.t || Math.hypot(p.def.x - s.x, p.def.y - s.y) > CAP_R + 40) this.override = null; }

@@ -336,7 +336,7 @@ export class Office9 {
         const fa = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'].indexOf(s.dir) * Math.PI / 4;
         let da = Math.atan2(p.q.def.sy - s.y, p.q.def.sx - s.x) - fa; while (da > Math.PI) da -= 2 * Math.PI; while (da < -Math.PI) da += 2 * Math.PI;
         // screen-space: a positive angle (clockwise on screen) is toward Noor's right hand
-        if (da > 0.35 && da < 2.0) want = `noor_lookR_${s.dir}`; else if (da < -0.35 && da > -2.0) want = `noor_lookL_${s.dir}`;
+        void da;   // art-v11: no look / head-tilt reaction poses in idle (everywhere)
       }
       if (s.anims.exists(want) && s.noor.anims.currentAnim?.key !== want) s.noor.play(want, true);
     }
@@ -386,7 +386,7 @@ export class Office9 {
       { x: x1 + 40, duration: 2700, ease: 'Sine.easeIn', onComplete: () => { g.destroy(); this.glimpse = null; } }] });
     s.tweens.add({ targets: g, alpha: 0, delay: 5400, duration: 900 });
     // Noor glances at the window
-    s.time.delayedCall(900, () => { if (!this.reacting && !s.busy) { const k = `noor_lookR_${s.dir}`; if (s.anims.exists(k)) s.noor.play(k, true); } });
+    /* art-v11: no look reaction */
   }
   state() {
     return { mode: this.cam.mode, zoom: +this.cam.zoom.toFixed(3), base: this.cam.base, lb: +this.cam.lb.toFixed(2), card: this.cardOn, cardA: +this.card.alpha.toFixed(2), cardCode: +this.cardCode.alpha.toFixed(2), cardLine: this.cardLine.text,
