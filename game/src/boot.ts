@@ -7,10 +7,12 @@ export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
   preload() {
     for (const s of SHEETS) this.load.atlas(s, `assets/sprites/${s}.png`, `assets/sprites/${s}.json`);
+    for (const s of SHEETS.filter(s => s.startsWith('noor_'))) this.load.atlas(s + '_wire', `assets/sprites/${s}_wire.png`, `assets/sprites/${s}_wire.json`);
     for (const [room, a] of Object.entries(ROOMART)) {
       for (const [st, f] of Object.entries(a.images)) this.load.image(`bg_${room}_${st}`, `assets/${f}`);
       for (const [st, f] of Object.entries(a.code ?? {})) this.load.image(`code_${room}_${st}`, `assets/${f}`);
       for (const l of a.fg) this.load.image(l.key, `assets/${l.file}`);
+      for (const m of a.amb ?? []) this.load.spritesheet(m.key, `assets/${m.file}`, { frameWidth: m.w, frameHeight: m.h });
       a.bridge?.frames.forEach((f, i) => this.load.image(`bridge_${i}`, `assets/${f}`));
     }
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);

@@ -44,9 +44,14 @@ export class WordUI {
     const sc = s;
     sc.input.dragDistanceThreshold = 8;
     this.bar = sc.add.graphics().setScrollFactor(0).setDepth(D);
-    this.bar.fillGradientStyle(0x02060a, 0x02060a, 0x02060a, 0x02060a, 0.0, 0.0, 0.92, 0.92).fillRect(0, BAR_Y - 26, 1280, 26);
-    this.bar.fillStyle(0x02060a, 0.92).fillRect(0, BAR_Y, 1280, 720 - BAR_Y);
+    this.bar.fillStyle(0x02060a, 1).fillRect(0, BAR_Y, 1280, 720 - BAR_Y);
     this.bar.lineStyle(1, hex(C.faint), 0.55).lineBetween(420, BAR_Y + 4, 860, BAR_Y + 4);
+    // art-v8 letterbox: the world is framed above the bar (see GameScene.setupCameras); thin pillars + a hairline frame
+    const vw = Math.round(1280 * BAR_Y / 720), px = Math.round((1280 - vw) / 2);
+    // pillars sit at the bottom of the UI camera's draw order, so the HUD text stays on top of them
+    const pil = sc.add.graphics().setScrollFactor(0).setDepth(-100000);
+    pil.fillStyle(0x02060a, 1).fillRect(0, 0, px, BAR_Y).fillRect(1280 - px, 0, px, BAR_Y);
+    pil.lineStyle(1, hex(C.faint), 0.35).lineBetween(px, 0, px, BAR_Y).lineBetween(1280 - px, 0, 1280 - px, BAR_Y).lineBetween(px, BAR_Y, 1280 - px, BAR_Y);
     this.heading = sc.add.text(640, BAR_Y + 16, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: C.dim, letterSpacing: 2 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setScrollFactor(0).setDepth(D + 1);
     this.chipG = sc.add.graphics().setScrollFactor(0).setDepth(D + 1);
     for (let i = 0; i < 2; i++) this.hl.push(sc.add.image(0, 0, 'pool').setBlendMode(Phaser.BlendModes.ADD).setDepth(2050).setAlpha(0));
@@ -61,7 +66,9 @@ export class WordUI {
     this.codeBk = s.add.rectangle(0, 0, 1280, 720, 0x02080c, 1).setOrigin(0).setDepth(DC - 1).setAlpha(0); s.objs.push(this.codeBk);
     this.codeImg = s.add.image(0, 0, '__WHITE').setOrigin(0).setDepth(DC).setAlpha(0); s.objs.push(this.codeImg);
     this.codeG = s.add.graphics().setDepth(DC + 6); s.objs.push(this.codeG);
-    this.ghost = s.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setDepth(DC + 5).setTint(hex(C.cyan)).setTintMode(Phaser.TintModes.HARD_LIGHT).setAlpha(0); s.objs.push(this.ghost);
+    // code-vision Noor: the line-art sheets (art-v8 wire8.py: same frames as her real sheets, so animation stays in sync)
+    this.ghost = s.add.sprite(0, 0, s.textures.exists('noor_idle_wire') ? 'noor_idle_wire' : 'noor_idle').setOrigin(96 / 192, 160 / 192).setDepth(DC + 5).setAlpha(0); s.objs.push(this.ghost);
+    if (!s.textures.exists('noor_idle_wire')) this.ghost.setTint(hex(C.cyan)).setTintMode(Phaser.TintModes.HARD_LIGHT);
     this.noorLine = s.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.coral }).setOrigin(0.5, 0).setDepth(DC + 8).setAlpha(0); s.objs.push(this.noorLine);
     this.noorLine.setText('noor.shadow = null;');
     if (!s.textures.exists('lensdark')) this.lensTex = s.textures.createCanvas('lensdark', 1280, 720); else this.lensTex = s.textures.get('lensdark') as Phaser.Textures.CanvasTexture;
@@ -72,7 +79,7 @@ export class WordUI {
 
   codeState() {
     const s = this.s, f = s.flags, id = s.room.id;
-    return id === 'corridor' ? (f.lit ? 'lit' : 'dark') : id === 'archive' ? (f.drained ? 'L' : 'H') : 'base';
+    return id === 'corridor' ? (f.lit ? 'lit' : 'dark') : id === 'archive' ? (f.drained ? 'L' : 'H') : id === 'hub' ? (f.door ? 'open' : 'shut') : 'base';
   }
   /** lore read / secret found: show its text as the caption for a moment */
   showLore(p: Plate, text: string) { this.override = { id: p.def.id, text, until: this.s.t + 3.2 }; this.key = ''; }
@@ -98,12 +105,13 @@ export class WordUI {
   /** drop the carried word at a screen point: caption chips, then code-line values, then the world object */
   dropAt(x: number, y: number) {
     const s = this.s; if (!s.hand) return false;
+    const w = s.toWorld(x, y);   // caption chips live in screen space; code-line chips and objects in the (framed) world
     for (const c of this.chips) {
       if (c.plate.def.id === s.hand.from || !c.zone.active) continue;
       const r = new Phaser.Geom.Rectangle(c.r.x - 14, c.r.y - 14, c.r.width + 28, c.r.height + 28);
-      if (r.contains(x, y)) return s.swap(s.hand.from, c.plate.def.id);
+      if (c.where === 'cap' ? r.contains(x, y) : r.contains(w.x, w.y)) return s.swap(s.hand.from, c.plate.def.id);
     }
-    return s.dropHand(x, y);
+    return s.dropHand(w.x, w.y);
   }
   chipPositions() { return this.chips.filter(c => c.zone.active).map(c => ({ id: c.plate.def.id, word: c.plate.slotWord, where: c.where, x: c.r.centerX, y: c.r.centerY })); }
 
@@ -115,7 +123,7 @@ export class WordUI {
   }
   private pickSubjects() {
     const s = this.s;
-    const ps = s.plates.filter(p => p.visible && p.def.kind !== 'secret' && Math.hypot(p.def.x - s.x, p.def.y - s.y) < CAP_R)
+    const ps = s.plates.filter(p => p.visible && p.def.kind !== 'secret' && p.def.kind !== 'unlock' && Math.hypot(p.def.x - s.x, p.def.y - s.y) < CAP_R)
       .sort((a, b) => Math.hypot(a.def.x - s.x, a.def.y - s.y) - Math.hypot(b.def.x - s.x, b.def.y - s.y));
     return ps.slice(0, 2);
   }
@@ -163,7 +171,7 @@ export class WordUI {
     const s = this.s;
     const hide = s.busy && !!s.composer;
     const vis = !s.composer && !s.paused;
-    this.bar.setVisible(vis).setAlpha(s.y > BAR_Y - 40 ? 0.6 : 1); this.heading.setVisible(vis); this.chipG.setVisible(vis);
+    this.bar.setVisible(true); this.heading.setVisible(vis); this.chipG.setVisible(vis);
     // subjects + highlight
     this.subjects = this.pickSubjects();
     if (this.override) { const p = s.plateById(this.override.id); if (!p || this.override.until < s.t || Math.hypot(p.def.x - s.x, p.def.y - s.y) > CAP_R + 40) this.override = null; }
@@ -197,12 +205,13 @@ export class WordUI {
   }
   private buildCode() {
     const s = this.s; this.clearCode();
-    const ps = s.plates.filter(p => p.visible && p.def.kind !== 'secret');
+    // rules (puzzle words) always show; story objects only near Noor, so code vision reads as a discovery, not a wall of text
+    const ps = s.plates.filter(p => p.visible && p.def.kind !== 'secret' && (p.def.kind === 'rule' || p.def.kind === 'fixed' || p.def.kind === 'unlock' || Math.hypot(p.def.x - s.x, p.def.y - s.y) < 380));
     const placed: Phaser.Geom.Rectangle[] = [];
     for (const p of ps.sort((a, b) => a.container.y - b.container.y)) {
       const L = p.codeLine();
       const mk = (str: string, col: string) => { const t = s.add.text(0, 0, str, { fontFamily: 'JetBrains Mono', fontSize: '15px', fontStyle: 'bold', color: col }).setOrigin(0, 0.5).setDepth(DC + 10); this.codeObjs.push(t); return t; };
-      const valCol = p.def.redact ? C.coral : L.chip ? C.state : C.noun;
+      const valCol = p.def.redact || p.def.kind === 'unlock' ? C.coral : L.chip ? C.state : C.noun;
       const objs = [mk(L.lhs, C.ink), mk(L.val, valCol), mk(';', C.dim)];
       const w = objs.reduce((a, t) => a + t.width, 0) + 12;
       let cx = Phaser.Math.Clamp(p.container.x, w / 2 + 10, 1270 - w / 2), cy = Phaser.Math.Clamp(p.container.y, 70, BAR_Y - 40);
@@ -224,13 +233,16 @@ export class WordUI {
     this.codeOn = want;
     this.codeA = Phaser.Math.Clamp(this.codeA + (want ? dt * 7 : -dt * 6), 0, 1);
     const a = this.codeA; const on = a > 0.01;
-    const key = on ? `${this.codeState()}|${s.plates.map(p => p.words.join(' ') + p.visible + (s.hand?.from === p.def.id)).join(',')}` : '';
+    const near = s.plates.filter(p => p.def.kind !== 'rule' && Math.hypot(p.def.x - s.x, p.def.y - s.y) < 380).map(p => p.def.id).join('');
+    const key = on ? `${this.codeState()}|${near}|${s.plates.map(p => p.words.join(' ') + p.visible + (s.hand?.from === p.def.id)).join(',')}` : '';
     if (key !== this.codeKey) { this.codeKey = key; if (on) { const k = `code_${s.room.id}_${this.codeState()}`; if (s.textures.exists(k)) this.codeImg.setTexture(k); this.buildCode(); } else this.clearCode(); }
     this.codeBk!.setAlpha(a * 0.9); this.codeImg.setAlpha(a);
     const fightA = s.fight ? 0.8 : 1;   // in combat the world shows through a little (REWRITE slow-mo still applies)
     this.codeBk!.setAlpha(a * 0.9 * fightA); this.codeImg.setAlpha(a * fightA);
     s.shadow.setVisible(a < 0.5);
-    this.ghost!.setAlpha(a * 0.95).setPosition(s.noor.x, s.noor.y).setTexture(s.noor.texture.key, s.noor.frame.name);
+    const wk = s.noor.texture.key + '_wire';
+    this.ghost!.setAlpha(a).setPosition(s.noor.x, s.noor.y).setTexture(s.textures.exists(wk) ? wk : s.noor.texture.key, s.noor.frame.name);
+    s.noor.setAlpha(s.noor.alpha * (1 - a));
     this.noorLine!.setAlpha(a).setPosition(Math.round(s.x), Math.round(Math.min(s.y + 10, BAR_Y - 48)));
     for (const l of this.codeLines) {
       const held = s.hand?.from === l.plate.def.id;

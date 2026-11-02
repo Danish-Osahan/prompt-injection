@@ -8,7 +8,9 @@ import { WordUI, BAR_Y } from './words';
 import { ROOMS, type Rect, type RoomDef } from './rooms';
 import { DraftFight, DRAFT } from './boss';
 import { sfx } from './sfx';
-import { ROOMART } from './roomart';
+import { ROOMART, type AmbLayer } from './roomart';
+import { LINGER, LINES } from './linger';
+import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
 const C = tokens.color;
@@ -63,6 +65,14 @@ export class GameScene extends Phaser.Scene {
   seenEver: string[] = [];
   words!: WordUI; fgImgs: Record<string, Phaser.GameObjects.Image> = {};
   litMask: Phaser.Textures.CanvasTexture | null = null; litImg: Phaser.GameObjects.Image | null = null;
+  // art-v8: letterbox (world camera framed above the caption bar) + a full-screen UI camera
+  uiCam!: Phaser.Cameras.Scene2D.Camera; frameZoom = 1;
+  // art-v8 linger layer
+  amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
+  idleT = 0; idleSaid = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
+  refl: Phaser.GameObjects.Sprite | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
+  motes: { x: number; y: number; vx: number; vy: number; a: number; ph: number }[] = []; motesG: Phaser.GameObjects.Graphics | null = null; moteRect: Rect | null = null; moteCol = 0xf6e6c8;
+  hairT = 0;
   bridgeK = 0; bridgeImg: Phaser.GameObjects.Image | null = null; bridgeTw: Phaser.Tweens.Tween | null = null;
 
   constructor() { super('game'); }
@@ -79,9 +89,26 @@ export class GameScene extends Phaser.Scene {
     this.buildHud();
     this.debugOn = q.has('debug');
     this.input.keyboard!.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
+    this.setupCameras();
     this.buildRoom(this.save.room, true);
     if (q.has('test')) this.installHooks();
   }
+
+  /** Caption-bar fix (art-v8): the world is framed in a letterbox ABOVE the caption bar (zoom BAR_Y/720, centred, thin pillars),
+   *  so no prop or walkable pixel is ever under the bar, in every room. HUD/caption objects (scrollFactor 0) render on a separate
+   *  full-screen UI camera; world objects on the framed main camera. */
+  setupCameras() {
+    const z = this.frameZoom = BAR_Y / 720; const vw = Math.round(1280 * z);
+    const cam = this.cameras.main; cam.setViewport(Math.round((1280 - vw) / 2), 0, vw, BAR_Y).setZoom(z).centerOn(640, 360);
+    this.uiCam = this.cameras.add(0, 0, 1280, 720, false, 'ui');
+    const sort = () => {
+      const m = cam.id, u = this.uiCam.id;
+      for (const o of this.children.list as (Phaser.GameObjects.GameObject & { scrollFactorX?: number; cameraFilter: number })[]) o.cameraFilter = o.scrollFactorX === 0 ? m : u;
+    };
+    this.events.on('prerender', sort); sort();
+  }
+  toWorld(x: number, y: number) { const p = this.cameras.main.getWorldPoint(x, y); return { x: p.x, y: p.y }; }
+  toScreen(x: number, y: number) { const c = this.cameras.main; return { x: c.x + (x - c.worldView.x) * c.zoom, y: c.y + (y - c.worldView.y) * c.zoom }; }
 
   // ---------- textures made in code (no image assets needed) ----------
   makeTextures() {
@@ -144,7 +171,7 @@ export class GameScene extends Phaser.Scene {
     h.caret.setX(32 + h.title.width + 4).setVisible(Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
     h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off'));
     const st = fernStage(this.save.fernGrowth);
-    h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}`);
+    h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}${this.save.lines.length ? `   unsent ${this.save.lines.length}/${LINES.length}` : ''}`);
     if (this.hand) { h.handText.setText(this.hand.word); const w = Math.max(80, h.handText.width + 28); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setSize(w, 34); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setOrigin(0.5); (h.hand.list[2] as Phaser.GameObjects.Text).setX(-w / 2 - 8); h.hand.setSize(w, 34); }
     h.hand.setVisible(!!this.hand && !this.busy);
     this.debugText.setVisible(this.debugOn);
@@ -193,6 +220,7 @@ export class GameScene extends Phaser.Scene {
     for (const o of this.objs) o.destroy();
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
+    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
@@ -211,10 +239,17 @@ export class GameScene extends Phaser.Scene {
       if (art.bridge) { this.bridgeImg = this.add.image(art.bridge.x, art.bridge.y, 'bridge_0').setOrigin(0).setDepth(379); this.objs.push(this.bridgeImg); }
     } else this.drawFloor(r);
     for (const p of r.props) this.drawProp(p);
-    for (const d of r.plates) {
+    const sv = this.save; sv.visits[id] = (sv.visits[id] ?? 0) + 1;
+    const lg = LINGER[id];
+    const unlock: PlateDef = { id: id + '_all', words: ['ALL'], slot: -1, x: lg.all.sx, y: lg.all.sy, sx: lg.all.sx, sy: lg.all.sy, kind: 'unlock', code: lg.all.code, val: lg.all.val, hidden: true };
+    for (const d of [...r.plates, ...lg.plates, unlock]) {
       const words = [...d.words]; if (d.slot >= 0 && this.save.plates[d.id]) words[d.slot] = this.save.plates[d.id];
-      this.plates.push(new Plate(this, d, words));
+      const p = new Plate(this, d, words); p.alt = sv.visits[id] > 1; this.plates.push(p);
+      if (d.kind === 'line' && (sv.lines.includes(d.id) || (d.after === 'draft' && !sv.defeated.includes('draft')))) p.setVisibleState(false);
+      else if (d.kind === 'line') p.setVisibleState(true);
+      if (d.kind === 'unlock') p.setVisibleState(sv.tutorials.includes('all:' + id));
     }
+    if (art) this.buildAmbient(id);
     this.words.resetRoom();
     // Noor
     this.shadow = this.add.ellipse(0, 0, 46, 14, 0x000000, 0.45); this.objs.push(this.shadow);
@@ -297,8 +332,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (id === 'corridor') {
       const lamp = this.art ? this.bg.lit : this.add.image(360, 400, 'pool').setScale(3, 1.6).setTint(0xf6c684).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); if (!this.art) this.objs.push(lamp); this.roomVis.lamp = lamp;
-      const path = this.add.graphics().setDepth(-900).setAlpha(0).setVisible(!this.art); this.objs.push(path); this.roomVis.path = path;
-      for (let x = 560; x < 1000; x += 48) path.fillStyle(0x78e4e8, 0.12).fillRect(x + 6, 392, 30, 16);
+      // art-v8: the old code-drawn cyan floor bars are gone; the lit plate's rendered light pools show the way
       if (this.art && this.bg.lit) {   // dark plate below; the lit plate shows only through a soft light mask around Noor and her caret
         if (!this.textures.exists('litmask')) this.litMask = this.textures.createCanvas('litmask', 1280, 720); else this.litMask = this.textures.get('litmask') as Phaser.Textures.CanvasTexture;
         this.litImg = this.add.image(0, 0, 'litmask').setOrigin(0).setDepth(-999); this.objs.push(this.litImg);
@@ -377,7 +411,7 @@ export class GameScene extends Phaser.Scene {
       if (p.done()) {
         this.save.tutorials.push(p.id); writeSave(this.save); this.prompts.splice(this.prompts.indexOf(p), 1);
         this.tweens.add({ targets: p.text, alpha: 0, duration: 400, onComplete: () => p.text.destroy() });
-      } else { const show = p.when() && !this.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > BAR_Y - 70 ? this.y - 150 : this.y + 46)).setAlpha(show ? 0.9 : 0); }
+      } else { const show = p.when() && !this.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > 680 ? this.y - 150 : this.y + 46)).setAlpha(show ? 0.9 : 0); }
     }
   }
 
@@ -417,7 +451,7 @@ export class GameScene extends Phaser.Scene {
       this.tweens.killTweensOf(e.g); this.tweens.add({ targets: e.g, scaleX: 0.2, scaleY: 0.1, alpha: 0, duration: 380, onComplete: () => e.g.setVisible(false) });
       e.flash?.clear();
       if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. Swaps wake things up.', 2200); }
-      if (e.kind === 'draft') { this.dyn.arenaDoor = null; this.floorText(e.x, e.y - 120, 'I TRIED SO HARD.', C.inkBright, 22, 3200); this.say('noor', '...So did I.', 2200); }
+      if (e.kind === 'draft') { this.time.delayedCall(2400, () => { this.plateById('r_line')?.setVisibleState(!this.save.lines.includes('r_line')); this.ambState(); }); this.dyn.arenaDoor = null; this.floorText(e.x, e.y - 120, 'I TRIED SO HARD.', C.inkBright, 22, 3200); this.say('noor', '...So did I.', 2200); }
       writeSave(this.save);
     }
   }
@@ -526,7 +560,7 @@ export class GameScene extends Phaser.Scene {
   plateById(id: string) { return this.plates.find(p => p.def.id === id); }
   nearestPlate(r: number) {
     let best: Plate | null = null, bd = r;
-    for (const p of this.plates) { if (!p.visible || p.def.kind === 'secret') continue; const d = Math.hypot(p.def.x - this.x, p.def.y - this.y); if (d < bd) { bd = d; best = p; } }
+    for (const p of this.plates) { if (!p.visible || p.def.kind === 'secret' || p.def.kind === 'unlock') continue; const d = Math.hypot(p.def.x - this.x, p.def.y - this.y); if (d < bd) { bd = d; best = p; } }
     return best;
   }
 
@@ -537,7 +571,11 @@ export class GameScene extends Phaser.Scene {
   }
   read(p: Plate) {
     const s = this.save; this.stuck = 0;
+    if (p.def.kind === 'look') { this.words.showLore(p, p.def.text ?? ''); this.noteLooked(p); p.pulse(C.lamp); return true; }
+    if (p.def.kind === 'line') { this.collectLine(p); return true; }
+    if (p.def.toy) this.noteLooked(p);
     if (p.def.kind === 'lore') {
+      this.noteLooked(p);
       this.words.showLore(p, p.def.text ?? '');
       if (!s.lore.includes(p.def.id)) { s.lore.push(p.def.id); recomputeGrowth(s); }
       this.setCheckpoint(p);
@@ -556,13 +594,15 @@ export class GameScene extends Phaser.Scene {
   swap(fromId: string, toId: string) {
     const A = this.plateById(fromId), B = this.plateById(toId);
     if (!A || !B || A === B || A.def.slot < 0 || B.def.slot < 0 || !A.visible || !B.visible) return false;
+    if (!!A.def.toy !== !!B.def.toy) { this.floorText(this.x, this.y - 130, A.def.toy || B.def.toy ? 'THAT WORD ONLY PLAYS HERE' : 'NO', C.dim, 13, 900); return false; }
     const wa = A.slotWord!, wb = B.slotWord!;
     A.setOpts({ ...A.opts, selected: false });
     B.setSlotWord(wa); A.setSlotWord(wb);
     this.save.plates[A.def.id] = wb; this.save.plates[B.def.id] = wa;
     const n = logSwap(this.save, { placed: wa, removed: wb, room: this.room.id, plate: B.def.id, t: Date.now() });
     this.hand = null; this.stuck = 0; this.rewriteT = 0; sfx('swap');
-    if (this.room.id !== 'arena') this.setCheckpoint(B); else B.pulse();
+    if (this.room.id !== 'arena' && !B.def.toy) this.setCheckpoint(B); else B.pulse();
+    if (B.def.toy) { const lg = LINGER[this.room.id]; const played = B.words[2] !== B.def.words[2]; this.say('floor', played ? lg.toy : lg.toyBack, 2800); if (played && !this.save.toys.includes(this.room.id)) this.save.toys.push(this.room.id); }
     this.cameras.main.flash(90, 120, 228, 232);
     if (n === 3) this.say('fern', 'You keep saying that.', 2200);
     this.evaluate(false);
@@ -595,6 +635,8 @@ export class GameScene extends Phaser.Scene {
       const door = this.roomVis.door as Phaser.GameObjects.Rectangle;
       const panel = this.roomVis.doorPanel as Phaser.GameObjects.Image;
       if (panel) { this.tweens.killTweensOf(panel); if (initial) panel.setAlpha(f.door ? 0 : 1); else { this.tweens.add({ targets: panel, alpha: f.door ? 0 : 1, scaleY: f.door ? 0.96 : 1, duration: 380, ease: 'Quad.easeIn' }); } }
+      // art-v8: the coral door light and its floor reflection belong to the SHUT plate; OPEN crossfades to a plate rendered without them
+      if (this.bg.shut && this.bg.open) { const want = f.door ? 'open' : 'shut'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 420 }); im.setDepth(k === want ? -999.5 : -1000); } }
       if (door) { if (initial) door.setAlpha(f.door ? 0.1 : 0.8).setFillStyle(f.door ? hex(C.cyan) : hex(C.coral), 0.8); else this.tweens.add({ targets: door, alpha: f.door ? 0.1 : 0.8, duration: 400 }); door.setFillStyle(f.door ? hex(C.cyan) : hex(C.coral)); }
       if (f.door && !was.door && !initial && !s.seen.includes('caret')) {
         s.seen.push('caret');
@@ -609,7 +651,7 @@ export class GameScene extends Phaser.Scene {
       this.plateById('c_note')?.setVisibleState(f.lit);
       const dur = initial ? 0 : 600;
       if (this.darkness) this.tweens.add({ targets: this.darkness, alpha: f.lit ? 0 : 1, duration: dur });
-      this.tweens.add({ targets: [this.roomVis.lamp, this.roomVis.path], alpha: f.lit ? (this.art ? 1 : 0.8) : 0, duration: dur });
+      this.tweens.add({ targets: [this.roomVis.lamp], alpha: f.lit ? (this.art ? 1 : 0.8) : 0, duration: dur });
       if (f.lit) help('lamp');
       if (f.lit && !was.lit && !initial) this.say('fern', 'Left you a note. Down there.', 2000);
       f.quick = w('c_dummy') === 'QUICK';
@@ -632,6 +674,8 @@ export class GameScene extends Phaser.Scene {
     }
     if (id === 'archive') { f.dry = w('a_ink') === 'DRY'; f.apart = w('a_notes') === 'APART'; }
     if (id === 'arena' && this.fight) this.fight.setGuardWord(w('r_guard') ?? 'STRONG');
+    this.toyEffects(initial);
+    this.ambState();
     // wilt: solving a room after Fern's hint showed
     const solved = id === 'hub' ? f.door : id === 'corridor' ? f.lit : id === 'archive' ? f.bridge : false;
     if (solved && this.hintUsed && !s.wilted.includes(id)) { s.wilted.push(id); recomputeGrowth(s); }
@@ -667,6 +711,149 @@ export class GameScene extends Phaser.Scene {
     ctx.globalCompositeOperation = 'source-over';
     if (pools[1]) { const [cx, cy, r, a] = pools[1]; const g2 = ctx.createRadialGradient(cx, cy, 4, cx, cy, r); g2.addColorStop(0, `rgba(120,228,232,${0.18 * a})`); g2.addColorStop(1, 'rgba(120,228,232,0)'); ctx.fillStyle = g2; ctx.fillRect(cx - r, cy - r, r * 2, r * 2); }
     this.litMask.refresh();
+  }
+
+  // ---------- art-v8 linger layer: ambient loops, toys, idle lines, inspect-all, lost lines ----------
+  /** rendered ambient loops (Blender frames, one strip per loop) + a few code particles where light catches dust */
+  buildAmbient(id: RoomId) {
+    for (const d of ROOMART[id]?.amb ?? []) {
+      if (!this.textures.exists(d.key)) continue;
+      const spr = this.add.sprite(d.x, d.y, d.key, 0).setOrigin(0).setDepth(d.baseY < 0 ? -998 : d.baseY); this.objs.push(spr);
+      this.amb.push({ def: d, spr, dir: 1, speed: 1, t: Math.random() * 10, ox: d.x, oy: d.y });
+    }
+    const M: Partial<Record<RoomId, [Rect, number, number]>> = { office: [{ x: 760, y: 210, w: 420, h: 230 }, 16, 0xcfe0f0], corridor: [{ x: 300, y: 300, w: 140, h: 150 }, 10, 0xf6e6c8], message: [{ x: 780, y: 470, w: 200, h: 170 }, 12, 0xf6e6c8], arena: [{ x: 520, y: 260, w: 240, h: 300 }, 14, 0xf6e6c8] };
+    const m = M[id];
+    if (m) {
+      this.moteRect = m[0]; this.moteCol = m[2]; this.motesG = this.add.graphics().setDepth(1900).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(this.motesG);
+      for (let i = 0; i < m[1]; i++) this.motes.push({ x: m[0].x + Math.random() * m[0].w, y: m[0].y + Math.random() * m[0].h, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 5, a: 0.15 + Math.random() * 0.25, ph: Math.random() * 6 });
+    }
+    if (id === 'hub') {   // the mirror copies Noor a beat late (or, with the toy, a beat early)
+      this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(0.55, 0.5).setTint(0x9ad8f0).setAlpha(0.42).setDepth(-997).setVisible(false); this.objs.push(this.refl);
+    }
+    const lampAt: Partial<Record<RoomId, [number, number, number, number]>> = { office: [1185, 470, 0xf6c684, 0.26], arena: [640, 420, 0x78e4e8, 0] };
+    const la = lampAt[id];
+    if (la) { const pool = this.add.image(la[0], la[1], 'pool').setScale(id === 'arena' ? 3.2 : 1.1, id === 'arena' ? 2.2 : 0.7).setTint(la[2]).setAlpha(la[3]).setBlendMode(Phaser.BlendModes.ADD).setDepth(-990); this.objs.push(pool); this.toyFx.pool = pool; }
+    if (id === 'message') {
+      const t = this.add.text(500, 196, '', { fontFamily: 'IBM Plex Mono', fontSize: '15px', fontStyle: '500', color: '#B4EEF0', backgroundColor: 'rgba(10,16,24,0.9)', padding: { x: 10, y: 5 } }).setOrigin(0.5).setDepth(-830).setAlpha(0); this.objs.push(t); this.toyFx.typing = t;
+    }
+  }
+  /** which ambient loops show for the current plate state (corridor dark/lit, archive H/L), collected lines, toy states */
+  ambState() {
+    const st = this.room.id === 'corridor' ? (this.flags.lit ? 'lit' : 'dark') : this.room.id === 'archive' ? (this.flags.drained ? 'L' : 'H') : null;
+    const has = (n: string, s: string) => this.amb.some(a => a.def.name === n && a.def.state === s);
+    for (const a of this.amb) {
+      let vis = st ? a.def.state === st || (!has(a.def.name, st) && a.def.state === this.amb.find(b => b.def.name === a.def.name)!.def.state) : true;
+      if (a.def.name === 'line') { const p = this.plates.find(q => q.def.kind === 'line'); vis = vis && !!p && p.visible; }
+      if (a.def.name === 'memo') vis = vis && this.plateById('a_memo')?.slotWord === 'AFLOAT';
+      if (a.def.name === 'duck' && this.plateById('a_duck')?.slotWord !== 'AFLOAT' && !this.tweens.isTweening(a.spr)) vis = false;
+      a.spr.setVisible(vis);
+    }
+  }
+  toyEffects(initial: boolean) {
+    const id = this.room.id, w = (pid: string) => this.plateById(pid)?.slotWord; const A = (n: string) => this.amb.filter(a => a.def.name === n);
+    const dur = initial ? 0 : 700;
+    if (id === 'office') {
+      const happyRain = w('o_rain') === 'HAPPY'; for (const a of A('rain')) { a.speed = happyRain ? 0.5 : 1; a.spr.setTint(happyRain ? 0xffe6b8 : 0xffffff); }
+      const pool = this.toyFx.pool as Phaser.GameObjects.Image; if (pool) this.tweens.add({ targets: pool, alpha: w('o_lamp') === 'SAD' ? 0.05 : 0.26, duration: dur });
+    }
+    if (id === 'hub') { for (const a of A('clock')) { const fwd = w('h_clock') === 'FORWARD'; a.dir = fwd ? -1 : 1; a.speed = fwd ? 3 : 1; } }
+    if (id === 'corridor') {
+      const toBucket = w('c_moth') === 'DRIP';
+      for (const a of A('moth')) { this.tweens.killTweensOf(a.spr); this.tweens.add({ targets: a.spr, x: a.ox + (toBucket ? 364 : 0), y: a.oy + (toBucket ? 70 : 0), duration: initial ? 0 : 1600, ease: 'Sine.easeInOut' }); }
+    }
+    if (id === 'archive') {
+      const sunk = w('a_duck') !== 'AFLOAT';
+      for (const a of A('duck')) { this.tweens.killTweensOf(a.spr); if (initial) a.spr.setY(a.oy + (sunk ? 16 : 0)).setAlpha(sunk ? 0 : 1); else { a.spr.setVisible(true); this.tweens.add({ targets: a.spr, y: a.oy + (sunk ? 16 : 0), alpha: sunk ? 0 : 1, duration: 1400, ease: 'Quad.easeIn', onComplete: () => this.ambState() }); if (sunk) this.bubbles(a.spr.x + a.def.w / 2, a.oy + a.def.h * 0.7); } }
+      for (const a of A('memo')) { if (!initial && w('a_memo') === 'AFLOAT') { a.spr.setAlpha(0).setY(a.oy + 10); this.tweens.add({ targets: a.spr, alpha: 1, y: a.oy, duration: 1600 }); this.bubbles(a.spr.x + a.def.w / 2, a.oy + a.def.h / 2); } }
+    }
+    if (id === 'arena') {
+      const coldLamp = w('r_lamp') === 'COLD', warmRim = w('r_rim') === 'WARM';
+      const pool = this.toyFx.pool as Phaser.GameObjects.Image; if (pool) this.tweens.add({ targets: pool, alpha: coldLamp ? 0.22 : 0, duration: dur });
+      for (const a of A('rim')) a.spr.setTint(warmRim ? 0xffc890 : 0xffffff);
+    }
+    if (id === 'message') {
+      const t = this.toyFx.typing as Phaser.GameObjects.Text; const typing = w('m_kabir') === 'TYPING';
+      if (t) this.tweens.add({ targets: t, alpha: typing ? 1 : 0, duration: dur });
+    }
+  }
+  bubbles(x: number, y: number) {
+    for (let i = 0; i < 7; i++) { const b = this.add.circle(x + (Math.random() - 0.5) * 30, y, 2 + Math.random() * 3, 0xbfe8f4, 0.6).setDepth(700); this.objs.push(b); this.tweens.add({ targets: b, y: y - 20 - Math.random() * 20, alpha: 0, delay: i * 120, duration: 700, onComplete: () => b.destroy() }); }
+  }
+  /** a story object was read: log it; when every one in the room is read, the room's extra code line unlocks */
+  noteLooked(p: Plate) {
+    const s = this.save; if (!s.looked.includes(p.def.id)) s.looked.push(p.def.id);
+    const id = this.room.id, need = this.plates.filter(q => (q.def.kind === 'look' || q.def.kind === 'lore' || q.def.toy) && q.def.id !== 'o_monitor' && !q.def.hidden);
+    if (!s.tutorials.includes('all:' + id) && need.every(q => s.looked.includes(q.def.id))) {
+      s.tutorials.push('all:' + id); this.plateById(id + '_all')?.setVisibleState(true);
+      this.time.delayedCall(900, () => this.say('floor', LINGER[id].all.say, 3200)); sfx('swap');
+    }
+    writeSave(s);
+  }
+  collectLine(p: Plate) {
+    const s = this.save; const L = LINES.find(l => l.id === p.def.id);
+    if (!L || s.lines.includes(L.id)) return;
+    s.lines.push(L.id); writeSave(s); sfx('paste');
+    this.words.showLore(p, L.text);
+    const a = this.amb.find(x => x.def.name === 'line');
+    if (a) this.tweens.add({ targets: a.spr, alpha: 0, y: a.spr.y - 14, duration: 900, onComplete: () => { p.setVisibleState(false); this.ambState(); } }); else p.setVisibleState(false);
+    const card = this.add.text(640, 590, `unsent.txt  +1   ${s.lines.length}/${LINES.length}`, { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.85)', padding: { x: 10, y: 4 } }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
+    this.objs.push(card); this.tweens.add({ targets: card, alpha: 1, y: 576, duration: 260, yoyo: true, hold: 1800, onComplete: () => card.destroy() });
+    if (s.lines.length === LINES.length) this.time.delayedCall(2600, () => this.say('fern', "That's all of it. You could send it now.", 2600));
+  }
+  /** per frame: ambient frame stepping, the stand-still narrator line, the hub mirror, dust motes */
+  updateLinger(dt: number, active: boolean) {
+    for (const a of this.amb) {
+      if (a.def.frames <= 1 || !a.spr.visible) continue;
+      a.t += dt * a.speed; const n = a.def.frames; let k = Math.floor(a.t * a.def.fps) % n; if (a.dir < 0) k = n - 1 - k;
+      if (Number(a.spr.frame.name) !== k) a.spr.setFrame(k);
+    }
+    if (this.memoDrift()) { /* drifting memo handled inside */ }
+    // stand still ~6 s: the narrator notices (once per room visit)
+    const calm = !this.busy && !this.cutscene && (!this.fight || this.fight.won);
+    if (active || !calm || this.dying || this.composer || this.subBusy) this.idleT = 0; else this.idleT += dt;
+    if (this.idleT > 6 && !this.idleSaid) {
+      this.idleSaid = true; const lg = LINGER[this.room.id], v = this.save.visits[this.room.id] ?? 1;
+      this.say('floor', v > 1 ? lg.idle[1] : lg.idle[0], 3400);
+      const tag = `${this.room.id}:${v}`; if (!this.save.idle.includes(tag)) { this.save.idle.push(tag); writeSave(this.save); }
+    }
+    // hub mirror: a delayed (or, after the toy, early) copy of Noor, cropped to the glass
+    if (this.refl) {
+      this.hist.push({ t: this.t, x: this.x, y: this.y, key: this.noor.texture.key, frame: this.noor.frame.name }); while (this.hist.length > 2 && this.hist[0].t < this.t - 0.6) this.hist.shift();
+      const ahead = this.plateById('h_mirror')?.slotWord === 'BACKWARD';
+      let h = this.hist[0]; for (const q of this.hist) if (q.t <= this.t - 0.4) h = q;
+      let rx = h.x; if (ahead) { const o = this.hist[0]; rx = this.x + (this.x - o.x) * 0.7; }
+      const flip: Record<string, string> = { S: 'N', N: 'S', SE: 'NE', NE: 'SE', SW: 'NW', NW: 'SW', E: 'E', W: 'W' };
+      const fr = (ahead ? this.noor.frame.name : h.frame).replace(/_(S|SE|E|NE|N|NW|W|SW)_/, (_m, d) => `_${flip[d]}_`);
+      const key = ahead ? this.noor.texture.key : h.key; const near = this.y < 300;
+      this.refl.setVisible(near);
+      if (near && this.textures.get(key).has(fr)) {
+        this.refl.setTexture(key, fr); const fy = 140 - Math.max(0, (this.y - 150)) * 0.18;
+        this.refl.setPosition(rx, fy);
+        // crop to the glass (222..404 x 42..140): frame px = (world - origin) / scale
+        const sx = 0.55, sy = 0.5, x0 = rx - 96 * sx, y0 = fy - 160 * sy;
+        const cx0 = Phaser.Math.Clamp((222 - x0) / sx, 0, 192), cx1 = Phaser.Math.Clamp((404 - x0) / sx, 0, 192), cy0 = Phaser.Math.Clamp((42 - y0) / sy, 0, 192), cy1 = Phaser.Math.Clamp((140 - y0) / sy, 0, 192);
+        if (cx1 - cx0 < 2 || cy1 - cy0 < 2) this.refl.setVisible(false); else this.refl.setCrop(cx0, cy0, cx1 - cx0, cy1 - cy0);
+      }
+    }
+    if (this.motesG && this.moteRect) {
+      const g = this.motesG, R = this.moteRect; g.clear();
+      const on = this.room.id !== 'corridor' || this.flags.lit;
+      if (on) for (const m of this.motes) {
+        m.x += (m.vx + Math.sin(this.t * 0.7 + m.ph) * 4) * dt; m.y += m.vy * dt;
+        if (m.y < R.y) { m.y = R.y + R.h; m.x = R.x + Math.random() * R.w; } if (m.x < R.x) m.x += R.w; if (m.x > R.x + R.w) m.x -= R.w;
+        const edge = Math.min(1, (m.y - R.y) / 30, (R.y + R.h - m.y) / 30);
+        g.fillStyle(this.moteCol, m.a * edge * (0.6 + 0.4 * Math.sin(this.t * 2 + m.ph))).fillCircle(m.x, m.y, 1.6);
+      }
+    }
+  }
+  memoDrift() { const a = this.amb.find(x => x.def.name === 'memo'); if (a && a.spr.visible && !this.tweens.isTweening(a.spr)) { a.spr.setX(a.ox + Math.sin(this.t * 0.4) * 8); a.spr.setY(a.oy + Math.sin(this.t * 0.9) * 2); } return !!a; }
+  /** dash hair trail (art-v8): warm echoes of the hair + bun region of the current dash frame, left along the path.
+   *  Readable at 640x360 (each echo ~60x30 game px) but short-lived (220 ms) so it stays tasteful. */
+  hairEcho(dt: number) {
+    this.hairT -= dt; if (this.hairT > 0) return; this.hairT = 0.032;
+    const e = this.add.sprite(this.x, this.y, this.noor.texture.key, this.noor.frame.name).setOrigin(96 / 192, 160 / 192).setDepth(this.y - 1.5)
+      .setCrop(38, 48, 116, 62).setTint(0xffb27a).setAlpha(0.7).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(e);
+    this.tweens.add({ targets: e, alpha: 0, x: e.x - this.dashVec.x * 18, y: e.y - this.dashVec.y * 10 - 2, scaleX: 1.06, duration: 230, ease: 'Quad.easeOut', onComplete: () => e.destroy() });
   }
 
   // ---------- Fern hint ----------
@@ -762,7 +949,7 @@ export class GameScene extends Phaser.Scene {
   inCombat() { return (this.room.id === 'arena' && !!this.fight && !this.fight.won) || (this.room.id === 'archive' && this.x > 820 && this.enemies.some(e => !e.dead)); }
   aimVec() {
     const p = this.input.activePointer;
-    if (this.ctl.last === 'kb' && p.isDown && !p.wasTouch) { const dx = p.worldX - this.x, dy = p.worldY - (this.y - 30), l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; }
+    if (this.ctl.last === 'kb' && p.isDown && !p.wasTouch) { const wp = this.toWorld(p.x, p.y); const dx = wp.x - this.x, dy = wp.y - (this.y - 30), l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; }
     return this.dirVec();
   }
   drawSelect() {
@@ -818,7 +1005,10 @@ export class GameScene extends Phaser.Scene {
     T(120, 270, 'controls', 14, C.cyan, 700);
     T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  read      E  (pick up a word)', '  swap      E at another plate,', '            or drag the word chip', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  rewrite   E a sign in combat: slow-mo', '  root      R (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ` / F2'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     T(620, 296, ['touch', '  move      drag on the left half', '  dash      DASH button', '  read      READ button', '  swap      drag the word chip onto', '            a plate (or READ at it)', '  type      TYPE button', '  backspace TYPE during a dash', '  select    hold TYPE', '  paste     TYPE after a perfect dodge', '  rewrite   READ a sign in combat', '  root      ROOT button', '  skip      hold top-right', '  menu      tap "esc menu"'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
-    T(120, 620, '"Beta, eat properly."', 13, C.faint, 400, 'IBM Plex Mono');
+    // art-v8 journal: the lost lines, in the order of the floor
+    T(120, 548, `unsent.txt  ${this.save.lines.length}/${LINES.length}`, 14, C.lamp, 700);
+    T(120, 570, LINES.map((l, i) => this.save.lines.includes(l.id) ? `  ${i + 1}  ${l.text}` : `  ${i + 1}  ${'\u2591'.repeat(18)}`).join('\n'), 13, C.ink, 400, 'IBM Plex Mono');
+    T(820, 680, '"Beta, eat properly."', 13, C.faint, 400, 'IBM Plex Mono');
     this.pauseUi = c;
   }
 
@@ -871,7 +1061,7 @@ export class GameScene extends Phaser.Scene {
     }
     let vx = mx * WALK, vy = my * WALK;
     if (this.swingT > 0 || this.selecting) { vx *= 0.35; vy *= 0.35; }
-    if (this.dashT > 0) { this.dashTrail(dt); this.dashT -= dt; vx = this.dashVec.x * DASH_SPEED; vy = this.dashVec.y * DASH_SPEED; if (this.dashT <= 0) this.sinceDash = 0; }
+    if (this.dashT > 0) { this.dashTrail(dt); this.hairEcho(dt); this.dashT -= dt; vx = this.dashVec.x * DASH_SPEED; vy = this.dashVec.y * DASH_SPEED; if (this.dashT <= 0) this.sinceDash = 0; }
     if (this.bsT > 0) { this.bsT -= dt; for (const e of this.enemies) if (!e.dead && !this.bsHit.has(e) && Math.hypot(e.x - this.x, e.y - this.y) < 70) { this.bsHit.add(e); const a = Math.atan2(e.y - this.y, e.x - this.x); this.hurtEnemy(e, 1, Math.cos(a) * 520, Math.sin(a) * 520); } }
     const ox = this.x, oy = this.y;
     if (!this.dying) {
@@ -897,6 +1087,7 @@ export class GameScene extends Phaser.Scene {
     if (control && f.interact && !this.composer) this.interact();
     this.words.update(dt, f.interactHeld);
     this.drawLitMask();
+    this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.updateEnemies(edt);
     this.fight?.update(dt, edt);
     if (this.room.exit && control && inR(this.room.exit.rect, this.x, this.y)) this.goRoom(this.room.exit.to);
@@ -1061,7 +1252,12 @@ export class GameScene extends Phaser.Scene {
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
-      hand: this.hand, flags: { ...this.flags }, plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
+      hand: this.hand, flags: { ...this.flags },
+      cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: this.toScreen(640, 720).y, barY: BAR_Y },
+      amb: this.amb.map(a => ({ name: a.def.name, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
+      looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })),
+      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
+      corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state })),
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
       hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
@@ -1076,6 +1272,8 @@ export class GameScene extends Phaser.Scene {
       read: (id: string) => { const p = this.plateById(id); if (!p || !p.visible) return false; this.x = p.def.x; this.y = p.def.y - 20; return this.read(p); },
       swap: (from: string, to: string) => { const a = this.plateById(from); if (!a || !a.visible) return false; this.read(a); return this.swap(from, to); },
       goto: (r: RoomId) => this.goRoom(r),
+      readAll: () => { for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
+      idle: (s: number) => { this.idleT = s; },
       setStuck: (s: number) => { this.stuck = s; },
       hurt: () => { this.iframes = 0; this.hurtNoor(); },
       kill: () => this.die(),

@@ -20,12 +20,18 @@ export interface Save {
   deaths: number;
   phaseComplete: boolean;
   draftLastBarDeath: boolean;
+  // art-v8 "linger" layer (optional, never on the main path)
+  looked: string[];                     // story objects inspected (look + lore + toy plates), for the inspect-all unlock
+  lines: string[];                      // lost lines collected (the per-room collectible, journal "unsent.txt")
+  visits: Record<string, number>;       // room entries, for the revisit variants
+  idle: string[];                       // rooms whose stand-still line has played (this visit count: room:visit)
+  toys: string[];                       // toy rooms played with (room ids)
 }
 
 const KEY = 'pi.save.v1';
 export function freshSave(): Save {
   return { v: 1, room: 'office', checkpoint: { room: 'office', x: 110, y: 470, plate: null }, plates: {}, lore: [], helped: [], wilted: [], defeated: [],
-    tutorials: [], seen: [], wordLog: [], swapLog: [], fernGrowth: 0, deaths: 0, phaseComplete: false, draftLastBarDeath: false };
+    tutorials: [], seen: [], wordLog: [], swapLog: [], fernGrowth: 0, deaths: 0, phaseComplete: false, draftLastBarDeath: false, looked: [], lines: [], visits: {}, idle: [], toys: [] };
 }
 export function loadSave(): Save {
   try { const raw = localStorage.getItem(KEY); if (raw) { const s = JSON.parse(raw); if (s && s.v === 1) return { ...freshSave(), ...s }; } } catch { /* corrupt or private mode */ }

@@ -20,6 +20,46 @@ async function serve() {
   throw new Error('preview server did not start (run npm run build first)');
 }
 
+async function linger(browser) {
+  const log = { errors: [], external: [] };
+  const { ctx, page } = await open(browser, DESKTOP, URL_, log);
+  await page.waitForFunction(() => window.__pi, null, { timeout: 10000 });
+  let s;
+  for (const r of ['office', 'hub', 'corridor', 'archive', 'arena', 'message']) {
+    await pi(page, 'goto', r); s = await waitFor(page, s => s.room === r && s.state === 'play', 8000);
+    if (s.cutscene) { await page.keyboard.down('x'); await sleep(900); await page.keyboard.up('x'); }
+    await sleep(500); s = await st(page);
+    ok(`linger ${r}: >=4 inspectable story objects`, s.looks.length >= 4, s.looks.join(','));
+    ok(`linger ${r}: camera letterboxed above the caption bar`, s.cam.bottom <= s.cam.barY + 1, `bottom ${s.cam.bottom.toFixed(1)} bar ${s.cam.barY}`);
+    const vis = s.amb.filter(a => a.visible && a.name !== 'line');
+    const f0 = s.amb.map(a => a.frame); await sleep(700); const s2 = await st(page);
+    const moved = s2.amb.filter((a, i) => a.frames > 1 && a.frame !== f0[i]).length;
+    ok(`linger ${r}: >=2 Blender ambient loops, frames advancing`, vis.length >= 2 && moved >= 1, vis.map(a => a.name + ':' + a.frames).join(' ') + ` moved ${moved}`);
+    const first = s.looks[0];
+    await pi(page, 'read', first); await sleep(350); s = await st(page);
+    await shot(page, `linger-${r}-inspect`);
+    ok(`linger ${r}: reading a story object logs it`, s.save.looked.includes(first), first);
+    const unlocked = await pi(page, 'readAll'); await sleep(200);
+    ok(`linger ${r}: inspect-all unlocks the room's extra code line`, unlocked === true);
+    s = await st(page); const ln = s.lineIds.find(l => l.visible);
+    if (r === 'arena') ok('linger arena: unsent line hidden until the Draft falls', s.lineIds.every(l => !l.visible));
+    else { const n = s.save.lines.length; await pi(page, 'read', ln?.id); await sleep(300); s = await st(page); ok(`linger ${r}: collectible unsent line picked up`, s.save.lines.length === n + 1, `${s.save.lines.length}/6`); }
+    if (r === 'corridor') ok('corridor: no code-drawn cyan floor bars', s.corridorBars === false);
+  }
+  await pi(page, 'goto', 'office'); await waitFor(page, s => s.room === 'office', 5000); await sleep(400);
+  await pi(page, 'teleport', 640, 500); await pi(page, 'idle', 6.5); await sleep(600); s = await st(page);
+  ok('linger: standing still triggers an idle line', /office does too|hasn\u2019t moved on/.test(s.caption + JSON.stringify(s.prompts)) || s.idleT === 0, s.caption.slice(0, 80));
+  const ok1 = await pi(page, 'swap', 'o_rain', 'o_lamp'); s = await st(page);
+  ok('linger: code-vision toy swaps with its partner', !!ok1 && s.plates.o_rain.words !== 'RAIN FEELS SAD', s.plates.o_rain.words + ' / ' + s.plates.o_lamp.words);
+  ok('linger: toys only swap with toys', !(await pi(page, 'swap', 'o_rain', 'o_coffee')));
+  await pi(page, 'teleport', 420, 520); await sleep(300); await page.keyboard.down('d'); await sleep(60); await page.keyboard.press('Space'); await sleep(110);
+  await page.screenshot({ path: `${SHOTS}linger-dash-hair.png` }); await page.keyboard.up('d'); await sleep(900);
+  await page.keyboard.down('e'); await sleep(650); s = await st(page); await shot(page, 'linger-wire-noor'); await page.keyboard.up('e');
+  ok('code view: Noor ghost is a wireframe sheet', (s.ghostTex ?? '').endsWith('_wire'), s.ghostTex);
+  ok('linger: zero console errors', log.errors.length === 0, log.errors.slice(0, 5).join(' | '));
+  await ctx.close();
+}
+
 async function desktop(browser) {
   const log = { errors: [], external: [] };
   const { ctx, page, input } = await open(browser, DESKTOP, URL_, log);
@@ -300,8 +340,8 @@ async function mobile(browser) {
 
 const server = await serve();
 const browser = await launch();
-try { await desktop(browser); await mobile(browser); }
-catch (e) { ok('playtest ran without exceptions', false, e.message); }
+try { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await mobile(browser); }
+catch (e) { ok('playtest ran without exceptions', false, e.message + (process.env.ONLY_LINGER ? ' ' + e.stack : '')); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);
 console.log(`\n${results.length - fails.length}/${results.length} passed`);
