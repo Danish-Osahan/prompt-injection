@@ -121,6 +121,7 @@ def _cardigan(body, arm, mat):
     for f in bm.faces:
         gs = {dom(v) for v in f.verts}
         if cols[f.index] not in (2, 3) or not gs <= {'torso', 'arm-left', 'arm-right'}: kill.append(f)
+        elif globals().get('LEG_K', 1.0) != 1.0 and min((body.matrix_world @ v.co).z for v in f.verts) < 0.125: kill.append(f)   # art-v10: legs stay legs
     bmesh.ops.delete(bm, geom=kill, context='FACES')
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=0.0005)
     bm.normal_update()
@@ -196,6 +197,14 @@ def build_noor(name='noor', holo=False, hcol=(90, 210, 255)):
     arm.name = name + '_rig'
     arm['actions'] = {a.name.split('_')[0]: a.name for a in bpy.data.actions if a not in bacts}
     arm.data.pose_position = 'REST'; bpy.context.view_layer.update()
+    LK = globals().get('LEG_K', 1.0)
+    if LK != 1.0:   # art-v10: longer legs (stretch leg verts below the hip about the hip; the caller lifts the armature)
+        HZ = 0.176
+        for v in body.data.vertices:
+            z = (body.matrix_world @ v.co).z
+            if z < HZ:
+                w = body.matrix_world.inverted() @ Vector(((body.matrix_world @ v.co).x, (body.matrix_world @ v.co).y, HZ - (HZ - z)*LK)); v.co = w
+        body.data.update()
     C = NOOR
     _recolour([body, head], [((2, 3), C['pants']), ((8, 9), C['tee']), ((10, 11), C['hair']), ((14, 15), C['skin'])])
     extra = []

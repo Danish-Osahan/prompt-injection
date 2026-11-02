@@ -47,8 +47,11 @@ for room, states in VARS.items():
             ims = [rgba_graded(f) for f in fr]; al = np.max([i[..., 3] for i in ims], 0); ys, xs = np.nonzero(al > 4)
             if len(xs) < 10: report.append('WARN %s amb %s empty' % (key, am['name'])); continue
             x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1; w, h = x1 - x0, y1 - y0
-            strip = np.zeros((h, w*len(ims), 4), np.uint8)
-            for k, im in enumerate(ims): strip[:, k*w:(k + 1)*w] = im[y0:y1, x0:x1]
+            # art-v10: wrap into a grid so no sheet is wider than 4096 px (a 15488 px strip exceeded the GPU max texture
+            # size and rendered as a solid black band in the hub); Phaser spritesheets read grids row by row
+            cols = max(1, min(len(ims), 4096//w)); rows = (len(ims) + cols - 1)//cols
+            strip = np.zeros((h*rows, w*cols, 4), np.uint8)
+            for k, im in enumerate(ims): strip[(k//cols)*h:(k//cols + 1)*h, (k % cols)*w:(k % cols + 1)*w] = im[y0:y1, x0:x1]
             fn = 'rooms/amb/%s_%s.png' % (name, am['name']); os.makedirs(OUT + 'amb', exist_ok=True); Image.fromarray(strip, 'RGBA').save(OUT + 'amb/%s_%s.png' % (name, am['name']), optimize=True)
             lay.setdefault('amb', []).append(dict(name=am['name'], state=st or 'base', file=fn, x=int(x0), y=int(y0), w=int(w), h=int(h), frames=am['frames'], fps=am['fps'], baseY=am['base_y'], mode=am['mode']))
         if st not in ('', states[0]): continue   # fg overlays come from the first state (identical props)

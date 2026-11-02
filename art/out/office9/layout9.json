@@ -130,52 +130,58 @@
   "back_count": 21,
   "close": {
    "phone": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 276.2,
+    "cy": 267.8,
+    "w": 700,
+    "frames": 18
    },
    "kabir": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 660.8,
+    "cy": 236.7,
+    "w": 720,
+    "frames": 18
    },
    "photo": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 270.0,
+    "cy": 445.8,
+    "w": 700,
+    "frames": 18
    },
    "photo_up": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 270.0,
+    "cy": 445.8,
+    "w": 700,
+    "frames": 18
    },
    "coffee": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 270.0,
+    "cy": 444.2,
+    "w": 700,
+    "frames": 18
    },
    "whiteboard": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 624.9,
+    "cy": 208.1,
+    "w": 900,
+    "frames": 18
    },
    "rain": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 882.2,
+    "cy": 208.1,
+    "w": 900,
+    "frames": 18
+   },
+   "rain_happy": {
+    "cx": 882.2,
+    "cy": 208.1,
+    "w": 900,
+    "frames": 18
    },
    "monitor": {
-    "center": [
-     0.5,
-     0.5
-    ]
+    "cx": 962.3,
+    "cy": 358.0,
+    "w": 760,
+    "frames": 18
    }
   }
  },
@@ -269,56 +275,22 @@
   {
    "v": "toys",
    "layer": "back",
-   "file": "office9/var/toys_back_0.png",
-   "x": 688,
-   "y": 131,
-   "w": 320,
-   "h": 104
+   "file": "office9/var/toys_back.jpg",
+   "x": -80,
+   "y": -45,
+   "w": 1440,
+   "h": 810,
+   "full": 1
   },
   {
    "v": "toys",
    "layer": "mid",
-   "file": "office9/var/toys_mid_0.png",
-   "x": 624,
-   "y": 123,
-   "w": 616,
-   "h": 568
-  },
-  {
-   "v": "toys",
-   "layer": "mid",
-   "file": "office9/var/toys_mid_1.png",
-   "x": 472,
-   "y": 299,
-   "w": 24,
-   "h": 48
-  },
-  {
-   "v": "toys",
-   "layer": "mid",
-   "file": "office9/var/toys_mid_2.png",
-   "x": 440,
-   "y": 355,
-   "w": 24,
-   "h": 16
-  },
-  {
-   "v": "toys",
-   "layer": "mid",
-   "file": "office9/var/toys_mid_3.png",
-   "x": 920,
-   "y": 355,
-   "w": 24,
-   "h": 24
-  },
-  {
-   "v": "toys",
-   "layer": "mid",
-   "file": "office9/var/toys_mid_4.png",
-   "x": 272,
-   "y": 435,
-   "w": 16,
-   "h": 24
+   "file": "office9/var/toys_mid.webp",
+   "x": -80,
+   "y": -45,
+   "w": 1440,
+   "h": 810,
+   "full": 1
   },
   {
    "v": "flip",
@@ -360,39 +332,282 @@
  "close": {
   "coffee": {
    "img": "office9/close/coffee.jpg",
-   "code": "office9/close/coffee_code.jpg"
+   "code": "office9/close/coffee_code.jpg",
+   "dolly": [
+    "office9/dolly/coffee_00.jpg",
+    "office9/dolly/coffee_01.jpg",
+    "office9/dolly/coffee_02.jpg",
+    "office9/dolly/coffee_03.jpg",
+    "office9/dolly/coffee_04.jpg",
+    "office9/dolly/coffee_05.jpg",
+    "office9/dolly/coffee_06.jpg",
+    "office9/dolly/coffee_07.jpg",
+    "office9/dolly/coffee_08.jpg",
+    "office9/dolly/coffee_09.jpg",
+    "office9/dolly/coffee_10.jpg",
+    "office9/dolly/coffee_11.jpg",
+    "office9/dolly/coffee_12.jpg",
+    "office9/dolly/coffee_13.jpg",
+    "office9/dolly/coffee_14.jpg",
+    "office9/dolly/coffee_15.jpg",
+    "office9/dolly/coffee_16.jpg",
+    "office9/dolly/coffee_17.jpg"
+   ],
+   "cx": 270.0,
+   "cy": 444.2,
+   "w": 700
   },
   "kabir": {
    "img": "office9/close/kabir.jpg",
-   "code": "office9/close/kabir_code.jpg"
+   "code": "office9/close/kabir_code.jpg",
+   "dolly": [
+    "office9/dolly/kabir_00.jpg",
+    "office9/dolly/kabir_01.jpg",
+    "office9/dolly/kabir_02.jpg",
+    "office9/dolly/kabir_03.jpg",
+    "office9/dolly/kabir_04.jpg",
+    "office9/dolly/kabir_05.jpg",
+    "office9/dolly/kabir_06.jpg",
+    "office9/dolly/kabir_07.jpg",
+    "office9/dolly/kabir_08.jpg",
+    "office9/dolly/kabir_09.jpg",
+    "office9/dolly/kabir_10.jpg",
+    "office9/dolly/kabir_11.jpg",
+    "office9/dolly/kabir_12.jpg",
+    "office9/dolly/kabir_13.jpg",
+    "office9/dolly/kabir_14.jpg",
+    "office9/dolly/kabir_15.jpg",
+    "office9/dolly/kabir_16.jpg",
+    "office9/dolly/kabir_17.jpg"
+   ],
+   "cx": 660.8,
+   "cy": 236.7,
+   "w": 720
   },
   "monitor": {
    "img": "office9/close/monitor.jpg",
-   "code": "office9/close/monitor_code.jpg"
+   "code": "office9/close/monitor_code.jpg",
+   "dolly": [
+    "office9/dolly/monitor_00.jpg",
+    "office9/dolly/monitor_01.jpg",
+    "office9/dolly/monitor_02.jpg",
+    "office9/dolly/monitor_03.jpg",
+    "office9/dolly/monitor_04.jpg",
+    "office9/dolly/monitor_05.jpg",
+    "office9/dolly/monitor_06.jpg",
+    "office9/dolly/monitor_07.jpg",
+    "office9/dolly/monitor_08.jpg",
+    "office9/dolly/monitor_09.jpg",
+    "office9/dolly/monitor_10.jpg",
+    "office9/dolly/monitor_11.jpg",
+    "office9/dolly/monitor_12.jpg",
+    "office9/dolly/monitor_13.jpg",
+    "office9/dolly/monitor_14.jpg",
+    "office9/dolly/monitor_15.jpg",
+    "office9/dolly/monitor_16.jpg",
+    "office9/dolly/monitor_17.jpg"
+   ],
+   "cx": 962.3,
+   "cy": 358.0,
+   "w": 760
   },
   "phone": {
    "img": "office9/close/phone.jpg",
-   "code": "office9/close/phone_code.jpg"
+   "code": "office9/close/phone_code.jpg",
+   "dolly": [
+    "office9/dolly/phone_00.jpg",
+    "office9/dolly/phone_01.jpg",
+    "office9/dolly/phone_02.jpg",
+    "office9/dolly/phone_03.jpg",
+    "office9/dolly/phone_04.jpg",
+    "office9/dolly/phone_05.jpg",
+    "office9/dolly/phone_06.jpg",
+    "office9/dolly/phone_07.jpg",
+    "office9/dolly/phone_08.jpg",
+    "office9/dolly/phone_09.jpg",
+    "office9/dolly/phone_10.jpg",
+    "office9/dolly/phone_11.jpg",
+    "office9/dolly/phone_12.jpg",
+    "office9/dolly/phone_13.jpg",
+    "office9/dolly/phone_14.jpg",
+    "office9/dolly/phone_15.jpg",
+    "office9/dolly/phone_16.jpg",
+    "office9/dolly/phone_17.jpg"
+   ],
+   "cx": 276.2,
+   "cy": 267.8,
+   "w": 700
   },
   "photo": {
    "img": "office9/close/photo.jpg",
-   "code": "office9/close/photo_code.jpg"
+   "code": "office9/close/photo_code.jpg",
+   "dolly": [
+    "office9/dolly/photo_00.jpg",
+    "office9/dolly/photo_01.jpg",
+    "office9/dolly/photo_02.jpg",
+    "office9/dolly/photo_03.jpg",
+    "office9/dolly/photo_04.jpg",
+    "office9/dolly/photo_05.jpg",
+    "office9/dolly/photo_06.jpg",
+    "office9/dolly/photo_07.jpg",
+    "office9/dolly/photo_08.jpg",
+    "office9/dolly/photo_09.jpg",
+    "office9/dolly/photo_10.jpg",
+    "office9/dolly/photo_11.jpg",
+    "office9/dolly/photo_12.jpg",
+    "office9/dolly/photo_13.jpg",
+    "office9/dolly/photo_14.jpg",
+    "office9/dolly/photo_15.jpg",
+    "office9/dolly/photo_16.jpg",
+    "office9/dolly/photo_17.jpg",
+    "office9/dolly/photo_18.jpg",
+    "office9/dolly/photo_19.jpg",
+    "office9/dolly/photo_20.jpg",
+    "office9/dolly/photo_21.jpg",
+    "office9/dolly/photo_22.jpg",
+    "office9/dolly/photo_23.jpg",
+    "office9/dolly/photo_24.jpg",
+    "office9/dolly/photo_25.jpg",
+    "office9/dolly/photo_26.jpg",
+    "office9/dolly/photo_27.jpg",
+    "office9/dolly/photo_28.jpg",
+    "office9/dolly/photo_29.jpg",
+    "office9/dolly/photo_30.jpg",
+    "office9/dolly/photo_31.jpg",
+    "office9/dolly/photo_32.jpg",
+    "office9/dolly/photo_33.jpg",
+    "office9/dolly/photo_34.jpg",
+    "office9/dolly/photo_35.jpg"
+   ],
+   "cx": 270.0,
+   "cy": 445.8,
+   "w": 700
   },
   "photo_up": {
    "img": "office9/close/photo_up.jpg",
-   "code": "office9/close/photo_up_code.jpg"
+   "code": "office9/close/photo_up_code.jpg",
+   "dolly": [
+    "office9/dolly/photo_up_00.jpg",
+    "office9/dolly/photo_up_01.jpg",
+    "office9/dolly/photo_up_02.jpg",
+    "office9/dolly/photo_up_03.jpg",
+    "office9/dolly/photo_up_04.jpg",
+    "office9/dolly/photo_up_05.jpg",
+    "office9/dolly/photo_up_06.jpg",
+    "office9/dolly/photo_up_07.jpg",
+    "office9/dolly/photo_up_08.jpg",
+    "office9/dolly/photo_up_09.jpg",
+    "office9/dolly/photo_up_10.jpg",
+    "office9/dolly/photo_up_11.jpg",
+    "office9/dolly/photo_up_12.jpg",
+    "office9/dolly/photo_up_13.jpg",
+    "office9/dolly/photo_up_14.jpg",
+    "office9/dolly/photo_up_15.jpg",
+    "office9/dolly/photo_up_16.jpg",
+    "office9/dolly/photo_up_17.jpg"
+   ],
+   "cx": 270.0,
+   "cy": 445.8,
+   "w": 700
   },
   "rain": {
    "img": "office9/close/rain.jpg",
-   "code": "office9/close/rain_code.jpg"
+   "code": "office9/close/rain_code.jpg",
+   "dolly": [
+    "office9/dolly/rain_00.jpg",
+    "office9/dolly/rain_01.jpg",
+    "office9/dolly/rain_02.jpg",
+    "office9/dolly/rain_03.jpg",
+    "office9/dolly/rain_04.jpg",
+    "office9/dolly/rain_05.jpg",
+    "office9/dolly/rain_06.jpg",
+    "office9/dolly/rain_07.jpg",
+    "office9/dolly/rain_08.jpg",
+    "office9/dolly/rain_09.jpg",
+    "office9/dolly/rain_10.jpg",
+    "office9/dolly/rain_11.jpg",
+    "office9/dolly/rain_12.jpg",
+    "office9/dolly/rain_13.jpg",
+    "office9/dolly/rain_14.jpg",
+    "office9/dolly/rain_15.jpg",
+    "office9/dolly/rain_16.jpg",
+    "office9/dolly/rain_17.jpg",
+    "office9/dolly/rain_18.jpg",
+    "office9/dolly/rain_19.jpg",
+    "office9/dolly/rain_20.jpg",
+    "office9/dolly/rain_21.jpg",
+    "office9/dolly/rain_22.jpg",
+    "office9/dolly/rain_23.jpg",
+    "office9/dolly/rain_24.jpg",
+    "office9/dolly/rain_25.jpg",
+    "office9/dolly/rain_26.jpg",
+    "office9/dolly/rain_27.jpg",
+    "office9/dolly/rain_28.jpg",
+    "office9/dolly/rain_29.jpg",
+    "office9/dolly/rain_30.jpg",
+    "office9/dolly/rain_31.jpg",
+    "office9/dolly/rain_32.jpg",
+    "office9/dolly/rain_33.jpg",
+    "office9/dolly/rain_34.jpg",
+    "office9/dolly/rain_35.jpg"
+   ],
+   "cx": 882.2,
+   "cy": 208.1,
+   "w": 900
   },
   "rain_happy": {
    "img": "office9/close/rain_happy.jpg",
-   "code": "office9/close/rain_happy_code.jpg"
+   "code": "office9/close/rain_happy_code.jpg",
+   "dolly": [
+    "office9/dolly/rain_happy_00.jpg",
+    "office9/dolly/rain_happy_01.jpg",
+    "office9/dolly/rain_happy_02.jpg",
+    "office9/dolly/rain_happy_03.jpg",
+    "office9/dolly/rain_happy_04.jpg",
+    "office9/dolly/rain_happy_05.jpg",
+    "office9/dolly/rain_happy_06.jpg",
+    "office9/dolly/rain_happy_07.jpg",
+    "office9/dolly/rain_happy_08.jpg",
+    "office9/dolly/rain_happy_09.jpg",
+    "office9/dolly/rain_happy_10.jpg",
+    "office9/dolly/rain_happy_11.jpg",
+    "office9/dolly/rain_happy_12.jpg",
+    "office9/dolly/rain_happy_13.jpg",
+    "office9/dolly/rain_happy_14.jpg",
+    "office9/dolly/rain_happy_15.jpg",
+    "office9/dolly/rain_happy_16.jpg",
+    "office9/dolly/rain_happy_17.jpg"
+   ],
+   "cx": 882.2,
+   "cy": 208.1,
+   "w": 900
   },
   "whiteboard": {
    "img": "office9/close/whiteboard.jpg",
-   "code": "office9/close/whiteboard_code.jpg"
+   "code": "office9/close/whiteboard_code.jpg",
+   "dolly": [
+    "office9/dolly/whiteboard_00.jpg",
+    "office9/dolly/whiteboard_01.jpg",
+    "office9/dolly/whiteboard_02.jpg",
+    "office9/dolly/whiteboard_03.jpg",
+    "office9/dolly/whiteboard_04.jpg",
+    "office9/dolly/whiteboard_05.jpg",
+    "office9/dolly/whiteboard_06.jpg",
+    "office9/dolly/whiteboard_07.jpg",
+    "office9/dolly/whiteboard_08.jpg",
+    "office9/dolly/whiteboard_09.jpg",
+    "office9/dolly/whiteboard_10.jpg",
+    "office9/dolly/whiteboard_11.jpg",
+    "office9/dolly/whiteboard_12.jpg",
+    "office9/dolly/whiteboard_13.jpg",
+    "office9/dolly/whiteboard_14.jpg",
+    "office9/dolly/whiteboard_15.jpg",
+    "office9/dolly/whiteboard_16.jpg",
+    "office9/dolly/whiteboard_17.jpg"
+   ],
+   "cx": 624.9,
+   "cy": 208.1,
+   "w": 900
   }
  },
  "full": "office9/office9_full.jpg",

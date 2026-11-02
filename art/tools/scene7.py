@@ -383,7 +383,7 @@ HID = [o for o in sc.objects if o.type in ('MESH', 'CURVE') and o.pass_index in 
 for o in HID: o.hide_render = True          # toggled layers (hub door panel) live only in their fg overlay
 AMBOBJ = [o for a in AMB for o in a['objs']]
 for o in AMBOBJ: o.hide_render = True       # art-v8: ambient loops + lost lines live only in their own frames
-bpy.ops.render.render(write_still=True)
+if not os.environ.get('SKIPMAIN'): bpy.ops.render.render(write_still=True)
 for o in HID: o.hide_render = False
 def iso_render(keep, path, spp):
     keep = set(keep); sc.use_nodes = False; sc.render.film_transparent = True; sc.cycles.samples = spp

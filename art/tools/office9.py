@@ -191,34 +191,57 @@ CLOSE = {   # name: (old floor sx, sy, z of the target, azimuth offset deg, elev
     'rain': (960, 200, 0.95, -6, 4, 2.4, 40, None), 'rain_happy': (960, 200, 0.95, -6, 4, 2.4, 40, 'toys'), 'monitor': (975, 470, 0.62, 0, 18, 1.0, 55, 'claim')}
 CLOSE['coffee'] = (233, 568, 0.40, -10, 48, 0.55, 60, None)
 # art-v9b: per-shot exposure (the Kenney whites blow out at close range under the room lights + key), moodier keys
-EXPO = {'phone': -0.2, 'kabir': -1.4, 'photo': -1.6, 'photo_up': -1.5, 'coffee': -1.8, 'whiteboard': -1.9, 'rain': -1.1, 'rain_happy': -1.2, 'monitor': -1.1}
-CLOSE_OBJ = {'phone': 'phone', 'photo': 'photo', 'photo_up': 'photo', 'kabir': 'sticky', 'coffee': 'mug9'}
-CLOSE_DZ = {'kabir': -0.02, 'coffee': 0.0}
+EXPO = {'phone': -0.2, 'kabir': -1.1, 'photo': -0.6, 'photo_up': -0.7, 'coffee': -1.6, 'whiteboard': -1.7, 'rain': -1.1, 'rain_happy': -0.5, 'monitor': -1.1}
+CLOSE_OBJ = {'phone': 'phone', 'photo': 'photo', 'photo_up': 'photo', 'coffee': 'mug9'}
+CLOSE_DZ = {'coffee': 0.0}
+CLOSE_PLATE = {'phone': 'o_phone', 'kabir': 'o_kabir', 'photo': 'o_photo', 'photo_up': 'o_photo', 'coffee': 'o_coffee', 'whiteboard': 'o_sticky', 'rain': 'o_rain', 'rain_happy': 'o_rain', 'monitor': 'o_monitor'}
+CLOSE_W = {'whiteboard': 900, 'rain': 900, 'rain_happy': 900, 'monitor': 760, 'kabir': 720}   # in-game entry framing: visible view-px width
+DOLLY = int(os.environ.get('DOLLY', '18'))
+def _ctr(o): return sum((o.matrix_world @ Vector(c) for c in o.bound_box), Vector())/8
+def kabir_target():
+    """art-v10: frame Kabir's MONITOR (screen centred, sticky on the right third), not the sticky note"""
+    st = bpy.data.objects.get('sticky'); p = st.matrix_world.translation if st else unproj(668, 280, 0.53)
+    cands = [o for o in sc.objects if o.type == 'MESH' and not o.hide_render and any(k in o.name.lower() for k in ('monitor', 'screen', 'computer', 'display'))]
+    best = min(cands, key=lambda o: (_ctr(o) - p).length) if cands else None
+    print('KABIR monitor', best.name if best else None)
+    return (_ctr(best) if best else p) + Vector((0, 0, 0.0))
+def _cam_at(cam, loc, quat, lens, sx, sy):
+    cam.location = loc; cam.rotation_mode = 'QUATERNION'; cam.rotation_quaternion = quat; cam.data.lens = lens; cam.data.shift_x = sx; cam.data.shift_y = sy
 def closeups(names):
-    cam = sc.camera; keep = (cam.location.copy(), cam.rotation_euler.copy(), cam.data.lens, cam.data.shift_x, cam.data.shift_y)
-    rw, rh = sc.render.resolution_x, sc.render.resolution_y; sc.render.resolution_x, sc.render.resolution_y = 1120, 630
+    cam = sc.camera; cam.rotation_mode = 'XYZ'
+    keep = (cam.location.copy(), cam.rotation_euler.copy(), cam.data.lens, cam.data.shift_x, cam.data.shift_y)
+    q0 = cam.rotation_euler.to_quaternion(); rw, rh = sc.render.resolution_x, sc.render.resolution_y
     sc.render.film_transparent = False; sc.use_nodes = False
     rain = [o for a in AMB if a['name'] == 'rain' for o in a['objs']]
+    VIEW = V9; offx, offy = 80, 45
     for nm in names:
         sx, sy, z, az, el, dist, lens, var = CLOSE[nm]
         if var: variant(var, True)
-        sc.view_settings.exposure = EXPO.get(nm, -1.0)
         if nm.startswith('rain'):
             for o in rain: o.hide_render = False
             [a for a in AMB if a['name'] == 'rain'][0]['pose'](3)
+            if nm == 'rain_happy':   # lighter rain: most streaks gone, the rest catch warm light
+                for k, o in enumerate(rain): o.hide_render = (k % 3 != 0)
         tgt = unproj(sx, sy, z); t = R(90 - el)
         on = CLOSE_OBJ.get(nm)
         if on and on in bpy.data.objects: tgt = bpy.data.objects[on].matrix_world.translation.copy() + Vector((0, 0, CLOSE_DZ.get(nm, 0)))
-        def anc(o):
-            while o.parent: o = o.parent
-            return o
+        if nm == 'kabir': tgt = kabir_target()
+        # ---- entry framing: where the in-game camera will be when the dolly starts (the room render, cropped) ----
+        _cam_at(cam, keep[0], q0, keep[2], keep[3], keep[4]); bpy.context.view_layer.update()
+        cx, cy = vpx(cam, tgt); W = CLOSE_W.get(nm, 700); Hh = W*626/1113
+        cx = min(max(cx, -80 + W/2), 1360 - W/2); cy = min(max(cy, -45 + Hh/2), 765 - Hh/2)
+        rx, ry = cx + offx, cy + offy   # render px
+        k_ = 1440/W; L_s = keep[2]*k_; sx_s = (keep[3] + (rx/1440 - 0.5))*k_; sy_s = (keep[4] + (0.5 - ry/810)*810/1440)*k_
+        VIEW.setdefault('close', {})[nm] = dict(cx=round(cx, 1), cy=round(cy, 1), w=W, frames=DOLLY)
+        # ---- close-up camera ----
         yw = R(-30 + az)
         d = Vector((math.sin(yw)*math.sin(t), math.cos(yw)*math.sin(t), -math.cos(t)))
-        cam.location = tgt - d*dist; cam.rotation_euler = (t, 0, -yw)
-        def ctr(o): return sum((o.matrix_world @ Vector(c) for c in o.bound_box), Vector())/8
-        hid = []; cam.data.lens = lens; cam.data.shift_x = cam.data.shift_y = 0; bpy.context.view_layer.update()
-        fr = [cam.matrix_world @ v for v in cam.data.view_frame(scene=sc)]   # tr, br, bl, tl
-        for _ in range(4):   # ray-cast a 13x9 grid: anything nearer than the subject goes (chairs, keyboards, mugs in the way)
+        e_loc = tgt - d*dist; e_q = Euler((t, 0, -yw)).to_quaternion()
+        _cam_at(cam, e_loc, e_q, lens, 0, 0); bpy.context.view_layer.update()
+        sc.render.resolution_x, sc.render.resolution_y = 1120, 630
+        hid = []
+        fr = [cam.matrix_world @ v for v in cam.data.view_frame(scene=sc)]
+        for _ in range(4):
             hit_any = False; dg = bpy.context.evaluated_depsgraph_get()
             for i in range(13):
                 for j in range(9):
@@ -232,19 +255,41 @@ def closeups(names):
         saver = [o for a in AMB if a['name'] == 'saver' for o in a['objs']] if nm == 'kabir' else []
         for o in saver: o.hide_render = False
         print('CLOSEHID', nm, [o.name for o in hid])
-        cam.data.dof.use_dof = True; cam.data.dof.focus_distance = dist; cam.data.dof.aperture_fstop = 1.6 if dist < 1 else 2.8
-        key = light('AREA', tuple(tgt + Vector((0.5, -0.6, 0.9))), 3.5, (1.0, 0.78, 0.56), 0.6); aim(key, tuple(tgt))
-        rim = light('AREA', tuple(tgt + Vector((-0.7, 0.8, 0.5))), 4, (0.45, 0.75, 1.0), 0.5); aim(rim, tuple(tgt))
+        KE, RE = 2.6, 3.0
+        key = light('AREA', tuple(tgt + Vector((0.5, -0.6, 0.9))), KE, (1.0, 0.78, 0.56), 0.6); aim(key, tuple(tgt))
+        rim = light('AREA', tuple(tgt + Vector((-0.7, 0.8, 0.5))), RE, (0.45, 0.75, 1.0), 0.5); aim(rim, tuple(tgt))
+        warm = None
+        if nm == 'rain_happy':   # warm light pours through the glass and onto the sill / floor
+            warm = light('AREA', tuple(tgt + Vector((0.0, 1.2, 0.4))), 60, (1.0, 0.66, 0.38), 1.6); aim(warm, tuple(tgt - Vector((0, 0, 0.6))))
+        def setk(e):
+            key.data.energy = KE*e; rim.data.energy = RE*e
+            if warm: warm.data.energy = 60*e
+            sc.view_settings.exposure = EXPO.get(nm, -1.0)*e
+        cam.data.dof.use_dof = True
+        # ---- the hero still ----
+        setk(1); cam.data.dof.focus_distance = dist; cam.data.dof.aperture_fstop = 1.6 if dist < 1 else 2.8
         sc.cycles.samples = max(32, SAMPLES)
-        sc.render.filepath = os.path.join(OUT, 'R9_close_%s.png' % nm); bpy.ops.render.render(write_still=True)
-        V9.setdefault('close', {})[nm] = dict(center=[0.5, 0.5])
-        for l in (key, rim): l.data.energy = 0
+        if not os.environ.get('NOSTILL'):
+            sc.render.filepath = os.path.join(OUT, 'R9_close_%s.png' % nm); bpy.ops.render.render(write_still=True)
+        # ---- the dolly: room-camera crop -> close-up camera (eased), lights/exposure/DoF ramp in with it ----
+        sc.render.resolution_x, sc.render.resolution_y = int(os.environ.get('DOLLY_W', '800')), int(os.environ.get('DOLLY_W', '800'))*9//16
+        sc.cycles.samples = int(os.environ.get('DOLLY_SPP', '20'))
+        for k in range(DOLLY if DOLLY > 1 else 0):
+            u = k/(DOLLY - 1); e = u*u*(3 - 2*u)
+            # perspective-correct: interpolate the field of view (1/lens), not the lens
+            Ls = 1/((1 - e)/L_s + e/lens)
+            _cam_at(cam, keep[0].lerp(e_loc, e), q0.slerp(e_q, e), Ls, sx_s*(1 - e), sy_s*(1 - e))
+            setk(e); bpy.context.view_layer.update()
+            cam.data.dof.focus_distance = (tgt - cam.location).length
+            cam.data.dof.aperture_fstop = 64*(1 - e) + (1.6 if dist < 1 else 2.8)*e if e > 0 else 128
+            sc.render.filepath = os.path.join(OUT, 'R9_dolly_%s_%02d.png' % (nm, k)); bpy.ops.render.render(write_still=True)
+        for l in (key, rim) + ((warm,) if warm else ()): l.data.energy = 0
         for o in hid: o.hide_render = False
         for o in saver: o.hide_render = True
         if nm.startswith('rain'):
             for o in rain: o.hide_render = True
         if var: variant(var, False)
-    cam.location, cam.rotation_euler, cam.data.lens, cam.data.shift_x, cam.data.shift_y = keep; cam.data.dof.use_dof = False; sc.view_settings.exposure = 0
+    cam.rotation_mode = 'XYZ'; cam.location, cam.rotation_euler, cam.data.lens, cam.data.shift_x, cam.data.shift_y = keep; cam.data.dof.use_dof = False; sc.view_settings.exposure = 0
     sc.render.resolution_x, sc.render.resolution_y = rw, rh
 def passes9():
     P = os.environ.get('PASSES9', 'layers,near,variants,close').split(',')
