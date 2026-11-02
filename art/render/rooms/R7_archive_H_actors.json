@@ -36,6 +36,36 @@
     "base_y": 470,
     "name": "exit"
    }
+  ],
+  "amb": [
+   {
+    "name": "drip",
+    "frames": 14,
+    "base_y": 200,
+    "fps": 10,
+    "mode": "loop"
+   },
+   {
+    "name": "duck",
+    "frames": 12,
+    "base_y": 471,
+    "fps": 6,
+    "mode": "loop"
+   },
+   {
+    "name": "memo",
+    "frames": 1,
+    "base_y": 561,
+    "fps": 1,
+    "mode": "still"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 640,
+    "fps": 1,
+    "mode": "still"
+   }
   ]
  }
 }

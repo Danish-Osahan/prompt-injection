@@ -1,0 +1,59 @@
+{
+ "actors": [],
+ "cam_target": [
+  0.0,
+  0.0
+ ],
+ "extra": {
+  "fg": [
+   {
+    "idx": 30,
+    "base_y": 435,
+    "name": "door_panel"
+   },
+   {
+    "idx": 31,
+    "base_y": 434,
+    "name": "partition"
+   },
+   {
+    "idx": 32,
+    "base_y": 512,
+    "name": "lamp"
+   },
+   {
+    "idx": 33,
+    "base_y": 590,
+    "name": "fern_desk"
+   },
+   {
+    "idx": 34,
+    "base_y": 720,
+    "name": "fg_plant"
+   }
+  ],
+  "amb": [
+   {
+    "name": "clock",
+    "frames": 16,
+    "base_y": 160,
+    "fps": 4,
+    "mode": "loop"
+   },
+   {
+    "name": "motes",
+    "frames": 16,
+    "base_y": 300,
+    "fps": 10,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 222,
+    "fps": 1,
+    "mode": "still"
+   }
+  ]
+ }
+}

@@ -16,6 +16,29 @@
     "base_y": 400,
     "name": "stair_rail"
    }
+  ],
+  "amb": [
+   {
+    "name": "chatglow",
+    "frames": 8,
+    "base_y": 0,
+    "fps": 4,
+    "mode": "loop"
+   },
+   {
+    "name": "plant",
+    "frames": 12,
+    "base_y": 320,
+    "fps": 6,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 646,
+    "fps": 1,
+    "mode": "still"
+   }
   ]
  }
 }

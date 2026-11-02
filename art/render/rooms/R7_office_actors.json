@@ -36,6 +36,29 @@
     "base_y": 645,
     "name": "nook"
    }
+  ],
+  "amb": [
+   {
+    "name": "rain",
+    "frames": 12,
+    "base_y": 200,
+    "fps": 12,
+    "mode": "loop"
+   },
+   {
+    "name": "saver",
+    "frames": 12,
+    "base_y": 330,
+    "fps": 4,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 600,
+    "fps": 1,
+    "mode": "still"
+   }
   ]
  }
 }

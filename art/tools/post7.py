@@ -7,7 +7,7 @@ from PIL import Image, ImageFilter, ImageDraw
 H7 = os.path.dirname(os.path.abspath(__file__)) + '/../'; RD = H7 + 'render/rooms/'; OUT = H7 + 'out/rooms/'
 os.makedirs(OUT + 'fg', exist_ok=True); os.makedirs(OUT + 'qa', exist_ok=True)
 GAME = json.load(open(H7 + 'render/rooms_game.json'))
-VARS = {'office': [''], 'hub': [''], 'corridor': ['dark', 'lit'], 'archive': ['H', 'L'], 'arena': [''], 'message': ['']}
+VARS = {'office': [''], 'hub': ['shut', 'open'], 'corridor': ['dark', 'lit'], 'archive': ['H', 'L'], 'arena': [''], 'message': ['']}
 GID = {'office': 'office', 'hub': 'hub', 'corridor': 'corridor', 'archive': 'archive', 'arena': 'arena', 'message': 'message'}
 def grade(a):
     a = a.astype(np.float32)/255; h, w = a.shape[:2]
@@ -40,6 +40,17 @@ for room, states in VARS.items():
         Image.fromarray(codeview(g)).save(OUT + name + '_code.jpg', quality=88); lay.setdefault('code', {})[st or 'base'] = 'rooms/' + name + '_code.jpg'
         idx = np.asarray(Image.open(sorted(glob.glob(RD + key + 'C_index_*.png'))[-1])).astype(np.float32); idx = np.round(idx/(65535.0 if idx.max() > 255 else 255.0)*255).astype(np.int32)
         meta = json.load(open(RD + key + '_actors.json'))['extra'].get('fg', [])
+        # art-v8 ambient loops: grade each full frame, crop all frames to one shared box, pack a horizontal strip
+        for am in json.load(open(RD + key + '_actors.json'))['extra'].get('amb', []):
+            fr = [RD + key + '_amb_%s_%02d.png' % (am['name'], k) for k in range(am['frames'])]
+            if not all(os.path.exists(f) for f in fr): report.append('WARN %s amb %s missing frames' % (key, am['name'])); continue
+            ims = [rgba_graded(f) for f in fr]; al = np.max([i[..., 3] for i in ims], 0); ys, xs = np.nonzero(al > 4)
+            if len(xs) < 10: report.append('WARN %s amb %s empty' % (key, am['name'])); continue
+            x0, x1, y0, y1 = xs.min(), xs.max() + 1, ys.min(), ys.max() + 1; w, h = x1 - x0, y1 - y0
+            strip = np.zeros((h, w*len(ims), 4), np.uint8)
+            for k, im in enumerate(ims): strip[:, k*w:(k + 1)*w] = im[y0:y1, x0:x1]
+            fn = 'rooms/amb/%s_%s.png' % (name, am['name']); os.makedirs(OUT + 'amb', exist_ok=True); Image.fromarray(strip, 'RGBA').save(OUT + 'amb/%s_%s.png' % (name, am['name']), optimize=True)
+            lay.setdefault('amb', []).append(dict(name=am['name'], state=st or 'base', file=fn, x=int(x0), y=int(y0), w=int(w), h=int(h), frames=am['frames'], fps=am['fps'], baseY=am['base_y'], mode=am['mode']))
         if st not in ('', states[0]): continue   # fg overlays come from the first state (identical props)
         for f in meta:
             fp = RD + key + '_fg_' + f['name'] + '.png'

@@ -11,6 +11,29 @@
     "base_y": 480,
     "name": "alcove_door"
    }
+  ],
+  "amb": [
+   {
+    "name": "drip",
+    "frames": 10,
+    "base_y": 346,
+    "fps": 8,
+    "mode": "loop"
+   },
+   {
+    "name": "moth",
+    "frames": 16,
+    "base_y": 300,
+    "fps": 12,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 256,
+    "fps": 1,
+    "mode": "still"
+   }
   ]
  }
 }

@@ -6,7 +6,7 @@ from mathutils import Vector, Quaternion
 argv = sys.argv[sys.argv.index('--')+1:]
 ANIMS = argv[0].split(','); OUT = argv[1]; SAMPLES = int(argv[2]) if len(argv) > 2 else 24
 DIRS = argv[3].split(',') if len(argv) > 3 else ['S', 'SE', 'E', 'NE', 'N', 'NW', 'W', 'SW']
-T = '/workspace/games/prompt-injection/art-v7/tools/'
+T = os.path.dirname(os.path.abspath(sys.argv[sys.argv.index('--python')+1])) + '/'
 bpy.ops.wm.read_factory_settings(use_empty=True)
 exec(open(T+'noor.py').read())
 sc = bpy.context.scene; R = math.radians
@@ -139,7 +139,7 @@ LOCKS = [pivot('lock_pivot', (o.matrix_world @ o.data.splines[0].bezier_points[0
 TRAIL = {'dash': [-6, -14, 36, 52, 58, 42, -22, 6]}
 def hair(an, k):
     bpy.context.view_layer.update()
-    ang = TRAIL.get(an, [0]*16)[k] * float(os.environ.get('HAIRSIGN', '1'))
+    ang = TRAIL.get(an, [0]*16)[k] * float(os.environ.get('HAIRSIGN', '1')) * float(os.environ.get('HAIRAMP', '1'))
     right = (root.matrix_world.to_3x3() @ Vector((1, 0, 0))).normalized()
     for pv, f in [(BUN, 1.0)] + [(l, 0.7) for l in LOCKS]:
         pv.matrix_basis = Matrix.Identity(4); pv.matrix_parent_inverse = pv.matrix_parent_inverse  # reset to rest on the bone

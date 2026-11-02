@@ -220,7 +220,48 @@
   ],
   "code": {
    "base": "rooms/office_code.jpg"
-  }
+  },
+  "amb": [
+   {
+    "name": "rain",
+    "state": "base",
+    "file": "rooms/amb/office_rain.png",
+    "x": 765,
+    "y": 78,
+    "w": 390,
+    "h": 126,
+    "frames": 12,
+    "fps": 12,
+    "baseY": 200,
+    "mode": "loop"
+   },
+   {
+    "name": "saver",
+    "state": "base",
+    "file": "rooms/amb/office_saver.png",
+    "x": 645,
+    "y": 252,
+    "w": 46,
+    "h": 23,
+    "frames": 12,
+    "fps": 4,
+    "baseY": 330,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "base",
+    "file": "rooms/amb/office_line.png",
+    "x": 1084,
+    "y": 598,
+    "w": 48,
+    "h": 12,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 600,
+    "mode": "still"
+   }
+  ]
  },
  "hub": {
   "id": "hub",
@@ -404,7 +445,8 @@
    "to": "corridor"
   },
   "images": {
-   "base": "rooms/hub.jpg"
+   "shut": "rooms/hub_shut.jpg",
+   "open": "rooms/hub_open.jpg"
   },
   "fg": [
    {
@@ -454,8 +496,50 @@
    }
   ],
   "code": {
-   "base": "rooms/hub_code.jpg"
-  }
+   "shut": "rooms/hub_shut_code.jpg",
+   "open": "rooms/hub_open_code.jpg"
+  },
+  "amb": [
+   {
+    "name": "clock",
+    "state": "shut",
+    "file": "rooms/amb/hub_shut_clock.png",
+    "x": 936,
+    "y": 70,
+    "w": 48,
+    "h": 38,
+    "frames": 16,
+    "fps": 4,
+    "baseY": 160,
+    "mode": "loop"
+   },
+   {
+    "name": "motes",
+    "state": "shut",
+    "file": "rooms/amb/hub_shut_motes.png",
+    "x": 220,
+    "y": 279,
+    "w": 969,
+    "h": 38,
+    "frames": 16,
+    "fps": 10,
+    "baseY": 300,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "shut",
+    "file": "rooms/amb/hub_shut_line.png",
+    "x": 308,
+    "y": 215,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 222,
+    "mode": "still"
+   }
+  ]
  },
  "corridor": {
   "id": "corridor",
@@ -656,7 +740,87 @@
   "code": {
    "dark": "rooms/corridor_dark_code.jpg",
    "lit": "rooms/corridor_lit_code.jpg"
-  }
+  },
+  "amb": [
+   {
+    "name": "drip",
+    "state": "dark",
+    "file": "rooms/amb/corridor_dark_drip.png",
+    "x": 713,
+    "y": 336,
+    "w": 22,
+    "h": 97,
+    "frames": 10,
+    "fps": 8,
+    "baseY": 346,
+    "mode": "loop"
+   },
+   {
+    "name": "moth",
+    "state": "dark",
+    "file": "rooms/amb/corridor_dark_moth.png",
+    "x": 320,
+    "y": 272,
+    "w": 80,
+    "h": 46,
+    "frames": 16,
+    "fps": 12,
+    "baseY": 300,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "dark",
+    "file": "rooms/amb/corridor_dark_line.png",
+    "x": 212,
+    "y": 249,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 256,
+    "mode": "still"
+   },
+   {
+    "name": "drip",
+    "state": "lit",
+    "file": "rooms/amb/corridor_lit_drip.png",
+    "x": 713,
+    "y": 336,
+    "w": 22,
+    "h": 97,
+    "frames": 10,
+    "fps": 8,
+    "baseY": 346,
+    "mode": "loop"
+   },
+   {
+    "name": "moth",
+    "state": "lit",
+    "file": "rooms/amb/corridor_lit_moth.png",
+    "x": 320,
+    "y": 272,
+    "w": 80,
+    "h": 46,
+    "frames": 16,
+    "fps": 12,
+    "baseY": 300,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "lit",
+    "file": "rooms/amb/corridor_lit_line.png",
+    "x": 212,
+    "y": 249,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 256,
+    "mode": "still"
+   }
+  ]
  },
  "archive": {
   "id": "archive",
@@ -992,6 +1156,112 @@
    "H": "rooms/archive_H_code.jpg",
    "L": "rooms/archive_L_code.jpg"
   },
+  "amb": [
+   {
+    "name": "drip",
+    "state": "H",
+    "file": "rooms/amb/archive_H_drip.png",
+    "x": 661,
+    "y": 172,
+    "w": 78,
+    "h": 67,
+    "frames": 14,
+    "fps": 10,
+    "baseY": 200,
+    "mode": "loop"
+   },
+   {
+    "name": "duck",
+    "state": "H",
+    "file": "rooms/amb/archive_H_duck.png",
+    "x": 540,
+    "y": 448,
+    "w": 34,
+    "h": 29,
+    "frames": 12,
+    "fps": 6,
+    "baseY": 471,
+    "mode": "loop"
+   },
+   {
+    "name": "memo",
+    "state": "H",
+    "file": "rooms/amb/archive_H_memo.png",
+    "x": 598,
+    "y": 544,
+    "w": 44,
+    "h": 31,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 561,
+    "mode": "still"
+   },
+   {
+    "name": "line",
+    "state": "H",
+    "file": "rooms/amb/archive_H_line.png",
+    "x": 306,
+    "y": 633,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 640,
+    "mode": "still"
+   },
+   {
+    "name": "drip",
+    "state": "L",
+    "file": "rooms/amb/archive_L_drip.png",
+    "x": 661,
+    "y": 172,
+    "w": 78,
+    "h": 166,
+    "frames": 14,
+    "fps": 10,
+    "baseY": 200,
+    "mode": "loop"
+   },
+   {
+    "name": "duck",
+    "state": "L",
+    "file": "rooms/amb/archive_L_duck.png",
+    "x": 540,
+    "y": 449,
+    "w": 34,
+    "h": 27,
+    "frames": 1,
+    "fps": 6,
+    "baseY": 471,
+    "mode": "loop"
+   },
+   {
+    "name": "memo",
+    "state": "L",
+    "file": "rooms/amb/archive_L_memo.png",
+    "x": 598,
+    "y": 544,
+    "w": 44,
+    "h": 31,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 561,
+    "mode": "still"
+   },
+   {
+    "name": "line",
+    "state": "L",
+    "file": "rooms/amb/archive_L_line.png",
+    "x": 306,
+    "y": 633,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 640,
+    "mode": "still"
+   }
+  ],
   "bridge": {
    "x": 382,
    "y": 65,
@@ -1120,7 +1390,48 @@
   ],
   "code": {
    "base": "rooms/arena_code.jpg"
-  }
+  },
+  "amb": [
+   {
+    "name": "flakes",
+    "state": "base",
+    "file": "rooms/amb/arena_flakes.png",
+    "x": 448,
+    "y": 257,
+    "w": 372,
+    "h": 309,
+    "frames": 24,
+    "fps": 10,
+    "baseY": 2000,
+    "mode": "loop"
+   },
+   {
+    "name": "rim",
+    "state": "base",
+    "file": "rooms/amb/arena_rim.png",
+    "x": 317,
+    "y": 121,
+    "w": 646,
+    "h": 599,
+    "frames": 16,
+    "fps": 8,
+    "baseY": -1,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "base",
+    "file": "rooms/amb/arena_line.png",
+    "x": 616,
+    "y": 256,
+    "w": 48,
+    "h": 12,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 262,
+    "mode": "still"
+   }
+  ]
  },
  "message": {
   "id": "message",
@@ -1215,6 +1526,47 @@
   ],
   "code": {
    "base": "rooms/message_code.jpg"
-  }
+  },
+  "amb": [
+   {
+    "name": "chatglow",
+    "state": "base",
+    "file": "rooms/amb/message_chatglow.png",
+    "x": 375,
+    "y": 67,
+    "w": 530,
+    "h": 188,
+    "frames": 8,
+    "fps": 4,
+    "baseY": 0,
+    "mode": "loop"
+   },
+   {
+    "name": "plant",
+    "state": "base",
+    "file": "rooms/amb/message_plant.png",
+    "x": 372,
+    "y": 203,
+    "w": 46,
+    "h": 107,
+    "frames": 12,
+    "fps": 6,
+    "baseY": 320,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "state": "base",
+    "file": "rooms/amb/message_line.png",
+    "x": 524,
+    "y": 639,
+    "w": 48,
+    "h": 13,
+    "frames": 1,
+    "fps": 1,
+    "baseY": 646,
+    "mode": "still"
+   }
+  ]
  }
 }

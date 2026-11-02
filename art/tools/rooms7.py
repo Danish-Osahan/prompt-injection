@@ -61,7 +61,7 @@ def floor_mat(name, tex='floor_calm.png', tint=(1, 1, 1), rough=0.45, grid=None)
     if grid:   # faint emissive grid lines (mirror hub)
         br = nt.nodes.new('ShaderNodeTexBrick'); br.offset = 0.0; br.inputs['Scale'].default_value = 0.7; br.inputs['Mortar Size'].default_value = 0.008
         br.inputs['Color1'].default_value = (0, 0, 0, 1); br.inputs['Color2'].default_value = (0, 0, 0, 1); br.inputs['Mortar'].default_value = (1, 1, 1, 1)
-        mul = nt.nodes.new('ShaderNodeMath'); mul.operation = 'MULTIPLY'; mul.inputs[1].default_value = 0.045; nz = nt.nodes.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1.6; nt.links.new(tc.outputs['UV'] if False else nt.nodes.new('ShaderNodeTexCoord').outputs['UV'], nz.inputs['Vector'])
+        mul = nt.nodes.new('ShaderNodeMath'); mul.operation = 'MULTIPLY'; mul.inputs[1].default_value = globals().get('GRIDK', 0.045); nz = nt.nodes.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 1.6; nt.links.new(tc.outputs['UV'] if False else nt.nodes.new('ShaderNodeTexCoord').outputs['UV'], nz.inputs['Vector'])
         rp = nt.nodes.new('ShaderNodeMapRange'); rp.inputs[1].default_value = 0.42; rp.inputs[2].default_value = 0.62; nt.links.new(nz.outputs['Fac'], rp.inputs[0])
         m2 = nt.nodes.new('ShaderNodeMath'); m2.operation = 'MULTIPLY'; nt.links.new(br.outputs['Fac'], m2.inputs[0]); nt.links.new(rp.outputs[0], m2.inputs[1]); nt.links.new(m2.outputs[0], mul.inputs[0]); nt.links.new(mul.outputs[0], b.inputs['Emission Strength']); b.inputs['Emission Color'].default_value = (*L3(grid), 1)
         tc = nt.nodes.new('ShaderNodeTexCoord'); nt.links.new(tc.outputs['UV'], br.inputs['Vector'])
@@ -92,7 +92,7 @@ def calm_base(amb=(0.28, 0.42, 0.62), amb_e=45):
     world(); base_lights(amb=amb, amb_e=amb_e)
 
 # ================= 1. REAL OFFICE (11:48 PM, rain) =================
-TX7 = '/workspace/games/prompt-injection/art-v7/tex/'
+TX7 = T5 + '../tex/'
 def cable(pts, r=0.009, col=(14, 16, 20)):
     cu = bpy.data.curves.new('cable', 'CURVE'); cu.dimensions = '3D'; cu.bevel_depth = r; cu.bevel_resolution = 2
     sp = cu.splines.new('NURBS'); sp.points.add(len(pts) - 1); sp.use_endpoint_u = True; sp.order_u = 3
@@ -122,7 +122,7 @@ def P_office():
     fr = srgb('wframe', (14, 20, 28), rough=0.5)
     for x in (760, 893, 1027, 1160): on_wall(x-3, x+3, 70, 188, 200, fr, eps=0.02, name='mullion')
     on_wall(756, 1164, 186, 192, 200, srgb('sill', (52, 62, 72)), eps=0.03, name='sill')
-    rain_streaks(760, 1160, 72, 186, 200, n=34)
+    # (art-v8: the rain is an ambient loop now, rooms8.py)
     rp = unproj(930, 290); floor_decal('rainlight', TX7+'rain_light.png', rp.x, rp.y, 3.6, 1.5, rz=SCR_RZ - 14, emit=0.22)
     L_at('AREA', 960, 260, 1.4, 60, (0.50, 0.66, 0.90), 2.5, aim_to=tuple(unproj(960, 420)))
     # back wall, west to east: lift, printer corner, kitchenette, bookcase, whiteboard, coat rack
@@ -193,7 +193,8 @@ def P_office():
 
 # ================= 2. MIRROR HUB (iconic home base) =================
 def P_hub():
-    calm_base(amb=(0.22, 0.32, 0.62), amb_e=34)
+    calm_base(amb=(0.22, 0.32, 0.62), amb_e=30)
+    global GRIDK; GRIDK = 0.02          # art-v8 calm pass: the grid is a whisper, not a pattern
     fm = floor_mat('hfloor', tint=(90, 110, 150), rough=0.16, grid=(80, 200, 220)); wm = srgb('hwall', (22, 30, 58), rough=0.85); tm = srgb('htrim', (12, 18, 36))
     for (y0, y1) in ((150, 254), (318, 680)): floor_rect(80, y0, 1120, y1 - y0, fm)
     wall_seg(80, 1200, 150, 140, wm)
@@ -204,21 +205,20 @@ def P_hub():
     on_wall(580, 700, 40, 46, 150, neon, eps=0.02)
     L_at('AREA', 640, 160, 0.8, 9, (0.47, 0.89, 0.91), 0.6, aim_to=tuple(unproj(640, 220)))
     # a dim neon strip along the whole back wall (the one accent) + mirrored ghost desks at the far corners
-    on_wall(80, 1200, 128, 131, 150, emit_mat('strip', (90, 150, 230), 0.8), eps=0.02)
-    TX7 = '/workspace/games/prompt-injection/art-v7/tex/'
-    for sx in (150, 1130):   # the office, reflected: desks turned to face the wall, screens mirror-written
-        e = kp('desk', sx, 190, 180, s=0.8, val=0.3); m = kp('computerScreen', sx + 14, 205, 180, s=0.8, z=0.30); screen_on(m, TX7+'mon_mirror.png', 1.1)
+    on_wall(80, 1200, 128, 131, 150, emit_mat('strip', (90, 150, 230), 0.3), eps=0.02)
+    TX7 = T5 + '../tex/'
+    # art-v8 calm pass: the mirrored ghost desks are gone (they competed with the door); one quiet coat rack stands in for the office
+    kp('coatRackStanding', 1150, 205, s=0.9, val=0.35, sat=0.3)
     # the mirror: a tall pane on the back wall; the clock beside it runs the wrong way
     on_wall(214, 412, 34, 146, 150, srgb('mframe', (30, 38, 60), metal=0.6, rough=0.3), eps=0.03, name='mframe')
     mir = bpy.data.materials.new('mirror'); mir.use_nodes = True; bb = mir.node_tree.nodes['Principled BSDF']; bb.inputs['Metallic'].default_value = 1.0; bb.inputs['Roughness'].default_value = 0.03; bb.inputs['Base Color'].default_value = (0.75, 0.85, 0.95, 1)
     on_wall(222, 404, 42, 140, 150, mir, eps=0.045, name='mirror')
     cp = unproj(960, 150); n_ = away(960, 150)
     bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.2, depth=0.04, location=(cp.x - n_.x*0.04, cp.y - n_.y*0.04, zpx(150 - 82)), rotation=(R(90), 0, math.atan2(RIGHT.y, RIGHT.x)))
-    bpy.context.object.data.materials.append(img_mat('mclock', TX7+'clock_mirror.png', emit=0.3))
+    bpy.context.object.data.materials.append(img_mat('mclock', TX7+'clock_blank.png', emit=0.3))
+    HUBCLOCK.update(c=Vector((cp.x - n_.x*0.065, cp.y - n_.y*0.065, zpx(150 - 82))), n=Vector((-n_.x, -n_.y, 0)))
     # the dash gap: no floor, a deep shaft with faint falling glyph motes, cyan rims
-    rnd = random.Random(9); mm = emit_mat('mote', (130, 220, 230), 1.5)
-    for i in range(40):
-        p = unproj(rnd.uniform(90, 1190), rnd.uniform(262, 316), -rnd.uniform(0.3, 2.5)); bpy.ops.mesh.primitive_cube_add(size=0.02, location=p); bpy.context.object.data.materials.append(mm)
+    # (the falling glyph motes are an ambient loop now: rooms8.py)
     glow_edge(80, 1200, 254, (120, 228, 232), 1.4); glow_edge(80, 1200, 318, (120, 228, 232), 1.4)
     # rail post + rail beside the gap (GAP IS WIDE hangs here)
     met = srgb('rail', (70, 90, 104), rough=0.35, metal=0.8)
@@ -242,16 +242,21 @@ def P_hub():
     dfr = srgb('dpframe', (26, 34, 52), metal=0.6, rough=0.3); dparts = [dpan]
     for zz in (0.02, zpx(120) - 0.02): o_ = box('dpf', (dd.length, 0.07, 0.035), Vector((dc.x, dc.y, zz)), dfr); o_.rotation_euler = dpan.rotation_euler.copy(); dparts.append(o_)
     hq = unproj(664, 434, zpx(60)); o_ = box('handle', (0.03, 0.09, 0.16), (hq.x - dn.x*0.05, hq.y - dn.y*0.05, zpx(60)), srgb('dhandle', (150, 160, 170), metal=0.9, rough=0.2)); o_.rotation_euler = dpan.rotation_euler.copy(); dparts.append(o_)
-    L_at('AREA', 640, 470, 0.6, 14, (0.94, 0.5, 0.45), 0.6, aim_to=tuple(unproj(640, 420, 0.4)))
+    if STATE != 'open':   # the coral door light (and its floor reflection) exists only while the door is SHUT
+        L_at('AREA', 640, 470, 0.6, 14, (0.94, 0.5, 0.45), 0.6, aim_to=tuple(unproj(640, 420, 0.4)))
+        L_at('SPOT', 640, 436, 2.6, 26, (0.94, 0.52, 0.46), 0.3, spot=28, blend=1.0)   # focal: a narrow coral wash on the door itself
+    else:                 # open: cool air through the empty frame
+        L_at('AREA', 640, 420, 0.5, 7, (0.47, 0.89, 0.91), 0.5, aim_to=tuple(unproj(640, 470, 0.0)))
+    if STATE == 'open':
+        for o_ in dparts: o_.hide_render = True
     # lamp on a side table (LAMP IS OPEN label on its housing)
     st = kp('sideTable', 260, 505, s=0.9, val=0.4); lp = kp('lampSquareTable', 260, 495, s=1.0, z=0.36); p = unproj(260, 495); lamp_glow(p.x, p.y, 0.7, 10)
     # Fern's desk (Fern herself is a sprite), a warm pool on it
     fd = kp('desk', 1005, 560, s=0.95, val=0.35); kp('chairDesk', 1005, 596, 175, s=0.9, val=0.45, sat=0.3)
     L_at('SPOT', 1005, 560, 2.2, 90, (0.89, 0.48, 0.85), 0.4, spot=45)
     # floor emblem in the south zone (the hub's sigil) + warm home pool
-    pdec = unproj(640, 615)
-    floor_decal('dial', TX6+'floor_dial.png', pdec.x, pdec.y, 1.0, 1.0, rz=SCR_RZ, emit=0.12)
-    L_at('SPOT', 640, 560, 3.4, 520, (1.0, 0.72, 0.46), 0.6, spot=55, blend=0.9)
+    # (art-v8: the floor dial emblem is gone; the door is the only sigil)
+    L_at('SPOT', 640, 560, 3.4, 420, (1.0, 0.72, 0.46), 0.6, spot=55, blend=0.9)
     L_at('SPOT', 640, 220, 3.0, 70, (0.47, 0.75, 0.95), 0.6, spot=70, blend=1.0)
     fp = kp('pottedPlant', 100, 690, s=1.8, val=0.35)
     fg(dparts, 435, 'door_panel'); fg(parts, 434, 'partition'); fg(meshes_of(st) + meshes_of(lp), 512, 'lamp'); fg(meshes_of(fd), 590, 'fern_desk'); fg(meshes_of(fp), 720, 'fg_plant')
@@ -288,12 +293,12 @@ def P_corridor():
     for sx in (1040, 1180):
         kp('cardboardBoxOpen', sx, 610, 15, s=1.0, val=0.4)
     # path tiles beyond the dark (glow only when lit)
-    tm_ = emit_mat('ptile', (120, 228, 232), 0.9 if lit else 0.0)
-    for x in (range(560, 1000, 48) if lit else []):
-        floor_rect(x + 6, 392, 30, 16, tm_, z=0.004, solid=0.0)
+    # art-v8: the old cyan path tiles are gone; the lit state guides with light pools only
     if lit:
         L_at('SPOT', 360, 420, 2.2, 520, (1.0, 0.72, 0.46), 0.3, spot=70, blend=0.9)
         L_at('SPOT', 860, 420, 2.4, 160, (1.0, 0.74, 0.50), 0.5, spot=55, blend=1.0)
+        L_at('SPOT', 640, 405, 2.6, 70, (1.0, 0.76, 0.54), 0.6, spot=50, blend=1.0)     # soft stepping-stone pools along the path
+        L_at('SPOT', 1000, 400, 2.6, 60, (1.0, 0.76, 0.54), 0.6, spot=45, blend=1.0)
         L_at('SPOT', 1110, 420, 2.8, 260, (0.60, 0.80, 0.95), 0.6, spot=60, blend=1.0)
     else:
         L_at('SPOT', 205, 270, 1.6, 4, (0.5, 0.8, 0.9), 0.3, spot=60)
@@ -421,6 +426,7 @@ def P_message():
     fg(meshes_of(bn), 630, 'bench'); fg(rr, 400, 'stair_rail')
 
 BRIDGE = {}
+HUBCLOCK = {}
 def bridge_pose(ang, chains=True):
     """ang 90 = raised (deck vertical), 0 = lowered flat. Rebuilds the two chains from the winch to the deck's far corners."""
     B = BRIDGE; q = Quaternion(B['axis'], -R(ang)); B['piv'].rotation_quaternion = q; bpy.context.view_layer.update()

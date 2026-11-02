@@ -11,6 +11,29 @@
     "base_y": 312,
     "name": "pillar"
    }
+  ],
+  "amb": [
+   {
+    "name": "flakes",
+    "frames": 24,
+    "base_y": 2000,
+    "fps": 10,
+    "mode": "loop"
+   },
+   {
+    "name": "rim",
+    "frames": 16,
+    "base_y": -1,
+    "fps": 8,
+    "mode": "loop"
+   },
+   {
+    "name": "line",
+    "frames": 1,
+    "base_y": 262,
+    "fps": 1,
+    "mode": "still"
+   }
   ]
  }
 }

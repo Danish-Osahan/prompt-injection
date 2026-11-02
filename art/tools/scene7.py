@@ -8,7 +8,7 @@ import bpy, sys, math, random, os, mathutils
 from mathutils import Vector, Matrix, Euler, Quaternion
 argv = sys.argv[sys.argv.index('--')+1:]
 MODE, OUT = argv[0], argv[1]; W, H = int(argv[2]), int(argv[3]); SAMPLES = int(argv[4]) if len(argv) > 4 else 48
-V5 = '/workspace/games/prompt-injection/art-v5/'; T5 = '/workspace/games/prompt-injection/art-v7/tools/'; TX6 = '/workspace/games/prompt-injection/art-v6/tex/'; TX = V5+'tex/v3/'; TX5 = V5+'tex/'
+V5 = '/workspace/games/prompt-injection/art-v5/'; T5 = os.path.dirname(os.path.abspath(sys.argv[sys.argv.index('--python')+1])) + '/'; TX6 = '/workspace/games/prompt-injection/art-v6/tex/'; TX = V5+'tex/v3/'; TX5 = V5+'tex/'
 FK = '/workspace/games/_downloads/furniture-kit/Models/GLTF format/'
 os.makedirs(OUT, exist_ok=True); random.seed(7)
 bpy.ops.wm.read_factory_settings(use_empty=True)
@@ -362,6 +362,7 @@ EXTRA_LOG = {}
 
 exec(open(T5+'rooms6.py').read())
 exec(open(T5+'rooms7.py').read())
+exec(open(T5+'rooms8.py').read())
 if MODE.startswith('R7_'): CAM_T = (unproj(640, 360, 0.5).x, unproj(640, 360, 0.5).y)
 if ROOM:
     if MODE in ROOMS6: ROOMS6[MODE]()
@@ -377,6 +378,8 @@ if BRIDGE.get('deck'):                      # plates never contain the bridge; i
 FGHIDE = [f['idx'] for f in EXTRA_LOG.get('fg', []) if f['name'] in os.environ.get('FGHIDE', '').split(',')]
 HID = [o for o in sc.objects if o.type in ('MESH', 'CURVE') and o.pass_index in FGHIDE and not o.hide_render]
 for o in HID: o.hide_render = True          # toggled layers (hub door panel) live only in their fg overlay
+AMBOBJ = [o for a in AMB for o in a['objs']]
+for o in AMBOBJ: o.hide_render = True       # art-v8: ambient loops + lost lines live only in their own frames
 bpy.ops.render.render(write_still=True)
 for o in HID: o.hide_render = False
 def iso_render(keep, path, spp):
@@ -396,4 +399,30 @@ if os.environ.get('BRIDGEANIM') and BRIDGE.get('deck'):
     for k in range(N):
         ang = 90*(1 - k/(N - 1))**1.0; bridge_pose(ang)
         iso_render(BRIDGE['deck'] + BRIDGE['chain'], os.path.join(OUT, 'R7_bridge_%02d.png' % k), max(16, SAMPLES//2))
+if os.environ.get('AMBPASS'):                 # art-v8 ambient loops: each frame alone, cropped render border for speed
+    from bpy_extras.object_utils import world_to_camera_view
+    cam = sc.camera
+    for a in AMB:
+        if os.environ.get('AMBONLY') and a['name'] not in os.environ['AMBONLY'].split(','): continue
+        xs, ys = [], []
+        for k in range(a['frames']):
+            for o in a['objs']: o.hide_render = False
+            if a['pose']: a['pose'](k)
+            bpy.context.view_layer.update()
+            for o in a['objs']:
+                if o.hide_render: continue
+                for c in o.bound_box:
+                    v = world_to_camera_view(sc, cam, o.matrix_world @ Vector(c)); xs.append(v.x); ys.append(v.y)
+        if not xs: continue
+        pad = 10/1280
+        sc.render.use_border = True; sc.render.use_crop_to_border = False
+        sc.render.border_min_x = max(0, min(xs) - pad); sc.render.border_max_x = min(1, max(xs) + pad)
+        sc.render.border_min_y = max(0, min(ys) - pad*1.8); sc.render.border_max_y = min(1, max(ys) + pad*1.8)
+        for k in range(a['frames']):
+            for o in a['objs']: o.hide_render = False
+            if a['pose']: a['pose'](k)
+            bpy.context.view_layer.update()
+            iso_render([o for o in a['objs'] if not o.hide_render], os.path.join(OUT, MODE + '_amb_%s_%02d.png' % (a['name'], k)), max(16, SAMPLES//2))
+        for o in a['objs']: o.hide_render = True
+        sc.render.use_border = False
 print('DONE', MODE)
