@@ -10,6 +10,7 @@ import { DraftFight, DRAFT } from './boss';
 import { sfx } from './sfx';
 import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
+import { Office9, ViewMap } from './office9';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -73,6 +74,9 @@ export class GameScene extends Phaser.Scene {
   refl: Phaser.GameObjects.Sprite | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
   motes: { x: number; y: number; vx: number; vy: number; a: number; ph: number }[] = []; motesG: Phaser.GameObjects.Graphics | null = null; moteRect: Rect | null = null; moteCol = 0xf6e6c8;
   hairT = 0;
+  // art-v9 office test level: perspective view mapping (see office9.ts)
+  inspectOff = false; vs = new WeakSet<object>(); vm: ViewMap | null = null; office: Office9 | null = null; pivot = new WeakMap<object, { x: number; y: number }>();
+  vsaved: [Phaser.GameObjects.GameObject & { x: number; y: number; scaleX: number; scaleY: number }, number, number, number, number][] = [];
   bridgeK = 0; bridgeImg: Phaser.GameObjects.Image | null = null; bridgeTw: Phaser.Tweens.Tween | null = null;
 
   constructor() { super('game'); }
@@ -106,7 +110,26 @@ export class GameScene extends Phaser.Scene {
       for (const o of this.children.list as (Phaser.GameObjects.GameObject & { scrollFactorX?: number; cameraFilter: number })[]) o.cameraFilter = o.scrollFactorX === 0 ? m : u;
     };
     this.events.on('prerender', sort); sort();
+    this.events.on('prerender', () => this.viewApply());
+    this.events.on('render', () => this.viewRestore());
   }
+  /** art-v9: draw logical-space objects through the office floor homography (positions + per-depth scale), then restore */
+  viewApply() {
+    const vm = this.vm; this.vsaved.length = 0; if (!vm) return;
+    this.office?.parallax();
+    for (const o of this.children.list as (Phaser.GameObjects.GameObject & { x: number; y: number; scaleX: number; scaleY: number; scrollFactorX: number; visible: boolean })[]) {
+      if (o.scrollFactorX === 0 || !o.visible || this.vs.has(o) || o.x === undefined) continue;
+      this.vsaved.push([o, o.x, o.y, o.scaleX, o.scaleY]);
+      if (o.type === 'Graphics') {   // drawn in absolute logical coords: local affine around a pivot (Noor, unless set)
+        const pv = this.pivot.get(o) ?? { x: this.x, y: this.y }; const m = vm.P(pv.x, pv.y), k = vm.s(pv.x, pv.y);
+        o.x = m.x + (o.x - pv.x) * k; o.y = m.y + (o.y - pv.y) * k; o.scaleX *= k; o.scaleY *= k;
+      } else { const m = vm.P(o.x, o.y), k = vm.s(o.x, o.y); o.x = m.x; o.y = m.y; o.scaleX *= k; o.scaleY *= k; }
+    }
+  }
+  viewRestore() { for (const [o, x, y, sx, sy] of this.vsaved) { o.x = x; o.y = y; o.scaleX = sx; o.scaleY = sy; } this.vsaved.length = 0; }
+  /** screen/world (view) point -> logical floor point (identity outside the art-v9 office) */
+  toLogical(x: number, y: number) { return this.vm ? this.vm.L(x, y) : { x, y }; }
+  use9() { return !new URLSearchParams(location.search).has('v8') && this.textures.exists('o9_mid'); }
   toWorld(x: number, y: number) { const p = this.cameras.main.getWorldPoint(x, y); return { x: p.x, y: p.y }; }
   toScreen(x: number, y: number) { const c = this.cameras.main; return { x: c.x + (x - c.worldView.x) * c.zoom, y: c.y + (y - c.worldView.y) * c.zoom }; }
 
@@ -221,6 +244,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
+    this.office = null; this.vm = null; this.vsaved.length = 0; this.cameras.main.setZoom(this.frameZoom).centerOn(640, 360);
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
@@ -230,7 +254,9 @@ export class GameScene extends Phaser.Scene {
     this.clearRoom();
     const r = this.room = ROOMS[id];
     const art = ROOMART[id]; this.art = !!art; this.bg = {};
-    if (art) {
+    const v9 = id === 'office' && this.use9();
+    if (v9) { /* layers are built by Office9 once the plates exist */ }
+    else if (art) {
       // rendered clean plate(s) (art-v7) + foreground overlays depth-sorted by their screen base y
       const bk = this.add.rectangle(0, 0, 1280, 720, 0x04080c).setOrigin(0).setDepth(-1001); this.objs.push(bk);
       Object.keys(art.images).forEach((st, i) => { const im = this.add.image(0, 0, `bg_${id}_${st}`).setOrigin(0).setDepth(-1000 + i * 0.01).setAlpha(i === 0 ? 1 : 0); this.objs.push(im); this.bg[st] = im; });
@@ -249,6 +275,7 @@ export class GameScene extends Phaser.Scene {
       else if (d.kind === 'line') p.setVisibleState(true);
       if (d.kind === 'unlock') p.setVisibleState(sv.tutorials.includes('all:' + id));
     }
+    if (v9) { this.office = new Office9(this); Plate.vars.N = String(sv.unread ?? 37); }
     if (art) this.buildAmbient(id);
     this.words.resetRoom();
     // Noor
@@ -300,7 +327,9 @@ export class GameScene extends Phaser.Scene {
     const s = this.save;
     if (id === 'office') {
       if (!this.art) { const lamp = this.add.image(990, 520, 'pool').setScale(1.6).setTint(0xf6c684).setAlpha(0.5).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(lamp); }
-      if (!s.seen.includes('sc1')) { this.floorText(640, 420, '11:48 PM', C.inkBright, 40, 2600); }
+      // global fix: the 11:48 card no longer sits over the room; in the art-v9 office it is folded into the establishing shot
+      if (this.office) this.office.cam.establish(s.seen.includes('sc1') ? 'FLOOR 2  \u00b7  STILL 11:48 PM' : '11:48 PM');
+      else if (!s.seen.includes('sc1')) { this.floorText(640, 140, '11:48 PM', C.inkBright, 30, 1300); }
       this.addPrompt('move', 160, 520, 'WASD TO WALK', 'DRAG TO WALK', () => this.moved > 80);
       this.addPrompt('read', 232, 700, 'E TO READ', 'TAP READ', () => s.lore.length > 0, () => Math.hypot(this.x - 232, this.y - 640) < 220);
     }
@@ -571,6 +600,7 @@ export class GameScene extends Phaser.Scene {
   }
   read(p: Plate) {
     const s = this.save; this.stuck = 0;
+    if (!this.inspectOff) this.office?.inspect(p.def.id);
     if (p.def.kind === 'look') { this.words.showLore(p, p.def.text ?? ''); this.noteLooked(p); p.pulse(C.lamp); return true; }
     if (p.def.kind === 'line') { this.collectLine(p); return true; }
     if (p.def.toy) this.noteLooked(p);
@@ -594,7 +624,7 @@ export class GameScene extends Phaser.Scene {
   swap(fromId: string, toId: string) {
     const A = this.plateById(fromId), B = this.plateById(toId);
     if (!A || !B || A === B || A.def.slot < 0 || B.def.slot < 0 || !A.visible || !B.visible) return false;
-    if (!!A.def.toy !== !!B.def.toy) { this.floorText(this.x, this.y - 130, A.def.toy || B.def.toy ? 'THAT WORD ONLY PLAYS HERE' : 'NO', C.dim, 13, 900); return false; }
+    if (!!A.def.toy !== !!B.def.toy || (A.def.toy && (A.def.pair ?? '') !== (B.def.pair ?? ''))) { this.floorText(this.x, this.y - 130, A.def.toy || B.def.toy ? 'THAT WORD ONLY PLAYS HERE' : 'NO', C.dim, 13, 900); return false; }
     const wa = A.slotWord!, wb = B.slotWord!;
     A.setOpts({ ...A.opts, selected: false });
     B.setSlotWord(wa); A.setSlotWord(wb);
@@ -602,7 +632,7 @@ export class GameScene extends Phaser.Scene {
     const n = logSwap(this.save, { placed: wa, removed: wb, room: this.room.id, plate: B.def.id, t: Date.now() });
     this.hand = null; this.stuck = 0; this.rewriteT = 0; sfx('swap');
     if (this.room.id !== 'arena' && !B.def.toy) this.setCheckpoint(B); else B.pulse();
-    if (B.def.toy) { const lg = LINGER[this.room.id]; const played = B.words[2] !== B.def.words[2]; this.say('floor', played ? lg.toy : lg.toyBack, 2800); if (played && !this.save.toys.includes(this.room.id)) this.save.toys.push(this.room.id); }
+    if (B.def.toy) { const lg = LINGER[this.room.id]; const played = B.words[2] !== B.def.words[2]; const tl = B.def.pair && lg.pairs?.[B.def.pair] ? lg.pairs[B.def.pair] : [lg.toy, lg.toyBack]; this.say('floor', played ? tl[0] : tl[1], 2800); if (played && !this.save.toys.includes(this.room.id)) this.save.toys.push(this.room.id); }
     this.cameras.main.flash(90, 120, 228, 232);
     if (n === 3) this.say('fern', 'You keep saying that.', 2200);
     this.evaluate(false);
@@ -614,11 +644,12 @@ export class GameScene extends Phaser.Scene {
   /** world drop: the object under the pointer (its highlight anchor or its reach point) */
   dropHand(wx: number, wy: number): boolean {
     if (!this.hand) return false;
+    const lp = this.toLogical(wx, wy);   // (wx, wy) = view/world point: plate anchors live there; reach points are logical
     let best: Plate | null = null, bd = 110;
     for (const p of this.plates) {
       if (!p.visible || p.def.slot < 0 || p.def.id === this.hand.from) continue;
       if (Math.hypot(p.def.x - this.x, p.def.y - this.y) > 420) continue;
-      const d = p.bounds(28).contains(wx, wy) ? 0 : Math.min(Math.hypot(p.container.x - wx, p.container.y - wy), Math.hypot(p.def.x - wx, p.def.y - wy));
+      const d = p.bounds(28).contains(wx, wy) ? 0 : Math.min(Math.hypot(p.container.x - wx, p.container.y - wy), Math.hypot(p.def.x - lp.x, p.def.y - lp.y));
       if (d < bd) { bd = d; best = p; }
     }
     return best ? this.swap(this.hand.from, best.def.id) : false;
@@ -716,7 +747,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- art-v8 linger layer: ambient loops, toys, idle lines, inspect-all, lost lines ----------
   /** rendered ambient loops (Blender frames, one strip per loop) + a few code particles where light catches dust */
   buildAmbient(id: RoomId) {
-    for (const d of ROOMART[id]?.amb ?? []) {
+    for (const d of this.office ? [] : ROOMART[id]?.amb ?? []) {
       if (!this.textures.exists(d.key)) continue;
       const spr = this.add.sprite(d.x, d.y, d.key, 0).setOrigin(0).setDepth(d.baseY < 0 ? -998 : d.baseY); this.objs.push(spr);
       this.amb.push({ def: d, spr, dir: 1, speed: 1, t: Math.random() * 10, ox: d.x, oy: d.y });
@@ -725,6 +756,7 @@ export class GameScene extends Phaser.Scene {
     const m = M[id];
     if (m) {
       this.moteRect = m[0]; this.moteCol = m[2]; this.motesG = this.add.graphics().setDepth(1900).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(this.motesG);
+      this.pivot.set(this.motesG, { x: m[0].x + m[0].w / 2, y: m[0].y + m[0].h / 2 });
       for (let i = 0; i < m[1]; i++) this.motes.push({ x: m[0].x + Math.random() * m[0].w, y: m[0].y + Math.random() * m[0].h, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 5, a: 0.15 + Math.random() * 0.25, ph: Math.random() * 6 });
     }
     if (id === 'hub') {   // the mirror copies Noor a beat late (or, with the toy, a beat early)
@@ -755,6 +787,7 @@ export class GameScene extends Phaser.Scene {
     if (id === 'office') {
       const happyRain = w('o_rain') === 'HAPPY'; for (const a of A('rain')) { a.speed = happyRain ? 0.5 : 1; a.spr.setTint(happyRain ? 0xffe6b8 : 0xffffff); }
       const pool = this.toyFx.pool as Phaser.GameObjects.Image; if (pool) this.tweens.add({ targets: pool, alpha: w('o_lamp') === 'SAD' ? 0.05 : 0.26, duration: dur });
+      if (this.office) { this.office.toys(initial); if (initial && this.save.seen.includes('claim9')) this.office.claim(true); }
     }
     if (id === 'hub') { for (const a of A('clock')) { const fwd = w('h_clock') === 'FORWARD'; a.dir = fwd ? -1 : 1; a.speed = fwd ? 3 : 1; } }
     if (id === 'corridor') {
@@ -949,7 +982,7 @@ export class GameScene extends Phaser.Scene {
   inCombat() { return (this.room.id === 'arena' && !!this.fight && !this.fight.won) || (this.room.id === 'archive' && this.x > 820 && this.enemies.some(e => !e.dead)); }
   aimVec() {
     const p = this.input.activePointer;
-    if (this.ctl.last === 'kb' && p.isDown && !p.wasTouch) { const wp = this.toWorld(p.x, p.y); const dx = wp.x - this.x, dy = wp.y - (this.y - 30), l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; }
+    if (this.ctl.last === 'kb' && p.isDown && !p.wasTouch) { const w0 = this.toWorld(p.x, p.y), wp = this.toLogical(w0.x, w0.y); const dx = wp.x - this.x, dy = wp.y - (this.y - 30), l = Math.hypot(dx, dy) || 1; return { x: dx / l, y: dy / l }; }
     return this.dirVec();
   }
   drawSelect() {
@@ -1002,6 +1035,10 @@ export class GameScene extends Phaser.Scene {
     T(120, 90, '~/paused', 14, C.dim); T(120, 112, this.room.title, 26, C.inkBright, 700);
     const resume = T(120, 180, '  resume', 18, C.inkBright, 700); resume.setBackgroundColor('rgba(120,228,232,0.18)').setInteractive({ useHandCursor: true }).on('pointerdown', () => this.togglePause());
     const wipe = T(120, 214, '  new game (wipe save)', 18, C.dim).setInteractive({ useHandCursor: true }); wipe.on('pointerdown', () => { wipeSave(); this.save = freshSave(); this.togglePause(); this.buildRoom('office'); });
+    const rm = !!this.save.settings?.reduceMotion;
+    const rmT = T(620, 180, `  reduce motion   ${rm ? 'ON' : 'OFF'}`, 18, rm ? C.inkBright : C.dim, 700).setInteractive({ useHandCursor: true });
+    rmT.on('pointerdown', () => { this.setReduceMotion(!this.save.settings?.reduceMotion); this.togglePause(); this.togglePause(); });
+    T(620, 206, '  camera holds still: no drift, push-ins or glitch', 12, C.faint, 400, 'IBM Plex Mono');
     T(120, 270, 'controls', 14, C.cyan, 700);
     T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  read      E  (pick up a word)', '  swap      E at another plate,', '            or drag the word chip', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  rewrite   E a sign in combat: slow-mo', '  root      R (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ` / F2'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     T(620, 296, ['touch', '  move      drag on the left half', '  dash      DASH button', '  read      READ button', '  swap      drag the word chip onto', '            a plate (or READ at it)', '  type      TYPE button', '  backspace TYPE during a dash', '  select    hold TYPE', '  paste     TYPE after a perfect dodge', '  rewrite   READ a sign in combat', '  root      ROOT button', '  skip      hold top-right', '  menu      tap "esc menu"'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
@@ -1012,6 +1049,7 @@ export class GameScene extends Phaser.Scene {
     this.pauseUi = c;
   }
 
+  setReduceMotion(on: boolean) { this.save.settings = { ...(this.save.settings ?? {}), reduceMotion: on }; writeSave(this.save); }
   // ---------- main loop ----------
   update(_t: number, dms: number) {
     const dt = Math.min(dms / 1000, 0.05);
@@ -1076,8 +1114,9 @@ export class GameScene extends Phaser.Scene {
     if (Math.hypot(mx, my) > 0.1 && this.swingT <= 0) this.dir = DIRS[(Math.round(Math.atan2(my, mx) / (Math.PI / 4)) + 8) % 8];
     const moving = Math.hypot(this.x - ox, this.y - oy) > 0.5;
     const cur = this.noor.anims.currentAnim?.key ?? '';
-    if (!/^noor_(attack|dash|type)/.test(cur) || !this.noor.anims.isPlaying) {
-      const want = `noor_${moving && this.dashT <= 0 ? 'walk' : 'idle'}_${this.dir}`; if (cur !== want) this.noor.play(want, true);
+    const held = /^noor_(attack|dash|type)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look)/.test(cur));   // art-v9 reactions hold while still
+    if (!held || !this.noor.anims.isPlaying) {
+      const want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`; if (cur !== want && !(held && /look/.test(cur))) this.noor.play(want, true);
     }
     this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
@@ -1088,6 +1127,10 @@ export class GameScene extends Phaser.Scene {
     this.words.update(dt, f.interactHeld);
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
+    if (this.office) {
+      this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
+      if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
+    }
     this.updateEnemies(edt);
     this.fight?.update(dt, edt);
     if (this.room.exit && control && inR(this.room.exit.rect, this.x, this.y)) this.goRoom(this.room.exit.to);
@@ -1253,8 +1296,9 @@ export class GameScene extends Phaser.Scene {
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
       hand: this.hand, flags: { ...this.flags },
-      cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: this.toScreen(640, 720).y, barY: BAR_Y },
-      amb: this.amb.map(a => ({ name: a.def.name, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
+      cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
+      office9: this.office ? this.office.state() : null, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
+      amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })),
       ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
@@ -1270,10 +1314,14 @@ export class GameScene extends Phaser.Scene {
       teleport: (x: number, y: number) => { this.x = x; this.y = y; },
       interact: () => this.interact(),
       read: (id: string) => { const p = this.plateById(id); if (!p || !p.visible) return false; this.x = p.def.x; this.y = p.def.y - 20; return this.read(p); },
-      swap: (from: string, to: string) => { const a = this.plateById(from); if (!a || !a.visible) return false; this.read(a); return this.swap(from, to); },
+      swap: (from: string, to: string) => { const a = this.plateById(from); if (!a || !a.visible) return false; this.inspectOff = true; this.read(a); this.inspectOff = false; return this.swap(from, to); },
       goto: (r: RoomId) => this.goRoom(r),
-      readAll: () => { for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
+      readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
+      reduceMotion: (on: boolean) => this.setReduceMotion(on),
+      o9: (k: string, v?: number) => { const o = this.office; if (!o) return false; if (k === 'unread') o.tickUnread(); if (k === 'glitch') o.glitch(); if (k === 'draft') o.draftGlimpse(); if (k === 'idle') o.idle9 = v ?? 4.5; if (k === 'closeCard') o.closeCard(); if (k === 'roomT') o.roomT = v ?? 0; return true; },
+      capForce: (id: string | null, text = '') => { this.words.force = id ? { id, text } : null; this.words.key = ''; return true; },
+      captions: () => this.plates.filter(p => p.def.kind !== 'unlock').flatMap(p => { const c = p.caption(true); return [c.pre + c.word + c.post, p.def.cap2 ?? '', p.def.text ?? '', p.def.line ?? ''].filter(Boolean).map(t => ({ id: p.def.id, t })); }),
       setStuck: (s: number) => { this.stuck = s; },
       hurt: () => { this.iframes = 0; this.hurtNoor(); },
       kill: () => this.die(),

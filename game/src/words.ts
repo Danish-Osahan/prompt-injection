@@ -26,6 +26,8 @@ export class WordUI {
   chipG: Phaser.GameObjects.Graphics;
   key = ''; typeC = 0; total = 0;
   override: { id: string; text: string; until: number } | null = null;
+  force: { id: string; text: string } | null = null;   // test hook: render this exact line (caption wrap test)
+  laid: { x0: number; x1: number; y: number; size: number }[] = [];
   subjects: Plate[] = [];
   hl: Phaser.GameObjects.Image[] = [];
   dragging: { plate: Plate; moved: boolean } | null = null;
@@ -63,9 +65,11 @@ export class WordUI {
     this.clearLine(); this.clearCode();
     this.heading.setText(s.room.heading);
     // code view layers (room objects: destroyed by clearRoom via s.objs)
-    this.codeBk = s.add.rectangle(0, 0, 1280, 720, 0x02080c, 1).setOrigin(0).setDepth(DC - 1).setAlpha(0); s.objs.push(this.codeBk);
-    this.codeImg = s.add.image(0, 0, '__WHITE').setOrigin(0).setDepth(DC).setAlpha(0); s.objs.push(this.codeImg);
+    const v9 = !!s.vm;   // art-v9 office: the code plate is the perspective wireframe, in view space
+    this.codeBk = s.add.rectangle(v9 ? -200 : 0, v9 ? -200 : 0, v9 ? 1700 : 1280, v9 ? 1200 : 720, 0x02080c, 1).setOrigin(0).setDepth(DC - 1).setAlpha(0); s.objs.push(this.codeBk);
+    this.codeImg = s.add.image(v9 ? -80 : 0, v9 ? -45 : 0, '__WHITE').setOrigin(0).setDepth(DC).setAlpha(0); s.objs.push(this.codeImg);
     this.codeG = s.add.graphics().setDepth(DC + 6); s.objs.push(this.codeG);
+    for (const o of [this.codeBk, this.codeImg, this.codeG, ...this.hl]) s.vs.add(o);
     // code-vision Noor: the line-art sheets (art-v8 wire8.py: same frames as her real sheets, so animation stays in sync)
     this.ghost = s.add.sprite(0, 0, s.textures.exists('noor_idle_wire') ? 'noor_idle_wire' : 'noor_idle').setOrigin(96 / 192, 160 / 192).setDepth(DC + 5).setAlpha(0); s.objs.push(this.ghost);
     if (!s.textures.exists('noor_idle_wire')) this.ghost.setTint(hex(C.cyan)).setTintMode(Phaser.TintModes.HARD_LIGHT);
@@ -88,7 +92,7 @@ export class WordUI {
   private makeChip(plate: Plate, r: Phaser.Geom.Rectangle, where: 'cap' | 'code', world: boolean, t?: Phaser.GameObjects.Text) {
     const s = this.s;
     const z = s.add.zone(r.centerX, r.centerY, r.width + 10, r.height + 10).setDepth(where === 'cap' ? D + 3 : DC + 12).setInteractive({ draggable: true, useHandCursor: true });
-    if (!world) z.setScrollFactor(0);
+    if (!world) z.setScrollFactor(0); else s.vs.add(z);
     z.on('pointerdown', (p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => { ev?.stopPropagation(); s.ctl.uiPointer = p.id; this.dragging = { plate, moved: false }; });
     z.on('pointerup', () => { if (this.dragging && !this.dragging.moved) this.tap(plate); this.dragging = null; s.ctl.uiPointer = null; });
     z.on('dragstart', () => { if (!this.dragging) this.dragging = { plate, moved: true }; this.dragging.moved = true; if (s.hand?.from !== plate.def.id) { if (s.hand) s.hand = null; s.read(plate); } });
@@ -127,32 +131,55 @@ export class WordUI {
       .sort((a, b) => Math.hypot(a.def.x - s.x, a.def.y - s.y) - Math.hypot(b.def.x - s.x, b.def.y - s.y));
     return ps.slice(0, 2);
   }
+  /** caption rows -> wrapped lines (global fix, art-v9): every part is split into word tokens and laid out greedily inside
+   *  MAX_W; a row first tries one line (shrinking to 19px), then two lines (21 -> 16px). Two lines in total fit the bar, so a
+   *  wrapped first row drops the second subject (or the quote). Never clips at the screen edges. */
   private buildLine() {
-    const s = this.s; this.clearLine();
-    const rows: { p: Plate; size: number; y: number; col: string; quote?: string }[] = [];
+    const s = this.s; this.clearLine(); this.laid = [];
+    const rows: { p: Plate; size: number; col: string; quote?: string }[] = [];
     const ov = this.override && this.override.until > s.t ? this.override : null;
-    if (ov) { const p = s.plateById(ov.id); if (p) { rows.push({ p, size: 23, y: BAR_Y + 46, col: C.inkBright }); const norm = (t: string) => t.toLowerCase().replace(/[^a-z ]/g, '').trim(); if (ov.text && !norm(p.def.cap ?? '').includes(norm(ov.text))) rows.push({ p, size: 19, y: BAR_Y + 76, col: C.lamp, quote: ov.text }); } }
-    else this.subjects.forEach((p, i) => rows.push({ p, size: i === 0 ? 23 : 19, y: BAR_Y + 46 + i * 30, col: i === 0 ? C.inkBright : C.dim }));
-    let from = 0;
-    for (const row of rows) {
+    if (this.force) { const p = s.plateById(this.force.id); if (p) rows.push({ p, size: 23, col: C.inkBright, quote: this.force.text }); }
+    else if (ov) { const p = s.plateById(ov.id); if (p) { rows.push({ p, size: 23, col: C.inkBright }); const norm = (t: string) => t.toLowerCase().replace(/[^a-z ]/g, '').trim(); if (ov.text && !norm(p.def.cap ?? '').includes(norm(ov.text))) rows.push({ p, size: 19, col: C.lamp, quote: ov.text }); } }
+    else this.subjects.forEach((p, i) => rows.push({ p, size: i === 0 ? 23 : 19, col: i === 0 ? C.inkBright : C.dim }));
+    const MAX_W = 1150;
+    let from = 0, lineN = 0;
+    for (const [ri, row] of rows.entries()) {
+      if (lineN >= 2) break;
       const parts: { str: string; chip?: Plate; red?: boolean }[] = [];
-      if (row.quote) parts.push({ str: `\u201C${row.quote.charAt(0)}${row.quote.slice(1).toLowerCase()}\u201D` });
+      if (row.quote && !this.force) parts.push({ str: `\u201C${row.quote.charAt(0)}${row.quote.slice(1).toLowerCase()}\u201D` });
+      else if (row.quote) parts.push({ str: row.quote });
       else { const c = row.p.caption(true); parts.push({ str: c.pre }); if (c.word) parts.push({ str: c.word, chip: c.chip ? row.p : undefined, red: c.red }); if (c.post) parts.push({ str: c.post }); }
-      const ts = parts.map(pt => {
-        const chip = !!pt.chip;
-        const t = s.add.text(0, row.y, pt.str, { fontFamily: chip ? 'JetBrains Mono' : 'IBM Plex Mono', fontSize: `${row.size}px`, fontStyle: chip ? 'bold' : row.size > 20 ? '500' : 'normal', color: pt.red ? C.faint : chip ? C.state : row.col }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 2);
-        this.lineObjs.push(t); return { t, chip: pt.chip, pad: chip ? 8 : 0 };
+      // tokens: words keep their trailing space; a chip is one token
+      const toks: { str: string; chip?: Plate; red?: boolean }[] = [];
+      for (const pt of parts) { if (pt.chip || pt.red) { toks.push(pt); continue; } for (const w of pt.str.match(/\S+\s*|\s+/g) ?? []) toks.push({ str: w }); }
+      const mk = (size: number) => toks.map(tk => {
+        const chip = !!tk.chip;
+        const t = s.add.text(0, 0, tk.str, { fontFamily: chip ? 'JetBrains Mono' : 'IBM Plex Mono', fontSize: `${size}px`, fontStyle: chip ? 'bold' : size > 20 ? '500' : 'normal', color: tk.red ? C.faint : chip ? C.state : row.col }).setOrigin(0, 0.5).setScrollFactor(0).setDepth(D + 2);
+        return { t, chip: tk.chip, pad: chip ? 8 : 0, w: t.width + (chip ? 16 : 0) };
       });
-      const W = ts.reduce((a, b) => a + b.t.width + b.pad * 2, 0); let x = 640 - W / 2;
-      for (const q of ts) {
-        x += q.pad; q.t.setX(Math.round(x)); const w = q.t.width;
-        this.segs.push({ t: q.t, from, full: q.t.text }); from += q.t.text.length; q.t.setText('');
-        if (q.chip) this.makeChip(q.chip, new Phaser.Geom.Rectangle(x - 6, row.y - row.size * 0.72, w + 12, row.size * 1.44), 'cap', false, q.t);
-        x += w + q.pad;
+      const wrap = (ts: ReturnType<typeof mk>) => { const lines: (typeof ts)[] = [[]]; let w = 0; for (const q of ts) { const ww = q.w; if (w + ww > MAX_W && lines[lines.length - 1].length) { lines.push([]); w = 0; } lines[lines.length - 1].push(q); w += ww; } return lines; };
+      const maxLines = Math.max(1, 2 - lineN);
+      let size = row.size, ts = mk(size), lines = wrap(ts);
+      while (lines.length > 1 && size > 19) { ts.forEach(q => q.t.destroy()); size -= 2; ts = mk(size); lines = wrap(ts); }
+      if (lines.length > 1) { size = Math.min(row.size, 21); ts.forEach(q => q.t.destroy()); ts = mk(size); lines = wrap(ts); while (lines.length > maxLines && size > 15) { ts.forEach(q => q.t.destroy()); size -= 1; ts = mk(size); lines = wrap(ts); } }
+      if (lines.length > maxLines) { for (const q of lines.slice(maxLines).flat()) q.t.destroy(); lines = lines.slice(0, maxLines); const lastL = lines[maxLines - 1], last = lastL[lastL.length - 1]; if (last) last.t.setText(last.t.text.trimEnd() + '\u2026'); }
+      for (const ln of lines) {
+        const y = BAR_Y + (lines.length === 2 || lineN === 1 ? (lineN === 0 ? 43 : 72) : ri === 0 ? 46 : 76);
+        const tw = (q: typeof ln[number]) => q === ln[ln.length - 1] && !q.chip ? q.t.text.trimEnd().length / Math.max(1, q.t.text.length) * q.t.width : q.w;
+        const W = ln.reduce((a, q) => a + tw(q), 0); let x = 640 - W / 2; const x0 = x;
+        for (const q of ln) {
+          this.lineObjs.push(q.t); q.t.setY(y);
+          x += q.pad; q.t.setX(Math.round(x)); const w = q.t.width;
+          this.segs.push({ t: q.t, from, full: q.t.text }); from += q.t.text.length; q.t.setText('');
+          if (q.chip) this.makeChip(q.chip, new Phaser.Geom.Rectangle(x - 6, y - size * 0.72, w + 12, size * 1.44), 'cap', false, q.t);
+          x += w + q.pad;
+        }
+        this.laid.push({ x0, x1: x0 + W, y, size }); lineN++;
       }
     }
     this.total = from; this.typeC = 0;
   }
+  rowInfo() { return this.laid.map(l => ({ x0: Math.round(l.x0), x1: Math.round(l.x1), y: l.y, size: l.size })); }
   private drawChips() {
     const s = this.s; const g = this.chipG; g.clear();
     for (const c of this.chips) {
@@ -177,7 +204,7 @@ export class WordUI {
     if (this.override) { const p = s.plateById(this.override.id); if (!p || this.override.until < s.t || Math.hypot(p.def.x - s.x, p.def.y - s.y) > CAP_R + 40) this.override = null; }
     for (const p of s.plates) p.setFocus(this.subjects[0] === p || (s.hand?.from !== p.def.id && this.subjects.includes(p) && p.def.slot >= 0 && !!s.hand));
     const ov = this.override && this.override.until > s.t ? this.override.id + this.override.text : '';
-    const key = vis ? `${ov}|${this.subjects.map(p => p.def.id + ':' + p.words.join(' ') + ':' + p.visible).join(',')}` : 'hidden';
+    const key = vis ? `${this.force ? 'F' + this.force.text : ''}${ov}|${this.subjects.map(p => p.def.id + ':' + p.words.join(' ') + ':' + p.visible).join(',')}` : 'hidden';
     if (key !== this.key) { this.key = key; if (vis) this.buildLine(); else this.clearLine(); }
     for (const o of this.lineObjs) (o as Phaser.GameObjects.Text).setVisible(vis && !hide);
     if (this.typeC < this.total) {
@@ -210,15 +237,16 @@ export class WordUI {
     const placed: Phaser.Geom.Rectangle[] = [];
     for (const p of ps.sort((a, b) => a.container.y - b.container.y)) {
       const L = p.codeLine();
-      const mk = (str: string, col: string) => { const t = s.add.text(0, 0, str, { fontFamily: 'JetBrains Mono', fontSize: '15px', fontStyle: 'bold', color: col }).setOrigin(0, 0.5).setDepth(DC + 10); this.codeObjs.push(t); return t; };
+      const mk = (str: string, col: string) => { const t = s.add.text(0, 0, str, { fontFamily: 'JetBrains Mono', fontSize: '15px', fontStyle: 'bold', color: col }).setOrigin(0, 0.5).setDepth(DC + 10); this.codeObjs.push(t); s.vs.add(t); return t; };
       const valCol = p.def.redact || p.def.kind === 'unlock' ? C.coral : L.chip ? C.state : C.noun;
       const objs = [mk(L.lhs, C.ink), mk(L.val, valCol), mk(';', C.dim)];
       const w = objs.reduce((a, t) => a + t.width, 0) + 12;
-      let cx = Phaser.Math.Clamp(p.container.x, w / 2 + 10, 1270 - w / 2), cy = Phaser.Math.Clamp(p.container.y, 70, BAR_Y - 40);
+      const wv = s.cameras.main.worldView;   // keep every line inside what the camera shows (the art-v9 camera moves)
+      let cx = Phaser.Math.Clamp(p.container.x, wv.x + w / 2 + 10, wv.right - w / 2 - 10), cy = Phaser.Math.Clamp(p.container.y, wv.y + 70, wv.bottom - 50);
       let r = new Phaser.Geom.Rectangle(cx - w / 2 - 6, cy - 13, w + 12, 26);
       for (let k = 0; k < 8 && placed.some(q => Phaser.Geom.Intersects.RectangleToRectangle(q, r)); k++) { cy += 28; r = new Phaser.Geom.Rectangle(cx - w / 2 - 6, cy - 13, w + 12, 26); }
       placed.push(r);
-      const bg = s.add.rectangle(r.centerX, r.centerY, r.width, r.height, 0x021014, 0.82).setStrokeStyle(1, hex(C.faint), 0.9).setDepth(DC + 9); this.codeObjs.push(bg);
+      const bg = s.add.rectangle(r.centerX, r.centerY, r.width, r.height, 0x021014, 0.82).setStrokeStyle(1, hex(C.faint), 0.9).setDepth(DC + 9); this.codeObjs.push(bg); s.vs.add(bg);
       let x = cx - w / 2 + 6; for (const t of objs) { t.setPosition(x, cy); x += t.width; }
       if (L.chip) this.makeChip(p, new Phaser.Geom.Rectangle(objs[1].x - 4, cy - 12, objs[1].width + 8, 24), 'code', true);
       this.codeLines.push({ plate: p, objs, w });
@@ -235,7 +263,7 @@ export class WordUI {
     const a = this.codeA; const on = a > 0.01;
     const near = s.plates.filter(p => p.def.kind !== 'rule' && Math.hypot(p.def.x - s.x, p.def.y - s.y) < 380).map(p => p.def.id).join('');
     const key = on ? `${this.codeState()}|${near}|${s.plates.map(p => p.words.join(' ') + p.visible + (s.hand?.from === p.def.id)).join(',')}` : '';
-    if (key !== this.codeKey) { this.codeKey = key; if (on) { const k = `code_${s.room.id}_${this.codeState()}`; if (s.textures.exists(k)) this.codeImg.setTexture(k); this.buildCode(); } else this.clearCode(); }
+    if (key !== this.codeKey) { this.codeKey = key; if (on) { const k = s.vm ? 'code_office9' : `code_${s.room.id}_${this.codeState()}`; if (s.textures.exists(k)) this.codeImg.setTexture(k); this.buildCode(); } else this.clearCode(); }
     this.codeBk!.setAlpha(a * 0.9); this.codeImg.setAlpha(a);
     const fightA = s.fight ? 0.8 : 1;   // in combat the world shows through a little (REWRITE slow-mo still applies)
     this.codeBk!.setAlpha(a * 0.9 * fightA); this.codeImg.setAlpha(a * fightA);
@@ -254,7 +282,7 @@ export class WordUI {
     const g = this.codeG!; g.clear();
     if (on) {
       // enemies as wireframes + hp lines
-      for (const e of s.enemies) { if (e.dead) continue; g.lineStyle(1.5, hex(C.coral), 0.8 * a).strokeEllipse(e.x, e.y - 30, 70, 80); g.lineStyle(1, hex(C.coral), 0.4 * a).lineBetween(e.x - 40, e.y, e.x + 40, e.y); }
+      for (const e of s.enemies) { if (e.dead) continue; const q = s.vm ? s.vm.P(e.x, e.y) : e; g.lineStyle(1.5, hex(C.coral), 0.8 * a).strokeEllipse(q.x, q.y - 30, 70, 80); g.lineStyle(1, hex(C.coral), 0.4 * a).lineBetween(q.x - 40, q.y, q.x + 40, q.y); }
       // leader dots from each line to its object
       for (const l of this.codeLines) { g.fillStyle(hex(C.cyan), a * 0.9).fillCircle(l.plate.container.x, l.plate.container.y + 18, 2.5); }
     }

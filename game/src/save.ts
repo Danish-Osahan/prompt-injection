@@ -26,6 +26,8 @@ export interface Save {
   visits: Record<string, number>;       // room entries, for the revisit variants
   idle: string[];                       // rooms whose stand-still line has played (this visit count: room:visit)
   toys: string[];                       // toy rooms played with (room ids)
+  unread?: number;                      // art-v9: the office phone's unread count (ticks up while you linger)
+  settings?: { reduceMotion?: boolean };
 }
 
 const KEY = 'pi.save.v1';

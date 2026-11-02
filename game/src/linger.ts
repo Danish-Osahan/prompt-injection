@@ -12,11 +12,12 @@ export interface Linger {
   all: { say: string; code: string; val: string; sx: number; sy: number };   // after every story object is read
   toy: string;                                  // narrator line when the toy pair is swapped (first time)
   toyBack: string;                              // ... and when it is swapped back
+  pairs?: Record<string, [string, string]>;     // art-v9: extra toy pairs (pair id -> [played, back])
 }
 const look = (id: string, sx: number, sy: number, x: number, y: number, cap: string, code: string, val: string, extra: Partial<PlateDef> = {}): PlateDef =>
   ({ id, words: [id.split('_')[1].toUpperCase()], slot: -1, x, y, sx, sy, kind: 'look', cap, code, val, ...extra });
-const toy = (id: string, words: string[], sx: number, sy: number, x: number, y: number, cap: string, code: string): PlateDef =>
-  ({ id, words, slot: 2, x, y, sx, sy, kind: 'rule', toy: true, cap, code });
+const toy = (id: string, words: string[], sx: number, sy: number, x: number, y: number, cap: string, code: string, extra: Partial<PlateDef> = {}): PlateDef =>
+  ({ id, words, slot: 2, x, y, sx, sy, kind: 'rule', toy: true, cap, code, ...extra });
 const line = (id: string, sx: number, sy: number, x: number, y: number, text: string, extra: Partial<PlateDef> = {}): PlateDef =>
   ({ id, words: ['LINE'], slot: -1, x, y, sx, sy, kind: 'line', line: text, cap: 'A torn strip of paper, in your handwriting.', code: 'unsent.line', val: '"recovered"', ...extra });
 
@@ -33,12 +34,12 @@ const L = (id: string) => LINES.find(l => l.id === id)!.text;
 export const LINGER: Record<RoomId, Linger> = {
   office: {
     plates: [
-      look('o_phone', 165, 318, 165, 380, 'Your phone, face up on a desk that isn\u2019t yours. Thirty-seven unread.', 'phone.unread', '37',
-        { cap2: 'Your phone, face up. Thirty-eight unread now. One came while you were gone.', val2: '38' }),
+      // art-v9: the phone and the photo are a second toy pair (the photo lies DOWN, the phone lies UP; trade them)
+      toy('o_phone', ['PHONE', 'LIES', 'UP'], 165, 318, 165, 380, 'Your phone lies face {} on a desk that isn\u2019t yours. #N unread.', 'phone.side', { pair: 'flip' }),
       look('o_calendar', 300, 116, 300, 228, 'A calendar stuck on August. Nobody\u2019s fault, it says.', 'calendar.fault', 'NOOR'),
       look('o_sticky', 680, 114, 680, 228, 'A sticky note on the whiteboard: CALL, and a name scratched out hard.', 'note.name', 'null'),
       look('o_printer', 120, 228, 126, 272, 'The printer jammed on page one. Page one was the apology.', 'printer.job', '"sorry.pdf"'),
-      look('o_photo', 262, 578, 318, 592, 'A photo, face down. Easier for everyone.', 'photo.side', 'DOWN'),
+      toy('o_photo', ['PHOTO', 'LIES', 'DOWN'], 262, 578, 318, 592, 'A photo by the mug, lying face {}. Easier for everyone.', 'photo.side', { pair: 'flip' }),
       toy('o_rain', ['RAIN', 'FEELS', 'SAD'], 960, 130, 900, 232, 'Rain on the glass, taking its time. It feels {}.', 'rain.mood'),
       toy('o_lamp', ['LAMP', 'FEELS', 'HAPPY'], 1185, 440, 1150, 500, 'A floor lamp nobody switches off. It feels {}.', 'lamp.mood'),
       line('o_line', 1108, 600, 1096, 624, L('o_line')),
@@ -46,6 +47,7 @@ export const LINGER: Record<RoomId, Linger> = {
     idle: ['You stand still. The office does too. It\u2019s had practice.', 'The rain hasn\u2019t moved on either.'],
     all: { say: 'You\u2019ve read the whole room. One thing is missing, and it\u2019s you.', code: 'office.missing', val: '"noor"', sx: 640, sy: 150 },
     toy: 'The rain cheers up. The lamp takes it personally.', toyBack: 'Everyone goes back to how they were. It\u2019s easier.',
+    pairs: { flip: ['The photo looks up. The phone finally stops looking at you.', 'Face down again. It was easier.'] },
   },
   hub: {
     plates: [

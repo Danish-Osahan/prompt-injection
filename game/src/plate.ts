@@ -16,11 +16,13 @@ export interface PlateDef {
   toy?: boolean;           // art-v8: optional word-swap toy (swaps only with the other toy in its room; harmless, funny)
   cap2?: string; val2?: string;   // art-v8: revisit variants (2nd+ visit to the room)
   line?: string;           // art-v8: lost-line text (kind 'line')
-  after?: 'draft';         // art-v8: only appears once the Draft is beaten
+  after?: 'draft';
+  pair?: string;           // art-v9: toy pair id (toys only trade with the same pair; default pair '')         // art-v8: only appears once the Draft is beaten
 }
 export interface DrawOpts { selected?: boolean; glow?: string }
 
 export class Plate {
+  static vars: Record<string, string> = { N: '37' };   // art-v9: live values in captions (#N = unread count)
   container: Phaser.GameObjects.Container;   // invisible anchor that follows the object (the Draft's guard plate moves)
   focused = false;
   visible = true;
@@ -41,7 +43,7 @@ export class Plate {
   pulse(color = '#F6C684') { this.glowT = 0.7; this.glowCol = color; }
   /** caption pieces: [before, slot, after]; slot === '' when the plate has no chip */
   caption(redacted = true): { pre: string; word: string; post: string; chip: boolean; red: boolean } {
-    const d = this.def; const cap = (this.alt && d.cap2) || (d.cap ?? this.words.join(' ') + '.');
+    const d = this.def; const cap = ((this.alt && d.cap2) || (d.cap ?? this.words.join(' ') + '.')).replace('#N', Plate.vars.N);
     const i = cap.indexOf('{}');
     if (i < 0) return { pre: cap, word: '', post: '', chip: false, red: false };
     const red = !!d.redact && redacted;

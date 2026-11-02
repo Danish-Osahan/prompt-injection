@@ -18,6 +18,9 @@ async function start() {
     input: { activePointers: 4 },
     scene: [BootScene, GameScene],
   });
+  // a drag that ends outside the canvas must never leave the page panned (the HUD would read as clipped on the left)
+  const pin = () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
+  window.addEventListener('touchend', pin, { passive: true }); window.addEventListener('scroll', pin, { passive: true });
   if (new URLSearchParams(window.location.search).has('test')) {
     (window as unknown as { __game: Phaser.Game }).__game = game;
   }
