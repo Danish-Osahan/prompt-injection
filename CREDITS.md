@@ -140,3 +140,8 @@ No new third-party asset packs. Added in this session:
 - `art/tex/` (made by `art/tools/make_tex_v8.py`, PIL, original): calendar_aug, phone_37, sticky_call, sticky_gm, lostline, memo, saver_00..11, chatglow_00..07, clock_blank. Their lettering uses the already-shipped OFL-1.1 fonts JetBrains Mono / IBM Plex Mono (`game/public/assets/fonts`).
 - New props in `art/tools/rooms8.py` are procedural Blender geometry (phone, bucket, umbrella, tape, pipe, duck, radio, wellies, moth, drips, flakes, rim) plus Kenney Furniture Kit `chair` and `coatRackStanding` (CC0, Kenney.nl, already credited above).
 - Ambient loops in `game/public/assets/rooms/amb/` and the wireframe Noor sheets `game/public/assets/sprites/noor_*_wire.*` (`art/tools/wire8.py`, edge pass over our own Noor renders) are our own Blender renders. No AI-generated imagery.
+
+## art-v9 (office)
+- Office render, close-ups, Noor reaction sheets: original Blender (Cycles) renders, `art/tools/office9.py`, `noor9.py`.
+- Textures: generated procedurally with PIL (`make_tex_v9.py`); code text set in JetBrains Mono (OFL).
+- Props: Kenney furniture kits (CC0), reused.

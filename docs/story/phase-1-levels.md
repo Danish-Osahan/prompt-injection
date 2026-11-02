@@ -190,3 +190,7 @@ Optional, off the main path. Every room has at least 4 story objects to inspect 
 - archive: "I filed everything except the part where I miss you."
 - arena: "I wrote this nine times. This is the honest one."
 - message: "Come home for Diwali. I'll make the bad chai."
+
+### Office (art-v9 update)
+- Opens on an establishing shot titled "11:48 PM" (replaces the floor card).
+- o_phone and o_photo are a toy pair ("flip"): swapping them turns the photo face-up and changes the lighting.

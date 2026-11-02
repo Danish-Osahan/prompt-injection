@@ -234,3 +234,12 @@ A better long-term fix is to make the scripts read the `GAMES_ROOT` and `BLENDER
 - **Code-vision Noor:** `art/tools/wire8.py` makes `noor_*_wire` sheets with the same frame JSON, so the ghost stays in sync with animation.
 - **Linger layer:** `game/src/linger.ts` (content), `art/tools/rooms8.py` (props + ambient loops, AMBPASS in scene7.py, strips via post7/sync_game → `RoomArt.amb`). Save fields `looked, lines, visits, idle, toys`. Lines are in docs/story/phase-1-levels.md "Linger layer".
 - **Render:** `art/tools/render_rooms8.sh` (about 7 min at 64 samples), then `npm run build && npm run playtest` (127 checks, including the `linger` block; `ONLY_LINGER=1 node tests/playtest.mjs` runs just that block). Kill any stale `vite preview` on :4175 first, or the test runs against old dist.
+
+## 11. Session 6 — art-v9 office (test level)
+- Office only: `game/src/office9.ts` (ViewMap homography, DirectorCam: establish/play/inspect/close/noor, letterbox, reduce-motion in pause menu), layered Blender 3/4 render (`art/tools/office9.py`, `post9.py` → `game/public/assets/office9/`, `src/office9art.ts`).
+- Gameplay stays in logical coords; `prerender` re-projects. `?v8` falls back to the old office.
+- Inspect close-ups with code-vision crossfade; swaps re-light the room (toys/flip/claim variants); Noor gaze/idles/surprise; unread count, glitch, Draft glimpse; lingering is never punished.
+- Global fixes: 2-line caption wrap, 11:48 in establishing title, hub shaft glow, bigger moth/drip/duck, mobile safe-area HUD, strict idle test.
+- Playtest: 163/163 (`ONLY_V9=1` for office9 block). GIFs: `game/screenshots/v9-*.gif`.
+- Known weak: hub band still dark in centre (a fg crop sits above the glow), toys crop soft rectangle, tiny Draft glimpse, dark face-down photo close-up, Noor sheets at 38° not 30°.
+- Rollout per room: re-render + post9 + anchors + close-ups + reaction sheets (~1 session each).
