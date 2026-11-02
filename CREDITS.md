@@ -147,3 +147,4 @@ No new third-party asset packs. Added in this session:
 - Props: Kenney furniture kits (CC0), reused.
 - art-v10: Noor full-body sheets and the office close-up dolly sequences are original Blender renders (noor10.py, office9.py). They use the same Kenney CC0 Mini Characters rig, with no new third-party assets.
 - art-v11: old-angle office close-ups and dollies are original Blender renders of the existing Kenney CC0 office scene (office8c.py). No new third-party assets.
+- art-v11 clarity office: the lift-door opening frames, the stuffed practice dummy (wood, burlap, rope), the depth overlays and the collision footprints all come from original Blender (Cycles) renders and an index pass of the same Kenney CC0 office scene (`art/tools/office11.py`, `post11.py`). The lift cabin texture `art/tex/lift_inside.png` is generated procedurally with PIL. No new third-party assets.
