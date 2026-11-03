@@ -784,7 +784,7 @@
    96,
    160
   ],
-  "fps": 13,
+  "fps": 11,
   "rows": [
    "S",
    "SE",
@@ -848,12 +848,12 @@
     "noor_charge_in_SW_03"
    ]
   },
-  "tell": "BEAM CHARGE IN: hand starts to glow, she plants and leans back; then loop charge_hold",
+  "tell": "BEAM v2 CHARGE IN: wide braced stance, slight crouch, paw forward-low, off-hand moves to the wrist; then loop charge_hold. Charge stages (spark/orb/crackle) are drawn game-side from charge time",
   "dur_ms": [
-   60,
-   70,
    80,
-   90
+   90,
+   100,
+   110
   ],
   "events": {},
   "hitstop_ms": {},

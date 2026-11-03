@@ -4,6 +4,6 @@ export default {
     [1.70, '06-spin-coil'], [1.85, '07-spin-smear'], [1.95, '08-spin-hit-stop'], [2.15, '09-spin-recovery-follow-through'],
     [6.25, '10-peel-reach'], [6.33, '11-peel-pinch'], [6.55, '12-peel-pull'], [7.50, '13-peel-carry'],
     [9.80, '14-throw-windup'], [9.92, '15-throw-release'], [10.00, '16-throw-follow-through'], [10.35, '17-throw-paper-splat'],
-    [13.80, '18-beam-charge-hold'], [14.48, '19-beam-release'], [14.62, '20-beam-recoil']],
+    [14.20, '18-beam-charge-crackle'], [14.57, '19-beam-release'], [14.80, '20-beam-hold']],
   compare: [[0.80, '21-compare-jab'], [1.95, '22-compare-finisher'], [4.60, '23-compare-beam']],
 };

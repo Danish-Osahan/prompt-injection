@@ -26,9 +26,9 @@ Per anim: `dur_ms` per frame, `events` (`hit`, `release`, `pinch`, `peel`), `hit
 | combo3 spinning finisher | 11 | 60 120 · 33 33 33 (3 smear spin) · 50 HIT +130 stop · 80 70 70 80 90 = 719 + 130 | hit f5, step 10 px |
 | peel | 10 | 70 80 60 70 · 110 PINCH · 80 · 50 PEEL · 70 80 100 = 770 | pinch f4, peel f6 |
 | throw | 10 | 60 80 130(held top) · 33 smear · 50 RELEASE · 60 80 70 80 100 = 743 | release f4, step 9 px |
-| charge_in | 4 | 60 70 80 90 = 300 | then loop charge_hold |
-| charge_hold (loop) | 6 | 90 x 6 = 540 | glow pulses 0.6–1.1 |
-| release | 7 | 70 brace · 50 RELEASE +60 stop · 60 80 recoil · 80 90 100 = 530 + 60 | release f1, recoil step −6 px |
+| charge_in (beam v2) | 4 | 80 90 100 110 = 380 | then loop charge_hold |
+| charge_hold (loop) | 6 | 90 x 6 = 540 | tiny tremble; charge stages are game-side by charge time |
+| release (beam v2) | 9 | 90 brace · 40 SNAP/RELEASE +70 stop · 60 kick · 110 110 hold · 70 70 fade · 90 110 recovery = 750 + 70 | release f1; beam visible f1–f6 (≈390 ms full + 140 ms thinning); recoil step −5 px |
 
 ## Honesty / weak spots
 - **Game scale:** at 0.78x in the full plate Noor is ~45 px tall. The torso coil, lean, spin and the smear read; the stubby Kenney arms mostly do not (the jab and the peel reach read as a lean + shoulder turn). From S and N the jab and the beam push straight at or away from the camera and almost vanish; E/W and the diagonals read best. That is why the flow has a 1.9x inset.
@@ -38,3 +38,10 @@ Per anim: `dur_ms` per frame, `events` (`hit`, `release`, `pinch`, `peel`), `hit
 - **Beam glow:** emissive core + shell + point light on the paw; from N it is mostly hidden by her body.
 - **Mock-only FX (canvas, not Blender):** hit sparks, dummy white flash + wobble, screen shake, charge ring, beam line, words, splats. The "current" side of the compare plays the game's `noor_type1-3` sheets at their boot.ts fps (24/24/22) and `noor_attack` (22 fps); its sparks/slashes are not drawn.
 - Not done: wiring into `game/src`, dash, walk-into-attack blending, a release-frame hand position for every direction check in game.
+
+## Beam v2 (art-v12b, redo after review: "looks pretty sloppy")
+- **Clips:** `beam.mp4` / `beam.gif` (real speed, facing E, NE, S, N, full plate + 1.9x inset; `?mode=beam`), `beam_compare.mp4` / `.gif` (before v1 | after v2, E then S, plate 2.3x; `?mode=beamcompare`). Stills `stills/b01..b14` (+ flow 18–20). Close-ups `closeups/noor_beam_2x.gif`, `closeups/noor_beam_contact.png`. Re-shoot: `node mock-attack/shoot_beam.mjs` (ST='[[t,"name"],...]' for stills), ffmpeg from `/tmp/mbb`, `/tmp/mbc`.
+- **Pose (Blender, same 38° noor7 rig):** wide braced stance (legs splayed 14–17°), slight crouch, right shoulder driven forward (torso −28°), thrust arm scaled x1.35 at release (x1.1 while charging), off-hand at the wrist (x1.15), hair + coat hem pushed back by a constant "blow" on top of the follow-through spring. N and S rows are rendered turned 40° so the arm reads sideways. No smear frames; the Blender paw glow is small; the readable orb is canvas, drawn over her so her body never hides it.
+- **FX (canvas, one teal/white palette):** charge stage 1 spark (<0.35 s), 2 growing orb (0.35–0.95 s), 3 max orb + crackle arcs; inward particle streaks; ground glow under her. Release: beam (soft outer glow, mid band, white core, scrolling typed-code text), muzzle flash, impact ring + sparks on the dummy, white hit flash during the 70 ms hit-stop, 0.22 s decaying shake, dummy pushed while the beam holds. Beam starts at `hand[dir][k]` of the current frame (includes root-motion step), width snaps in over 40 ms, holds, then thins to 0 over frames 5–6.
+- Old v1 beam sheets/JSON kept in `assets/beam_v1/` for the compare only.
+- **Weak spots:** at 45 px the code text along the beam is unreadable (it reads as texture; legible in the inset). The S view still points mostly at the camera and its beam is short; N shows her back with the arm out to the side. The arm scale-up makes the paw/sleeve chunky in the 2x close-ups. Legs splay is subtle under the cardigan. The beam colour/width is mock code, not a Blender texture strip. The combo compare (`compare.mp4`) was not re-shot.

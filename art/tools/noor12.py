@@ -74,7 +74,7 @@ def A(x=0, z=0, y=0):  # arm rotation: raise about bone X, splay about bone Z, t
 # step root motion px (1x sheet px, along facing, applied game-side), ev event name
 def D(f, o, u): return (f, o, u)   # arm direction in her torso frame: forward, outward (+ = away from the body, - = across it), up
 def F(**k):
-    d = dict(c=0, lean=0, tw=0, ar=None, al=None, yaw=0, dz=0, glow=0, pinch=None, sm=False, step=0, ev=None, hd=0)
+    d = dict(wide=0, sr=1.0, sl=1.0, blow=(0, 0), c=0, lean=0, tw=0, ar=None, al=None, yaw=0, dz=0, glow=0, pinch=None, sm=False, step=0, ev=None, hd=0)
     d.update(k); return d
 REST = dict(ar=A(), al=A())
 PLAN = {
@@ -107,15 +107,26 @@ PLAN = {
            F(c=.4, lean=17, tw=-32, ar=D(.6, -.7, -.5), al=D(-.5, .4, -.7), dz=-.025, step=9), F(c=.25, lean=8, tw=-16, ar=D(.4, -.2, -.8), step=9),
            F(c=.1, lean=2, tw=-4, ar=D(.15, .3, -1), step=9), F(step=9)],
  # beam: charge_in 0-3, charge_hold 0-5 (loops), release: brace 0, RELEASE 1, recoil 2-3, recover 4-6
- 'charge_in': [F(c=.15, lean=-2, ar=D(.5, .3, -.7), al=D(.3, .2, -.9), glow=.15), F(c=.3, lean=-6, ar=D(.9, .15, -.3), al=D(.8, -.3, -.4), glow=.35, dz=-.01),
-               F(c=.4, lean=-10, ar=D(1, .05, -.1), al=D(1, -.45, -.15), glow=.6, dz=-.02), F(c=.45, lean=-13, ar=D(1, 0, -.05), al=D(1, -.5, -.1), glow=.8, dz=-.025)],
- 'charge_hold': [F(c=.45 + .03*math.sin(i/6*2*math.pi), lean=-13 - 2.5*math.sin(i/6*2*math.pi), ar=D(1, 0, -.05 + .06*math.sin(i/6*2*math.pi)), al=D(1, -.5, -.1),
-                   glow=.85 + .25*math.sin(i/6*2*math.pi), dz=-.025 - .006*math.sin(i/6*2*math.pi)) for i in range(6)],
- 'release': [F(c=.55, lean=10, ar=D(1, 0, -.1), al=D(1, -.5, -.15), glow=1.3, dz=-.04, step=2), F(c=.5, lean=14, ar=D(1, 0, .05), al=D(1, -.45, 0), glow=2.0, dz=-.035, step=3, ev='release'),
-             F(c=.5, lean=-14, ar=D(.7, 0, .7), al=D(.6, -.2, .3), glow=.9, dz=-.03, step=-4), F(c=.45, lean=-16, ar=D(.6, .1, .6), al=D(.4, .1, -.2), glow=.4, dz=-.03, step=-6),
-             F(c=.3, lean=-6, ar=D(.5, .3, -.5), al=D(.2, .3, -.9), glow=.15, dz=-.015, step=-6), F(c=.1, lean=0, ar=D(.2, .35, -1), glow=0, step=-6), F(step=-6)],
+ 'charge_in': [F(c=.15, lean=-3, tw=-8, ar=D(.6, .25, -.5), al=D(.5, .1, -.7), glow=.15, wide=6),
+               F(c=.3, lean=-5, tw=-14, ar=D(.75, .2, -.35), sr=1.08, al=D(.8, -.35, -.4), glow=.3, wide=10, dz=-.01),
+               F(c=.42, lean=-6, tw=-18, ar=D(.8, .15, -.3), sr=1.12, al=D(.85, -.45, -.35), sl=1.08, glow=.5, wide=13, dz=-.02, blow=(0, -4)),
+               F(c=.48, lean=-6, tw=-20, ar=D(.82, .14, -.28), sr=1.14, al=D(.86, -.47, -.33), sl=1.08, glow=.6, wide=14, dz=-.025, blow=(0, -6))],
+ 'charge_hold': [F(c=.48 + .015*math.sin(i/6*2*math.pi), lean=-6 - 1.0*math.sin(i/6*2*math.pi), tw=-20, ar=D(.82, .14, -.28 + .02*math.sin(i/6*2*math.pi)), sr=1.14,
+                   al=D(.86, -.47, -.33), sl=1.08, glow=.6 + .08*math.sin(i/6*2*math.pi), wide=14, dz=-.025, blow=(2*math.sin(i/6*2*math.pi), -7 - 3*math.sin(i/6*2*math.pi))) for i in range(6)],
+ # beam v2: brace (anticipation) 0, SNAP release 1, kick 2, hold 3-4, fade 5-6, recovery 7-8. No smears.
+ 'release': [F(c=.55, lean=-9, tw=-22, ar=D(.55, .25, -.45), sr=1.1, al=D(.75, -.4, -.45), sl=1.08, wide=15, dz=-.03, glow=.8, blow=(0, -8)),
+             F(c=.5, lean=10, tw=-28, ar=D(1, .06, .04), sr=1.35, al=D(1, -.5, 0), sl=1.15, wide=17, dz=-.03, glow=1.4, blow=(0, -28), step=3, ev='release'),
+             F(c=.5, lean=-8, tw=-28, ar=D(.95, .06, .18), sr=1.32, al=D(.95, -.5, .1), sl=1.15, wide=17, dz=-.03, glow=1.1, blow=(0, -32), step=-3),
+             F(c=.5, lean=-4, tw=-27, ar=D(1, .06, .1), sr=1.33, al=D(1, -.5, .05), sl=1.15, wide=17, dz=-.03, glow=1.0, blow=(0, -26), step=-4),
+             F(c=.5, lean=-3, tw=-27, ar=D(1, .06, .08), sr=1.33, al=D(1, -.5, .03), sl=1.15, wide=17, dz=-.03, glow=.9, blow=(0, -22), step=-5),
+             F(c=.45, lean=-2, tw=-24, ar=D(.9, .1, 0), sr=1.25, al=D(.85, -.4, -.1), sl=1.1, wide=15, dz=-.025, glow=.5, blow=(0, -12), step=-5),
+             F(c=.35, lean=-1, tw=-16, ar=D(.7, .2, -.3), sr=1.12, al=D(.5, -.1, -.6), sl=1.04, wide=11, dz=-.02, glow=.2, blow=(0, -4), step=-5),
+             F(c=.2, lean=0, tw=-6, ar=D(.4, .3, -.7), wide=6, dz=-.01, step=-5),
+             F(step=-5)],
 }
 LOOPS = {'charge_hold'}
+BEAM = {'charge_in', 'charge_hold', 'release'}
+CHEAT = json.loads(os.environ.get('CHEAT', '{"S": 35, "N": 35}'))   # N/S: turn her a little so the thrust arm reads sideways
 # follow-through: hair + coat hem run on a damped spring driven by how fast the torso turns / pitches, and keep moving after she stops
 # (each anim gets 3 extra 'settle' frames appended at runtime only if the last frame still has motion -> instead we bake the settle into the last frames)
 def secondary(plan, loop=False):
@@ -236,13 +247,18 @@ def hair_set(ang):   # ang = (sideways deg about her forward axis, pitch deg abo
 def coat_set(ang):   # hem lags the torso: twist about the vertical + swing opposite to the pitch
     HOOK.rotation_euler = (R(-ang[1]*0.35), 0, R(ang[0]*0.45)); HOOK.location = (0, 0.03 + ang[1]*0.0009, 0.2)
 
+WSIGN = float(os.environ.get('WSIGN', '1'))
 def pose_frame(f, yaw0, sec):
     P = dict(blend(idle, cr, f['c']))
     for side, k in (('right', 'qr'), ('left', 'ql')):
-        l, q, s_ = P['arm-' + side]; P['arm-' + side] = (l, f[k] if k in f else arm_q(side, f['a' + side[0]]), s_)
+        l, q, s_ = P['arm-' + side]; sc_ = f['s' + side[0]]
+        P['arm-' + side] = (l, f[k] if k in f else arm_q(side, f['a' + side[0]]), s_*sc_ if sc_ != 1.0 else s_)
     ex = {'torso': qz(f['tw']) @ qx(f['lean']), 'head': qx(f['hd'])}
+    if f['wide']:   # braced stance: splay the legs (beam v2)
+        ex['leg-left'] = qz(f['wide']*WSIGN); ex['leg-right'] = qz(-f['wide']*WSIGN)
     apply(arm, P, ex)
     root.rotation_euler = (0, 0, yaw0 + R(f['yaw'])); root.location = (0, 0, f['dz'])
+    sec = Vector(sec) + Vector(f['blow'])
     coat_set(sec); hair_set(sec); set_glow(f['glow']); set_pinch(f['pinch'])
 def mix(a, b, t):
     o = dict(b)
@@ -267,7 +283,7 @@ for an in want:
     META[an] = {'frames': len(plan), 'events': {str(k): f['ev'] for k, f in enumerate(plan) if f['ev']}, 'smear': [k for k, f in enumerate(plan) if f['sm']],
                 'step_px': [f['step'] for f in plan], 'loop': an in LOOPS, 'hand': {}}
     for dn in DIRS:
-        yaw0 = R(ROT[dn]); hands = []
+        yaw0 = R(ROT[dn] + (CHEAT.get(dn, 0) if an in BEAM else 0)); hands = []
         for k, f in enumerate(plan[:int(os.environ.get('NMAX', 99))]):
             path = os.path.join(OUT, '%s_%s_%02d.png' % (an, dn, k))
             if f['sm'] and k > 0:

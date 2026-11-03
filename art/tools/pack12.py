@@ -14,11 +14,11 @@ DUR = {
  'combo3': [60, 120, 33, 33, 33, 50, 80, 70, 70, 80, 90],
  'peel': [70, 80, 60, 70, 110, 80, 50, 70, 80, 100],
  'throw': [60, 80, 130, 33, 50, 60, 80, 70, 80, 100],
- 'charge_in': [60, 70, 80, 90],
+ 'charge_in': [80, 90, 100, 110],
  'charge_hold': [90]*6,
- 'release': [70, 50, 60, 80, 80, 90, 100],
+ 'release': [90, 40, 60, 110, 110, 70, 70, 90, 110],
 }
-HITSTOP = {'combo1': {3: 70}, 'combo2': {4: 85}, 'combo3': {5: 130}, 'throw': {}, 'release': {1: 60}}   # extra hold on the contact frame, ms
+HITSTOP = {'combo1': {3: 70}, 'combo2': {4: 85}, 'combo3': {5: 130}, 'throw': {}, 'release': {1: 70}}   # extra hold on the contact frame, ms
 CHAIN = {'combo1': 4, 'combo2': 5}   # earliest frame the next combo hit may start (input buffered before that)
 TELL = {
  'combo1': 'JAB: 0-1 wind-up (paw drawn back to the hip, torso coils), 2 smear, 3 HIT (snap, step), 4 hold, 5-6 recovery; hair/hem keep swinging',
@@ -26,9 +26,9 @@ TELL = {
  'combo3': 'SPINNING FINISHER: 0-1 coil (crouch, counter-turn), 2-4 smear spin (360 deg), 5 HIT back-fist out of the spin (step), 6 hold, 7-10 recovery',
  'peel': 'REACH AND PEEL: 0-1 notice + draw back, 2-3 reach, 4 PINCH (fingers close), 5 tug, 6 PEEL (pull back), 7-9 word held at the chest',
  'throw': 'WORD THROW: 0-2 wind-up over the shoulder (2 = held top), 3 smear, 4 RELEASE (wrist flick), 5-6 follow-through, 7-9 recovery',
- 'charge_in': 'BEAM CHARGE IN: hand starts to glow, she plants and leans back; then loop charge_hold',
- 'charge_hold': 'BEAM CHARGE HOLD (loop): leans back, paw glow pulses',
- 'release': 'BEAM RELEASE: 0 brace (crouch, lean in), 1 RELEASE (glow peak), 2-3 recoil (lean back, step back), 4-6 recover',
+ 'charge_in': 'BEAM v2 CHARGE IN: wide braced stance, slight crouch, paw forward-low, off-hand moves to the wrist; then loop charge_hold. Charge stages (spark/orb/crackle) are drawn game-side from charge time',
+ 'charge_hold': 'BEAM v2 CHARGE HOLD (loop): held brace, tiny breathing tremble, hair lifted by the energy',
+ 'release': 'BEAM v2 RELEASE: 0 brace (pull back), 1 SNAP thrust (arm x1.35, RELEASE, +70ms stop), 2 kick-back recoil, 3-4 hold (beam full), 5-6 fade (beam thins), 7-8 recovery. Beam is drawn game-side from hand[dir][k]. N/S rows are turned 40 deg so the arm reads',
 }
 meta12 = json.load(open(os.path.join(SRC, 'meta12.json')))
 A12 = {an: (len(DUR[an]), round(1000*len(DUR[an])/sum(DUR[an]))) for an in DUR}
