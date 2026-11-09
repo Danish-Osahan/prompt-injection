@@ -1,3 +1,29 @@
+# HANDOFF — Impact Lab v15f (leaf pocket mask)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Clip sliding leaves (and cab) to the inner opening so they vanish into wall pockets behind the frame — no more leaves drawing over plant / lamp desk / side wall.
+
+## Fix vs v15e
+
+- `GeometryMask` on recess, cab, `leaf_l`, `leaf_r` = exact opening rect `(LIFT_OX, LIFT_OY, LIFT_OW, LIFT_OH)`.
+- Steel frame stays **unmasked** and higher depth so the surround draws on top as leaves slide away.
+- Wall patch shrunk to opening only (no spill onto adjacent wall).
+- Lift layer depth stays ≈102 so `plantW` (229) and `desk_podW` (346) / lamp (360) stay in front where they sit lower on screen.
+- Panel-beside-frame asserts unchanged (`PANEL ≈ 312,188`).
+
+## Stills
+
+`mock-steal/v15f/stills/03-doors-half-open.png`  
+`mock-steal/v15f/stills/04-doors-open-cab.png`  
+Capture: `node game/tests/capture_v15f.mjs`
+
+## Tests
+
+`capture_v15f`, `verify_steal` PASS.
+
+
+---
+
 # HANDOFF — Impact Lab v15e (layered lift sprites)
 
 **Date:** 2026-11-10 (Asia/Calcutta)

@@ -64,6 +64,8 @@ export class ImpactLab {
   private liftRecess?: Phaser.GameObjects.Image;
   private liftDoorK = 0; // 0 shut … 1 open (layered leaves)
   private wallPatch?: Phaser.GameObjects.Rectangle;
+  private openingMaskGfx?: Phaser.GameObjects.Graphics;
+  private openingMask?: Phaser.Display.Masks.GeometryMask;
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
@@ -117,10 +119,18 @@ export class ImpactLab {
     this.hint?.destroy(); this.hint = undefined;
     this.clearCarryFx();
     this.lampSpr?.destroy(); this.panelSpr?.destroy();
+    try { this.leafL?.clearMask(true); } catch { /* */ }
+    try { this.leafR?.clearMask(true); } catch { /* */ }
+    try { this.liftCab?.clearMask(true); } catch { /* */ }
+    try { this.liftRecess?.clearMask(true); } catch { /* */ }
+    this.openingMask = undefined;
+    this.openingMaskGfx?.destroy(); this.openingMaskGfx = undefined;
     this.liftCab?.destroy(); this.liftCab = undefined;
-    this.leafL?.destroy(); this.leafR?.destroy();
-    this.liftFrame?.destroy(); this.liftRecess?.destroy();
-    this.wallPatch?.destroy();
+    this.leafL?.destroy(); this.leafL = undefined;
+    this.leafR?.destroy(); this.leafR = undefined;
+    this.liftFrame?.destroy(); this.liftFrame = undefined;
+    this.liftRecess?.destroy(); this.liftRecess = undefined;
+    this.wallPatch?.destroy(); this.wallPatch = undefined;
     this.floorInd?.destroy(); this.darkGap?.destroy();
     if (this.s.clar?.door) this.s.clar.door.setVisible(true);
     this.cover?.destroy();
@@ -166,7 +176,8 @@ export class ImpactLab {
 
   private spawnProps() {
     const ox = O11_DOOR.x, oy = O11_DOOR.y;
-    const depth = oy + 40; // above baked door plate (-999), below FG props
+    // Keep well below plantW(229) / desk_podW(346) so FG stays in front of the lift
+    const depth = oy + 40; // ≈102; above baked door plate (-999), below FG props
 
     // Hide baked JPG door frames — we composite layered sprites instead
     if (this.s.clar?.door) {
@@ -176,9 +187,10 @@ export class ImpactLab {
     }
 
     // Wall patch behind the opening (matches office wall so hole isn't room-bg junk)
+    // Only fill the opening hole — do not spill onto plant / desk / side wall
     this.wallPatch = this.s.add.rectangle(
       ox + LIFT_OX + LIFT_OW / 2, oy + LIFT_OY + LIFT_OH / 2,
-      LIFT_OW + LIFT_FRAME * 2 + 8, LIFT_OH + LIFT_FRAME * 2 + 8,
+      LIFT_OW, LIFT_OH,
       0x1c2230, 1,
     ).setDepth(depth - 5);
     this.s.objs.push(this.wallPatch);
@@ -187,31 +199,43 @@ export class ImpactLab {
     if (this.s.textures.exists('lift_recess')) {
       this.liftRecess = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_recess')
         .setOrigin(0, 0).setDepth(depth - 4);
+      // recess masked after mask is created below — applied in applyOpeningMask helper
       this.s.objs.push(this.liftRecess);
     }
 
-    // (d) cab behind leaves
+    // Geometry mask = inner opening only. Leaves slide into wall pockets behind the
+    // frame; anything outside the opening is clipped (never draws over plant/desk/wall).
+    this.openingMaskGfx = this.s.add.graphics().setVisible(false);
+    this.openingMaskGfx.fillStyle(0xffffff, 1);
+    this.openingMaskGfx.fillRect(ox + LIFT_OX, oy + LIFT_OY, LIFT_OW, LIFT_OH);
+    this.openingMask = this.openingMaskGfx.createGeometryMask();
+    if (this.liftRecess) this.liftRecess.setMask(this.openingMask);
+
+    // (d) cab behind leaves — clipped to opening
     if (this.s.textures.exists('lift_cab')) {
       this.liftCab = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_cab')
         .setOrigin(0, 0).setDepth(depth - 3).setAlpha(1);
+      this.liftCab.setMask(this.openingMask);
       this.s.objs.push(this.liftCab);
     }
 
-    // (c) door leaves — closed, covering cab
+    // (c) door leaves — closed over cab; masked so slides vanish into frame pockets
     const leafY = oy + LIFT_OY + 1;
     const midX = ox + LIFT_OX + LIFT_OW / 2;
     if (this.s.textures.exists('lift_leaf_l')) {
       this.leafL = this.s.add.image(ox + LIFT_OX - 1, leafY, 'lift_leaf_l')
         .setOrigin(0, 0).setDepth(depth - 1);
+      this.leafL.setMask(this.openingMask);
       this.s.objs.push(this.leafL);
     }
     if (this.s.textures.exists('lift_leaf_r')) {
       this.leafR = this.s.add.image(midX - 1, leafY, 'lift_leaf_r')
         .setOrigin(0, 0).setDepth(depth - 1);
+      this.leafR.setMask(this.openingMask);
       this.s.objs.push(this.leafR);
     }
 
-    // (b) steel frame on top of leaf edges
+    // (b) steel frame UNMASKED on top of leaf edges (surround draws over clipped leaves)
     if (this.s.textures.exists('lift_frame')) {
       this.liftFrame = this.s.add.image(ox, oy, 'lift_frame')
         .setOrigin(0, 0).setDepth(depth);
@@ -240,10 +264,10 @@ export class ImpactLab {
 
     this.liftDoorK = 0;
 
-    // Desk lamp — keep painted sprite
+    // Desk lamp — keep painted sprite; depth above desk_podW (346) so desk stays in front of lift
     const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
     this.lampSpr = this.s.add.image(LAMP.x, LAMP.y, ltex)
-      .setDepth(350).setScale(1.15).setOrigin(0.5, 0.92);
+      .setDepth(360).setScale(1.15).setOrigin(0.5, 0.92);
     this.s.objs.push(this.lampSpr);
   }
 
