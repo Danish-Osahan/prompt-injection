@@ -1,0 +1,9 @@
+{
+  "taut": 4,
+  "snap": 20,
+  "settle": 4,
+  "wind_soft": 12,
+  "door_flex": 6,
+  "frame": 640,
+  "samples": 28
+}

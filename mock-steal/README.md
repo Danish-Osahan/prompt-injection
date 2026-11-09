@@ -2,6 +2,42 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
+## v9 — impact overhaul (heavy tier)
+
+Danishpreet rejected v8's contact frame (thin white line-stack gust, translucent grey box, outline-icon chain/lock). v9 changes the **approach**, not the parameters.
+
+**System**
+- Spec: `docs/design/impact-spec.md`
+- Reusable tiers: `art/tools/impact_system.py` (`light` / `heavy` / `big`) — hit-stop, punch-zoom, directional shake, thick hit-spark, silhouette/invert frames, soft wind, floor dust (no radial rings)
+- Door break uses **heavy**
+
+**What changed**
+1. **Chunky Blender chain + padlock** (`art/tools/steal_break_rb.py` → `art/render/steal_break_v9/`) — taut → snap ballistic with spin/gravity/bounce + contact shadows; padlock shackle pops; pieces readable at 1×. Composited onto bare office door (no baked outline icons).
+2. **Soft-shaded wind** — painterly highlight/shadow masses (+ Blender soft-wind pass). No hairline stroke stacks.
+3. **Impact frames** — 2–3 high-contrast silhouette frames + thick tapered hit-spark; 2.5× punch-zoom; directional shake; glowing sparks; floor dust burst.
+4. **Door** — bare plate + Blender metal; recoil then lift open. No translucent grey HUD rectangles.
+
+| file | what |
+|---|---|
+| `v9/beat.mp4` | ~11.5 s beat |
+| `v9/beat.gif` | 640-wide loop |
+| `v9/compare.mp4` | **v8 vs v9** |
+| `v9/stills/` | stills + `impact-01..08-2x` + `impact-sequence-strip` + `10-impact-1x` |
+
+### Rebuild
+```bash
+/home/box/tools/blender-4.2.9-linux-x64/blender -b --python art/tools/steal_break_rb.py -- art/render/steal_break_v9 28
+python3 art/tools/compose_steal_v9.py
+```
+
+### Honesty / weak spots
+- Scatter is authored ballistic (deterministic), not a live Blender rigid-body bake of interlocking tori (unstable).
+- Soft wind is still canvas + emission spheres — better than stroke stacks, not true volumetrics.
+- Silhouette impact frames are procedural (threshold + burst), not hand-authored sprites.
+- Door metal dent/flex plate was removed after it read as a grey box; recoil is lift nudge + dust.
+- Padlock bounce/settle can exit the 2× crop; full frame stills show scatter better.
+
+## v8 — clean throw path + heavy chain-break impact
 ## v8 — clean throw path + heavy chain-break impact
 
 Addresses v7 feedback (throw detour) + heavy-tier lock break physics.

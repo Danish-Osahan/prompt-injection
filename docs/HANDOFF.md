@@ -316,6 +316,12 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21f. mock-steal/v9 — impact overhaul (heavy tier)
+- Spec: `docs/design/impact-spec.md`. Reusable tiers in `art/tools/impact_system.py` (light/heavy/big).
+- **`mock-steal/v9/`** beat / gif / compare (v8 vs v9) / stills + 8-frame `impact-*-2x` strip + `10-impact-1x`.
+- Chunky Blender chain/padlock break passes (`art/tools/steal_break_rb.py` → `art/render/steal_break_v9/`); soft-shaded wind (no stroke stacks); silhouette impact frames + thick hit-spark; 2.5× punch-zoom + directional shake; bare office door (no baked outline icons / no grey HUD box). Compose: `art/tools/compose_steal_v9.py`.
+- Weak spots: authored ballistic not live RB; wind not true volume; procedural silhouettes; door-flex plate dropped (read as grey box).
+
 ## 21e. mock-steal/v8 — throw path + heavy chain-break impact
 - **`mock-steal/v8/`** beat / gif / compare (v7 vs v8) / stills. Clean shallow throw arc hand→`DOOR_CHAIN` (no plant detour; path QA `bad_increase=0`); SW/S 3/4 throw + smear; longer rip→carry bridge.
 - **Heavy impact:** hit-stop freeze on chain hit; lock/chain flash; directional speed lines; strong shake; **no radial floor rings**. Chain taut→whip→snap; links + padlock with gravity/spin/bounce; door recoil then open; debris/dust + gust splash. Lock door-scale, in-scene style.
