@@ -33,6 +33,11 @@ export class BootScene extends Phaser.Scene {
     const A12 = ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release'];
     for (const s of A12) this.load.atlas(s, `assets/sprites12/${s}.png`, `assets/sprites12/${s}.json`);
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
+    // Impact lab FX (CC0 Kenney + original soft particles) + SFX
+    const FX = ['spark_core', 'smoke_soft', 'dust_puff', 'wind_wisp', 'chain_link', 'padlock', 'padlock_open', 'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3'];
+    for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
+    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal'];
+    for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
     const t = this.add.text(640, 360, '> loading_', { fontFamily: 'JetBrains Mono', fontSize: '18px', color: '#B4EEF0' }).setOrigin(0.5);
     this.load.on('progress', (p: number) => t.setText(`> loading ${Math.round(p * 100)}%_`));
   }

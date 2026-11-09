@@ -16,12 +16,17 @@ async function start() {
     backgroundColor: '#04080c',
     scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 1280, height: 720 },
     input: { activePointers: 4 },
+    physics: {
+      default: 'matter',
+      matter: { gravity: { x: 0, y: 1.6 }, enableSleeping: true, debug: false },
+    },
     scene: [BootScene, GameScene],
   });
   // a drag that ends outside the canvas must never leave the page panned (the HUD would read as clipped on the left)
   const pin = () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };
   window.addEventListener('touchend', pin, { passive: true }); window.addEventListener('scroll', pin, { passive: true });
-  if (new URLSearchParams(window.location.search).has('test')) {
+  const q = new URLSearchParams(window.location.search);
+  if (q.has('test') || q.has('impact')) {
     (window as unknown as { __game: Phaser.Game }).__game = game;
   }
 }

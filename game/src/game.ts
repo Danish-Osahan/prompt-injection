@@ -13,6 +13,8 @@ import { LINGER, LINES } from './linger';
 import { Office9, ViewMap } from './office9';
 import { Clarity, DOOR_DEF } from './clarity';
 import { CombatGreybox } from './combat/greybox';
+import { ImpactLab } from './impact/ImpactLab';
+import { bindSfxScene } from './sfx';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -87,6 +89,7 @@ export class GameScene extends Phaser.Scene {
   clar: Clarity | null = null; debugCollision = false; hudBlur: Phaser.GameObjects.Image | null = null;
   atkPending = false; atkHeldT = 0; chargeG: Phaser.GameObjects.Graphics | null = null; aimG: Phaser.GameObjects.Graphics | null = null; beamN = 0; beamHits = 0; comboHits = 0;
   combat: CombatGreybox | null = null; combatHoldBeam = 0.85;
+  impactLab: ImpactLab | null = null;
   constructor() { super('game'); }
 
   create() {
@@ -97,11 +100,13 @@ export class GameScene extends Phaser.Scene {
     recomputeGrowth(this.save);
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
+    bindSfxScene(this);
     this.makeTextures();
     this.buildHud();
     this.debugOn = q.has('debug') && q.get('debug') !== 'collision'; this.debugCollision = q.get('debug') === 'collision';
     this.input.keyboard!.addCapture('W,A,S,D,SPACE,UP,DOWN,LEFT,RIGHT');
     this.setupCameras();
+    if (q.has('impact')) this.save.room = 'office';
     this.buildRoom(this.save.room, true);
     if (q.has('test')) this.installHooks();
   }
@@ -255,7 +260,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
-    this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
+    this.impactLab?.stop(); this.impactLab = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { this.cameras.main.setViewport(0, 0, 1280, BAR_Y).setZoom(this.frameZoom || 1).centerOn(640, BAR_Y / 2); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
@@ -311,6 +316,12 @@ export class GameScene extends Phaser.Scene {
     if (id === 'office' && this.clar && new URLSearchParams(location.search).has('combat')) {
       this.combat = new CombatGreybox(this, new URLSearchParams(location.search).get('tune') === '1');
       this.combatHoldBeam = this.combat.tune.holdBeam;
+    }
+    // Impact lab: live Phaser hit-feel (chain break / OPEN throw). ?impact=1 or press I.
+    if (id === 'office' && this.clar) {
+      this.impactLab?.stop();
+      this.impactLab = new ImpactLab(this);
+      if (new URLSearchParams(location.search).has('impact')) this.impactLab.start();
     }
     this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
@@ -1258,6 +1269,7 @@ export class GameScene extends Phaser.Scene {
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);
     this.combat?.update(dt);
+    this.impactLab?.update(dt);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
@@ -1296,6 +1308,8 @@ export class GameScene extends Phaser.Scene {
         this.combat?.onComboHit(hit);
         const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
         this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause(); this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003);
+        const d = struck.find(e => e.practice) ?? struck[0];
+        this.impactLab?.onDummyHit(d.x, d.y - 40);
       }
       if (hit === 1) this.fxJab(v, struck.length > 0);
       else if (hit === 2) this.fxSlash(a0, struck.length > 0);

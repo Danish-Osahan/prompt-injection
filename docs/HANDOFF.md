@@ -316,12 +316,18 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21j. Impact lab in-game (Phaser) — mock-steal/v13-ingame
+- Preview videos (v8–v12 canvas/Blender composites) are **dropped** as the direction. Hit feel ships **live in Phaser 4 + TS**.
+- **Run:** `cd game && npm install && npm run dev` then open `http://localhost:5173/?impact=1&new=1` (or press **I** in the clarity office). Hold **E** at the rain window to take OPEN, **F** to throw at the chained lift door. J on the practice dummy fires **light** ImpactFX.
+- Modules: `game/src/impact/ImpactFX.ts` (light/heavy/big), `ChainBreak.ts` (Matter.js links + padlock), `ImpactLab.ts`. Assets: `game/public/assets/fx/`, `game/public/assets/sfx/` (Kenney CC0 + original particles). Capture: `node tests/impact_lab.mjs` → `mock-steal/v13-ingame/`.
+- Spec: `docs/design/impact-spec.md`. Credits: `CREDITS.md` § Impact lab v13.
+
 ## 21i. mock-steal/v12 — full Blender beat (stop canvas composite)
 - Danishpreet killed the PIL canvas-composite path ("looks so bad"; wants it to feel like how games handle breaking/hitting). **`mock-steal/v12/`** is ONE Eevee scene: mini office set + noor12 rig throw + chunky chain/padlock + in-scene wind blobs + spark mesh + hit-stop + flat sil frames from the same scene + punch cam + door recoil→open.
 - Script: `art/tools/steal_beat_v12.py` → `art/render/steal_beat_v12/frames/` + `.blend`. Deliverables: beat.mp4 / gif / compare (v11 vs v12) / impact strip / `10-impact-1x`.
 - Render: Blender 4.2 Eevee Next, 960×540, 24fps, ~111 frames, TAA 24, bloom + motion blur, AgX. Break trajectories are **in-scene keyed ballistic** (live RB torus chains were unstable); still 3D objects in one scene — no PIL paste.
 - Weak spots: mini set is block-out grey (not the clarity plate fidelity); Noor often cropped at frame edge; wind is sphere blobs not a true ribbon volume; chain links don't interlock through handles; sil pass is flat emission override (not a proper holdout layer); not live RB.
-- Game carry: treat as **pre-rendered cinematic/sprite sheet** direction for OPEN break, or port the same beat as an in-engine timeline (Unity/Godot) with RB chain + VFX — do not bring back canvas compositing for impact language.
+- Game carry: **superseded by §21j** (live Phaser Impact Lab). Keep v12 as reference art only — do not bring back canvas compositing, and do not port to Unity/Godot.
 
 ## 21h. mock-steal/v11 — silhouette impact SHOT (fix v10 framing)
 - **`mock-steal/v11/`** beat / gif / compare (**v10 vs v11**) / stills + 8-frame impact strip + `10-impact-1x`.
