@@ -14,17 +14,18 @@ export interface ImpactTier {
   shakeMs: number;
   flashMs: number;
   flashAlpha: number;
-  silFrames: number;       // 0–2 high-contrast frames
-  silMs: number;           // per sil frame
-  slowMo: number;          // timeScale during follow-through
+  silFrames: number;
+  silMs: number;
+  slowMo: number;
   slowMoMs: number;
   sparkScale: number;
 }
 
 export const TIERS: Record<ImpactTierName, ImpactTier> = {
-  light: { name: 'light', hitStopMs: 90, punchZoom: 1.12, punchMs: 140, shakeAmp: 0.004, shakeMs: 80, flashMs: 50, flashAlpha: 0.25, silFrames: 0, silMs: 0, slowMo: 1, slowMoMs: 0, sparkScale: 0.55 },
-  heavy: { name: 'heavy', hitStopMs: 130, punchZoom: 1.35, punchMs: 280, shakeAmp: 0.012, shakeMs: 180, flashMs: 90, flashAlpha: 0.45, silFrames: 2, silMs: 50, slowMo: 0.45, slowMoMs: 320, sparkScale: 1.0 },
-  big:   { name: 'big',   hitStopMs: 170, punchZoom: 1.55, punchMs: 360, shakeAmp: 0.018, shakeMs: 260, flashMs: 110, flashAlpha: 0.55, silFrames: 2, silMs: 55, slowMo: 0.35, slowMoMs: 420, sparkScale: 1.35 },
+  light: { name: 'light', hitStopMs: 70, punchZoom: 1.08, punchMs: 120, shakeAmp: 0.003, shakeMs: 70, flashMs: 40, flashAlpha: 0.18, silFrames: 0, silMs: 0, slowMo: 1, slowMoMs: 0, sparkScale: 0.5 },
+  // Flash kept to 1–2 short frames; Noor + door stay readable
+  heavy: { name: 'heavy', hitStopMs: 110, punchZoom: 1.22, punchMs: 220, shakeAmp: 0.009, shakeMs: 140, flashMs: 55, flashAlpha: 0.22, silFrames: 2, silMs: 42, slowMo: 0.5, slowMoMs: 260, sparkScale: 0.95 },
+  big:   { name: 'big',   hitStopMs: 140, punchZoom: 1.32, punchMs: 280, shakeAmp: 0.012, shakeMs: 180, flashMs: 60, flashAlpha: 0.28, silFrames: 2, silMs: 45, slowMo: 0.4, slowMoMs: 340, sparkScale: 1.2 },
 };
 
 export interface ImpactOpts {
@@ -33,84 +34,77 @@ export interface ImpactOpts {
   dir?: { x: number; y: number };
   target?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
   onHitStopEnd?: () => void;
+  /** When false (chain break), Matter keeps stepping so debris flies during hit-stop. Default true for light. */
+  pausePhysics?: boolean;
 }
 
-/** Global impact director — hit-stop freezes scene sim via GameScene.hitStopT while FX keep ticking. */
 export class ImpactFX {
   private flash?: Phaser.GameObjects.Rectangle;
   private sil?: Phaser.GameObjects.Rectangle;
-  private silInvert = false;
   private punchTw?: Phaser.Tweens.Tween;
   private baseZoom = 1;
-  private fxAlive = false;
 
   constructor(private s: GameScene) {}
 
-  /** Fire a tiered impact at world point. */
   fire(opts: ImpactOpts) {
     const t = TIERS[opts.tier];
     const dir = opts.dir ?? { x: -1, y: 0 };
     const L = Math.hypot(dir.x, dir.y) || 1;
     const dx = dir.x / L, dy = dir.y / L;
+    const pausePhys = opts.pausePhysics !== false && opts.tier === 'light';
 
-    // Hit-stop: freeze sim (edt=0 in update) + Matter + tweens; FX keep animating via scene.time
     this.s.hitStopT = Math.max(this.s.hitStopT, t.hitStopMs / 1000);
     try { this.s.noor.anims.pause(); } catch { /* */ }
-    try { this.s.matter?.world?.pause?.(); } catch { /* */ }
-    try { this.s.tweens.pauseAll(); } catch { /* */ }
-    this.s.time.delayedCall(t.hitStopMs, () => {
-      try { this.s.matter?.world?.resume?.(); } catch { /* */ }
-      try { this.s.tweens.resumeAll(); } catch { /* */ }
-    });
+    if (pausePhys) {
+      try { this.s.matter?.world?.pause?.(); } catch { /* */ }
+      this.s.time.delayedCall(t.hitStopMs, () => { try { this.s.matter?.world?.resume?.(); } catch { /* */ } });
+    }
 
-    // Full-screen flash (UI camera space)
+    // Short readable flash (1–2 frames feel) — low alpha, fast fade
     this.flash?.destroy();
     this.flash = this.s.add.rectangle(640, 360, 1280, 720, 0xffffff, t.flashAlpha)
       .setScrollFactor(0).setDepth(9000).setBlendMode(Phaser.BlendModes.ADD);
     this.s.tweens.add({ targets: this.flash, alpha: 0, duration: t.flashMs, onComplete: () => this.flash?.destroy() });
 
-    // Camera punch-zoom toward contact + directional shake
     const cam = this.s.cameras.main;
-    this.baseZoom = cam.zoom;
+    this.baseZoom = cam.zoom || 1;
+    // Soft punch — keep framing readable (no hard pan off the room)
     const targetZ = this.baseZoom * t.punchZoom;
-    cam.pan(opts.x, opts.y + 40, Math.min(60, t.punchMs * 0.25), 'Sine.easeOut');
     this.punchTw?.stop();
     this.punchTw = this.s.tweens.add({
       targets: cam, zoom: targetZ, duration: t.punchMs * 0.35, ease: 'Sine.easeOut',
-      yoyo: false,
       onComplete: () => {
         this.s.tweens.add({ targets: cam, zoom: this.baseZoom, duration: t.punchMs * 0.65, ease: 'Sine.easeInOut' });
       },
     });
-    // Directional shake: bias along hit vector
     cam.shake(t.shakeMs, t.shakeAmp);
-    // Phaser shake is isotropic; add a short pan kick along dir
-    const kick = 10 * t.shakeAmp * 100;
-    cam.scrollX += dx * kick; cam.scrollY += dy * kick;
+    // Soft directional kick without shifting the room into a side pillar
+    const kick = 3 * t.shakeAmp * 100;
+    cam.scrollX += dx * kick * 0.35; cam.scrollY += dy * kick * 0.35;
 
-    // Target white flash
     if (opts.target) {
       const spr = opts.target;
-      const prev = spr.tintTopLeft;
       spr.setTint(0xffffff);
-      this.s.time.delayedCall(t.hitStopMs * 0.6, () => { try { spr.clearTint(); } catch { /* */ } });
-      void prev;
+      this.s.time.delayedCall(t.hitStopMs * 0.5, () => { try { spr.clearTint(); } catch { /* */ } });
     }
 
-    // Spark particles
     this.burstSpark(opts.x, opts.y, dx, dy, t.sparkScale);
-
-    // Silhouette / invert frames from live scene (approx via colour overlay + invert post)
     if (t.silFrames > 0) this.runSilFrames(t);
 
-    // Slow-mo after hit-stop
     if (t.slowMo < 1) {
       this.s.time.delayedCall(t.hitStopMs, () => {
         this.s.timeScale = t.slowMo;
-        this.s.time.delayedCall(t.slowMoMs, () => { this.s.timeScale = 1; opts.onHitStopEnd?.(); });
+        this.s.time.delayedCall(t.slowMoMs, () => {
+          this.s.timeScale = 1;
+          try { this.s.noor.anims.resume(); } catch { /* */ }
+          opts.onHitStopEnd?.();
+        });
       });
     } else {
-      this.s.time.delayedCall(t.hitStopMs, () => { try { this.s.noor.anims.resume(); } catch { /* */ }; opts.onHitStopEnd?.(); });
+      this.s.time.delayedCall(t.hitStopMs, () => {
+        try { this.s.noor.anims.resume(); } catch { /* */ }
+        opts.onHitStopEnd?.();
+      });
     }
 
     if (opts.tier === 'light') sfx('hit');
@@ -119,65 +113,58 @@ export class ImpactFX {
   }
 
   private burstSpark(x: number, y: number, dx: number, dy: number, scale: number) {
-    if (!this.s.textures.exists('fx_spark_core')) return;
-    const em = this.s.add.particles(x, y, 'fx_spark_core', {
-      speed: { min: 80 * scale, max: 220 * scale },
-      angle: { min: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) - 50, max: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) + 50 },
-      scale: { start: 0.9 * scale, end: 0.05 },
-      alpha: { start: 1, end: 0 },
-      lifespan: 280,
-      quantity: 10,
-      blendMode: 'ADD',
-      emitting: false,
-    });
-    em.explode(14);
-    this.s.time.delayedCall(400, () => em.destroy());
+    if (this.s.textures.exists('fx_spark_core')) {
+      const em = this.s.add.particles(x, y, 'fx_spark_core', {
+        speed: { min: 90 * scale, max: 240 * scale },
+        angle: { min: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) - 55, max: Phaser.Math.RadToDeg(Math.atan2(dy, dx)) + 55 },
+        scale: { start: 0.7 * scale, end: 0.05 },
+        alpha: { start: 1, end: 0 },
+        lifespan: 240,
+        quantity: 8,
+        blendMode: 'ADD',
+        emitting: false,
+      });
+      em.explode(12);
+      this.s.time.delayedCall(350, () => em.destroy());
+    }
 
-    // Animated spark sprite
+    // Comic hard-edged spark (NORMAL blend so the dark outline reads)
     if (this.s.textures.exists('fx_hit_spark_0')) {
-      const sp = this.s.add.sprite(x, y, 'fx_hit_spark_0').setDepth(8000).setScale(scale * 1.1).setBlendMode(Phaser.BlendModes.ADD);
+      const sp = this.s.add.sprite(x, y, 'fx_hit_spark_0')
+        .setDepth(8000).setScale(scale * 0.95).setBlendMode(Phaser.BlendModes.NORMAL);
       let fi = 0;
-      const tim = this.s.time.addEvent({ delay: 40, repeat: 3, callback: () => {
-        fi++; if (fi < 4 && this.s.textures.exists('fx_hit_spark_' + fi)) sp.setTexture('fx_hit_spark_' + fi);
-        else sp.destroy();
-      }});
-      void tim;
+      this.s.time.addEvent({
+        delay: 38, repeat: 3, callback: () => {
+          fi++;
+          if (fi < 4 && this.s.textures.exists('fx_hit_spark_' + fi)) sp.setTexture('fx_hit_spark_' + fi);
+          else sp.destroy();
+        },
+      });
     }
   }
 
-  /** 1–2 impact frames: brief desat + invert wash over the live camera (readable, not full-white). */
+  /** 1–2 brief high-contrast frames — keep Noor + door readable (no full bleach). */
   private runSilFrames(t: ImpactTier) {
-    const cam = this.s.cameras.main;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let cm: any = null;
-    try {
-      cm = cam.filters?.internal?.addColorMatrix?.();
-      if (cm?.colorMatrix) cm.colorMatrix.saturate(-0.85).contrast(0.35);
-    } catch { /* */ }
     this.sil?.destroy();
-    // Frame 1: warm multiply (silhouette punch without bleaching)
-    this.sil = this.s.add.rectangle(640, 360, 1280, 720, 0xffc98a, 0.35)
+    // Frame 1: light warm add
+    this.sil = this.s.add.rectangle(640, 360, 1280, 720, 0xffe0c0, 0.18)
       .setScrollFactor(0).setDepth(8900).setBlendMode(Phaser.BlendModes.ADD);
     this.s.time.delayedCall(t.silMs, () => {
       if (!this.sil) return;
-      // Frame 2: dark invert-ish multiply (Hades-like graphic cut)
-      try { cm?.colorMatrix?.reset?.()?.negative?.().brightness(0.55); } catch { /* */ }
-      this.sil.setFillStyle(0x0a1420, 0.4).setBlendMode(Phaser.BlendModes.MULTIPLY);
-      this.s.time.delayedCall(t.silMs, () => {
-        this.sil?.destroy(); this.sil = undefined;
-        try { cm?.destroy?.(); } catch { /* */ }
-        try { cam.filters?.internal?.clear?.(); } catch { /* */ }
-      });
+      // Frame 2: mild dark multiply (graphic cut without invert washout)
+      this.sil.setFillStyle(0x101820, 0.28).setBlendMode(Phaser.BlendModes.MULTIPLY);
+      this.s.time.delayedCall(t.silMs, () => { this.sil?.destroy(); this.sil = undefined; });
     });
   }
+
   dust(x: number, y: number, dir: { x: number; y: number }, n = 8) {
     if (!this.s.textures.exists('fx_dust_puff')) return;
     const em = this.s.add.particles(x, y, 'fx_dust_puff', {
       speed: { min: 20, max: 70 },
       angle: { min: -20, max: 20 },
-      scale: { start: 0.6, end: 1.4 },
-      alpha: { start: 0.55, end: 0 },
-      lifespan: 500,
+      scale: { start: 0.55, end: 1.2 },
+      alpha: { start: 0.5, end: 0 },
+      lifespan: 480,
       gravityY: 40,
       emitting: false,
     });

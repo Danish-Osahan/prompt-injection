@@ -100,6 +100,12 @@ export class Clarity {
   }
   private drawTags() {
     const s = this.s, first = !s.save.tutorials.includes('o11door');
+    // Impact Lab: no word tags over gameplay (story/dialogue only)
+    if (s.impactLab?.on) {
+      for (const g of this.tags) g.c.setVisible(false);
+      this.pointer.setVisible(false);
+      return;
+    }
     for (const g of this.tags) {
       const p = s.plateById(g.id); const vis = !!p && p.visible && !this.modal && !(g.main && this.doorOpen && this.doorK > 0.98);
       g.c.setVisible(vis); if (!vis || !p) continue;
@@ -244,11 +250,16 @@ export class Clarity {
     if (this.doorK !== this.doorWant) { this.doorK = Phaser.Math.Clamp(this.doorK + Math.sign(this.doorWant - this.doorK) * dt / 0.8, 0, 1); this.drawDoor(); }
     if (this.doorOpen && this.doorK > 0.95 && !s.transitioning && s.x > LIFT.x && s.x < LIFT.x + LIFT.w && s.y < LIFT.y + 26) s.goRoom('hub');
     this.near = this.modal ? null : this.nearest()?.def.id ?? null;
-    // objective (real progress)
-    const done = this.doorOpen; const ot = done ? 'Door open. Walk through' : 'Get through the door';
-    if (this.objT.text !== ot) this.objT.setText(ot);
-    const w = this.objT.width + 58, x0 = 640 - w / 2; this.objT.setX(x0 + 40); this.objIcon.setX(x0 + 21).setText(done ? '\u2713' : '\u25C6').setColor(done ? C.ok : C.cyan);
-    this.objBg.clear().fillStyle(0x050c12, 0.9).fillRoundedRect(x0, 7, w, 34, 17).lineStyle(1.5, hex(done ? C.ok : C.cyan), 0.85).strokeRoundedRect(x0, 7, w, 34, 17);
+    // objective (real progress) — hidden during Impact Lab (no words over gameplay)
+    if (s.impactLab?.on) {
+      this.objective.setVisible(false);
+    } else {
+      this.objective.setVisible(true);
+      const done = this.doorOpen; const ot = done ? 'Door open. Walk through' : 'Get through the door';
+      if (this.objT.text !== ot) this.objT.setText(ot);
+      const w = this.objT.width + 58, x0 = 640 - w / 2; this.objT.setX(x0 + 40); this.objIcon.setX(x0 + 21).setText(done ? '\u2713' : '\u25C6').setColor(done ? C.ok : C.cyan);
+      this.objBg.clear().fillStyle(0x050c12, 0.9).fillRoundedRect(x0, 7, w, 34, 17).lineStyle(1.5, hex(done ? C.ok : C.cyan), 0.85).strokeRoundedRect(x0, 7, w, 34, 17);
+    }
     // heading: once on entry, then gone
     if (this.headT > 0) { this.headT += dt; const t = this.headT; this.heading.setAlpha(t < 0.4 ? t / 0.4 : t < 2.4 ? 1 : Math.max(0, 1 - (t - 2.4) / 0.6)); if (t > 3.1) { this.headT = 0; this.heading.setAlpha(0); } }
     // near-glow outline on the object Noor can use
@@ -265,6 +276,8 @@ export class Clarity {
   /** what the single caption line says right now (priority: a timed line > dummy hint > the near object > first steps > nothing) */
   private caption(moving: boolean) {
     const s = this.s, kb = s.ctl.last !== 'touch'; let t = '';
+    if (s.impactLab?.on) { this.cap.setText('').setVisible(false); return; }
+    this.cap.setVisible(true);
     if (this.capMsg && this.capMsg.until > s.t) t = this.capMsg.text; else this.capMsg = null;
     if (!t && this.modal === 'picker') t = kb ? `Pick ${this.pickAlt}.  E` : `Tap ${this.pickAlt}.`;
     if (!t && !this.modal && this.dummy && Math.hypot(s.x - this.dummy.x, s.y - this.dummy.y) < 170) {

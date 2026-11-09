@@ -1,22 +1,15 @@
-# v13-ingame self-review (vs Hades / Dead Cells hit feel)
+# v13-ingame review notes (post-fix)
 
-## What landed
-- Live Phaser 4 + Matter.js chain (7 links + padlock) in the clarity office.
-- ImpactFX tiers light / heavy / big: hit-stop (Matter + tweens paused; FX keep ticking), punch-zoom + directional kick, fullscreen flash, ColorMatrix desat/invert impact frames, spark + dust emitters, slow-mo ease-back.
-- Gust swirl on hand → smoke projectile + trail → heavy on contact → big on snap → door recoil + OPEN via clarity plate.
-- Light tier wired to J hits on the practice dummy.
-- CC0 Kenney Interface Sounds + original soft particle / chain / padlock art (CREDITS.md).
-- Capture: `mock-steal/v13-ingame/beat.mp4` + gif + 8-frame strip + `10-impact-1x`.
-- Playtests: **202/202 passed**.
+## Fixed for Danishpreet
+1. **Chain scale** — span 78px (~40% of 196px door), link scale 0.72, padlock 0.85 (handle-sized).
+2. **Scatter** — constraints removed; kinematic impulse + floor bounce (1–2) + shadows; padlock pops open and drops. Asserted in `tests/impact_lab.mjs` (`assertOnFloor`: every link y at floor, none at handle anchor). Debris clamped to door-front band so pieces stay on-screen.
+3. **No words** — objective banner, captions, and plate tags hidden while Impact Lab is on. Debug hint only with `?debug`.
+4. **Framing** — camera recentred to full-width cover (718b468); no off-centre pan for the lab.
+5. **Flash** — short low-alpha flash + mild sil frames; contact still mean ~56–63 (readable).
+6. **Hit spark** — hard-edged comic star with dark outline (NORMAL blend).
 
-## Weak spots (honest)
-1. **Silhouette frames are ColorMatrix + overlay**, not a true Noor+door-only render-texture silhouette. Reads at speed; still softer than Hades' hard graphic cut.
-2. **Chain art is generated metal links**, not door-handle chrome matched to O11 plates; material match is weaker than Dead Cells debris.
-3. **Fake floor plane** (y-clamp + ellipse shadows) — links don't collide with desks; bounce is floatier than grounded Hades props. End-anchor fall can lag settle.
-4. **Punch-zoom + sil** can still briefly wash the contact frame; headless capture sometimes lands on that frame for stills (we prefer the neighbour for `10-impact-1x`).
-5. **Throw anim** is not frame-synced to art-v12 `noor_throw` release; gust spawns on key, not sheet event.
-6. **Kenney Particle Pack 403** — soft circles are original PIL, not Kenney's authored packs; sparks lack Dead Cells' chunky comic edge.
-7. `beat.mp4` is silent (screenshot sequence).
-
-## Run
-`cd game && npm install && npm run dev` → `http://localhost:5173/?impact=1&new=1` (or press **I** in the office). E at window, F to throw. Capture: `npm run build && npm run preview -- --port 5179` then `node tests/impact_lab.mjs`.
+## Still weak
+- Silhouette frames are overlays, not true RT silhouettes of Noor+door.
+- Floor plane is a y-clamp + ellipse shadows (no desk collision).
+- Throw not frame-synced to art-v12 `noor_throw`.
+- `beat.mp4` is silent (screenshot sequence).
