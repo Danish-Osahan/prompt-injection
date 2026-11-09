@@ -3,6 +3,8 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
 import { O11_DOOR } from '../office11art';
+import { TOP } from '../clarity';
+import { BAR_Y } from '../words';
 import { ImpactFX } from './ImpactFX';
 import { ChainBreak } from './ChainBreak';
 import { sfx } from '../sfx';
@@ -62,10 +64,12 @@ export class ImpactLab {
     }
 
     this.keyF = this.s.input.keyboard?.addKey('F');
-    // Keep full-width cover framing (commit 718b468) — do not pan the lab camera
-    this.s.cameras.main.setZoom(1).centerOn(640, this.s.cameras.main.height / 2);
+    // Contain framing (full room visible) — same as normal play
+    this.s.fitRoomCamera(TOP, BAR_Y);
 
-    this.s.x = 520; this.s.y = 380;
+    // Open floor near the rain window (peel OPEN), facing the lift
+    this.s.x = 880; this.s.y = 400; this.s.dir = 'NW';
+    this.s.unstick();
   }
 
   stop() {
@@ -79,9 +83,21 @@ export class ImpactLab {
     }
   }
 
-  onDummyHit(x: number, y: number) {
-    if (!this.on && !this.s.clar?.dummy) return;
-    this.fx.fire({ tier: 'light', x, y, dir: { x: 1, y: 0 } });
+  /** J-combo / throw feel. hit 1–2 = light, hit 3 = heavy. Works even when lab UI is off. */
+  onDummyHit(
+    x: number, y: number,
+    hit = 1,
+    target?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image,
+  ) {
+    if (!this.s.clar?.dummy && !this.on) return;
+    const tier = hit >= 3 ? 'heavy' : 'light';
+    const dir = { x: x - this.s.x, y: y - this.s.y };
+    this.fx.fire({
+      tier, x, y, dir,
+      attacker: this.s.noor,
+      target,
+      pausePhysics: false,
+    });
   }
 
   update(dt: number) {
@@ -103,10 +119,10 @@ export class ImpactLab {
 
     this.chain?.update(dt);
 
-    // Keep full-width cover framing — punch zoom may change zoom briefly; recentre scroll
+    // After punch-zoom eases back, keep contain framing (full room)
     const cam = this.s.cameras.main;
-    if (Math.abs(cam.scrollX + cam.width / 2 - 640) > 2 || Math.abs(cam.scrollY + cam.height / 2 - cam.height / 2) > 2) {
-      if (cam.zoom <= 1.05) cam.centerOn(640, cam.height / 2);
+    if (Math.abs(cam.zoom - this.s.frameZoom) < 0.02) {
+      cam.centerOn(640, 360);
     }
 
     const f = this.s.ctl.read();
@@ -193,11 +209,15 @@ export class ImpactLab {
     // Heavy on contact — readable flash, no Matter pause (debris must fly)
     this.fx.fire({
       tier: 'heavy', x: DOOR_CHAIN.x, y: DOOR_CHAIN.y, dir,
+      attacker: this.s.noor,
       target: this.s.clar?.door,
       pausePhysics: false,
     });
     this.chain.hit(dir, () => {
-      this.fx.fire({ tier: 'big', x: DOOR_CHAIN.x, y: DOOR_CHAIN.y, dir, pausePhysics: false });
+      this.fx.fire({
+        tier: 'big', x: DOOR_CHAIN.x, y: DOOR_CHAIN.y, dir,
+        attacker: this.s.noor, target: this.s.clar?.door, pausePhysics: false,
+      });
       this.fx.dust(DOOR_CHAIN.x, 240, dir, 10);
       this.openDoor();
     });

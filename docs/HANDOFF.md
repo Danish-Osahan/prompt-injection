@@ -317,11 +317,11 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
 ## 21j. Impact lab in-game (Phaser) — mock-steal/v13-ingame
-- Preview videos dropped. Hit feel ships **live in Phaser 4 + TS** (no Unity/Godot).
-- **Run:** `cd game && npm install && npm run dev` → `http://localhost:5173/?impact=1&new=1` (or **I** in the office). Hold **E** at the rain window for OPEN, **F** to throw. J on the dummy → light ImpactFX.
-- Chain hard rule: span ≈ 40–60% of door width; small chunky links; padlock ≈ handle size. On break: constraints removed, kinematic scatter to floor in front of the door (bounce + shadows). Padlock pops open and drops. Asserted in `tests/impact_lab.mjs`.
-- No gameplay captions in the lab (objective + floor text hidden). Debug hint only with `?debug`.
-- Full-width cover framing (718b468). Modules: `game/src/impact/{ImpactFX,ChainBreak,ImpactLab}.ts`. Capture → `mock-steal/v13-ingame/`. Credits: `CREDITS.md`.
+- **Run:** `cd game && npm install && npm run lab`  OR  `npm run dev` → `http://localhost:5173/?impact=1` (bare `?impact` = same as `npm run lab`). Hard-refresh (or clear site data) if a stale build appears — SW/caches are unregistered on load; vite sends `Cache-Control: no-store`.
+- **Isolated:** `?impact` uses a fresh **in-memory** save (`setEphemeralSave`) — never reads/writes/wipes `localStorage`. Spawn open floor near the rain window (880,400). Debug overlay **only** with `?debug` (URL only). Build stamp in the debug panel.
+- **Framing:** `fitRoomCamera` CONTAINS the full 1280×720 room in the HUD band (no top/bottom furniture crop; small side pillars). Stills: `game/screenshots/fit2/`.
+- **ImpactFX:** light = freeze + white tint + spark + 2–3px shake (NO zoom, NO screen flash). heavy = silhouette impact frame (attacker+target+spark) + speed lines + held ≤4% punch. big = 2 sil frames + stronger shake + slow-mo. Strips: `mock-steal/v13-ingame/stills/combo-sequence-strip.png`, `chain-sequence-strip.png`.
+- Hold **E** at the window for OPEN, **F** to throw. Modules: `game/src/impact/*`.
 
 ## 21i. mock-steal/v12 — full Blender beat (stop canvas composite)
 - Danishpreet killed the PIL canvas-composite path ("looks so bad"; wants it to feel like how games handle breaking/hitting). **`mock-steal/v12/`** is ONE Eevee scene: mini office set + noor12 rig throw + chunky chain/padlock + in-scene wind blobs + spark mesh + hit-stop + flat sil frames from the same scene + punch cam + door recoil→open.

@@ -27,7 +27,7 @@ async function main() {
   const browser = await chromium.launch({ headless: true });
   const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });
   page.on('console', m => { if (m.type() === 'error') console.log('ERR', m.text()); });
-  await page.goto(`${base}/?impact=1&new=1&test=1`, { waitUntil: 'networkidle', timeout: 90000 });
+  await page.goto(`${base}/?impact=1&test=1`, { waitUntil: 'networkidle', timeout: 90000 });
   await page.waitForTimeout(3000);
 
   const ready = await page.evaluate(() => {
@@ -37,9 +37,9 @@ async function main() {
     if (!s) return { ok: false, why: 'no game scene' };
     if (!s.impactLab) return { ok: false, why: 'no impactLab' };
     if (!s.impactLab.on) s.impactLab.start();
-    // Full-width cover framing (718b468) — do NOT pan off-center
-    s.cameras.main.setZoom(1).centerOn(640, s.cameras.main.height / 2);
-    s.x = 420; s.y = 340; s.dir = 'NW';
+    // Contain framing — do NOT pan off-center
+    s.fitRoomCamera?.(48, 626);
+    s.x = 880; s.y = 400; s.dir = 'NW';
     const span = s.impactLab.chain?.links?.length
       ? Math.abs(s.impactLab.chain.links[s.impactLab.chain.links.length - 1].x - s.impactLab.chain.links[0].x)
       : 0;
@@ -80,8 +80,8 @@ async function main() {
 
   await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    s.x = 420; s.y = 340; s.dir = 'NW';
-    s.cameras.main.setZoom(1).centerOn(640, s.cameras.main.height / 2);
+    s.x = 880; s.y = 400; s.dir = 'NW';
+    s.fitRoomCamera?.(48, 626);
     s.impactLab.throwGust();
   });
   console.log('thrown');

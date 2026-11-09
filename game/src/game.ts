@@ -16,7 +16,7 @@ import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
 import { bindSfxScene } from './sfx';
 import type { PlateDef } from './plate';
-import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
+import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
 const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
@@ -90,34 +90,57 @@ export class GameScene extends Phaser.Scene {
   atkPending = false; atkHeldT = 0; chargeG: Phaser.GameObjects.Graphics | null = null; aimG: Phaser.GameObjects.Graphics | null = null; beamN = 0; beamHits = 0; comboHits = 0;
   combat: CombatGreybox | null = null; combatHoldBeam = 0.85;
   impactLab: ImpactLab | null = null;
+  /** ?impact=1 — isolated in-memory lab; never touches localStorage. */
+  labMode = false;
+  buildStamp = '';
   constructor() { super('game'); }
 
   create() {
     const q = new URLSearchParams(location.search);
-    if (q.has('new')) wipeSave();
-    this.save = loadSave();
-    try { this.seenEver = JSON.parse(localStorage.getItem('pi.seenEver') ?? '[]'); } catch { this.seenEver = []; }
+    this.labMode = q.has('impact');
+    // Impact Lab: fresh isolated in-memory save. Do NOT wipe or write the player's localStorage.
+    if (this.labMode) {
+      setEphemeralSave(true);
+      this.save = freshSave();
+      this.save.room = 'office';
+      // Open floor near the rain window (not the coffee counter / old checkpoints)
+      this.save.checkpoint = { room: 'office', x: 880, y: 400, plate: null };
+    } else {
+      if (q.has('new')) wipeSave();
+      this.save = loadSave();
+    }
+    try { this.seenEver = this.labMode ? [] : JSON.parse(localStorage.getItem('pi.seenEver') ?? '[]'); } catch { this.seenEver = []; }
     recomputeGrowth(this.save);
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
     bindSfxScene(this);
     this.makeTextures();
     this.buildHud();
-    this.debugOn = q.has('debug') && q.get('debug') !== 'collision'; this.debugCollision = q.get('debug') === 'collision';
+    // Debug overlay ONLY from ?debug in the URL (no keyboard toggle, nothing persisted)
+    this.debugOn = q.has('debug') && q.get('debug') !== 'collision';
+    this.debugCollision = q.get('debug') === 'collision';
+    this.buildStamp = (typeof __PI_BUILD__ !== 'undefined' ? __PI_BUILD__ : 'dev');
     this.input.keyboard!.addCapture('W,A,S,D,SPACE,UP,DOWN,LEFT,RIGHT');
     this.setupCameras();
-    if (q.has('impact')) this.save.room = 'office';
     this.buildRoom(this.save.room, true);
     if (q.has('test')) this.installHooks();
   }
 
-  /** Caption-bar framing: world camera is full-width above the caption bar (zoom 1, slight vertical crop).
-   *  HUD/caption (scrollFactor 0) render on a separate full-screen UI camera. Clarity further insets the top for the objective bar. */
-  /** World camera fills the band above the caption bar at full width (ENVELOP / cover).
-   *  Side pillars are gone; a little top/bottom of the 1280×720 plate may crop. HUD stays on uiCam. */
+  /**
+   * Contain the full 1280×720 room in the HUD band (no top/bottom furniture crop).
+   * Largest zoom that shows the whole plate; small side pillars OK. HUD stays on uiCam.
+   */
+  fitRoomCamera(top = 0, bottom = BAR_Y) {
+    const bandH = Math.max(1, bottom - top);
+    const z = bandH / 720;                     // contain: full plate height visible
+    const vw = Math.round(1280 * z);
+    const vx = Math.round((1280 - vw) / 2);     // centre letterbox
+    this.frameZoom = z;
+    this.cameras.main.setViewport(vx, top, vw, bandH).setZoom(z).centerOn(640, 360);
+  }
   setupCameras() {
-    this.frameZoom = 1;
-    const cam = this.cameras.main; cam.setViewport(0, 0, 1280, BAR_Y).setZoom(1).centerOn(640, BAR_Y / 2);
+    this.fitRoomCamera(0, BAR_Y);
+    const cam = this.cameras.main;
     this.uiCam = this.cameras.add(0, 0, 1280, 720, false, 'ui');
     const sort = () => {
       const m = cam.id, u = this.uiCam.id;
@@ -215,7 +238,7 @@ export class GameScene extends Phaser.Scene {
     if (this.debugOn) {
       const s = this.save;
       this.debugText.setText([
-        `[debug]  room ${this.room.id}   input ${this.ctl.last}`,
+        `[debug]  build ${this.buildStamp}  room ${this.room.id}   input ${this.ctl.last}`,
         `fernGrowth ${s.fernGrowth}/10  stage ${st.name}  hint@${st.hintS}s  root ${st.rootS}s`,
         `lore ${s.lore.length}/5 [${s.lore.join(',')}]`, `helped ${s.helped.length}/3 [${s.helped.join(',')}]  wilted [${s.wilted.join(',')}]`,
         `wordLog ${s.wordLog.map(w => `${w.word}x${w.count}`).join(' ') || '-'}  (top: ${topWord(s)})`,
@@ -261,7 +284,7 @@ export class GameScene extends Phaser.Scene {
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
     this.impactLab?.stop(); this.impactLab = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
-    { this.cameras.main.setViewport(0, 0, 1280, BAR_Y).setZoom(this.frameZoom || 1).centerOn(640, BAR_Y / 2); }
+    { this.fitRoomCamera(0, BAR_Y); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
@@ -1151,7 +1174,7 @@ export class GameScene extends Phaser.Scene {
     rmT.on('pointerdown', () => { this.setReduceMotion(!this.save.settings?.reduceMotion); this.togglePause(); this.togglePause(); });
     T(620, 206, '  camera holds still: no drift, push-ins or glitch', 12, C.faint, 400, 'IBM Plex Mono');
     T(120, 270, 'controls', 14, C.cyan, 700);
-    T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  read      E  (pick up a word)', '  swap      E at another plate,', '            or drag the word chip', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  rewrite   E a sign in combat: slow-mo', '  root      R (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ` / F2'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
+    T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  read      E  (pick up a word)', '  swap      E at another plate,', '            or drag the word chip', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  rewrite   E a sign in combat: slow-mo', '  root      R (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ?debug in URL'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     T(620, 296, ['touch', '  move      drag on the left half', '  dash      DASH button', '  read      READ button', '  swap      drag the word chip onto', '            a plate (or READ at it)', '  type      TYPE button', '  backspace TYPE during a dash', '  select    hold TYPE', '  paste     TYPE after a perfect dodge', '  rewrite   READ a sign in combat', '  root      ROOT button', '  skip      hold top-right', '  menu      tap "esc menu"'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     // art-v8 journal: the lost lines, in the order of the floor
     T(120, 548, `unsent.txt  ${this.save.lines.length}/${LINES.length}`, 14, C.lamp, 700);
@@ -1167,7 +1190,6 @@ export class GameScene extends Phaser.Scene {
     const f: Frame = this.ctl.read();
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
-    if (f.debug) this.debugOn = !this.debugOn;
     if (this.paused) return;
     this.t += dt;
     this.dashCd = Math.max(0, this.dashCd - dt); this.iframes = Math.max(0, this.iframes - dt); this.comboT -= dt; this.swingT -= dt; this.sinceDash += dt;
@@ -1306,10 +1328,16 @@ export class GameScene extends Phaser.Scene {
       if (struck.some(e => e.practice) && this.clar) { this.clar.comboHits++; this.comboHits++; if (hit === 3) this.markTut('o11combo'); }
       if (struck.length) {
         this.combat?.onComboHit(hit);
-        const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
-        this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause(); this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003);
         const d = struck.find(e => e.practice) ?? struck[0];
-        this.impactLab?.onDummyHit(d.x, d.y - 40);
+        if (d.practice && this.impactLab) {
+          // ImpactFX owns freeze / spark / tint (light) or silhouette (heavy on 3rd)
+          const spr = d.g.list.find(o => (o as Phaser.GameObjects.Image).texture) as Phaser.GameObjects.Image | undefined;
+          this.impactLab.onDummyHit(d.x, d.y - 40, hit, spr);
+        } else {
+          const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
+          this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause();
+          this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003);
+        }
       }
       if (hit === 1) this.fxJab(v, struck.length > 0);
       else if (hit === 2) this.fxSlash(a0, struck.length > 0);

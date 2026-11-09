@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <meta name="screen-orientation" content="landscape" />
+<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0" />
+<meta http-equiv="Pragma" content="no-cache" />
 <title>Prompt Injection - Phase 1</title>
 <style>
   @font-face { font-family: 'JetBrains Mono'; src: url('./assets/fonts/JetBrainsMono[wght].ttf') format('truetype'); font-weight: 100 800; }
@@ -21,6 +23,15 @@
 <body>
 <div id="game"></div>
 <div id="rotate">ROTATE TO LANDSCAPE</div>
+<script>
+// Bust stale PWA / SW caches so localhost never serves an old build
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(rs => rs.forEach(r => r.unregister()));
+}
+if (window.caches) {
+  caches.keys().then(ks => ks.forEach(k => caches.delete(k)));
+}
+</script>
 <script type="module" src="./src/main.ts"></script>
 </body>
 </html>

@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview --port 4175 --strictPort",
     "playtest": "node tests/playtest.mjs",
-    "lab": "vite --open \"/?impact=1&new=1\""
+    "lab": "vite --open \"/?impact=1\""
   },
   "dependencies": {
     "phaser": "^4.2.1"

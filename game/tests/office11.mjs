@@ -1,4 +1,4 @@
-// art-v11 CLARITY office: full-width room between objective bar and caption, word tag + picker, close-up cards, one caption line,
+// art-v11 CLARITY office: full room contained between objective bar and caption, word tag + picker, close-up cards, one caption line,
 // real collision (each desk), WASD/arrows from spawn, practice dummy, breathing idle, the lift exit.
 import { open, sleep, DESKTOP } from './helpers.mjs';
 export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
@@ -10,11 +10,13 @@ export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   const sample = async () => { const q = await st(page); zooms.push(q.cam.zoom); if (q.chips.length || q.hand) chipsSeen.push(JSON.stringify(q.chips) + JSON.stringify(q.hand)); const c = q.clar; if (c && (c.capLines > 1 || c.capW > 1180)) capBad.push(c.caption); return q; };
   const chipsSeen = [], capBad = [];
   ok('office11: the clarity office is the default (old angle, no Office9 camera)', !!s.clar && !s.office9, JSON.stringify({ clar: !!s.clar, o9: !!s.office9 }));
-  ok('office11: world camera fills the HUD band full-width (no side pillars)', s.cam.y === 48 && s.cam.w === 1280 && s.cam.y + s.cam.h === s.cam.barY && s.cam.zoom >= 0.999, JSON.stringify(s.cam));
+  // Contain framing: full 1280×720 room fits in the HUD band (zoom = bandH/720); small side pillars OK.
+  const bandH = s.cam.h, expectZ = bandH / 720;
+  ok('office11: world camera CONTAINS the full room in the HUD band (no top/bottom crop)', s.cam.y === 48 && s.cam.y + s.cam.h === s.cam.barY && Math.abs(s.cam.zoom - expectZ) < 0.01 && s.cam.w === Math.round(1280 * s.cam.zoom), JSON.stringify(s.cam));
   await sleep(700); s = await sample();
   ok('office11: the scene heading shows on entry', s.clar.heading > 0.5, String(s.clar.heading));
   ok('office11: the objective reads "Get through the door"', s.clar.objective === 'Get through the door', s.clar.objective);
-  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 170 && s.clar.tag.x < 260 && s.clar.tag.y > 80 && s.clar.tag.y < 160, JSON.stringify({ ...s.clar.tag, pointer: s.clar.pointer }));
+  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 250 && s.clar.tag.x < 340 && s.clar.tag.y > 140 && s.clar.tag.y < 190, JSON.stringify({ ...s.clar.tag, pointer: s.clar.pointer }));
   await shot(page, 'v11c-01-entry');
   // MAJOR: spawn walkable + real WASD / arrows (would have caught the stuck-Noor bug)
   const spawn = (await st(page)).player;

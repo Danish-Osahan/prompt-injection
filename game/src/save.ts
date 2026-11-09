@@ -31,16 +31,27 @@ export interface Save {
 }
 
 const KEY = 'pi.save.v1';
+/** When true (Impact Lab / ?impact), never read or write localStorage — in-memory only. */
+let ephemeralSave = false;
+export function setEphemeralSave(on: boolean) { ephemeralSave = on; }
+export function isEphemeralSave() { return ephemeralSave; }
 export function freshSave(): Save {
   return { v: 1, room: 'office', checkpoint: { room: 'office', x: 110, y: 470, plate: null }, plates: {}, lore: [], helped: [], wilted: [], defeated: [],
     tutorials: [], seen: [], wordLog: [], swapLog: [], fernGrowth: 0, deaths: 0, phaseComplete: false, draftLastBarDeath: false, looked: [], lines: [], visits: {}, idle: [], toys: [] };
 }
 export function loadSave(): Save {
+  if (ephemeralSave) return freshSave();
   try { const raw = localStorage.getItem(KEY); if (raw) { const s = JSON.parse(raw); if (s && s.v === 1) return { ...freshSave(), ...s }; } } catch { /* corrupt or private mode */ }
   return freshSave();
 }
-export function writeSave(s: Save) { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ } }
-export function wipeSave() { try { localStorage.removeItem(KEY); } catch { /* */ } }
+export function writeSave(s: Save) {
+  if (ephemeralSave) return; // leave the player's real save untouched
+  try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ }
+}
+export function wipeSave() {
+  if (ephemeralSave) return; // never wipe real save from the lab
+  try { localStorage.removeItem(KEY); } catch { /* */ }
+}
 
 /** Recompute growth from the logged events, so it can never drift. Phase 1 max 10. */
 export function recomputeGrowth(s: Save) {
