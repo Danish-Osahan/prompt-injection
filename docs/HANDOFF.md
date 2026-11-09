@@ -316,6 +316,9 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21a. Story: power rewrite (steal qualities)
+- Draft for owner read: **`docs/story/power-rewrite.md`**. How/why Noor peels descriptions; Phase 1 room beats; Draft; echo seeding; retired READ/captions. No code change yet.
+
 ## 21. Steal-qualities v4 (9 Nov 2026)
 - v3 feedback: lock looked like scattered blobs / too big; wind too faint without hits.
 - **v4 lock:** in-scene tidy horizontal chain across door seam + normal padlock (bright rim metal) + red LED by keypad (`STEALV4=1` → `steal_v4_office.py`). Not oversized.
