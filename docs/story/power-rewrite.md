@@ -3,6 +3,8 @@
 *Writing only. For Danishpreet to read before art or code changes.*  
 *Grounded in `phase-1-after-hours.md`, `phase-1-script.md`, `phase-1-levels.md`, `enemies.md`, and the steal-qualities direction.*
 
+*Gameplay rules + full Phase 1 room flow (compatibility, Undo, edge cases, loophole checklist): **`docs/design/power-rules.md`**. The five open questions in §8 stay open.*
+
 ---
 
 ## 1. What changes, what stays
@@ -47,9 +49,10 @@ Physical, readable states — the ones players already meet as plates:
 Later floors can add ALL/ONE, DENIED/OPEN, etc., as *qualities of paperwork*, not as words printed on enemies.
 
 ### Limits and cost
-- **One quality at a time** in Phase 1 (later: two, if we want the orbiting ink).  
+- **One quality at a time** in Phase 1 (hard rule in `power-rules.md`; combat.md’s older “max 2 orbiting” is superseded for Phase 1).  
 - **Range:** She must stand near the source to take; throw is short — arm’s reach plus a short flight.  
-- **Cost — ink thinness:** Each peel costs a little of her. After a heavy steal, her edges may soft-glitch, her footfalls go quieter, the lamp light around her washes out for a beat. Fern can notice. This is the same economy as “she is made of words” — spend too freely and she feels thinner. It is a *hint*, not a fail state in Phase 1.  
+- **Compatibility / Undo / threshold snap / soft-lock:** see `power-rules.md` §§A–B. Wrong throws splash home; rooms don’t export held ink.  
+- **Cost — ink thinness:** Each peel costs a little of her. After a heavy steal, her edges may soft-glitch, her footfalls go quieter, the lamp light around her washes out for a beat. Fern can notice. This is the same economy as “she is made of words” — spend too freely and she feels thinner. It is a *hint*, not a fail state in Phase 1. (**Pending Q1** — whether P1 shows this.)  
 - **Cannot peel people.** Living copies (Draft, Echo later) do not volunteer their qualities; she cracks them by throwing the right world quality *onto* them, or by fighting.  
 - **Awake things fight back.** Fern, the Caret, and anything that casts a shadow will not casually give up their nature. Fern’s “good morning” loyalty is not a free battery.
 

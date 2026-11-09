@@ -318,6 +318,7 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 
 ## 21a. Story: power rewrite (steal qualities)
 - Draft for owner read: **`docs/story/power-rewrite.md`**. How/why Noor peels descriptions; Phase 1 room beats; Draft; echo seeding; retired READ/captions. No code change yet.
+- Design rules + full Phase 1 room flow: **`docs/design/power-rules.md`** (compatibility, one-held, Undo, enemy counters, edge cases, loophole checklist). Open questions in power-rewrite §8 still deferred.
 
 ## 21. Steal-qualities v4 (9 Nov 2026)
 - v3 feedback: lock looked like scattered blobs / too big; wind too faint without hits.

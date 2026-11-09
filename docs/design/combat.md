@@ -130,9 +130,9 @@ N/S facing: keep the 40° cheat from art-v12b so the arm reads.
 ## 3. Diegetic word rules (combat) — locked 9 Nov 2026 (no labels on creatures)
 
 1. **Enemies never wear text.** Their trait is the material look: chrome plating (Stapler), glossy red pen + skid marks (Redline), dense tangled ink (Scribble). The practice dummy has a metal plate strapped on — no ARMORED tag.
-2. **Words live only on world surfaces** that would really have text: printer tray **PAPER**, wet-floor sign **SLOW**, cooler label **WET**, window etch **GLASS**. Holding READ makes peelable labels glow.
-3. Peel → carry (max 2, orbiting ink glyphs). **Throw is explicit:** tap a carried glyph to arm it, then **F** / **THROW** button. Attack (J / TYPE) is always combo / beam — it never auto-throws.
-4. A thrown word **physically transforms** the enemy over ~0.3 s (splat → morph). Caption names the word once (`PAPER — flimsy. One hit left.`). No text is drawn on the body.
+2. **Qualities live on inked world surfaces** (typed about a lot): printer scrap **paper**, wet-floor sign **slow**, cooler **wet**, window etch **glass**. Peelables **shimmer** when Noor is close — this replaces HOLD READ glow (see `docs/design/power-rules.md`). No text is required on the object for the player to act.
+3. Peel → carry **one** quality in Phase 1 (older “max 2 orbiting glyphs” deferred). **Throw is explicit:** **F** / **THROW**. Attack (J) is always combo / beam — it never auto-throws. Incompatible throws splash and rebound to source.
+4. A thrown quality **physically transforms** the enemy over ~0.3 s (splat → morph). Optional one-line caption may name the effect once (`paper — flimsy. One hit left.`). No text is drawn on the body.
 5. Word Memory (`phase-1-systems.md`) still logs every throw for later phases.
 
 ### 3.1 Transform matrix (any word × any foe)
