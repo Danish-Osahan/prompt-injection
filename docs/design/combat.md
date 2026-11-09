@@ -386,7 +386,7 @@ Sticky Swarm and Eraser Brute enter greybox pass 2 once the first three feel rig
 - A fresh playtester understands peel→throw from the dummy tutorial alone (no text wall).
 - No soft-lock: ink=0 still allows bare combo + dash clears, just slower.
 
-**No Blender rendering** until greybox pass/fail is signed off by the owner.
+**Greybox status (9 Nov 2026):** built into the clarity office behind `?combat=1` (`game/src/combat/greybox.ts`). Owner locks above applied. **No Blender rendering** until greybox pass/fail is signed off by the owner.
 
 ---
 

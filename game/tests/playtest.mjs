@@ -4,6 +4,7 @@
 import { spawn } from 'node:child_process';
 import { launch, open, sleep, MOBILE, DESKTOP } from './helpers.mjs';
 import { office11 } from './office11.mjs';
+import { combatGreybox } from './combat_greybox.mjs';
 const PORT = 4175;
 const URL_ = process.env.GAME_URL ?? `http://localhost:${PORT}/?test=1&new=1`;
 const SHOTS = new URL('../screenshots/', import.meta.url).pathname;
@@ -459,7 +460,7 @@ async function mobile(browser) {
 const server = await serve();
 const browser = await launch();
 const T11 = { ok, st, pi, waitFor, shot, URL_ };
-try { if (process.env.ONLY_V11) { await office11(browser, T11); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
+try { if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_V11) { await office11(browser, T11); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, T11); await combatGreybox(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, e.message + (process.env.ONLY_LINGER ? ' ' + e.stack : '')); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);

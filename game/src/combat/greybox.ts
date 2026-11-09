@@ -143,11 +143,11 @@ export class CombatGreybox {
       e.word = 'SHIELDED'; e.shielded = true; e.material = 'shielded';
       this.addPaint({ id: 'st_' + s.enemies.length, word: 'SHIELDED', owner: 'enemy', enemy: e, x, y: y - 40, style: 'stencil', col: '#88a0b0' });
     }
-    s.enemies.push(e); s.objs.push(g);
+    s.enemies.push(e); this.spawned.push(e); s.objs.push(g);
     return e;
   }
 
-  private drawBody(body: Phaser.GameObjects.Graphics, kind: GBKind, paper: boolean, shielded: boolean) {
+  drawBody(body: Phaser.GameObjects.Graphics, kind: GBKind, paper: boolean, shielded: boolean) {
     body.clear();
     if (kind === 'scribble') {
       const col = paper ? 0xc8c0a8 : 0x0c0e1e;
@@ -770,8 +770,8 @@ export class CombatGreybox {
     return {
       ink: this.ink, carried: [...this.carried], beamCd: this.beamCd,
       paints: this.paints.map(p => ({ id: p.id, word: p.word, peeled: !!p.peeled, owner: p.owner, x: p.x, y: p.y })),
-      enemies: this.spawned.map(e => ({
-        kind: (e as Enemy & { gb?: string }).gb, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state,
+      enemies: this.s.enemies.filter(e => !!(e as Enemy & { gb?: string }).gb || e.practice).map(e => ({
+        kind: (e as Enemy & { gb?: string }).gb ?? (e.practice ? 'dummy' : e.kind), x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state,
         word: (e as Enemy & { word?: string }).word, material: (e as Enemy & { material?: string }).material,
         shielded: !!(e as Enemy & { shielded?: boolean }).shielded, slow: !!(e as Enemy & { slow?: boolean }).slow,
       })),

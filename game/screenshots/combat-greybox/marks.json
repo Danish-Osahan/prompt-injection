@@ -1,0 +1,49 @@
+{
+ "marks": [
+  [
+   "overview",
+   5.564
+  ],
+  [
+   "combo",
+   6.057
+  ],
+  [
+   "/combo",
+   9.495
+  ],
+  [
+   "throw",
+   9.857
+  ],
+  [
+   "/throw",
+   11.309
+  ],
+  [
+   "redline",
+   11.359
+  ],
+  [
+   "/redline",
+   17.283
+  ],
+  [
+   "beam",
+   17.325
+  ],
+  [
+   "/beam",
+   19.568
+  ],
+  [
+   "stapler",
+   19.904
+  ],
+  [
+   "/stapler",
+   22.426
+  ]
+ ],
+ "video": "/tmp/motion_combat/page@c86c3aae597f517782c6391804a462ea.webm"
+}

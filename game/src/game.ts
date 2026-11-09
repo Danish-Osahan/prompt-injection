@@ -1462,6 +1462,8 @@ export class GameScene extends Phaser.Scene {
         const c = this.combat; if (!c) return false;
         if (k === 'ink') { c.ink = Number(a); return c.ink; }
         if (k === 'give') { c.carried.push(a ?? 'PAPER'); return c.carried; }
+        if (k === 'clear') { c.carried = []; return true; }
+        if (k === 'unshield') { const e = this.enemies.find(en => !en.dead && (en as { gb?: string }).gb === 'stapler'); if (!e) return false; (e as { shielded?: boolean }).shielded = false; c.drawBody(e.body, 'stapler', false, false); for (const p of c.paints) if (p.enemy === e && p.word === 'SHIELDED') p.peeled = true; return true; }
         if (k === 'peel') return c.tryPeel();
         if (k === 'throw') return c.tryThrow();
         if (k === 'beam') return c.fireBeam();

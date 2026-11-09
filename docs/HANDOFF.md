@@ -286,8 +286,9 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Preview: `mock-attack/` (README has the timing table and weak spots). To wire in: add the sheets to `boot.ts SHEETS`, play with per-frame `dur_ms`, apply `hitstop_ms` to Noor + target, move Noor by `step_px*0.78`, spawn words/beam at `hand[dir][k]`.
 - Beam v2 (art-v12b): `noor12.py` new charge_in/charge_hold/release (braced stance `wide`, arm scale `sr/sl`, hair/coat `blow`, N/S `CHEAT` 40 deg, no smears); FX are canvas in `mock-attack/index.html` (`beamShot`, `chargeFX`, `beamFX`). Render only those: `CHEAT='{"N": 40, "S": 40}' blender -b --python art/tools/noor12.py -- charge_in,charge_hold,release art/render/sprites12 24` (~6 min), then `pack12.py`, `closeups12.py`.
 
-## 16. Close-combat design (locked direction, 9 Nov 2026)
+## 16. Close-combat design + office greybox (9 Nov 2026)
 - Phase 1 combat is **close combat**: 3-hit combo, dash, diegetic peel/throw of painted words, and a **short-range beam finisher** (long charge, high ink cost). Drag-line SELECT and hold-0.22s beam spam are out.
-- Full numbers, enemy roster (Scribble, Redline, Stapler, Sticky Swarm, Eraser Brute, Draft melee rework), ink meter, hit-stop, room pacing and greybox plan: **`docs/design/combat.md`**.
-- Diegetic words: `mock-diegetic/`. Noor attack preview (not wired): `mock-attack/` + HANDOFF §15. No new Blender until greybox pass/fail.
-- Next build step: office greybox behind `?combat=1` with Scribble → Redline → Stapler placeholder shapes.
+- Full numbers, enemy roster, ink, hit-stop, pacing: **`docs/design/combat.md`**. Owner locks: Archive elite = Eraser Brute; office dummy = ARMORED→PAPER; beam room reactions ship as simple code FX in greybox.
+- **Greybox (built):** open `?combat=1` (optional `&tune=1`) on the clarity office. Code: `game/src/combat/greybox.ts` + `tune.ts`. Placeholder Scribble / Redline / Stapler with telegraphs, ink meter, peel/throw, short beam (96 px, 0.85 s hold) with paper-flutter / light-dip / scorched-trail. Art-v12 sheets load from `game/public/assets/sprites12/` when present.
+- Tests: `ONLY_COMBAT=1 npm run playtest` (`tests/combat_greybox.mjs`, also runs in the full suite). Clips: `game/screenshots/combat-greybox/` (`node tests/motion_combat.mjs`).
+- Next: greybox pass/fail with the owner, then Sticky Swarm + Eraser Brute, then wire attack sheets into non-flag combat and roll clarity collision to other rooms. No new Blender until greybox is signed off.
