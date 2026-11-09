@@ -123,6 +123,30 @@ PLAN = {
              F(c=.35, lean=-1, tw=-16, ar=D(.7, .2, -.3), sr=1.12, al=D(.5, -.1, -.6), sl=1.04, wide=11, dz=-.02, glow=.2, blow=(0, -4), step=-5),
              F(c=.2, lean=0, tw=-6, ar=D(.4, .3, -.7), wide=6, dz=-.01, step=-5),
              F(step=-5)],
+ # STEAL QUALITIES (v2 beat): exaggerated for ~50px game scale — brace+claw pull, full-arm hurl
+ # pull: plant 0-1, reach+claw both hands 2-3, brace lean-back 4-5 (RIP), recoil hold 6-7, settle 8-9
+ 'pull': [F(c=.2, lean=6, hd=4, ar=D(.4, .5, -.6), al=D(.4, -.5, -.6)),
+          F(c=.35, lean=10, hd=8, ar=D(.7, .4, -.2), al=D(.7, -.4, -.2), pinch=1, step=2),
+          F(c=.45, lean=16, hd=10, ar=D(1.0, .25, .05), al=D(1.0, -.25, .05), pinch=1, step=4),
+          F(c=.55, lean=18, hd=12, ar=D(1.05, .15, .1), al=D(1.05, -.15, .1), pinch=1, step=5, ev='claw'),
+          F(c=.6, lean=-14, hd=8, ar=D(.55, .35, -.15), al=D(.55, -.35, -.15), pinch=0, dz=-.02, step=3, ev='rip'),
+          F(c=.65, lean=-22, hd=6, ar=D(.35, .4, -.35), al=D(.35, -.4, -.35), pinch=0, dz=-.03, step=2),
+          F(c=.55, lean=-18, tw=-8, ar=D(.45, .3, -.25), al=D(.2, -.5, -.5), pinch=0, dz=-.02),
+          F(c=.4, lean=-10, tw=-4, ar=D(.5, .2, -.4), al=D(.15, -.4, -.7), pinch=0, dz=-.01),
+          F(c=.2, lean=-2, ar=D(.4, .25, -.7), al=D(.2, -.3, -.8)),
+          F(lean=0, ar=D(.3, .3, -.9), al=D(.25, -.25, -.9))],
+ # hurl: antic coil 0-2, smear 3, SNAP release 4, deep follow-through 5-7, recover 8-9
+ 'hurl': [F(c=.25, lean=-8, tw=28, ar=D(-.6, .55, -.2), al=D(.5, .3, -.8), dz=-.01),
+          F(c=.4, lean=-14, tw=42, ar=D(-.7, .35, .85), al=D(.85, .05, -.15), dz=-.02),
+          F(c=.5, lean=-18, tw=48, ar=D(-.95, .2, .75), al=D(1.0, -.1, .05), dz=-.025),
+          F(c=.45, lean=2, tw=12, ar=D(.2, .25, 1.05), al=D(.55, .15, -.4), sm=True, step=5),
+          F(c=.5, lean=18, tw=-18, ar=D(1.1, .0, .35), al=D(-.4, .45, -.7), dz=-.03, step=10, ev='release'),
+          F(c=.55, lean=22, tw=-36, ar=D(.85, -.75, -.35), al=D(-.55, .4, -.6), dz=-.035, step=12),
+          F(c=.5, lean=20, tw=-40, ar=D(.7, -.85, -.45), al=D(-.55, .4, -.6), dz=-.03, step=12),
+          F(c=.35, lean=10, tw=-20, ar=D(.45, -.35, -.7), al=D(-.2, .35, -.8), step=10),
+          F(c=.15, lean=2, tw=-6, ar=D(.2, .25, -.95), step=8),
+          F(step=6)],
+
 }
 LOOPS = {'charge_hold'}
 BEAM = {'charge_in', 'charge_hold', 'release'}

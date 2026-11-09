@@ -299,4 +299,12 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 
 ## 18. Steal-qualities preview mock (9 Nov 2026)
 - Playtest rejected code-vision READ + hovering word tags (too much text / confusing).
-- Approved direction preview: **`mock-steal/`** — physical object states, E take / F throw / J attack, no words on objects or enemies. Clip `mock-steal/flow.mp4` + stills. Not wired into `game/src` yet; waiting on owner sign-off.
+- Approved direction preview: **`mock-steal/`** — physical object states, E take / F throw / J attack, no words on objects or enemies. Clip `mock-steal/flow.mp4` + stills. Not wired into `game/src` yet.
+- Owner liked the idea but called v1 animation/FX sloppy → v2 Blender window→door beat (see §19).
+
+## 19. Steal-qualities v2 window→door beat (9 Nov 2026)
+- Scope: **only** the window→door teach beat (~8.2 s), Blender-rendered main elements. Cooler / Scribble left for later. No `game/src` wiring.
+- Outputs: `mock-steal/v2/beat.mp4`, `beat.gif`, `compare.mp4` (v1 vs v2), `stills/` (6 key + pull/throw 2× close-ups).
+- Pipeline: `noor12.py` new `pull` + `hurl` plans (E,N @ 24 spp) → `art/render/steal_noor/`; `steal_props.py` + `steal_ribbon3.py` → chains/padlock/curtains/rain/ribbon in `art/render/steal_props/`; `compose_steal_v2.py` layers onto clarity `office.jpg` + `office11` lift frames. Camera push-in / shake / glow = code glue only.
+- Cost: Noor ~28 s; props+ribbon fix passes ~1 min total CPU Cycles; composite ~30 s. Did **not** re-render unrelated office sheets. Sheets ≤ 640 px.
+- Weak spots: ribbon **flight** still flatter than wrap (bezier stamps); curtains are composited sheets not in-scene cloth; slow-mo is timing+zoom not subframe re-renders. Judge quality from `v2/beat.mp4` + stills before any gameplay rewrite.
