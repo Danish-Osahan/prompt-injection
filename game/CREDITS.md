@@ -35,3 +35,11 @@ Original procedural PIL textures under `public/assets/fx/` (no third-party image
 - `smoke_soft.png`, `dust_puff.png` — soft smoke/dust (our own)
 - `chain_link.png`, `padlock.png`, `padlock_open.png` — Matter.js chain + padlock (our own)
 SFX: Kenney Impact Sounds / Interface Sounds where used (CC0, kenney.nl); whoosh/clank/snap/bounce synthesized or from Kenney CC0 packs — see `public/assets/sfx/` filenames.
+
+## Dead lift / spark steal (Nov 2026)
+Original procedural PIL under `public/assets/fx/` (CC0, no third-party images):
+- `lamp_on.png`, `lamp_off.png` — flickering desk lamp source
+- `lift_panel_dead.png`, `lift_panel_live.png`, `lift_panel_cracked.png`, `lift_panel_cover.png` — call panel + cover debris
+- `spark_orb_0..3.png` — held electric quality
+- `lightning_0..3.png` — jagged branching bolt projectile
+- `spark_pop.png`, `lift_floor_ind_off/on.png`, `key_e.png`, `key_f.png` — sparks, floor indicator, UI key glyphs

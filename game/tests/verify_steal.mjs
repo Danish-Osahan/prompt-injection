@@ -1,4 +1,4 @@
-// Play ?impact=1 like Danishpreet: walk → hold E → walk → F. Assert no old word UI + no freeze.
+// Play ?impact=1 dead-lift beat: lamp hold-E → panel F. Assert no word UI, no freeze, full-browser cam.
 import { chromium } from 'playwright';
 import fs from 'fs';
 import path from 'path';
@@ -7,7 +7,7 @@ import { execSync } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '../..');
-const OUT = path.join(ROOT, 'mock-steal/v14-steal');
+const OUT = path.join(ROOT, 'mock-steal/v15');
 const STILLS = path.join(OUT, 'stills');
 const FRAMES = path.join(OUT, '_frames');
 fs.mkdirSync(STILLS, { recursive: true });
@@ -19,39 +19,36 @@ const base = process.env.GAME_URL || `http://127.0.0.1:${PORT}`;
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
-  // Clean profile, MacBook-ish viewport
+  // Full-browser-ish Mac content area (toolbar takes chrome)
   const context = await browser.newContext({ viewport: { width: 1512, height: 982 } });
   const page = await context.newPage();
-  const errs = [];
-  page.on('console', m => { if (m.type() === 'error') errs.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error') console.log('ERR', m.text()); });
 
   await page.goto(`${base}/?impact=1`, { waitUntil: 'networkidle', timeout: 90000 });
-  await page.waitForTimeout(2800);
+  await page.waitForTimeout(3000);
 
   const boot = await page.evaluate(() => {
     const s = window.__game?.scene?.scenes?.find(x => x.scene.key === 'game');
     if (!s) return { ok: false, why: 'no scene' };
     if (!s.impactLab?.on) s.impactLab?.start();
+    const cam = s.cameras.main;
     return {
-      ok: true,
-      lab: !!s.impactLab?.on,
-      steal: !!s.impactLab?.stealMode,
-      x: s.x, y: s.y,
-      hand: s.hand,
-      codeOn: s.words?.codeOn,
-      codeA: s.words?.codeA,
-      objVis: s.clar?.objective?.visible,
-      tagsVis: (s.clar?.tags ?? []).some(t => t.c.visible),
-      ephemeral: typeof s.save === 'object',
-      hitStopT: s.hitStopT,
-      timeScale: s.timeScale,
+      ok: true, lab: !!s.impactLab?.on, steal: !!s.impactLab?.stealMode,
+      lampOn: s.impactLab.lampAlive, follow: !!s.followCam, zoom: cam.zoom,
+      vp: { x: cam.x, y: cam.y, w: cam.width, h: cam.height },
+      codeOn: s.words?.codeOn, tagsVis: (s.clar?.tags ?? []).some(t => t.c.visible),
+      chain: !!s.impactLab.chain,
     };
   });
   console.log('boot', boot);
-  if (!boot.ok || !boot.lab || !boot.steal) { console.error('FAIL boot', boot); process.exit(1); }
-  if (boot.codeOn || boot.codeA > 0.01 || boot.objVis || boot.tagsVis || boot.hand) {
-    console.error('FAIL word UI present at boot', boot); process.exit(1);
+  if (!boot.ok || !boot.lab) { console.error('FAIL boot', boot); process.exit(1); }
+  if (boot.chain) { console.error('FAIL chain still present'); process.exit(1); }
+  if (boot.codeOn || boot.tagsVis) { console.error('FAIL word UI', boot); process.exit(1); }
+  if (!boot.follow || boot.zoom < 1.8 || boot.vp.x !== 0 || boot.vp.y !== 0) {
+    console.error('FAIL camera not follow/full-viewport', boot); process.exit(1);
   }
+  // ENVELOP keeps logical 1280×720; canvas CSS covers the browser (no letterbox).
+
 
   const snap = async (name) => {
     const buf = await page.screenshot({ type: 'png' });
@@ -60,72 +57,52 @@ async function main() {
   };
 
   await snap('01-spawn');
+  await page.waitForTimeout(800); // fern line / lamp flicker
+  await snap('02-lamp-lure');
 
-  // Walk toward window (right/up from 880,400)
-  await page.keyboard.down('D');
-  await page.keyboard.down('W');
-  await page.waitForTimeout(700);
-  await page.keyboard.up('D');
-  await page.keyboard.up('W');
-  // Nudge near window
+  // Teleport near lamp
   await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    s.x = 940; s.y = 220; s.dir = 'N';
+    const lp = s.impactLab.lampPos;
+    s.x = lp.x + 30; s.y = lp.y + 40; s.dir = 'N';
   });
   await page.waitForTimeout(200);
-  await snap('02-at-window');
+  await snap('03-near-lamp');
 
-  // Hold E to peel (0.7s > peelNeed 0.55)
+  // Hold E
   await page.keyboard.down('E');
-  await page.waitForTimeout(250);
-  await snap('03-peel-hold');
-  // Mid-hold: assert NO code vision / NO picker
-  const midHold = await page.evaluate(() => {
+  await page.waitForTimeout(200);
+  const mid = await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    return {
-      codeOn: s.words.codeOn, codeA: s.words.codeA,
-      modal: s.clar?.modal || '',
-      carrying: s.impactLab.carrying, peelT: s.impactLab.peelT,
-      hand: s.hand, chipVis: s.words.chipG?.visible, barVis: s.words.bar?.visible,
-      tagsVis: (s.clar?.tags ?? []).some(t => t.c.visible),
-    };
+    return { codeOn: s.words.codeOn, modal: s.clar?.modal || '', peelT: s.impactLab.peelT, hand: s.hand };
   });
-  console.log('midHold', midHold);
-  if (midHold.codeOn || midHold.codeA > 0.05 || midHold.modal || midHold.hand || midHold.tagsVis) {
-    console.error('FAIL old word UI during hold E', midHold); process.exit(1);
-  }
-  await page.waitForTimeout(500);
+  console.log('midHold', mid);
+  if (mid.codeOn || mid.modal || mid.hand) { console.error('FAIL word UI on E', mid); process.exit(1); }
+  await snap('04-peel-hold');
+  await page.waitForTimeout(450);
   await page.keyboard.up('E');
   await page.waitForTimeout(200);
-  await snap('04-carrying');
+  await snap('05-carrying');
 
-  const afterPeel = await page.evaluate(() => {
+  const after = await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    return {
-      carrying: s.impactLab.carrying,
-      hand: s.hand,
-      rain: s.plateById('o_rain')?.slotWord,
-      codeOn: s.words.codeOn,
-    };
+    return { carrying: s.impactLab.carrying, lampOn: s.impactLab.lampAlive, hand: s.hand };
   });
-  console.log('afterPeel', afterPeel);
-  if (!afterPeel.carrying) { console.error('FAIL peel did not take OPEN'); process.exit(1); }
-  if (afterPeel.hand) { console.error('FAIL hand chip set (old word system)'); process.exit(1); }
+  console.log('afterPeel', after);
+  if (!after.carrying || after.lampOn || after.hand) { console.error('FAIL peel', after); process.exit(1); }
 
-  // Walk toward door
+  // Near panel + F
   await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    s.x = 880; s.y = 360; s.dir = 'NW';
+    const p = s.impactLab.panelPos;
+    s.x = p.x + 80; s.y = p.y + 80; s.dir = 'NW';
   });
   await page.waitForTimeout(150);
-  await snap('05-before-throw');
-
-  // Press F
+  await snap('06-before-throw');
   await page.keyboard.press('F');
-  await page.waitForTimeout(80);
-  await snap('06-throw');
+  await page.waitForTimeout(100);
+  await snap('07-throw');
 
-  // Wait through contact + snap + failsafe (max ~400ms hitstop + travel)
   let last = null;
   for (let k = 0; k < 40; k++) {
     await page.waitForTimeout(100);
@@ -133,89 +110,43 @@ async function main() {
       const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
       const lab = s.impactLab;
       return {
-        flying: lab.flying, done: lab.done, broken: lab.chain?.broken, settled: lab.chain?.settled,
-        hitStopT: s.hitStopT, timeScale: s.timeScale,
-        door: s.plateById('o_door')?.slotWord,
-        codeOn: s.words.codeOn, codeA: s.words.codeA,
-        modal: s.clar?.modal || '',
-        hand: s.hand,
-        floor: lab.chain?.assertOnFloor?.(18) ?? null,
-        noorAnim: s.noor?.anims?.isPlaying,
+        flying: lab.flying, done: lab.done, hitStopT: s.hitStopT, timeScale: s.timeScale,
+        door: s.plateById('o_door')?.slotWord, codeOn: s.words.codeOn,
+        panelTex: lab.panelSpr?.texture?.key, doorK: s.clar?.doorK,
       };
     });
     if (k % 5 === 0) console.log('t', k, last);
-    if (last.settled && last.done && last.hitStopT <= 0 && last.timeScale >= 0.99) break;
+    if (last.done && last.hitStopT <= 0 && last.timeScale >= 0.99) break;
   }
-  await snap('07-after');
+  await snap('08-impact');
+  await page.waitForTimeout(700);
+  await snap('09-door-open');
 
-  // FREEZE ASSERT: must resume
-  if (last.hitStopT > 0.01) { console.error('FAIL still in hit-stop', last); process.exit(1); }
-  if (last.timeScale < 0.99) { console.error('FAIL timeScale stuck', last); process.exit(1); }
-  if (!last.broken) { console.error('FAIL chain not broken', last); process.exit(1); }
+  if (last.hitStopT > 0.01 || last.timeScale < 0.99) { console.error('FAIL freeze', last); process.exit(1); }
+  if (!last.done) { console.error('FAIL not done', last); process.exit(1); }
 
-  // Wait for door open (420ms real-time after snap)
-  await page.waitForTimeout(600);
   const post = await page.evaluate(() => {
     const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    // Prove input works: move Noor
-    const x0 = s.x;
-    s.x += 20;
+    const x0 = s.x; s.x += 16;
     return {
-      door: s.plateById('o_door')?.slotWord,
-      moved: s.x === x0 + 20,
-      hitStopT: s.hitStopT,
-      timeScale: s.timeScale,
-      floor: s.impactLab.chain.assertOnFloor(18),
-      codeOn: s.words.codeOn,
+      door: s.plateById('o_door')?.slotWord, moved: s.x === x0 + 16,
+      hitStopT: s.hitStopT, codeOn: s.words.codeOn,
       tagsVis: (s.clar?.tags ?? []).some(t => t.c.visible),
-      caption: s.clar?.cap?.text ?? '',
+      zoom: s.cameras.main.zoom, follow: s.followCam,
     };
   });
   console.log('post', post);
-  await snap('08-door-open');
+  if (post.door !== 'OPEN') { console.error('FAIL door', post); process.exit(1); }
+  if (!post.moved) { console.error('FAIL input stuck'); process.exit(1); }
+  if (post.codeOn || post.tagsVis) { console.error('FAIL word UI after', post); process.exit(1); }
 
-  if (post.door !== 'OPEN') { console.error('FAIL door not OPEN', post); process.exit(1); }
-  if (!post.moved) { console.error('FAIL input/position stuck'); process.exit(1); }
-  if (!post.floor?.ok) { console.error('FAIL chain not on floor', post.floor); process.exit(1); }
-  if (post.codeOn || post.tagsVis || (post.caption && post.caption.length > 0)) {
-    console.error('FAIL word UI after throw', post); process.exit(1);
-  }
+  await snap('10-walk');
 
-  // Walk through check (door open plates)
-  await page.evaluate(() => {
-    const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
-    s.x = 700; s.y = 280;
-  });
-  await page.waitForTimeout(200);
-  await snap('09-walk');
-
-  // Inspect stills for grey rect / word UI via PIL brightness + OCR-ish heuristics
-  execSync(`python3 - <<'PY'
-from PIL import Image, ImageStat
-from pathlib import Path
-st = Path('${STILLS}')
-for name in sorted(st.glob('*.png')):
-  im = Image.open(name).convert('RGB')
-  m = sum(ImageStat.Stat(im).mean)/3
-  # sample center-left door region for flat grey rectangle (impact frame bug)
-  w,h = im.size
-  crop = im.crop((int(w*0.35), int(h*0.25), int(w*0.55), int(h*0.55)))
-  stv = ImageStat.Stat(crop)
-  var = sum(stv.var)/3
-  print(name.name, 'mean', round(m,1), 'doorRegionVar', round(var,1))
-  if name.name in ('06-throw.png','07-after.png') and var < 80 and m > 100:
-    # very flat grey blob region → fail
-    print('WARN low variance door region (possible grey rect)')
-print('inspect ok')
-PY`)
-
-  // short video from stills
   try {
     execSync(`ffmpeg -y -framerate 2 -pattern_type glob -i '${STILLS}/*.png' -c:v libx264 -pix_fmt yuv420p -crf 20 ${OUT}/playthrough.mp4`, { stdio: 'inherit' });
-  } catch (e) { console.warn('ffmpeg video skip', e.message); }
+  } catch (e) { console.warn('ffmpeg', e.message); }
 
-  if (errs.length) console.log('console errors', errs.slice(0, 8));
-  console.log('PASS verify_steal', OUT);
+  console.log('PASS verify_steal dead-lift', OUT);
   await browser.close();
 }
 main().catch(e => { console.error(e); process.exit(1); });

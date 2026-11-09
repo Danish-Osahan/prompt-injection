@@ -14,7 +14,7 @@ async function start() {
     type: Phaser.AUTO,
     parent: 'game',
     backgroundColor: '#04080c',
-    scale: { mode: Phaser.Scale.FIT, autoCenter: Phaser.Scale.CENTER_BOTH, width: 1280, height: 720 },
+    scale: { mode: Phaser.Scale.ENVELOP, autoCenter: Phaser.Scale.CENTER_BOTH, width: 1280, height: 720 },
     input: { activePointers: 4 },
     physics: {
       default: 'matter',

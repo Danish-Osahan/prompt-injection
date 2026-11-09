@@ -316,13 +316,14 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
-## 21j. Steal mechanic in-game (Phaser Impact Lab) — mock-steal/v14-steal
-- **Run:** `cd game && npm install && npm run lab`  OR  `npm run dev` → `http://localhost:5173/?impact=1` (bare `?impact` = same as `npm run lab`). Hard-refresh if a stale build appears — SW/caches unregistered on load; vite `Cache-Control: no-store`. Verify stamp with `?impact=1&debug=1`.
-- **Isolated:** fresh **in-memory** save — never touches `localStorage`. Spawn (880,400). Debug overlay **only** with `?debug`.
-- **OLD WORD SYSTEM OFF** under `?impact`: no READ/code vision on E, no SAD/HAPPY picker, no OPEN/SHUT chips, no captions/tags. Words only in dialogue/story. E is hold-to-peel only.
-- **Steal flow:** hold E near window → OPEN rips as tapered wind streaks (v7), window shuts / rain stops → gust swirls on hand → F throw → heavy contact + big snap → Matter chain falls to floor → door opens. J on dummy = light/heavy ImpactFX.
-- **ImpactFX:** silhouettes from real sprite alpha (Noor + chain links) — NEVER the door JPG (that was the grey rectangle). Hit-stop resumes on real `setTimeout` with 400ms failsafe. Verify: `node tests/verify_steal.mjs` → `mock-steal/v14-steal/`.
-- **Framing:** `fitRoomCamera` contain. Modules: `game/src/impact/*`. Spec: `docs/design/power-rules.md`, `docs/design/impact-spec.md`.
+## 21j. Dead lift / spark steal (Phaser Impact Lab) — mock-steal/v15
+- **Run:** `cd game && npm install && npm run lab` → `/?impact=1`. Hard-refresh if stale. `?debug` for stamp.
+- **Isolated** in-memory save. **Old word system OFF** (no READ / chips / pickers / captions).
+- **Beat:** flickering desk lamp (near-glow + hold-E glyph) → peel SPARK (lamp dies, crackling orb on hand) → dead call panel pulses + F glyph → jagged lightning zap → big impact → panel lives green, lift powers, doors open. Optional panel-cover Matter debris. No chain/padlock / no window wind.
+- **Camera:** Phaser Scale.ENVELOP fills the browser (cover, no letterbox). Lab uses follow cam at 2× clamped to the room; normal play keeps a static full-plate cam so word tags stay on-screen. Edge pads prevent black void. HUD on uiCam.
+- **Onboarding:** generic `OnboardLure` (any source/target): source acts on its own, near-glow + key glyph, target pulses while carrying. Fern dialogue hints the lamp.
+- Verify: `node tests/verify_steal.mjs` → `mock-steal/v15/`. Modules: `game/src/impact/*`.
+
 
 ## 21i. mock-steal/v12 — full Blender beat (stop canvas composite)
 - Danishpreet killed the PIL canvas-composite path ("looks so bad"; wants it to feel like how games handle breaking/hitting). **`mock-steal/v12/`** is ONE Eevee scene: mini office set + noor12 rig throw + chunky chain/padlock + in-scene wind blobs + spark mesh + hit-stop + flat sil frames from the same scene + punch cam + door recoil→open.

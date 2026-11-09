@@ -122,7 +122,8 @@ async function linger(browser) {
     if (s.cutscene) { await page.keyboard.down('x'); await sleep(900); await page.keyboard.up('x'); }
     await sleep(500); s = await st(page);
     ok(`linger ${r}: >=4 inspectable story objects`, s.looks.length >= 4, s.looks.join(','));
-    ok(`linger ${r}: camera letterboxed above the caption bar`, s.cam.bottom <= s.cam.barY + 1, `bottom ${s.cam.bottom.toFixed(1)} bar ${s.cam.barY}`);
+    // ENVELOP + static cam: world fills 1280×720; caption HUD overlays (no world letterbox crop).
+    ok(`linger ${r}: world camera fills the plate (HUD caption overlays)`, s.cam.y === 0 && s.cam.h === 720 && Math.abs(s.cam.zoom - 1) < 0.05, `bottom ${s.cam.bottom.toFixed(1)} bar ${s.cam.barY} z ${s.cam.zoom}`);
     const vis = s.amb.filter(a => a.visible && a.name !== 'line');
     const f0 = s.amb.map(a => a.frame); await sleep(700); const s2 = await st(page);
     const moved = s2.amb.filter((a, i) => a.frames > 1 && a.frame !== f0[i]).length;

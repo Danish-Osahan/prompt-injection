@@ -73,7 +73,8 @@ export class GameScene extends Phaser.Scene {
   words!: WordUI; fgImgs: Record<string, Phaser.GameObjects.Image> = {};
   litMask: Phaser.Textures.CanvasTexture | null = null; litImg: Phaser.GameObjects.Image | null = null;
   // art-v8: letterbox (world camera framed above the caption bar) + a full-screen UI camera
-  uiCam!: Phaser.Cameras.Scene2D.Camera; frameZoom = 1; stopT = 0; handT = 0;
+  uiCam!: Phaser.Cameras.Scene2D.Camera; frameZoom = 1; followZoom = 1.75; followCam = false; stopT = 0; handT = 0;
+  edgePad?: Phaser.GameObjects.Rectangle; edgePad2?: Phaser.GameObjects.Rectangle;
   // art-v8 linger layer
   amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
   idleT = 0; idleSaid = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
@@ -123,23 +124,80 @@ export class GameScene extends Phaser.Scene {
     this.input.keyboard!.addCapture('W,A,S,D,SPACE,UP,DOWN,LEFT,RIGHT');
     this.setupCameras();
     this.buildRoom(this.save.room, true);
+    if (this.labMode) this.setupFollowCamera(2.0);
+    else this.setupStaticCamera();
     if (q.has('test')) this.installHooks();
   }
 
   /**
-   * Contain the full 1280×720 room in the HUD band (no top/bottom furniture crop).
-   * Largest zoom that shows the whole plate; small side pillars OK. HUD stays on uiCam.
+   * Legacy contain framing (kept for non-lab callers). Prefer setupFollowCamera for full-browser play.
    */
   fitRoomCamera(top = 0, bottom = BAR_Y) {
+    // Full-viewport cover — no letterbox pillars. Zoom so height fills the band.
     const bandH = Math.max(1, bottom - top);
-    const z = bandH / 720;                     // contain: full plate height visible
-    const vw = Math.round(1280 * z);
-    const vx = Math.round((1280 - vw) / 2);     // centre letterbox
+    const z = Math.max(bandH / 720, 1280 / 1280);
     this.frameZoom = z;
-    this.cameras.main.setViewport(vx, top, vw, bandH).setZoom(z).centerOn(640, 360);
+    this.cameras.main.setViewport(0, 0, 1280, 720).setZoom(1).centerOn(640, 360);
   }
+
+  /** Full-browser follow cam: Scale.ENVELOP fills the browser (no letterbox); cam tracks Noor at closer zoom. */
+  setupFollowCamera(zoom = 1.75) {
+    this.followCam = true;
+    this.followZoom = zoom;
+    this.frameZoom = zoom;
+    const cam = this.cameras.main;
+    // Logical game stays 1280×720 (ENVELOP fills the browser without letterbox).
+    cam.setViewport(0, 0, 1280, 720);
+    cam.setZoom(zoom);
+    cam.setBounds(0, 0, 1280, 720);
+    if (this.noor) {
+      cam.startFollow(this.noor, true, 0.14, 0.14);
+      cam.setDeadzone(120, 80);
+    } else {
+      cam.centerOn(640, 360);
+    }
+    if (this.uiCam) {
+      this.uiCam.setViewport(0, 0, 1280, 720);
+      this.uiCam.setZoom(1);
+      this.uiCam.setScroll(0, 0);
+    }
+    this.ensureEdgePads();
+  }
+
+  /** Normal play: full 1280×720 plate, no follow. ENVELOP still fills the browser (no letterbox bars). */
+  setupStaticCamera() {
+    this.followCam = false;
+    this.followZoom = 1;
+    this.frameZoom = 1;
+    const cam = this.cameras.main;
+    try { cam.stopFollow(); } catch { /* */ }
+    cam.setViewport(0, 0, 1280, 720).setZoom(1).setBounds(0, 0, 1280, 720).centerOn(640, 360);
+    if (this.uiCam) this.uiCam.setViewport(0, 0, 1280, 720).setZoom(1).setScroll(0, 0);
+    this.ensureEdgePads();
+  }
+
+    updateFollowCamera() {
+    if (!this.followCam) return;
+    const cam = this.cameras.main;
+    // Keep zoom stable after punch-in eases back
+    if (Math.abs(cam.zoom - this.followZoom) < 0.03) {
+      try { cam.setZoom(this.followZoom); } catch { /* */ }
+    }
+  }
+
+  /** Soft wall/floor pads so the area outside the 1280×720 plate is never a black void. */
+  ensureEdgePads() {
+    if (this.edgePad) return;
+    // Oversized backdrop behind the room (matches office dark walls)
+    this.edgePad = this.add.rectangle(640, 360, 2400, 1600, 0x0a1018, 1).setDepth(-10000);
+    this.edgePad2 = this.add.rectangle(640, 780, 2400, 400, 0x060a10, 1).setDepth(-9999); // floor extension
+    this.objs.push(this.edgePad, this.edgePad2);
+  }
+
   setupCameras() {
-    this.fitRoomCamera(0, BAR_Y);
+    this.cameras.main.setViewport(0, 0, 1280, 720).setZoom(1).centerOn(640, 360);
+    this.frameZoom = 1;
+    this.ensureEdgePads();
     const cam = this.cameras.main;
     this.uiCam = this.cameras.add(0, 0, 1280, 720, false, 'ui');
     const sort = () => {
@@ -149,6 +207,7 @@ export class GameScene extends Phaser.Scene {
     this.events.on('prerender', sort); sort();
     this.events.on('prerender', () => this.viewApply());
     this.events.on('render', () => this.viewRestore());
+    // Follow cam is armed after Noor exists (buildRoom / ImpactLab.start)
   }
   /** art-v9: draw logical-space objects through the office floor homography (positions + per-depth scale), then restore */
   viewApply() {
@@ -250,7 +309,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- dialogue ----------
-  say(who: 'noor' | 'ai' | 'fern' | 'papa' | 'floor', line: string, ms = 2200) { if (this.clar && !this.cutscene && !this.composer && !this.busy) { this.clar.say((who === 'fern' ? 'fern  ' : who === 'noor' ? 'noor  ' : '') + line, ms); return; } this.subQueue.push({ who, line, ms }); if (!this.subBusy) this.nextSub(); }
+  say(who: 'noor' | 'ai' | 'fern' | 'papa' | 'floor', line: string, ms = 2200) { if (this.clar && !this.cutscene && !this.composer && !this.busy && !(this.impactLab?.stealMode)) { this.clar.say((who === 'fern' ? 'fern  ' : who === 'noor' ? 'noor  ' : '') + line, ms); return; } this.subQueue.push({ who, line, ms }); if (!this.subBusy) this.nextSub(); }
   nextSub() {
     const n = this.subQueue.shift(); const h = this.hud;
     if (!n) { this.subBusy = false; h.sub.setVisible(false); h.fern.setVisible(false); return; }
@@ -284,7 +343,7 @@ export class GameScene extends Phaser.Scene {
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
     this.impactLab?.stop(); this.impactLab = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
-    { this.fitRoomCamera(0, BAR_Y); }
+    { if (this.labMode) this.setupFollowCamera(2.0); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;

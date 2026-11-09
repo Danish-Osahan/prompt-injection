@@ -1,37 +1,39 @@
-// Steal mechanic (docs/design/power-rules.md): hold E peel OPEN at window → F throw → chain break.
-// Under ?impact the old word system is fully off — no READ, chips, pickers, captions.
+// Dead-lift beat (?impact): peel SPARK from flickering desk lamp → F-zap into dead call panel → lift opens.
+// No chain/padlock, no window wind. Old word system fully off.
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
 import { O11_DOOR } from '../office11art';
-import { TOP } from '../clarity';
-import { BAR_Y } from '../words';
 import { ImpactFX } from './ImpactFX';
-import { ChainBreak } from './ChainBreak';
+import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
-const DOOR_CHAIN = { x: O11_DOOR.x + 98, y: O11_DOOR.y + 110 };
-const WIN = { x: 960, y: 130 };
+/** Call panel to the right of the lift doors. */
+const PANEL = { x: O11_DOOR.x + 210, y: O11_DOOR.y + 130 };
+/** Desk lamp on the west pod desk near the lift. */
+const LAMP = { x: 168, y: 268 };
 
 export class ImpactLab {
   on = false;
-  /** When true, game must skip word UI / READ / pickers. */
   stealMode = false;
   fx!: ImpactFX;
-  chain!: ChainBreak;
+  lure?: OnboardLure;
   carrying = false;
-  swirl?: Phaser.GameObjects.Container;
-  projectile?: Phaser.GameObjects.Container;
-  trail?: Phaser.GameObjects.Particles.ParticleEmitter;
   flying = false;
   done = false;
   hint?: Phaser.GameObjects.Text;
   private keyF?: Phaser.Input.Keyboard.Key;
   private keyI?: Phaser.Input.Keyboard.Key;
   private peelT = 0;
-  private peelNeed = 0.55; // hold E seconds
-  private peelFx?: Phaser.GameObjects.Container;
-  private shimmer?: Phaser.GameObjects.Image;
-  private rainWasOn = true;
+  private peelNeed = 0.5;
+  private lampSpr?: Phaser.GameObjects.Image;
+  private panelSpr?: Phaser.GameObjects.Image;
+  private floorInd?: Phaser.GameObjects.Image;
+  private heldOrb?: Phaser.GameObjects.Sprite;
+  private bolt?: Phaser.GameObjects.Sprite;
+  private cover?: Phaser.Physics.Matter.Image;
+  private buzzT = 0;
+  private lampOn = true;
+  private darkGap?: Phaser.GameObjects.Rectangle;
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
@@ -41,12 +43,8 @@ export class ImpactLab {
     if (this.on) return;
     this.on = true;
     this.stealMode = true;
-    if (!this.s.matter) console.warn('[ImpactLab] Matter physics not enabled');
 
-    this.chain = new ChainBreak(this.s, DOOR_CHAIN);
-    this.chain.spawn();
-
-    // Door starts locked for the lab — set slot quietly, no word UI
+    // Door locked quietly
     const door = this.s.plateById('o_door');
     if (door && door.slotWord !== 'SHUT') {
       door.setSlotWord('SHUT');
@@ -55,10 +53,12 @@ export class ImpactLab {
     }
 
     this.suppressWordUi(true);
+    this.spawnProps();
+    this.setupLure();
 
     const debug = new URLSearchParams(location.search).has('debug');
     if (debug) {
-      this.hint = this.s.add.text(640, 56, 'STEAL  ·  hold E at window  ·  F throw', {
+      this.hint = this.s.add.text(640, 40, 'DEAD LIFT  ·  hold E at lamp  ·  F panel', {
         fontFamily: 'IBM Plex Mono', fontSize: '13px', color: '#7ec8e3',
         backgroundColor: 'rgba(4,10,16,0.65)', padding: { x: 8, y: 4 },
       } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setScrollFactor(0).setDepth(9500);
@@ -66,30 +66,33 @@ export class ImpactLab {
     }
 
     this.keyF = this.s.input.keyboard?.addKey('F');
-    this.s.fitRoomCamera(TOP, BAR_Y);
-    this.s.x = 880; this.s.y = 400; this.s.dir = 'NW';
+    // Follow cam, closer zoom — no letterbox contain
+    this.s.setupFollowCamera?.(2.0);
+    this.s.x = 280; this.s.y = 340; this.s.dir = 'N';
     this.s.unstick();
 
-    // Soft shimmer near the window (takeable)
-    if (this.s.textures.exists('fx_wind_wisp')) {
-      this.shimmer = this.s.add.image(WIN.x, WIN.y + 40, 'fx_wind_wisp')
-        .setDepth(500).setAlpha(0.35).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD);
-      this.s.objs.push(this.shimmer);
-    }
+    // Fern hint (dialogue OK)
+    window.setTimeout(() => {
+      try {
+        // Force fern card path even with clar present
+        this.s.subQueue.push({ who: 'fern', line: "That lamp's been angry all morning. The lift's dead — maybe it wants the spark.", ms: 3200 });
+        if (!this.s.subBusy) this.s.nextSub();
+      } catch { /* */ }
+    }, 600);
   }
 
   stop() {
     this.on = false;
     this.stealMode = false;
-    this.chain?.destroy();
+    this.lure?.destroy(); this.lure = undefined;
     this.hint?.destroy(); this.hint = undefined;
     this.clearCarryFx();
-    this.peelFx?.destroy(); this.peelFx = undefined;
-    this.shimmer?.destroy(); this.shimmer = undefined;
+    this.lampSpr?.destroy(); this.panelSpr?.destroy();
+    this.floorInd?.destroy(); this.darkGap?.destroy();
+    this.cover?.destroy();
     this.suppressWordUi(false);
   }
 
-  /** Block every remnant of the old word system while the steal lab is live. */
   suppressWordUi(on: boolean) {
     const s = this.s;
     if (s.clar?.objective) s.clar.objective.setVisible(false);
@@ -99,7 +102,6 @@ export class ImpactLab {
       if (c.capMsg) c.capMsg = null;
       if (c.modal) { try { c.modal.destroy(); } catch { /* */ } c.modal = null; }
     }
-    // Hide hand chip / word bar chips
     try {
       s.hud.hand.setVisible(!on);
       s.words.chipG.setVisible(false);
@@ -115,6 +117,58 @@ export class ImpactLab {
     } catch { /* */ }
   }
 
+  private spawnProps() {
+    // Dark gap between shut lift leaves (reads "no power")
+    this.darkGap = this.s.add.rectangle(O11_DOOR.x + 98, O11_DOOR.y + 148, 6, 200, 0x020408, 0.85)
+      .setDepth(O11_DOOR.y + 1);
+    this.s.objs.push(this.darkGap);
+
+    // Dead call panel
+    const ptex = this.s.textures.exists('fx_lift_panel_dead') ? 'fx_lift_panel_dead' : 'fx_spark_core';
+    this.panelSpr = this.s.add.image(PANEL.x, PANEL.y, ptex).setDepth(PANEL.y + 2).setScale(1.35);
+    this.s.objs.push(this.panelSpr);
+
+    // Floor indicator (off)
+    if (this.s.textures.exists('fx_lift_floor_ind_off')) {
+      this.floorInd = this.s.add.image(PANEL.x, PANEL.y - 42, 'fx_lift_floor_ind_off')
+        .setDepth(PANEL.y + 3).setScale(1.2);
+      this.s.objs.push(this.floorInd);
+    }
+
+    // Flickering desk lamp
+    const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
+    this.lampSpr = this.s.add.image(LAMP.x, LAMP.y, ltex).setDepth(LAMP.y + 2).setScale(1.5);
+    this.s.objs.push(this.lampSpr);
+  }
+
+  private setupLure() {
+    this.lure = new OnboardLure(this.s, LAMP, PANEL, { nearR: 120 });
+    this.lure.sourceAct = (t) => {
+      if (!this.lampOn || !this.lampSpr) return;
+      // Flicker + occasional spark pop
+      const flick = Math.sin(t * 17) * Math.sin(t * 3.1);
+      const on = flick > -0.55;
+      this.lampSpr.setTexture(on ? 'fx_lamp_on' : 'fx_lamp_off');
+      this.lampSpr.setAlpha(on ? 1 : 0.7);
+      this.buzzT += 1 / 60;
+      if (this.buzzT > 0.55 && Math.random() < 0.04) {
+        this.buzzT = 0;
+        this.popSpark(LAMP.x + 4, LAMP.y - 18);
+        try { sfx('impact_whoosh'); } catch { /* soft buzz stand-in */ }
+      }
+    };
+  }
+
+  private popSpark(x: number, y: number) {
+    if (!this.s.textures.exists('fx_spark_pop')) return;
+    const sp = this.s.add.image(x, y, 'fx_spark_pop').setDepth(y + 10).setScale(0.8)
+      .setBlendMode(Phaser.BlendModes.ADD);
+    this.s.tweens.add({
+      targets: sp, alpha: 0, scale: 1.6, y: y - 16, duration: 220,
+      onComplete: () => sp.destroy(),
+    });
+  }
+
   onDummyHit(
     x: number, y: number,
     hit = 1,
@@ -122,12 +176,9 @@ export class ImpactLab {
   ) {
     if (!this.s.clar?.dummy && !this.on) return;
     const tier = hit >= 3 ? 'heavy' : 'light';
-    const dir = { x: x - this.s.x, y: y - this.s.y };
     this.fx.fire({
-      tier, x, y, dir,
-      attacker: this.s.noor,
-      target,
-      silhouettes: target ? [target] : [],
+      tier, x, y, dir: { x: x - this.s.x, y: y - this.s.y },
+      attacker: this.s.noor, target, silhouettes: target ? [target] : [],
     });
   }
 
@@ -140,229 +191,212 @@ export class ImpactLab {
     if (!this.on) return;
 
     this.suppressWordUi(true);
-    this.chain?.update(dt);
+    this.lure?.update(dt);
+    this.s.updateFollowCamera?.();
 
-    const cam = this.s.cameras.main;
-    if (Math.abs(cam.zoom - this.s.frameZoom) < 0.02) cam.centerOn(640, 360);
-
-    // Window lure: shimmer pulse
-    if (this.shimmer && !this.carrying) {
-      this.shimmer.setAlpha(0.2 + 0.25 * (0.5 + 0.5 * Math.sin(this.s.t * 3)));
-      this.shimmer.setScale(1.3 + 0.15 * Math.sin(this.s.t * 2.4));
-    }
-
+    // Keep fern/hud dialogue visible (words in dialogue OK)
+    // Peel hold E near lamp
     const f = this.s.ctl.read();
-    const nearWin = Math.hypot(this.s.x - WIN.x, this.s.y - (WIN.y + 80)) < 180;
+    const nearLamp = Math.hypot(this.s.x - LAMP.x, this.s.y - LAMP.y) < 120;
 
-    // Hold E to peel OPEN — never opens READ / picker
-    if (nearWin && f.interactHeld && !this.carrying && !this.flying && !this.done) {
+    if (nearLamp && f.interactHeld && !this.carrying && !this.flying && !this.done && this.lampOn) {
       this.peelT += dt;
-      this.drawPeelRip(Math.min(1, this.peelT / this.peelNeed));
+      // Pull pose
+      try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
       if (this.peelT >= this.peelNeed) {
         this.peelT = 0;
-        this.peelFx?.destroy(); this.peelFx = undefined;
-        this.takeOpen();
+        this.takeSpark();
       }
-    } else {
-      if (this.peelT > 0 && !this.carrying) {
-        this.peelT = Math.max(0, this.peelT - dt * 2);
-        if (this.peelT <= 0) { this.peelFx?.destroy(); this.peelFx = undefined; }
-        else this.drawPeelRip(this.peelT / this.peelNeed);
-      }
+    } else if (!this.carrying) {
+      this.peelT = Math.max(0, this.peelT - dt * 2);
     }
 
-    if (this.carrying && this.swirl) {
+    if (this.carrying && this.heldOrb) {
       const h = this.handOff();
-      this.swirl.setPosition(this.s.x + h.x, this.s.y + h.y);
-      // Soft orbit of streak children
-      this.swirl.list.forEach((c, i) => {
-        const im = c as Phaser.GameObjects.Image;
-        const a = this.s.t * 4 + i * 1.6;
-        im.setPosition(Math.cos(a) * 14, Math.sin(a) * 10 - 4);
-        im.setAngle((a * 40) % 360);
-      });
+      this.heldOrb.setPosition(this.s.x + h.x, this.s.y + h.y);
+      const fi = Math.floor(this.s.t * 10) % 4;
+      if (this.s.textures.exists('fx_spark_orb_' + fi)) this.heldOrb.setTexture('fx_spark_orb_' + fi);
     }
 
     if (this.carrying && this.keyF && Phaser.Input.Keyboard.JustDown(this.keyF) && !this.flying) {
-      this.throwGust();
+      this.throwBolt();
     }
 
-    if (this.flying && this.projectile) {
-      const p = this.projectile;
-      const tx = DOOR_CHAIN.x, ty = DOOR_CHAIN.y;
-      const dx = tx - p.x, dy = ty - p.y;
+    if (this.flying && this.bolt) {
+      const tx = PANEL.x, ty = PANEL.y;
+      const dx = tx - this.bolt.x, dy = ty - this.bolt.y;
       const dist = Math.hypot(dx, dy);
-      const sp = 540 * dt;
-      if (dist < sp + 10) {
-        p.x = tx; p.y = ty;
-        this.onContact();
+      const sp = 900 * dt; // fast zap
+      if (dist < sp + 12) {
+        this.bolt.x = tx; this.bolt.y = ty;
+        this.onPanelHit();
       } else {
-        p.x += (dx / dist) * sp;
-        p.y += (dy / dist) * sp - Math.sin((1 - dist / 420) * Math.PI) * 0.7;
-        this.trail?.setPosition(p.x, p.y);
-        p.rotation += dt * 6;
+        this.bolt.x += (dx / dist) * sp;
+        this.bolt.y += (dy / dist) * sp;
+        const fi = Math.floor(this.s.t * 20) % 4;
+        if (this.s.textures.exists('fx_lightning_' + fi)) this.bolt.setTexture('fx_lightning_' + fi);
+        const ang = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
+        this.bolt.setAngle(ang);
       }
     }
   }
 
   private handOff() {
     const d = this.s.dir;
-    if (d.includes('W')) return { x: -22, y: -48 };
-    if (d.includes('E')) return { x: 22, y: -48 };
-    return { x: -18, y: -52 };
+    if (d.includes('W')) return { x: -20, y: -50 };
+    if (d.includes('E')) return { x: 20, y: -50 };
+    return { x: -14, y: -54 };
   }
 
-  /** Tapered S-curve wind mass ripping free from the window. */
-  private drawPeelRip(p: number) {
-    this.peelFx?.destroy();
-    const c = this.s.add.container(WIN.x - 20, WIN.y + 50).setDepth(7200);
-    this.peelFx = c;
-    this.s.objs.push(c);
-    const n = 3 + Math.floor(p * 3);
-    for (let i = 0; i < n; i++) {
-      const key = `fx_wind_streak_${i % 4}`;
-      if (!this.s.textures.exists(key)) continue;
-      const im = this.s.add.image(
-        -p * 40 - i * 8,
-        Math.sin(i + p * 4) * 12,
-        key,
-      ).setScale(0.7 + p * 0.5).setAlpha(0.45 + p * 0.4).setBlendMode(Phaser.BlendModes.ADD);
-      im.setAngle(-20 - p * 25 + i * 8);
-      c.add(im);
-    }
-    // Pull pose
-    try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
-  }
-
-  takeOpen() {
+  takeSpark() {
     this.carrying = true;
-    // DO NOT set s.hand — that drives the old OPEN chip. Steal is invisible-in-HUD.
+    this.lampOn = false;
     this.s.hand = null;
+    this.lure?.setCarrying(true);
     sfx('swap');
-    this.shimmer?.setVisible(false);
 
-    // Window shuts + rain stops
-    this.shutWindow();
+    // Lamp dies
+    if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) {
+      this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
+    }
+    this.popSpark(LAMP.x, LAMP.y - 20);
 
+    // Held crackling orb
     const h = this.handOff();
-    this.swirl = this.s.add.container(this.s.x + h.x, this.s.y + h.y).setDepth(7100);
-    this.s.objs.push(this.swirl);
-    for (let i = 0; i < 3; i++) {
-      const key = `fx_wind_streak_${i}`;
-      if (!this.s.textures.exists(key)) continue;
-      const im = this.s.add.image(0, 0, key).setScale(0.55).setAlpha(0.75).setBlendMode(Phaser.BlendModes.ADD);
-      this.swirl.add(im);
-    }
+    const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : 'fx_spark_core';
+    this.heldOrb = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key)
+      .setDepth(7100).setScale(1.45).setBlendMode(Phaser.BlendModes.ADD);
+    this.s.objs.push(this.heldOrb);
+    // Soft glow on Noor
+    try {
+      this.s.noor.setTint(0xc8e8ff);
+      window.setTimeout(() => { try { this.s.noor.clearTint(); } catch { /* */ } }, 400);
+    } catch { /* */ }
   }
 
-  private shutWindow() {
-    // Flip rain plate to SHUT quietly if present
-    const rain = this.s.plateById('o_rain');
-    if (rain && rain.slotWord !== 'SHUT') {
-      rain.setSlotWord('SHUT');
-      this.s.save.plates[rain.def.id] = 'SHUT';
-      try { this.s.evaluate(true); } catch { /* */ }
-    }
-    // Kill rain particle emitters if clarity owns them
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const c = this.s.clar as any;
-    if (c?.rain) {
-      try { c.rain.stop?.(); c.rain.setVisible?.(false); } catch { /* */ }
-    }
-    if (c?.blinds) {
-      try { this.s.tweens.add({ targets: c.blinds, angle: 0, duration: 280 }); } catch { /* */ }
-    }
-    this.rainWasOn = false;
-  }
-
-  throwGust() {
+  throwBolt() {
     this.carrying = false;
-    this.clearCarryFx();
+    // Keep lure.carrying so the panel keeps pulsing + F glyph until impact
     this.s.hand = null;
-    const h = this.handOff();
-    this.s.dir = 'NW';
-    try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch {
-      try { this.s.noor.play(`noor_type3_${this.s.dir}`, true); } catch { /* */ }
-    }
-    sfx('impact_whoosh');
+    this.heldOrb?.destroy(); this.heldOrb = undefined;
 
-    // Gust mass = stacked wind streaks (S-curve), not a glowing ball
-    const c = this.s.add.container(this.s.x + h.x, this.s.y + h.y).setDepth(7000);
-    this.projectile = c;
-    this.s.objs.push(c);
-    for (let i = 0; i < 4; i++) {
-      const key = `fx_wind_streak_${i}`;
-      if (!this.s.textures.exists(key)) continue;
-      const im = this.s.add.image((i - 1.5) * 6, (i % 2) * 4 - 2, key)
-        .setScale(0.85).setAlpha(0.85).setBlendMode(Phaser.BlendModes.ADD)
-        .setAngle(-30 + i * 12);
-      c.add(im);
-    }
-    if (this.s.textures.exists('fx_wind_wisp')) {
-      this.trail = this.s.add.particles(c.x, c.y, 'fx_wind_wisp', {
-        speed: { min: 8, max: 28 }, lifespan: 260, scale: { start: 0.55, end: 0.05 },
-        alpha: { start: 0.7, end: 0 }, frequency: 18, blendMode: 'ADD',
-      });
-      this.s.objs.push(this.trail);
-    }
+    const h = this.handOff();
+    this.s.dir = this.s.x > PANEL.x ? 'NW' : 'NE';
+    // Wind-up then throw
+    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
+    window.setTimeout(() => {
+      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch {
+        try { this.s.noor.play(`noor_type3_${this.s.dir}`, true); } catch { /* */ }
+      }
+    }, 90);
+
+    sfx('impact_whoosh');
+    const key = this.s.textures.exists('fx_lightning_0') ? 'fx_lightning_0' : 'fx_spark_core';
+    this.bolt = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key)
+      .setDepth(7000).setScale(1.7).setBlendMode(Phaser.BlendModes.ADD);
+    this.s.objs.push(this.bolt);
     this.flying = true;
   }
 
   private clearCarryFx() {
-    this.swirl?.destroy(); this.swirl = undefined;
-    this.trail?.stop(); this.trail?.destroy(); this.trail = undefined;
-    this.projectile?.destroy(); this.projectile = undefined;
+    this.heldOrb?.destroy(); this.heldOrb = undefined;
+    this.bolt?.destroy(); this.bolt = undefined;
   }
 
-  private onContact() {
+  private onPanelHit() {
     this.flying = false;
-    const gustSil = this.projectile;
-    this.trail?.stop(); this.trail?.destroy(); this.trail = undefined;
-    // Hide gust before silhouette so we don't leave a glowing blob in the freeze frame
-    try { gustSil?.setVisible(false); } catch { /* */ }
+    this.lure?.setCarrying(false);
+    const bolt = this.bolt;
+    this.bolt = undefined;
 
-    const dir = { x: DOOR_CHAIN.x - this.s.x, y: DOOR_CHAIN.y - this.s.y };
-    // Silhouette Noor + chain link sprites only — NEVER the door JPG (no alpha → grey rect)
+    const dir = { x: PANEL.x - this.s.x, y: PANEL.y - this.s.y };
+    // BIG impact — silhouette Noor + panel (+ bolt if still)
+    const sils: (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image)[] = [];
+    if (this.panelSpr) sils.push(this.panelSpr);
+    if (bolt) sils.push(bolt);
+
     this.fx.fire({
-      tier: 'heavy', x: DOOR_CHAIN.x, y: DOOR_CHAIN.y, dir,
+      tier: 'big', x: PANEL.x, y: PANEL.y, dir,
       attacker: this.s.noor,
-      silhouettes: this.chain?.links ?? [],
+      target: this.panelSpr,
+      silhouettes: sils,
     });
 
-    window.setTimeout(() => { try { gustSil?.destroy(); } catch { /* */ } this.projectile = undefined; }, 90);
+    window.setTimeout(() => { try { bolt?.destroy(); } catch { /* */ } }, 100);
 
-    this.chain.hit(dir, () => {
-      this.fx.fire({
-        tier: 'big', x: DOOR_CHAIN.x, y: DOOR_CHAIN.y, dir,
-        attacker: this.s.noor,
-        silhouettes: this.chain?.links ?? [],
-      });
-      this.fx.dust(DOOR_CHAIN.x, 240, dir, 10);
-      this.openDoor();
-    });
+    // Panel cracks → sparks → goes live green
+    window.setTimeout(() => {
+      if (this.panelSpr && this.s.textures.exists('fx_lift_panel_cracked')) {
+        this.panelSpr.setTexture('fx_lift_panel_cracked');
+      }
+      this.popSpark(PANEL.x, PANEL.y - 10);
+      this.popSpark(PANEL.x + 8, PANEL.y + 6);
+      sfx('impact_snap');
+      this.popCover();
+    }, 120);
+
+    window.setTimeout(() => {
+      if (this.panelSpr && this.s.textures.exists('fx_lift_panel_live')) {
+        this.panelSpr.setTexture('fx_lift_panel_live');
+      }
+      if (this.floorInd && this.s.textures.exists('fx_lift_floor_ind_on')) {
+        this.floorInd.setTexture('fx_lift_floor_ind_on');
+      }
+      // Lift lights flicker on — flash door area
+      try { this.s.cameras.main.flash(180, 40, 80, 60); } catch { /* */ }
+      sfx('impact_hum');
+      this.openLift();
+    }, 280);
   }
 
-  private openDoor() {
+  private popCover() {
+    if (!this.s.matter || !this.s.textures.exists('fx_lift_panel_cover')) return;
+    try {
+      this.cover = this.s.matter.add.image(PANEL.x, PANEL.y - 8, 'fx_lift_panel_cover', undefined, {
+        shape: { type: 'rectangle', width: 20, height: 24 },
+        friction: 0.5, restitution: 0.45, density: 0.004,
+      });
+      this.cover.setDepth(PANEL.y + 6).setScale(1.1);
+      this.cover.setVelocity(120, -280);
+      this.cover.setAngularVelocity(0.25);
+      this.s.objs.push(this.cover);
+      // Settle toward floor after a beat
+      window.setTimeout(() => {
+        try {
+          this.cover?.setVelocity(40, 180);
+        } catch { /* */ }
+      }, 200);
+    } catch { /* */ }
+  }
+
+  private openLift() {
     this.done = true;
+    this.lure?.destroy(); this.lure = undefined;
+    this.darkGap?.destroy(); this.darkGap = undefined;
     const door = this.s.clar?.door;
-    // Recoil jolt — nudge only, no tint-fill (door is a JPG rect)
     if (door) {
-      this.s.tweens.add({ targets: door, x: door.x - 3, duration: 50, yoyo: true, repeat: 2 });
+      // Grind/shudder
+      this.s.tweens.add({
+        targets: door, x: door.x - 2, duration: 40, yoyo: true, repeat: 5,
+      });
     }
     const p = this.s.plateById('o_door');
     if (p && p.slotWord !== 'OPEN') {
-      // Real-time so hit-stop / slow-mo can't strand the open
       window.setTimeout(() => {
         p.setSlotWord('OPEN');
         this.s.save.plates[p.def.id] = 'OPEN';
         this.s.evaluate(false);
-        // Lab: accelerate the lift open so the beat reads immediately
         if (this.s.clar) {
           this.s.clar.doorWant = 1;
-          this.s.clar.doorK = Math.max(this.s.clar.doorK, 0.35);
+          this.s.clar.doorK = Math.max(this.s.clar.doorK, 0.25);
         }
         sfx('impact_hum');
-      }, 280);
+      }, 200);
     }
   }
+
+  /** Test helpers */
+  get lampAlive() { return this.lampOn; }
+  get panelPos() { return { ...PANEL }; }
+  get lampPos() { return { ...LAMP }; }
 }

@@ -34,7 +34,19 @@ export class BootScene extends Phaser.Scene {
     for (const s of A12) this.load.atlas(s, `assets/sprites12/${s}.png`, `assets/sprites12/${s}.json`);
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
     // Impact lab FX (CC0 Kenney + original soft particles) + SFX
-    const FX = ['spark_core', 'smoke_soft', 'dust_puff', 'wind_wisp', 'wind_streak_0', 'wind_streak_1', 'wind_streak_2', 'wind_streak_3', 'chain_link', 'padlock', 'padlock_open', 'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3'];
+    const FX = [
+  'spark_core', 'smoke_soft', 'dust_puff', 'wind_wisp',
+  'wind_streak_0', 'wind_streak_1', 'wind_streak_2', 'wind_streak_3',
+  'chain_link', 'chain_link_thick', 'padlock', 'padlock_open', 'padlock_big', 'padlock_big_open', 'steel_bar',
+  'gust_mass_0', 'gust_mass_1', 'gust_mass_2', 'gust_mass_3',
+  'key_e', 'key_f', 'window_shut',
+  'lamp_on', 'lamp_off',
+  'lift_panel_dead', 'lift_panel_live', 'lift_panel_cracked', 'lift_panel_cover',
+  'spark_orb_0', 'spark_orb_1', 'spark_orb_2', 'spark_orb_3',
+  'lightning_0', 'lightning_1', 'lightning_2', 'lightning_3',
+  'spark_pop', 'lift_floor_ind_off', 'lift_floor_ind_on',
+  'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3',
+];
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
     const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);

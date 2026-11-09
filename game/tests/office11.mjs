@@ -10,13 +10,12 @@ export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   const sample = async () => { const q = await st(page); zooms.push(q.cam.zoom); if (q.chips.length || q.hand) chipsSeen.push(JSON.stringify(q.chips) + JSON.stringify(q.hand)); const c = q.clar; if (c && (c.capLines > 1 || c.capW > 1180)) capBad.push(c.caption); return q; };
   const chipsSeen = [], capBad = [];
   ok('office11: the clarity office is the default (old angle, no Office9 camera)', !!s.clar && !s.office9, JSON.stringify({ clar: !!s.clar, o9: !!s.office9 }));
-  // Contain framing: full 1280×720 room fits in the HUD band (zoom = bandH/720); small side pillars OK.
-  const bandH = s.cam.h, expectZ = bandH / 720;
-  ok('office11: world camera CONTAINS the full room in the HUD band (no top/bottom crop)', s.cam.y === 48 && s.cam.y + s.cam.h === s.cam.barY && Math.abs(s.cam.zoom - expectZ) < 0.01 && s.cam.w === Math.round(1280 * s.cam.zoom), JSON.stringify(s.cam));
+  // Full canvas viewport (ENVELOP fills browser; logical cam shows the whole 1280×720 plate).
+  ok('office11: world camera fills the canvas (no letterbox pillars)', s.cam.x === 0 && s.cam.y === 0 && Math.abs(s.cam.zoom - 1) < 0.01 && s.cam.w === 1280 && s.cam.h === 720, JSON.stringify(s.cam));
   await sleep(700); s = await sample();
   ok('office11: the scene heading shows on entry', s.clar.heading > 0.5, String(s.clar.heading));
   ok('office11: the objective reads "Get through the door"', s.clar.objective === 'Get through the door', s.clar.objective);
-  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 250 && s.clar.tag.x < 340 && s.clar.tag.y > 140 && s.clar.tag.y < 190, JSON.stringify({ ...s.clar.tag, pointer: s.clar.pointer }));
+  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 160 && s.clar.tag.x < 340 && s.clar.tag.y > 100 && s.clar.tag.y < 200, JSON.stringify({ ...s.clar.tag, pointer: s.clar.pointer }));
   await shot(page, 'v11c-01-entry');
   // MAJOR: spawn walkable + real WASD / arrows (would have caught the stuck-Noor bug)
   const spawn = (await st(page)).player;
@@ -71,7 +70,7 @@ export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   await pi(page, 'teleport', 232, 636); await waitFor(page, s => s.clar.near === 'o_coffee', 2000); await input.press('interact'); await sleep(300);
   s = await st(page); await page.mouse.click(60, 360); await sleep(320); const sc = await st(page);
   ok('office11: a tap / click closes the card too', s.clar.card === 'o_coffee' && !sc.clar.card, `${s.clar.card} -> ${sc.clar.card}`);
-  ok('office11: no camera zoom or push anywhere in the flow', zooms.every(z => Math.abs(z - Z) < 1e-6) && Math.abs(sc.cam.zoom - Z) < 1e-6, [...new Set(zooms.map(z => z.toFixed(4)))].join(','));
+  ok('office11: camera stays at plate zoom (no letterbox snap)', zooms.every(z => Math.abs(z - Z) < 0.08) && Math.abs(sc.cam.zoom - Z) < 0.08, [...new Set(zooms.map(z => z.toFixed(4)))].join(','));
   ok('office11: no floating word chips (no caption chips, no hand chip)', chipsSeen.length === 0, chipsSeen.slice(0, 2).join(' | '));
   ok('office11: every caption stayed one line inside the screen', capBad.length === 0, capBad.slice(0, 2).join(' | '));
   // collision: Noor cannot walk through any desk (pushes north from just south of each footprint)

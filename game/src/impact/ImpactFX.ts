@@ -34,8 +34,8 @@ export const TIERS: Record<ImpactTierName, ImpactTier> = {
     sparkScale: 0.95, knockback: 14,
   },
   big: {
-    name: 'big', hitStopMs: 190, punchZoom: 1.06, punchHoldMs: 120, punchEaseMs: 380,
-    shakeAmp: 0.014, shakeMs: 220, silFrames: 2, silMs: 70, slowMo: 0.45, slowMoMs: 280,
+    name: 'big', hitStopMs: 200, punchZoom: 1.06, punchHoldMs: 120, punchEaseMs: 380,
+    shakeAmp: 0.016, shakeMs: 240, silFrames: 2, silMs: 120, slowMo: 0.45, slowMoMs: 280,
     sparkScale: 1.2, knockback: 20,
   },
 };

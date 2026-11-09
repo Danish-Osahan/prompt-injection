@@ -59,7 +59,7 @@ export class Clarity {
   objs: Phaser.GameObjects.GameObject[] = [];
   constructor(private s: GameScene) {
     // Contain the full 1280×720 room in the HUD band (no top/bottom crop through furniture).
-    s.fitRoomCamera(TOP, BAR_Y);
+    if (s.labMode) s.setupFollowCamera(2.0); else s.setupStaticCamera();
     const ui = <T extends Phaser.GameObjects.GameObject>(o: T) => { (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor(0); s.objs.push(o); return o; };
     // depth-sorted overlays (exact plate pixels) + the lift door
     for (const p of O11_PROPS) if (p.fg) s.objs.push(s.add.image(p.x!, p.y!, 'o11fg_' + p.name).setOrigin(0).setDepth(p.baseY));
