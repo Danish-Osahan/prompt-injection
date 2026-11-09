@@ -1,3 +1,50 @@
+# HANDOFF — Impact Lab v15b (dead lift)
+
+**Date:** 2026-11-09 (Asia/Calcutta)
+**Focus:** Ship-ready stills for dead-lift beat (lamp → spark → lightning → panel → lift open)
+
+## What changed (v15 → v15b)
+
+1. **Call panel** sits on the **right lift door leaf** at world ≈(240, 180) — attached to the lift, clear of kitchen (~299) and printer/plantW (~81). Kitchen FG is hidden while the lab runs so the green live panel can’t read as “coffee machine glowing.”
+2. **Desk lamp** is a readable arm+shade sprite on `desk_podW` (≈152, 288), depth above the desk, scale 2.15, with flicker + spark pops. E glyph sits above the shade.
+3. **Camera** eases to frame Noor+lift on throw (`frameLift`) and holds tight on doors while they open (`frameDoors` ~2.1–2.4×).
+4. **Lightning** is a thick ADD-blended tip sprite plus a branching jagged `Graphics` beam from hand → tip/panel. Big-tier silhouette frames are longer (220ms × 2) with a darker world-space veil.
+5. **Stills** recaptured to `mock-steal/v15b/stills/` + `playthrough.mp4`.
+6. **Unused FX:** deleted `wind_wisp.png` (only leftover gust/chain texture in `assets/fx`).
+
+## Still checklist (verified)
+
+| Still | Expect |
+|-------|--------|
+| 01-lamp-lure | Lamp readable + E; lift in frame; dead panel on door |
+| 02-near-lamp-E / 03-peel-hold | E on lamp, peel hold |
+| 04-carrying-F | Spark held; F pulse toward panel on lift |
+| 05-before-throw | Noor + lift framed |
+| 06-bolt-midflight | Thick bolt / beam mid-flight |
+| 07-impact-frame | Silhouette impact (veil + sil) |
+| 08-doors-half-open | Doors mid-open, lit interior, live panel on lift |
+| 09-doors-fully-open | Doors open, lit interior |
+| 10-walk-in | Noor toward open lift |
+
+## Weak spots (honest)
+
+- Panel is a flat 2D overlay on isometric art — can still read a bit “UI floating” rather than flush wall plate.
+- Follow-cam mid beats (02–03) crop the lift; throw/door stills are the verification frames for (a)/(c).
+- Half-open gap is subtle; full-open is clearer. Silhouette impact uses a strong white flash (invert frame) that washes environment detail.
+- Bolt travel is slowed for readability; production feel may want it snappier after stills sign-off.
+
+## Tests
+
+- `node tests/capture_v15b.mjs` (Playwright stills)
+- `node tests/verify_steal.mjs`, `node tests/impact_lab.mjs`, playtests as before
+
+## Run
+
+`?impact=1` — hold **E** at lamp, **F** at panel.
+
+
+---
+
 # Games project handoff (read this first)
 
 This file is for any coding agent (Claude Code, Cursor, Codex and others) picking up the game work with no other context. `AGENTS.md` and `CLAUDE.md` in this folder are identical copies of this file. Written 29 Oct 2026 (Asia/Calcutta). The original work was done on a Linux box under `/workspace/games/`, and this folder is a copy of that one.

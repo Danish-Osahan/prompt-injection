@@ -34,9 +34,9 @@ export const TIERS: Record<ImpactTierName, ImpactTier> = {
     sparkScale: 0.95, knockback: 14,
   },
   big: {
-    name: 'big', hitStopMs: 200, punchZoom: 1.06, punchHoldMs: 120, punchEaseMs: 380,
-    shakeAmp: 0.016, shakeMs: 240, silFrames: 2, silMs: 120, slowMo: 0.45, slowMoMs: 280,
-    sparkScale: 1.2, knockback: 20,
+    name: 'big', hitStopMs: 260, punchZoom: 1.06, punchHoldMs: 120, punchEaseMs: 340,
+    shakeAmp: 0.018, shakeMs: 260, silFrames: 2, silMs: 220, slowMo: 0.4, slowMoMs: 300,
+    sparkScale: 1.45, knockback: 20,
   },
 };
 
@@ -52,9 +52,11 @@ export interface ImpactOpts {
   onHitStopEnd?: () => void;
 }
 
-const FAILSAFE_MS = 400;
+const FAILSAFE_MS = 700;
 
 export class ImpactFX {
+  /** True while silhouette impact frames are on screen. */
+  silActive = false;
   private veil?: Phaser.GameObjects.Rectangle;
   private silSprites: Phaser.GameObjects.Image[] = [];
   private lines?: Phaser.GameObjects.Graphics;
@@ -193,8 +195,11 @@ export class ImpactFX {
 
   private runSilhouetteFrames(t: ImpactTier, opts: ImpactOpts, dx: number, dy: number) {
     this.clearSil();
-    this.veil = this.s.add.rectangle(640, 360, 1280, 720, 0x05080c, 0.72)
-      .setScrollFactor(0).setDepth(8800);
+    this.silActive = true;
+    const cam = this.s.cameras.main;
+    const vw = cam.width / cam.zoom + 80, vh = cam.height / cam.zoom + 80;
+    this.veil = this.s.add.rectangle(cam.worldView.centerX, cam.worldView.centerY, vw, vh, 0x02050a, 0.92)
+      .setDepth(8800); // world-space so it tracks the follow cam
 
     const sources: (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image)[] = [];
     const atk = opts.attacker ?? this.s.noor;
@@ -206,12 +211,12 @@ export class ImpactFX {
     const drawSil = (invert: boolean) => {
       this.clearSilSpritesOnly();
       const fill = invert ? 0x0a0c10 : 0xffffff;
-      if (this.veil) this.veil.setFillStyle(invert ? 0xf2f0ea : 0x05080c, invert ? 0.9 : 0.72);
+      if (this.veil) this.veil.setFillStyle(invert ? 0xf2f0ea : 0x02050a, invert ? 0.92 : 0.88);
       for (const src of sources) {
         const frame = (src as Phaser.GameObjects.Sprite).frame?.name;
         const im = this.s.add.image(src.x, src.y, src.texture.key, frame)
           .setOrigin(src.originX, src.originY)
-          .setScale(src.scaleX, src.scaleY)
+          .setScale(src.scaleX * 1.08, src.scaleY * 1.08)
           .setFlip(src.flipX, src.flipY)
           .setAngle(src.angle)
           .setDepth(8900);
@@ -263,6 +268,7 @@ export class ImpactFX {
   private clearSil() {
     this.clearSilSpritesOnly();
     this.veil?.destroy(); this.veil = undefined;
+    this.silActive = false;
   }
 
   dust(x: number, y: number, dir: { x: number; y: number }, n = 8) {

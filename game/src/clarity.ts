@@ -173,7 +173,7 @@ export class Clarity {
     this.doorWant = open ? 1 : 0; if (initial) { this.doorK = this.doorWant; this.drawDoor(); }
     this.s.extraWalk.lift = open ? LIFT : null;
   }
-  private drawDoor() { const n = O11_DOOR.frames.length; const k = Math.round(this.doorK * (n - 1)); const key = 'o11door_' + k; if (this.door.texture.key !== key) this.door.setTexture(key); }
+  drawDoor() { const n = O11_DOOR.frames.length; const k = Math.round(this.doorK * (n - 1)); const key = 'o11door_' + k; if (this.door.texture.key !== key) this.door.setTexture(key); }
 
   // ---------- close-up card ----------
   openCard(p: Plate) {

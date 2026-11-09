@@ -35,11 +35,8 @@ export class BootScene extends Phaser.Scene {
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
     // Impact lab FX (CC0 Kenney + original soft particles) + SFX
     const FX = [
-  'spark_core', 'smoke_soft', 'dust_puff', 'wind_wisp',
-  'wind_streak_0', 'wind_streak_1', 'wind_streak_2', 'wind_streak_3',
-  'chain_link', 'chain_link_thick', 'padlock', 'padlock_open', 'padlock_big', 'padlock_big_open', 'steel_bar',
-  'gust_mass_0', 'gust_mass_1', 'gust_mass_2', 'gust_mass_3',
-  'key_e', 'key_f', 'window_shut',
+  'spark_core', 'smoke_soft', 'dust_puff',
+  'key_e', 'key_f',
   'lamp_on', 'lamp_off',
   'lift_panel_dead', 'lift_panel_live', 'lift_panel_cracked', 'lift_panel_cover',
   'spark_orb_0', 'spark_orb_1', 'spark_orb_2', 'spark_orb_3',

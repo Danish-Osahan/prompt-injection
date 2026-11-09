@@ -33,6 +33,8 @@ export class OnboardLure {
       sourceKey?: string; // texture for E glyph
       targetKey?: string; // texture for F glyph
       nearR?: number;
+      sourceGlowSize?: { w: number; h: number };
+      targetGlowSize?: { w: number; h: number };
     },
   ) {
     this.source = source;
@@ -41,15 +43,17 @@ export class OnboardLure {
 
     const sk = opts?.sourceKey ?? 'fx_key_e';
     const tk = opts?.targetKey ?? 'fx_key_f';
+    const sg = opts?.sourceGlowSize ?? { w: 40, h: 48 };
+    const tg = opts?.targetGlowSize ?? { w: 28, h: 40 };
 
-    this.sourceGlow = s.add.ellipse(source.x, source.y, 56, 70, 0xffe08a, 0)
+    this.sourceGlow = s.add.ellipse(source.x, source.y - 40, sg.w, sg.h, 0xffe08a, 0)
       .setDepth(source.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    this.targetGlow = s.add.ellipse(target.x, target.y, 48, 64, 0x7ec8e3, 0)
+    this.targetGlow = s.add.ellipse(target.x, target.y, tg.w, tg.h, 0x7ec8e3, 0)
       .setDepth(target.y + 1).setBlendMode(Phaser.BlendModes.ADD);
     s.objs.push(this.sourceGlow, this.targetGlow);
 
     if (s.textures.exists(sk)) {
-      this.sourceGlyph = s.add.image(source.x, source.y - 42, sk)
+      this.sourceGlyph = s.add.image(source.x, source.y - 70, sk)
         .setDepth(9000).setScale(0.95).setAlpha(0);
       s.objs.push(this.sourceGlyph);
     }
@@ -81,7 +85,7 @@ export class OnboardLure {
       const base = 0.18 + 0.12 * Math.sin(t * 4.2);
       this.sourceGlow?.setAlpha(nearSrc ? 0.45 + 0.2 * Math.sin(t * 6) : base);
       this.sourceGlyph?.setAlpha(nearSrc ? 0.85 + 0.15 * Math.sin(t * 5) : 0);
-      this.sourceGlyph?.setY(this.source.y - 42 - (nearSrc ? 3 * Math.sin(t * 5) : 0));
+      this.sourceGlyph?.setY(this.source.y - 70 - (nearSrc ? 3 * Math.sin(t * 5) : 0));
       this.targetGlow?.setAlpha(0);
       this.targetGlyph?.setAlpha(0);
       if (nearSrc) this.onNearSource?.();
