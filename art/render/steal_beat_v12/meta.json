@@ -1,0 +1,26 @@
+{
+  "fps": 24,
+  "end": 110,
+  "samples": 24,
+  "res": [
+    960,
+    540
+  ],
+  "engine": "EEVEE_NEXT",
+  "marks": {
+    "antic": 6,
+    "release": 22,
+    "contact": 34,
+    "hitstop": [
+      35,
+      40
+    ],
+    "sil": [
+      41,
+      42
+    ],
+    "punch": 43,
+    "door": 78
+  },
+  "note": "In-scene ballistic break (keyed 3D). Live RB chains discarded as unstable."
+}

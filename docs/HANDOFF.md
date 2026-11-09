@@ -316,6 +316,13 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21i. mock-steal/v12 — full Blender beat (stop canvas composite)
+- Danishpreet killed the PIL canvas-composite path ("looks so bad"; wants it to feel like how games handle breaking/hitting). **`mock-steal/v12/`** is ONE Eevee scene: mini office set + noor12 rig throw + chunky chain/padlock + in-scene wind blobs + spark mesh + hit-stop + flat sil frames from the same scene + punch cam + door recoil→open.
+- Script: `art/tools/steal_beat_v12.py` → `art/render/steal_beat_v12/frames/` + `.blend`. Deliverables: beat.mp4 / gif / compare (v11 vs v12) / impact strip / `10-impact-1x`.
+- Render: Blender 4.2 Eevee Next, 960×540, 24fps, ~111 frames, TAA 24, bloom + motion blur, AgX. Break trajectories are **in-scene keyed ballistic** (live RB torus chains were unstable); still 3D objects in one scene — no PIL paste.
+- Weak spots: mini set is block-out grey (not the clarity plate fidelity); Noor often cropped at frame edge; wind is sphere blobs not a true ribbon volume; chain links don't interlock through handles; sil pass is flat emission override (not a proper holdout layer); not live RB.
+- Game carry: treat as **pre-rendered cinematic/sprite sheet** direction for OPEN break, or port the same beat as an in-engine timeline (Unity/Godot) with RB chain + VFX — do not bring back canvas compositing for impact language.
+
 ## 21h. mock-steal/v11 — silhouette impact SHOT (fix v10 framing)
 - **`mock-steal/v11/`** beat / gif / compare (**v10 vs v11**) / stills + 8-frame impact strip + `10-impact-1x`.
 - Keeps v10 colour post-flash. Silhouette reframed as a readable SHOT: authored Noor throw follow-through (bun + extended arm) staged right of door, real door mask (frame / two leaves / handles / seam), bold gust trail hand→lock, chain/lock white-hot with thin dark outline, spark ~0.7× Noor height (asymmetric spikes), anime invert flicker (frame1 black-on-warm / frame2 white-on-black). Punch-zoom only on colour-return (not during sil). Debris rim/specular + authored open shackle overlay. Compose: `art/tools/compose_steal_v11.py`. Masks in `art/render/steal_break_v9/door_sil_mask.png` + `noor_throw_sil.png`. `impact_system.py` gains invert mode + gust_trail + chain outline.

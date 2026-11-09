@@ -2,6 +2,39 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
+## v12 — full Blender beat (no canvas composite)
+
+Danishpreet: stop PIL compositing; make the throw→break feel like a real game hit (Hades / Dead Cells / Sekiro guard-break language).
+
+**Approach**
+- One Blender scene (`art/tools/steal_beat_v12.py`): office corner set, noor12 rig throw, door-sized chain + padlock, in-scene wind, spark mesh.
+- Timing: anticipation → release → contact → ~6f hit-stop → 2 flat sil frames from the same scene → punch + scatter → settle → door open.
+- Eevee Next @ 960×540, 24fps, bloom + motion blur. Break = keyed in-scene ballistic (live RB chains discarded as unstable).
+
+| file | what |
+|---|---|
+| `v12/beat.mp4` | ~4.6 s beat |
+| `v12/beat.gif` | 640-wide loop |
+| `v12/compare.mp4` | **v11 vs v12** |
+| `v12/stills/` | strip + `10-impact-1x` + beat stills |
+
+### Rebuild
+```bash
+/home/box/tools/blender-4.2.9-linux-x64/blender -b --python art/tools/steal_beat_v12.py -- art/render/steal_beat_v12 24 full
+# then assemble mp4/gif/compare from art/render/steal_beat_v12/frames (see prior commit helpers)
+```
+
+### Honesty / weak spots
+- Mini office is a grey block-out, not the clarity plate.
+- Noor is often cropped; throw pose is keyed bone rotations, not the full hurl sheet retarget.
+- Wind = emissive spheres; not a volumetric ribbon.
+- Chain links are adjacent tori, not interlocking through handles.
+- Not a live rigid-body bake (keyed ballistic in-scene).
+- Sil frames = material override, not a proper holdout/cryptomatte pass.
+
+### Game carry
+Pre-render this beat as a sprite/cinematic sheet, **or** rebuild the same timeline in-engine with RB + VFX. Do not return to canvas paste for impact.
+
 ## v11 — silhouette impact SHOT (fix v10 framing)
 
 Colour frames after the flash stay as in v10. The silhouette impact was reframed so at 1× you can tell who threw what at what.
