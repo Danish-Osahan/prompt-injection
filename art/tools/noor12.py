@@ -135,54 +135,75 @@ PLAN = {
           F(c=.4, lean=-10, tw=-4, ar=D(.5, .2, -.4), al=D(.15, -.4, -.7), pinch=0, dz=-.01),
           F(c=.2, lean=-2, ar=D(.4, .25, -.7), al=D(.2, -.3, -.8)),
           F(lean=0, ar=D(.3, .3, -.9), al=D(.25, -.25, -.9))],
- # pull_side v5: anticipation → dig → lean-back resist → TUG FORWARD → RIP → settle to carry
- # three-quarter readable (DIRS=S,SE + CHEAT). 16 keyed frames, not a held pose.
+ # pull_side v6: 24 frames @ ~24fps — antic, dig, resist, tug, rip, settle→carry
+ # three-quarter readable (DIRS=S,SE + CHEAT)
  'pull_side': [
-          # 0-1 plant + reach antic
-          F(c=.25, lean=2, tw=18, hd=6, ar=D(.35, .55, -.35), al=D(.7, .05, .1), wide=8),
-          F(c=.4, lean=5, tw=24, hd=10, ar=D(.55, .5, -.05), al=D(1.0, .15, .35), wide=10, step=1),
-          # 2-3 fingers dig in
-          F(c=.5, lean=9, tw=28, hd=14, ar=D(.7, .4, .2), al=D(1.2, .22, .5), pinch=1, wide=12, step=2),
-          F(c=.58, lean=12, tw=32, hd=16, ar=D(.85, .3, .35), al=D(1.3, .3, .6), pinch=1, wide=14, step=3, ev='claw'),
-          # 4-5 lean back — quality resists
-          F(c=.62, lean=-8, tw=22, hd=12, ar=D(.7, .35, .25), al=D(1.15, .15, .45), pinch=1, wide=14, step=2),
+          F(c=.22, lean=1, tw=14, hd=4, ar=D(.25, .5, -.45), al=D(.55, .0, .05), wide=6),
+          F(c=.28, lean=2, tw=18, hd=6, ar=D(.35, .55, -.35), al=D(.7, .05, .1), wide=8),
+          F(c=.35, lean=4, tw=22, hd=8, ar=D(.45, .52, -.2), al=D(.85, .1, .22), wide=9, step=1),
+          F(c=.42, lean=6, tw=26, hd=11, ar=D(.55, .5, -.05), al=D(1.0, .15, .35), wide=10, step=1),
+          F(c=.48, lean=8, tw=28, hd=13, ar=D(.65, .45, .1), al=D(1.1, .18, .42), pinch=1, wide=11, step=2),
+          F(c=.52, lean=10, tw=30, hd=14, ar=D(.75, .4, .22), al=D(1.2, .22, .5), pinch=1, wide=12, step=2),
+          F(c=.56, lean=11, tw=31, hd=15, ar=D(.8, .35, .3), al=D(1.25, .26, .55), pinch=1, wide=13, step=3, ev='claw'),
+          F(c=.58, lean=12, tw=32, hd=16, ar=D(.85, .3, .35), al=D(1.3, .3, .6), pinch=1, wide=14, step=3),
+          # resist lean-back
+          F(c=.6, lean=4, tw=28, hd=14, ar=D(.78, .32, .3), al=D(1.22, .22, .5), pinch=1, wide=14, step=2),
+          F(c=.62, lean=-6, tw=22, hd=12, ar=D(.7, .35, .25), al=D(1.15, .15, .45), pinch=1, wide=14, step=2),
+          F(c=.65, lean=-12, tw=16, hd=11, ar=D(.6, .4, .15), al=D(1.0, -.05, .4), pinch=1, dz=-.008, wide=15, step=1),
           F(c=.68, lean=-16, tw=14, hd=10, ar=D(.55, .45, .1), al=D(.9, -.2, .35), pinch=1, dz=-.01, wide=15, step=1),
-          # 6-7 TUG FORWARD — quality yanks her once
-          F(c=.72, lean=10, tw=26, hd=14, ar=D(.95, .25, .4), al=D(1.35, .35, .65), pinch=1, wide=16, step=4, ev='tug'),
+          # tug FORWARD
+          F(c=.7, lean=-2, tw=20, hd=12, ar=D(.75, .35, .25), al=D(1.15, .1, .5), pinch=1, wide=15, step=2, ev='tug'),
+          F(c=.72, lean=8, tw=24, hd=14, ar=D(.95, .25, .4), al=D(1.35, .35, .65), pinch=1, wide=16, step=3),
+          F(c=.71, lean=12, tw=27, hd=15, ar=D(1.0, .22, .42), al=D(1.38, .38, .68), pinch=1, wide=16, step=3),
           F(c=.7, lean=14, tw=28, hd=15, ar=D(1.05, .2, .45), al=D(1.4, .4, .7), pinch=1, wide=16, step=3),
-          # 8-9 RIP free — hard lean back
-          F(c=.75, lean=-22, tw=4, hd=8, ar=D(.3, .55, .0), al=D(.45, -.75, .15), pinch=0, dz=-.025, wide=16, step=2, ev='rip'),
+          # RIP
+          F(c=.74, lean=-8, tw=12, hd=10, ar=D(.55, .45, .2), al=D(.85, -.2, .35), pinch=0, dz=-.015, wide=16, step=2, ev='rip'),
+          F(c=.76, lean=-22, tw=4, hd=8, ar=D(.3, .55, .0), al=D(.45, -.75, .15), pinch=0, dz=-.025, wide=16, step=2),
+          F(c=.78, lean=-28, tw=-2, hd=7, ar=D(.22, .58, -.12), al=D(.32, -.88, .05), pinch=0, dz=-.035, wide=16, step=1),
           F(c=.78, lean=-30, tw=-4, hd=6, ar=D(.2, .6, -.2), al=D(.3, -.9, .0), pinch=0, dz=-.04, wide=16, step=1),
-          # 10-12 recoil into carry cradle
-          F(c=.6, lean=-18, tw=-6, ar=D(.35, .4, -.15), al=D(.45, -.55, -.1), pinch=0, dz=-.02, wide=12),
-          F(c=.45, lean=-8, tw=-2, ar=D(.4, .35, -.35), al=D(.4, -.4, -.3), wide=8),
-          F(c=.35, lean=-2, tw=4, ar=D(.45, .25, -.55), al=D(.35, -.25, -.45), wide=6),
-          # 13-15 settle carry (hand forward-low, ready to throw)
-          F(c=.3, lean=0, tw=8, ar=D(.55, .15, -.25), al=D(.3, -.2, -.6), wide=4),
-          F(c=.28, lean=1, tw=10, ar=D(.6, .1, -.15), al=D(.25, -.15, -.7), wide=4),
+          # settle to carry
+          F(c=.65, lean=-20, tw=-4, ar=D(.32, .45, -.12), al=D(.42, -.6, -.08), dz=-.022, wide=12),
+          F(c=.5, lean=-10, tw=0, ar=D(.4, .35, -.3), al=D(.38, -.42, -.28), dz=-.01, wide=8),
+          F(c=.35, lean=-2, tw=6, ar=D(.5, .2, -.45), al=D(.32, -.22, -.5), wide=5),
           F(c=.28, lean=0, tw=8, ar=D(.58, .12, -.2), al=D(.28, -.18, -.65), wide=4)],
- # carry: short breathing idle with quality cradled at her right forearm (loop)
+ # carry v6: 12-frame breathing loop
  'carry': [F(c=.28, lean=0, tw=8, ar=D(.58, .12, -.2), al=D(.28, -.18, -.65), wide=4),
+           F(c=.29, lean=0.5, tw=9, ar=D(.59, .13, -.18), al=D(.29, -.17, -.64), wide=4),
            F(c=.3, lean=1, tw=10, ar=D(.6, .14, -.15), al=D(.3, -.16, -.62), wide=4),
+           F(c=.31, lean=1.5, tw=10.5, ar=D(.61, .13, -.13), al=D(.29, -.15, -.61), wide=4.5),
            F(c=.32, lean=2, tw=11, ar=D(.62, .12, -.12), al=D(.28, -.14, -.6), wide=5),
+           F(c=.31, lean=1.5, tw=10, ar=D(.61, .11, -.15), al=D(.27, -.15, -.62), wide=4.5),
            F(c=.3, lean=1, tw=9, ar=D(.6, .1, -.18), al=D(.26, -.16, -.64), wide=4),
+           F(c=.29, lean=0.5, tw=8, ar=D(.58, .11, -.2), al=D(.27, -.18, -.65), wide=4),
            F(c=.28, lean=0, tw=7, ar=D(.56, .12, -.22), al=D(.28, -.2, -.66), wide=4),
-           F(c=.27, lean=-1, tw=8, ar=D(.55, .14, -.24), al=D(.3, -.18, -.68), wide=4)],
- # hurl v5: windup coil → full-arm release + smear → follow-through → recovery (14 frames)
- 'hurl': [F(c=.28, lean=-4, tw=18, ar=D(-.3, .5, -.3), al=D(.45, .25, -.7), dz=-.005),
+           F(c=.275, lean=-0.5, tw=7.5, ar=D(.555, .13, -.23), al=D(.29, -.19, -.67), wide=4),
+           F(c=.27, lean=-1, tw=8, ar=D(.55, .14, -.24), al=D(.3, -.18, -.68), wide=4),
+           F(c=.275, lean=-0.5, tw=8, ar=D(.565, .13, -.22), al=D(.29, -.18, -.66), wide=4)],
+ # hurl v6: 24 frames — windup, release smear, follow-through, recovery
+ 'hurl': [F(c=.26, lean=-2, tw=12, ar=D(-.15, .48, -.4), al=D(.4, .28, -.75)),
+          F(c=.28, lean=-4, tw=18, ar=D(-.3, .5, -.3), al=D(.45, .25, -.7), dz=-.005),
+          F(c=.32, lean=-8, tw=26, ar=D(-.45, .48, -.05), al=D(.55, .18, -.5), dz=-.008),
           F(c=.35, lean=-10, tw=32, ar=D(-.55, .45, .2), al=D(.7, .1, -.35), dz=-.01),
+          F(c=.38, lean=-12, tw=38, ar=D(-.65, .4, .45), al=D(.8, .05, -.2), dz=-.012),
           F(c=.42, lean=-14, tw=42, ar=D(-.75, .35, .7), al=D(.9, .0, -.1), dz=-.015),
+          F(c=.46, lean=-16, tw=46, ar=D(-.85, .28, .78), al=D(.98, -.05, .0), dz=-.018),
           F(c=.5, lean=-18, tw=50, ar=D(-.95, .2, .8), al=D(1.05, -.1, .05), dz=-.02),
-          F(c=.52, lean=-16, tw=48, ar=D(-1.0, .15, .85), al=D(1.05, -.05, .1), dz=-.025, ev='coil'),
+          F(c=.52, lean=-17, tw=49, ar=D(-.98, .18, .82), al=D(1.05, -.08, .08), dz=-.022, ev='coil'),
+          F(c=.52, lean=-16, tw=48, ar=D(-1.0, .15, .85), al=D(1.05, -.05, .1), dz=-.025),
+          F(c=.48, lean=-6, tw=30, ar=D(-.4, .25, .95), al=D(.75, .1, -.15), sm=True, step=2),
           F(c=.45, lean=0, tw=16, ar=D(.15, .3, 1.0), al=D(.55, .2, -.35), sm=True, step=4),
-          F(c=.5, lean=16, tw=-14, ar=D(1.05, .05, .4), al=D(-.35, .4, -.65), dz=-.03, step=9, ev='release'),
+          F(c=.48, lean=10, tw=0, ar=D(.7, .15, .7), al=D(.1, .3, -.5), dz=-.02, step=7, ev='release'),
+          F(c=.5, lean=16, tw=-14, ar=D(1.05, .05, .4), al=D(-.35, .4, -.65), dz=-.03, step=9),
+          F(c=.53, lean=20, tw=-24, ar=D(1.0, -.3, .1), al=D(-.45, .4, -.58), dz=-.032, step=11),
           F(c=.55, lean=22, tw=-30, ar=D(.95, -.55, -.15), al=D(-.5, .4, -.55), dz=-.035, step=12),
+          F(c=.55, lean=24, tw=-36, ar=D(.85, -.75, -.3), al=D(-.55, .4, -.58), dz=-.035, step=12),
           F(c=.55, lean=24, tw=-38, ar=D(.8, -.8, -.35), al=D(-.55, .4, -.6), dz=-.035, step=12),
-          F(c=.5, lean=18, tw=-36, ar=D(.65, -.75, -.45), al=D(-.45, .35, -.65), dz=-.03, step=11),
-          F(c=.4, lean=10, tw=-22, ar=D(.45, -.4, -.65), al=D(-.2, .3, -.75), step=9),
-          F(c=.28, lean=4, tw=-10, ar=D(.3, .1, -.85), al=D(.1, .2, -.85), step=7),
-          F(c=.2, lean=1, tw=-4, ar=D(.25, .25, -.95), step=5),
-          F(step=4)],
+          F(c=.52, lean=20, tw=-34, ar=D(.7, -.75, -.4), al=D(-.48, .36, -.62), dz=-.032, step=11),
+          F(c=.48, lean=14, tw=-26, ar=D(.55, -.55, -.55), al=D(-.3, .32, -.7), step=10),
+          F(c=.4, lean=10, tw=-18, ar=D(.4, -.3, -.7), al=D(-.15, .28, -.78), step=8),
+          F(c=.32, lean=5, tw=-10, ar=D(.3, .05, -.85), al=D(.05, .22, -.85), step=6),
+          F(c=.24, lean=2, tw=-4, ar=D(.25, .2, -.92), step=5),
+          F(c=.18, lean=0, tw=0, ar=D(.22, .28, -.95), step=4)],
 
 }
 LOOPS = {'charge_hold', 'carry'}

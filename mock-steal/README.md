@@ -2,44 +2,43 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
-## v5 — animated take/throw (OPEN: window → door)
+## v6 — living lure + smooth take/throw (OPEN: window → door)
 
-Danishpreet: stop looking like static flat stuff. Full animation pass preview for one quality.
+Addresses v5 feedback: blur box, unclear steal affordance, choppy animation.
 
-**Keeps from v4:** door-sized lock (one chain across handles, padlock, red LED), blinds, three-quarter readable facing.
-
-**Changes:**
-1. **Noor body** — new Blender keyframed `pull_side` (16), `carry` loop (6), `hurl` (14): anticipation → dig → resist → tug-forward → rip → carry breathe → throw windup/release/follow-through/recovery. Rendered via `noor12.py` → `art/render/steal_noor_v5/`.
-2. **OPEN as living gust** — anime curling strokes + rain droplets; orbits hand while carried; twisting trail in flight. **No radial floor rings / spider-web speed lines.**
-3. **Physical reactions** — blinds slam sequence, chain strain→snap with bounce, padlock drop, door open with light spill.
-4. **Impact** — ~3–5 frame hit-stop, local object flash + debris only, small shake + camera push-in.
-5. **Shimmer** on the window before take.
+**Fixes**
+1. **Removed window blur box** — no flat grey mist rectangle / region flash. Dust is tiny soft particles at the blinds only (or none).
+2. **Window acts alive before take** — blinds sway/clack (blended open frames), rain blows in, leaves/scraps drift off the sill, desk papers flutter, soft elliptical cool glow pulses, shimmer strengthens as Noor approaches. Chained door rattles softly so the two connect.
+3. **Smoother action** — denser Blender keys (`pull_side` 24 / `carry` 12 / `hurl` 24), sprite crossfades between neighbors, blended walk→reach→pull→carry→throw, gust locked to hand every frame, eased ~**2×** camera push-in on take and throw then ease-out.
+4. **No quality text** — "OPEN" caption removed. Only the small hint `F throw` (and `E take` during the pull).
+5. Gust sized ~**2–3× Noor**; chunkier door strain→snap; no radial floor rings.
 
 | file | what |
 |---|---|
-| `v5/beat.mp4` | ~10 s beat |
-| `v5/beat.gif` | 640-wide loop |
-| `v5/compare.mp4` | **v4 vs v5** |
-| `v5/stills/` | 8 key stills + pull/carry/throw/door-snap 2× close-ups |
+| `v6/beat.mp4` | ~11 s beat |
+| `v6/beat.gif` | 640-wide loop |
+| `v6/compare.mp4` | **v5 vs v6** |
+| `v6/stills/` | 8 key stills + lure/pull/carry/throw 2× close-ups |
 
 ### Rebuild
 ```bash
-CHEAT='{"S":42,"SE":18,"SW":18}' NSUB=4 blender -b --python art/tools/noor12.py -- pull_side art/render/steal_noor_v5 14 S,SE
-CHEAT='{"S":42}' NSUB=4 blender -b --python art/tools/noor12.py -- carry art/render/steal_noor_v5 14 S
-CHEAT='{"SW":18,"S":42}' NSUB=4 blender -b --python art/tools/noor12.py -- hurl art/render/steal_noor_v5 14 SW,S
-python3 art/tools/compose_steal_v5.py
-# door lock / blinds reused from art/render/steal_v4/comp + steal_v3/comp
+CHEAT='{"S":42,"SE":18,"SW":18}' NSUB=3 blender -b --python art/tools/noor12.py -- pull_side art/render/steal_noor_v6 12 S,SE
+CHEAT='{"S":42}' NSUB=3 blender -b --python art/tools/noor12.py -- carry art/render/steal_noor_v6 12 S
+CHEAT='{"SW":18,"S":42}' NSUB=3 blender -b --python art/tools/noor12.py -- hurl art/render/steal_noor_v6 12 SW,S
+python3 art/tools/compose_steal_v6.py
 ```
+Door lock / blinds plates reused from `steal_v4/comp` + `steal_v3/comp`.
 
 ### Honesty / weak spots
-- Gust is still code-composited (Bezier strokes), not volumetrics — reads better than v4 dots/ribbon, but not a Blender fluid sim.
-- Throw silhouette at ~50px is improved vs held poses, but full-arm read is still hard in pure top-down; three-quarter CHEAT helps pull more than hurl.
-- Door snap timing reuses v4 lock frames (no new Blender lock render this pass) — strain/rattle is mostly timing + local flash/debris.
-- Window slam reuses v3 blind frames; mist puff is canvas debris.
-- Soft story-cost flicker not in this preview.
+- Lure blinds sway by blending the few open Blender frames — not a continuous cloth sim; clack is timing, not audio.
+- Gust is still canvas Bezier strokes (living, but not volumetrics).
+- Hit-stop still causes a brief freeze (intentional); the largest frame-to-frame jump is exiting that freeze into carry.
+- Throw arm read at 50px remains hard in pure top-down even with denser keys.
+- Desk paper flutter is composited rectangles, not simulated sheets.
 
 ## Earlier versions
-- **v4** — tidy lock + gust + impact frames (included radial rings — removed in v5).
-- **v3** — in-scene blinds + pull_side; lock messy.
+- **v5** — keyframed take/throw; blur-box mist + OPEN caption + choppy sampling. Superseded.
+- **v4** — tidy lock + radial impact rings (removed).
+- **v3** — in-scene blinds; messy lock.
 - **v2** — pasted props; rejected.
-- **v1** — full 20 s code-FX loop in `index.html`.
+- **v1** — code-FX loop in `index.html`.
