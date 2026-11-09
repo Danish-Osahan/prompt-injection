@@ -1,3 +1,44 @@
+# HANDOFF — Impact Lab v15g (wall cover + leaf crop)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Outside the steel frame, only plain dark office wall. No slatted leaf steel / baked lift art beside the frame. Lift visuals = code-drawn frame, leaves, cab, indicator, panel only.
+
+## Diagnosis (v15f → v15g)
+
+- Phaser 4 **WebGL**: `GeometryMask` is Canvas-only → leaf `setMask` was a no-op. Open leaves drew full width into wall pockets and over FG.
+- Layer toggle: turning off `leafLeft` restored wall at screen ~x250; `leafRight` affected the right pocket. Baked door plate stays hidden; `lift_wall_cover` (full plate) sits under the layered lift.
+
+## Fix
+
+- `clipLeavesToOpening()` via `Image.setCrop` to the opening intersection (WebGL-safe). Called on spawn, each open tick, and `applyLiftDoorK(k)` (aborts in-flight open anim).
+- Full-plate `lift_wall_cover.png` loaded in `boot.ts` — covers baked lift footprint; frame/leaves/cab draw on top.
+- Capture `capture_v15g.mjs`: outside-frame wall asserts (upper door band, canvas→screenshot map). Samples left/right of stiles must be dark wall (`lum<55`, low `lumStd`), not slatted steel. Also samples screen x≈140 / x≈510 (skip if inside opening or FG occlusion).
+
+## Stills
+
+`mock-steal/v15g/stills/01-closed-dead-lift.png`  
+`mock-steal/v15g/stills/03-doors-half-open.png`  
+`mock-steal/v15g/stills/04-doors-open-cab.png`  
+Capture: `node game/tests/capture_v15g.mjs`
+
+## Pixel check (04-open, y≈330)
+
+- Outside left ~x250–280: wall_cover ≈(19,33,42), lumStd < 1  
+- Outside right ~x750–780: wall_cover ≈(18–21,34,41), lumStd < 1  
+- Inside opening: cab / leaf only
+
+## Tests
+
+`capture_v15g` PASS (wall asserts + panel-beside-frame).
+
+## Weak spots
+
+- Wall cover is a flat dark plate; slight tone step vs room gradient at plate edges.
+- Absolute cols 140/510 depend on framing (140 often plant FG; 510 often inside cab at zoom 2.25) — asserts skip those cases.
+- Flat-shaded code sprites (Blender still unavailable).
+
+---
+
 # HANDOFF — Impact Lab v15f (leaf pocket mask)
 
 **Date:** 2026-11-10 (Asia/Calcutta)

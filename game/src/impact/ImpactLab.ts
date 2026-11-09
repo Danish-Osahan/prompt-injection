@@ -8,7 +8,7 @@ import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
 /**
- * v15e layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
+ * v15g layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
  * Panel sits on the wall immediately RIGHT of the steel frame — never on kitchen/printer.
  */
 const LIFT_OX = 30, LIFT_OY = 26, LIFT_OW = 128, LIFT_OH = 236, LIFT_FRAME = 11;
@@ -64,8 +64,10 @@ export class ImpactLab {
   private liftRecess?: Phaser.GameObjects.Image;
   private liftDoorK = 0; // 0 shut … 1 open (layered leaves)
   private wallPatch?: Phaser.GameObjects.Rectangle;
+  private wallCover?: Phaser.GameObjects.Image;
   private openingMaskGfx?: Phaser.GameObjects.Graphics;
   private openingMask?: Phaser.Display.Masks.GeometryMask;
+  private leafAnimToken = 0;
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
@@ -119,10 +121,8 @@ export class ImpactLab {
     this.hint?.destroy(); this.hint = undefined;
     this.clearCarryFx();
     this.lampSpr?.destroy(); this.panelSpr?.destroy();
-    try { this.leafL?.clearMask(true); } catch { /* */ }
-    try { this.leafR?.clearMask(true); } catch { /* */ }
-    try { this.liftCab?.clearMask(true); } catch { /* */ }
-    try { this.liftRecess?.clearMask(true); } catch { /* */ }
+    try { this.leafL?.setCrop(); } catch { /* */ }
+    try { this.leafR?.setCrop(); } catch { /* */ }
     this.openingMask = undefined;
     this.openingMaskGfx?.destroy(); this.openingMaskGfx = undefined;
     this.liftCab?.destroy(); this.liftCab = undefined;
@@ -131,6 +131,7 @@ export class ImpactLab {
     this.liftFrame?.destroy(); this.liftFrame = undefined;
     this.liftRecess?.destroy(); this.liftRecess = undefined;
     this.wallPatch?.destroy(); this.wallPatch = undefined;
+    this.wallCover?.destroy(); this.wallCover = undefined;
     this.floorInd?.destroy(); this.darkGap?.destroy();
     if (this.s.clar?.door) this.s.clar.door.setVisible(true);
     this.cover?.destroy();
@@ -187,53 +188,54 @@ export class ImpactLab {
     }
 
     // Wall patch behind the opening (matches office wall so hole isn't room-bg junk)
-    // Only fill the opening hole — do not spill onto plant / desk / side wall
-    this.wallPatch = this.s.add.rectangle(
-      ox + LIFT_OX + LIFT_OW / 2, oy + LIFT_OY + LIFT_OH / 2,
-      LIFT_OW, LIFT_OH,
-      0x1c2230, 1,
-    ).setDepth(depth - 5);
-    this.s.objs.push(this.wallPatch);
+    // Full-plate wall cover: hides baked lift art in the room plate / door JPG footprint.
+    // Outside our code-drawn frame only plain dark wall should show.
+    if (this.s.textures.exists('lift_wall_cover')) {
+      const wc = this.s.add.image(ox, oy, 'lift_wall_cover')
+        .setOrigin(0, 0).setDepth(depth - 6);
+      this.s.objs.push(wc);
+      this.wallPatch = undefined;
+      this.wallCover = wc;
+    } else {
+      this.wallPatch = this.s.add.rectangle(
+        ox + 98, oy + 148, 196, 296, 0x14222a, 1,
+      ).setDepth(depth - 6);
+      this.s.objs.push(this.wallPatch);
+    }
 
     // (a) recess
     if (this.s.textures.exists('lift_recess')) {
       this.liftRecess = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_recess')
         .setOrigin(0, 0).setDepth(depth - 4);
-      // recess masked after mask is created below — applied in applyOpeningMask helper
+      // recess is opening-sized; sits under cab
       this.s.objs.push(this.liftRecess);
     }
 
-    // Geometry mask = inner opening only. Leaves slide into wall pockets behind the
-    // frame; anything outside the opening is clipped (never draws over plant/desk/wall).
-    this.openingMaskGfx = this.s.add.graphics().setVisible(false);
-    this.openingMaskGfx.fillStyle(0xffffff, 1);
-    this.openingMaskGfx.fillRect(ox + LIFT_OX, oy + LIFT_OY, LIFT_OW, LIFT_OH);
-    this.openingMask = this.openingMaskGfx.createGeometryMask();
-    if (this.liftRecess) this.liftRecess.setMask(this.openingMask);
+    // Phaser 4 WebGL: GeometryMask is Canvas-only (no-op here). Clip leaves with
+    // setCrop so pocket slides never draw outside the steel opening.
+    // Cab/recess are already opening-sized — no clip needed.
 
-    // (d) cab behind leaves — clipped to opening
+    // (d) cab behind leaves
     if (this.s.textures.exists('lift_cab')) {
       this.liftCab = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_cab')
         .setOrigin(0, 0).setDepth(depth - 3).setAlpha(1);
-      this.liftCab.setMask(this.openingMask);
       this.s.objs.push(this.liftCab);
     }
 
-    // (c) door leaves — closed over cab; masked so slides vanish into frame pockets
+    // (c) door leaves — closed over cab; cropped to opening so slides vanish into pockets
     const leafY = oy + LIFT_OY + 1;
     const midX = ox + LIFT_OX + LIFT_OW / 2;
     if (this.s.textures.exists('lift_leaf_l')) {
       this.leafL = this.s.add.image(ox + LIFT_OX - 1, leafY, 'lift_leaf_l')
         .setOrigin(0, 0).setDepth(depth - 1);
-      this.leafL.setMask(this.openingMask);
       this.s.objs.push(this.leafL);
     }
     if (this.s.textures.exists('lift_leaf_r')) {
       this.leafR = this.s.add.image(midX - 1, leafY, 'lift_leaf_r')
         .setOrigin(0, 0).setDepth(depth - 1);
-      this.leafR.setMask(this.openingMask);
       this.s.objs.push(this.leafR);
     }
+    this.clipLeavesToOpening();
 
     // (b) steel frame UNMASKED on top of leaf edges (surround draws over clipped leaves)
     if (this.s.textures.exists('lift_frame')) {
@@ -646,9 +648,11 @@ export class ImpactLab {
 
   /** Slide leaves sideways over ~0.9s with a slight residual shudder. */
   private animateLeavesOpen() {
+    const token = ++this.leafAnimToken;
     const steps = 10;
     let i = 0;
     const tick = () => {
+      if (token !== this.leafAnimToken) return; // aborted by applyLiftDoorK / stop
       i += 1;
       const k = Math.min(1, i / steps);
       this.liftDoorK = k;
@@ -660,13 +664,51 @@ export class ImpactLab {
       if (this.leafR) {
         this.leafR.x = O11_DOOR.x + LIFT_OX + LIFT_OW / 2 - 1 + slide - shudder;
       }
+      this.clipLeavesToOpening();
       this.frameDoors(2.15);
       if (k < 1) window.setTimeout(tick, 90);
     };
     tick();
   }
 
-  get lampAlive() { return this.lampOn; }
+  /**
+   * Crop each leaf to the intersection with the steel opening.
+   * Phaser keeps crop UVs in texture space, so remaining pixels stay world-aligned
+   * (pocket parts simply don't draw). WebGL-safe replacement for GeometryMask.
+   */
+  private clipLeavesToOpening() {
+    const openL = O11_DOOR.x + LIFT_OX;
+    const openR = openL + LIFT_OW;
+    const leafH = (this.leafL?.height || this.leafR?.height || (LIFT_OH - 2));
+    const clip = (leaf: Phaser.GameObjects.Image | undefined) => {
+      if (!leaf) return;
+      const lx = leaf.x;
+      const lw = LIFT_LEAF_W;
+      const overlapL = Math.max(lx, openL);
+      const overlapR = Math.min(lx + lw, openR);
+      if (overlapR <= overlapL + 0.5) {
+        leaf.setVisible(false);
+        return;
+      }
+      leaf.setVisible(true);
+      leaf.setCrop(overlapL - lx, 0, overlapR - overlapL, leafH);
+    };
+    clip(this.leafL);
+    clip(this.leafR);
+  }
+
+  /** Capture/test helper: set door open amount 0..1 and crop leaves into pockets. */
+  applyLiftDoorK(k: number) {
+    this.leafAnimToken += 1; // abort in-flight open animation / cam tweens from it
+    const kk = Math.min(1, Math.max(0, k));
+    this.liftDoorK = kk;
+    const slide = kk * (LIFT_LEAF_W - 4);
+    if (this.leafL) this.leafL.x = O11_DOOR.x + LIFT_OX - 1 - slide;
+    if (this.leafR) this.leafR.x = O11_DOOR.x + LIFT_OX + LIFT_OW / 2 - 1 + slide;
+    this.clipLeavesToOpening();
+  }
+
+    get lampAlive() { return this.lampOn; }
   get panelPos() { return { ...PANEL }; }
   get lampPos() { return { ...LAMP }; }
   get liftFocus() { return { ...LIFT_FOCUS }; }
