@@ -31,7 +31,7 @@ LIGHT = ImpactTier('light', impact_frames=1, color_return_frames=1, hitstop_fram
                    punch_zoom=1.15, shake_amp=3.0, spark_scale=0.55, debris_count=4,
                    dust_strength=0.35, silhouette=False, invert=True)
 HEAVY = ImpactTier('heavy', impact_frames=2, color_return_frames=1, hitstop_frames=3,
-                   punch_zoom=2.5, shake_amp=7.5, spark_scale=0.95, debris_count=10,
+                   punch_zoom=2.5, shake_amp=7.5, spark_scale=1.15, debris_count=10,
                    dust_strength=0.85, silhouette=True, invert=False)
 BIG = ImpactTier('big', impact_frames=2, color_return_frames=1, hitstop_frames=4,
                  punch_zoom=2.85, shake_amp=11.0, spark_scale=1.2, debris_count=16,
@@ -135,51 +135,95 @@ def make_clean_silhouette_frame(
     cx: int, cy: int,
     masks: List,  # (img, origin) or (img, origin, rgba_color)
     *,
-    burst_radius: int = 140,
-    mode: str = 'black_on_burst',
+    burst_radius: int = 220,
+    mode: str = 'black_on_burst',  # or 'white_on_black' for flicker frame 2
     bg_dim: Optional[Image.Image] = None,
-    bg_dim_alpha: float = 0.18,
+    bg_dim_alpha: float = 0.0,
+    gust_trail: Optional[List[Tuple[float, float]]] = None,  # polygon points
+    gust_color: Tuple[int, int, int, int] = (8, 10, 14, 255),
 ) -> Image.Image:
-    """Build impact frame from clean actor masks only.
+    """Compose a readable impact SHOT from clean masks.
 
-    masks: (RGBA-or-L, origin) or (RGBA-or-L, origin, solid_rgba).
-    Default silhouette colour is flat black; pass a light colour for the
-    chain/lock so it reads against the door.
+    mode black_on_burst: warm-white radial bg, black actors, bright chain
+    mode white_on_black: black bg, white rim/actors inverted — anime flicker
     """
     w, h = size
-    out = Image.new('RGBA', (w, h), (4, 6, 10, 255))
-    burst = Image.new('RGBA', (w, h), (0, 0, 0, 0))
-    bd = ImageDraw.Draw(burst)
-    for rr, col in (
-        (burst_radius * 2.6, (255, 236, 210, 255)),
-        (burst_radius * 1.9, (255, 248, 235, 255)),
-        (burst_radius * 1.2, (255, 255, 255, 255)),
-    ):
-        bd.ellipse([cx - rr, cy - int(rr * 0.82), cx + rr, cy + int(rr * 0.82)], fill=col)
-    burst = burst.filter(ImageFilter.GaussianBlur(8))
-    out.alpha_composite(burst)
+    if mode == 'white_on_black':
+        out = Image.new('RGBA', (w, h), (6, 8, 12, 255))
+        # bright rim burst (inverted feel)
+        burst = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(burst)
+        for rr, col in (
+            (burst_radius * 2.4, (255, 245, 230, 90)),
+            (burst_radius * 1.6, (255, 250, 240, 160)),
+            (burst_radius * 0.9, (255, 255, 255, 220)),
+        ):
+            bd.ellipse([cx - rr, cy - int(rr * 0.82), cx + rr, cy + int(rr * 0.82)], fill=col)
+        burst = burst.filter(ImageFilter.GaussianBlur(10))
+        out.alpha_composite(burst)
+        default_col = (250, 248, 242, 255)
+        chain_default = (255, 255, 255, 255)
+        outline_col = (8, 10, 14, 255)
+    else:
+        out = Image.new('RGBA', (w, h), (18, 14, 10, 255))
+        burst = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        bd = ImageDraw.Draw(burst)
+        for rr, col in (
+            (burst_radius * 2.8, (255, 220, 185, 255)),
+            (burst_radius * 2.0, (255, 240, 215, 255)),
+            (burst_radius * 1.2, (255, 252, 245, 255)),
+        ):
+            bd.ellipse([cx - rr, cy - int(rr * 0.82), cx + rr, cy + int(rr * 0.82)], fill=col)
+        burst = burst.filter(ImageFilter.GaussianBlur(14))
+        out.alpha_composite(burst)
+        default_col = (8, 10, 14, 255)
+        chain_default = (255, 252, 245, 255)
+        outline_col = (10, 12, 16, 255)
 
     if bg_dim is not None and bg_dim_alpha > 0:
-        dim = bg_dim.convert('L').point(lambda v: int(40 + v * 0.08))
+        dim = bg_dim.convert('L').point(lambda v: int(30 + v * 0.06))
         dim_rgba = Image.merge('RGBA', (dim, dim, dim,
             Image.new('L', (w, h), int(255 * bg_dim_alpha))))
-        dim_rgba = dim_rgba.filter(ImageFilter.GaussianBlur(12))
-        out.alpha_composite(dim_rgba)
+        out.alpha_composite(dim_rgba.filter(ImageFilter.GaussianBlur(14)))
 
-    default_col = (8, 10, 14, 255) if mode == 'black_on_burst' else (250, 248, 242, 255)
+    # Gust trail under actors (cause → effect)
+    if gust_trail and len(gust_trail) >= 3:
+        ov = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(ov).polygon(gust_trail, fill=gust_color)
+        # soft taper edge
+        ov = ov.filter(ImageFilter.GaussianBlur(1.2))
+        # re-harden core
+        core = Image.new('RGBA', (w, h), (0, 0, 0, 0))
+        ImageDraw.Draw(core).polygon(gust_trail, fill=gust_color)
+        out.alpha_composite(ov)
+        out.alpha_composite(core)
+
     for item in masks:
-        if len(item) == 3:
-            mask_im, origin, sil_color = item
+        if len(item) >= 3:
+            mask_im, origin, sil_color = item[0], item[1], item[2]
+            is_chain = len(item) >= 4 and item[3] == 'chain'
         else:
-            mask_im, origin = item
+            mask_im, origin = item[0], item[1]
             sil_color = default_col
+            is_chain = False
         if mask_im.mode == 'RGBA':
             m = mask_im.split()[-1]
         else:
             m = mask_im.convert('L')
-        m = _harden_alpha(m, thresh=36)
+        m = _harden_alpha(m, thresh=36, preserve_holes=is_chain)
         if m.getbbox() is None:
             continue
+        # thin dark outline for chain/lock focal readability
+        if is_chain:
+            outline = m.filter(ImageFilter.MaxFilter(3))
+            # outline ring = dilated - original
+            arr_o = np.array(outline)
+            arr_m = np.array(m)
+            ring = np.where((arr_o >= 128) & (arr_m < 128), 255, 0).astype(np.uint8)
+            ring_im = Image.fromarray(ring, 'L')
+            solid_o = Image.new('RGBA', mask_im.size, outline_col)
+            out.paste(solid_o, origin, ring_im)
+            sil_color = sil_color if sil_color else chain_default
         solid = Image.new('RGBA', mask_im.size, sil_color)
         out.paste(solid, origin, m)
     return out
@@ -188,24 +232,29 @@ def make_clean_silhouette_frame(
 def make_impact_frame_from_masks(
     size: Tuple[int, int],
     cx: int, cy: int,
-    masks: List[Tuple[Image.Image, Tuple[int, int]]],
+    masks: List,
     tier: ImpactTier,
     *,
     burst_u: float = 0.0,
     direction: Tuple[float, float] = (-1.0, 0.05),
     phase: float = 0.0,
     bg_dim: Optional[Image.Image] = None,
+    mode: str = 'black_on_burst',
+    gust_trail: Optional[List] = None,
+    spark_torso: float = 110.0,  # ~0.7x Noor height for big spark
 ) -> Image.Image:
-    """Public API: clean-mask silhouette + asymmetric spark."""
+    """Public API: clean-mask silhouette shot + asymmetric spark."""
     out = make_clean_silhouette_frame(
         size, cx, cy, masks,
-        burst_radius=int(120 + 30 * (1 - burst_u)),
-        mode='black_on_burst',
+        burst_radius=int(200 + 40 * (1 - burst_u)),
+        mode=mode,
         bg_dim=bg_dim,
-        bg_dim_alpha=0.12 if tier.name != 'light' else 0.0,
+        bg_dim_alpha=0.0,
+        gust_trail=gust_trail,
+        gust_color=(8, 10, 14, 255) if mode == 'black_on_burst' else (250, 248, 242, 255),
     )
-    hit_spark(out, cx, cy, burst_u * 0.25, tier, direction=direction,
-              torso_w=64, phase=phase)
+    hit_spark(out, cx, cy, burst_u * 0.2, tier, direction=direction,
+              torso_w=spark_torso, phase=phase)
     return out
 
 

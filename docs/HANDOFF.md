@@ -316,6 +316,11 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21h. mock-steal/v11 — silhouette impact SHOT (fix v10 framing)
+- **`mock-steal/v11/`** beat / gif / compare (**v10 vs v11**) / stills + 8-frame impact strip + `10-impact-1x`.
+- Keeps v10 colour post-flash. Silhouette reframed as a readable SHOT: authored Noor throw follow-through (bun + extended arm) staged right of door, real door mask (frame / two leaves / handles / seam), bold gust trail hand→lock, chain/lock white-hot with thin dark outline, spark ~0.7× Noor height (asymmetric spikes), anime invert flicker (frame1 black-on-warm / frame2 white-on-black). Punch-zoom only on colour-return (not during sil). Debris rim/specular + authored open shackle overlay. Compose: `art/tools/compose_steal_v11.py`. Masks in `art/render/steal_break_v9/door_sil_mask.png` + `noor_throw_sil.png`. `impact_system.py` gains invert mode + gust_trail + chain outline.
+- Weak spots: Noor sil is authored (3D hurl sheets are high-angle busts and don't read at 1×); sil staging cheats Noor right of the door (world pose overlaps the plate); settled debris + open shackle still subtle on dark carpet at 1×; strip frame 3 is a tight punch crop by design.
+
 ## 21g. mock-steal/v10 — clean-mask impact (fix v9)
 - **`mock-steal/v10/`** beat / gif / compare (v9 vs v10) / stills + 8-frame impact strip + `10-impact-1x`.
 - Clean alpha-mask silhouettes (Noor + door + chain/lock only); 2 sil + 1 colour-return @24fps; asymmetric directional spark; door-scaled chain (≤ handles); fixed-scale chunky debris with floor contact shadows; no grey HUD boxes / no threshold noise. Compose: `art/tools/compose_steal_v10.py`. Spec + `impact_system.py` updated.

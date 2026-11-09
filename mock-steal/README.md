@@ -2,6 +2,35 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
+## v11 — silhouette impact SHOT (fix v10 framing)
+
+Colour frames after the flash stay as in v10. The silhouette impact was reframed so at 1× you can tell who threw what at what.
+
+**Fixes**
+1. **Framing** — wide sil SHOT: Noor throw follow-through (bun + extended arm) + gust trail + door/chain. Punch-zoom only after colour-return.
+2. **Shapes** — real door mask (frame, two leaves, handles, seam); chain/lock white-hot with thin dark outline; door + Noor flat; warm-white radial on lock; bold tapered gust trail hand→lock.
+3. **Spark** — ~0.6–0.8× Noor height, 4–5 thick uneven spikes along throw, hot core over lock.
+4. **Flicker** — frame1 black-on-warm / frame2 white-on-black (anime invert).
+5. **Debris** — rim/specular boost on settle; padlock shackle visibly popped open (overlay).
+
+| file | what |
+|---|---|
+| `v11/beat.mp4` | ~11.5 s beat |
+| `v11/beat.gif` | 640-wide loop |
+| `v11/compare.mp4` | **v10 vs v11** |
+| `v11/stills/` | `impact-01..08-2x` + strip + `10-impact-1x` |
+
+### Rebuild
+```bash
+python3 art/tools/compose_steal_v11.py
+```
+
+### Honesty / weak spots
+- Noor sil is authored (`art/render/steal_break_v9/noor_throw_sil.png`) — the 3D hurl sheets are high-angle busts and don't read as "bun + arm" at 1×.
+- Sil staging cheats Noor to the right of the door (her world pose overlaps the door plate).
+- Settled debris + open shackle remain subtle on the dark carpet at game scale.
+- Soft wind remains canvas masses; scatter is still authored ballistic.
+
 ## v10 — clean-mask impact (fix v9)
 
 v9 silhouette used a brightness threshold → blotchy Noor, white paper props, clip-art 8-point star, oversized chain, grey box. v10 fixes the approach.
