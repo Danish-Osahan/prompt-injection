@@ -136,6 +136,28 @@ async function main() {
     };
   });
   console.log('post', post);
+
+  // v15e: panel must sit adjacent to lift frame (world), not on kitchen/printer
+  const geo = await page.evaluate(() => {
+    const s = window.__game?.scene?.scenes?.find(x => x.scene.key === 'game');
+    const lab = s?.impactLab;
+    return lab?.liftFrameBounds ? { panel: lab.panelPos, b: lab.liftFrameBounds } : null;
+  });
+  if (geo) {
+    const { panel: pp, b } = geo;
+    if (!(pp.x > b.right && pp.x < b.frameRight + 55 && pp.y > b.top && pp.y < b.bottom)) {
+      console.error('FAIL panel not beside lift frame', geo);
+      process.exit(1);
+    }
+    // Kitchen FG ~ (299,153) is hidden in lab; panel on jamb (~312,188) can be near in Euclidean
+    // space but must still be right of the opening and not left of frame.
+    if (pp.x < b.right + 8) {
+      console.error('FAIL panel overlaps opening', geo);
+      process.exit(1);
+    }
+    console.log('panel-beside-frame OK', pp, 'frameRight', b.frameRight);
+  }
+
   if (post.door !== 'OPEN') { console.error('FAIL door', post); process.exit(1); }
   if (!post.moved) { console.error('FAIL input stuck'); process.exit(1); }
   if (post.codeOn || post.tagsVis) { console.error('FAIL word UI after', post); process.exit(1); }

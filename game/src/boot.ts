@@ -42,9 +42,13 @@ export class BootScene extends Phaser.Scene {
   'spark_orb_0', 'spark_orb_1', 'spark_orb_2', 'spark_orb_3',
   'lightning_0', 'lightning_1', 'lightning_2', 'lightning_3',
   'spark_pop', 'lift_floor_ind_off', 'lift_floor_ind_on', 'lift_cab',
+  // v15e layered lift (code-drawn; see assets/fx/lift_layers)
+
   'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3',
 ];
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
+    const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on'];
+    for (const f of LL) this.load.image('lift_' + f, `assets/fx/lift_layers/${f}.png`);
     const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
     const t = this.add.text(640, 360, '> loading_', { fontFamily: 'JetBrains Mono', fontSize: '18px', color: '#B4EEF0' }).setOrigin(0.5);

@@ -1,3 +1,52 @@
+# HANDOFF — Impact Lab v15e (layered lift sprites)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Stop patching baked door JPGs. Code-drawn layered lift (Blender unavailable): recess, cab, sliding leaves, steel frame, wall panel. Panel beside frame with capture + verify asserts.
+
+## Why
+
+v15d painted over `lift_0N.jpg` and left a beige smudge / stray line; panel still read as kitchen. Blender is not installed on the box, so the allowed fallback is a flat-shaded steel lift matching the office palette.
+
+## Layers (back → front)
+
+Assets in `game/public/assets/fx/lift_layers/` (`recess`, `cab`, `leaf_l`/`leaf_r`, `frame`, `panel_dead`/`live`, `ind_off`/`on`). Geometry in `meta.json` / `LIFT_*` constants in `ImpactLab.ts`.
+
+1. Hide baked `o11door_*` plate while lab runs; wall patch behind opening.
+2. Recess → cab → left/right leaves (tween `x` + shudder) → steel frame → floor indicator above doors → call panel on wall immediately right of frame (`PANEL ≈ 312,188`).
+3. Lamp: keep painted `fx_lamp_on/off`.
+4. Restored pristine art-v11 door JPGs (no more in-place composites).
+
+## Stills
+
+`mock-steal/v15e/stills/` + `playthrough.mp4`  
+Capture: `node game/tests/capture_v15e.mjs`  
+Required: `01-closed-dead-lift`, `02-bolt-hit`, `03-doors-half-open`, `04-doors-open-cab`, `05-walk-in`.
+
+## Asserts
+
+Every capture still + `verify_steal`: panel world `x` is right of opening and within `frameRight+55`; screen `dx` from opening right is in `[-5,140]`.
+
+## Best verification stills
+
+- `01-closed-dead-lift.png` — shut steel leaves + dead panel on jamb + lamp E
+- `04-doors-open-cab.png` — sliding leaves open, cab+handrail+ceiling light, live panel
+- `05-walk-in.png` — Noor at open lift
+
+## Weak spots (honest)
+
+- Flat-shaded code sprites, not Cycles plate-matched renders (Blender missing on box).
+- Cab side walls are simple polygons; at some zooms the left wall can still read as a dark plane.
+- Panel green live rim remains slightly “UI”.
+- Leaf slide is a capture-driven `x` tween; production may want Matter/physics polish.
+- Extra diagnostic stills from the v15d capture path remain in the folder (near-lamp, peel, etc.).
+
+## Tests
+
+`capture_v15e`, `verify_steal`, `impact_lab` PASS.
+
+
+---
+
 # HANDOFF — Impact Lab v15d (wedge out, panel on jamb, dim cab)
 
 **Date:** 2026-11-10 (Asia/Calcutta)
