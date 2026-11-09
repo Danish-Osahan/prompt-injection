@@ -1,0 +1,310 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Prompt Injection — steal qualities (preview)</title>
+<style>
+@font-face{font-family:Plex;src:url(../game/public/assets/fonts/IBMPlexMono-Medium.ttf)}
+html,body{margin:0;background:#04080c;height:100%;display:flex;align-items:center;justify-content:center}
+canvas{width:min(100vw,177.78vh);aspect-ratio:16/9;display:block;image-rendering:auto}
+</style></head><body><canvas id=c width=1280 height=720></canvas>
+<script>
+// STEAL QUALITIES preview (NOT the game). No words on objects/enemies — only physical states + dialogue.
+// Scripted ~20 s loop. ?t=SECONDS freezes a frame. Code-drawn FX; plate + door + Noor sprites are real assets.
+const A='../game/public/assets/', cv=document.getElementById('c'), g=cv.getContext('2d');
+const W=1280,H=720, TOP=48, BOT=94, R=(H-TOP-BOT)/720, OX=(W-1280*R)/2, OY=TOP, NS=0.78;
+const ease=u=>u<=0?0:u>=1?1:u*u*(3-2*u), lerp=(a,b,u)=>a+(b-a)*u, cl=(v,a,b)=>Math.max(a,Math.min(b,v)), seg=(t,a,b)=>cl((t-a)/(b-a),0,1);
+const img=s=>new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(i);i.src=s});
+const J=async n=>{const im=await img(A+'sprites/'+n+'.png'); const fr=(await (await fetch(A+'sprites/'+n+'.json')).json()).frames; return [im,fr];};
+const J12=async n=>{const im=await img(A+'sprites12/'+n+'.png'); const fr=(await (await fetch(A+'sprites12/'+n+'.json')).json()).frames; return [im,fr];};
+let I={};
+const W2=()=>{g.setTransform(R,0,0,R,OX,OY);g.globalAlpha=1;g.filter='none';g.shadowBlur=0;}, SC=()=>{g.setTransform(1,0,0,1,0,0);g.globalAlpha=1;g.filter='none';g.shadowBlur=0;};
+function rnd(s){let x=s|0;return()=>{x=(x*16807)%2147483647;return (x&0x7fffffff)/2147483647;};}
+function text(s,x,y,size,col,al='center'){g.font=`500 ${size}px Plex`;g.textAlign=al;g.textBaseline='middle';g.fillStyle=col;g.fillText(s,x,y);}
+
+// ---- world positions ----
+const DOOR={x:168,y:150}, WIN={x:960,y:130}, COOL={x:330,y:210}, SCRIB={x:720,y:480};
+const P_START={x:420,y:480}, P_WIN={x:880,y:280}, P_DOOR={x:220,y:250}, P_COOL={x:300,y:280}, P_FIGHT={x:580,y:500};
+
+function room(doorK){W2();g.drawImage(I.office,0,0); const k=Math.round(cl(doorK,0,1)*9); g.drawImage(I.door[k],112,62); SC();}
+
+function noorAt(sheet,dir,f,x,y){const pack=I[sheet]; if(!pack)return; const [im,fr]=pack;
+  const key=`${sheet}_${dir}_${String(f).padStart(2,'0')}`;
+  const F=fr[key]||fr[`${sheet}_S_00`]||Object.values(fr)[0]; if(!F)return;
+  const fw=F.frame?.w||F.sourceSize?.w||192, fh=F.frame?.h||F.sourceSize?.h||192;
+  const fx=F.frame?.x||0, fy=F.frame?.y||0;
+  W2(); g.globalAlpha=.28; g.fillStyle='#000'; g.beginPath(); g.ellipse(x,y,24*NS,7*NS,0,0,7); g.fill();
+  g.globalAlpha=1; g.drawImage(im,fx,fy,fw,fh,x-96*NS,y-160*NS,192*NS,192*NS); SC();}
+
+const DV={E:[1,0],W:[-1,0],N:[0,-1],S:[0,1],NE:[.7,-.7],NW:[-.7,-.7],SE:[.7,.7],SW:[-.7,.7]};
+function hand(n){const d=DV[n.dir]||[0,-1]; return {x:n.x+d[0]*18,y:n.y-58+d[1]*5};}
+
+// ---- physical object states (no text) ----
+function chains(u,burst){ // metal chain links across the lift + padlock; burst flings links
+  W2(); const cx=168, cy=155;
+  if(burst>0){ const rn=rnd(44); for(let i=0;i<18;i++){ const a=rn()*6.3, d=16+burst*80*rn(), x=cx+Math.cos(a)*d, y=cy+Math.sin(a)*d*.75+burst*50;
+    g.save(); g.translate(x,y); g.rotate(rn()*7+burst*5); g.globalAlpha=1-burst*.65; g.strokeStyle='#b0b6bc'; g.lineWidth=2.2;
+    g.beginPath(); g.ellipse(0,0,5,3.2,0,0,7); g.stroke(); g.restore(); } SC(); return; }
+  g.globalAlpha=.95*u; g.strokeStyle='#c0c6cc'; g.lineWidth=2.4;
+  // two hanging chain strands of linked ovals
+  const strands=[[138,112],[198,112]];
+  for(const [sx,sy] of strands){ let x=sx,y=sy; for(let i=0;i<7;i++){ g.beginPath(); g.ellipse(x,y,5.5,3.4,i%2?.5:-.5,0,7); g.stroke();
+    x+=i%2?10:-2; y+=9; } }
+  // cross chain
+  let x=145,y=140; for(let i=0;i<6;i++){ g.beginPath(); g.ellipse(x,y,5.5,3.2,0.2,0,7); g.stroke(); x+=11; y+=1; }
+  // padlock body + shackle + red LED
+  g.fillStyle='#2e2828'; g.beginPath(); g.roundRect(158,152,22,18,3); g.fill();
+  g.strokeStyle='#1a1616'; g.lineWidth=3; g.beginPath(); g.arc(169,152,8,Math.PI+.15,-.15); g.stroke();
+  g.fillStyle='#ff3030'; g.shadowColor='#ff2020'; g.shadowBlur=14; g.beginPath(); g.arc(169,161,3.8,0,7); g.fill();
+  g.shadowBlur=0; SC();}
+
+function rainWindow(open,t){ // open 1 = rain blowing in + curtains; 0 = shut/dry
+  W2(); const x0=780, y0=78, w=380, h=110;
+  if(open>0.05){
+    // wet glass tint
+    g.globalAlpha=.12*open; g.fillStyle='#6ec8e8'; g.fillRect(x0,y0,w,h);
+    // rain streaks into room
+    const rn=rnd(3+Math.floor(t*8)%9); g.globalAlpha=.55*open; g.strokeStyle='#a8d8e8'; g.lineWidth=1.2;
+    for(let i=0;i<28;i++){ const x=x0+rn()*w, y=y0+rn()*h, len=10+rn()*22; g.beginPath(); g.moveTo(x,y); g.lineTo(x-3,y+len); g.stroke(); }
+    // puddle on sill
+    g.globalAlpha=.35*open; g.fillStyle='#4a7080'; g.beginPath(); g.ellipse(x0+w*.55,y0+h-4,60,5,0,0,7); g.fill();
+    // curtains sway
+    g.globalAlpha=.55*open; g.fillStyle='#2a3848';
+    const sway=Math.sin(t*3.2)*10*open;
+    g.beginPath(); g.moveTo(x0+8,y0); g.quadraticCurveTo(x0+20+sway,y0+h*.5,x0+10,y0+h); g.lineTo(x0,y0+h); g.lineTo(x0,y0); g.fill();
+    g.beginPath(); g.moveTo(x0+w-8,y0); g.quadraticCurveTo(x0+w-20-sway,y0+h*.5,x0+w-10,y0+h); g.lineTo(x0+w,y0+h); g.lineTo(x0+w,y0); g.fill();
+  } else {
+    // shut: dark dry glass, still curtains
+    g.globalAlpha=.2; g.fillStyle='#0a1218'; g.fillRect(x0,y0,w,h);
+    g.globalAlpha=.4; g.fillStyle='#1a2430'; g.fillRect(x0,y0,14,h); g.fillRect(x0+w-14,y0,14,h);
+  }
+  SC();}
+
+function cooler(hasWater,t,takeU){ // dripping cooler; takeU drains it
+  W2(); const x=318, y=168;
+  // tank
+  g.globalAlpha=.9; g.fillStyle='#c8d8e0'; g.beginPath(); g.roundRect(x,y,36,48,4); g.fill();
+  g.fillStyle=hasWater>0?`rgba(80,160,200,${.45*hasWater})`:'rgba(40,50,55,.3)';
+  const level=48*(.25+.55*hasWater*(1-takeU)); g.fillRect(x+3,y+48-level,30,level-3);
+  // spout
+  g.fillStyle='#6a7078'; g.fillRect(x+14,y+48,8,10);
+  if(hasWater>0.2 && takeU<0.8){ // drips
+    const ph=(t*2.4)%1; g.fillStyle='#7ec8e8'; g.globalAlpha=.8*hasWater;
+    g.beginPath(); g.arc(x+18,y+60+ph*28,2.2*(1-ph),0,7); g.fill();
+    if(ph>.55){ g.beginPath(); g.ellipse(x+18,y+92,6*(ph-.55)*4,2,0,0,7); g.fill(); }
+  }
+  SC();}
+
+function shimmer(cx,cy,rw,rh,t,on){ if(!on)return; W2();
+  const a=.25+.2*Math.sin(t*5); g.strokeStyle=`rgba(180,238,240,${a})`; g.lineWidth=2;
+  g.shadowColor='#b4eef0'; g.shadowBlur=10;
+  g.beginPath(); g.ellipse(cx,cy,rw,rh,0,0,7); g.stroke();
+  g.shadowBlur=0; SC();}
+
+// ---- carried qualities (orbiting FX, never text) ----
+function windSwirl(x,y,t,s=1){ W2(); g.save(); g.translate(x,y); g.scale(s,s);
+  for(let i=0;i<3;i++){ const a=t*4+i*2.1; g.strokeStyle=`rgba(170,220,255,${.55-i*.12})`; g.lineWidth=2-i*.4;
+    g.beginPath(); g.ellipse(Math.cos(a)*6,Math.sin(a)*3-2,14-i*3,7-i*1.5,a*.3,0,7); g.stroke(); }
+  // leaf flecks
+  g.fillStyle='rgba(200,230,255,.7)'; for(let i=0;i<5;i++){ const a=t*5+i; g.beginPath(); g.arc(Math.cos(a)*12,Math.sin(a)*5,1.4,0,7); g.fill(); }
+  g.restore(); SC();}
+
+function waterOrb(x,y,t,s=1){ W2(); g.save(); g.translate(x,y); g.scale(s,s);
+  g.fillStyle='rgba(90,180,220,.55)'; g.beginPath(); g.arc(0,0,7,0,7); g.fill();
+  g.strokeStyle='rgba(200,240,255,.8)'; g.lineWidth=1.5; g.beginPath(); g.arc(0,0,7,0,7); g.stroke();
+  for(let i=0;i<6;i++){ const a=t*3+i, r=10+i*2; g.fillStyle=`rgba(140,210,240,${.7-i*.08})`;
+    g.beginPath(); g.ellipse(Math.cos(a)*r,Math.sin(a)*r*.55+2,2.2,3.2,0,0,7); g.fill(); }
+  g.restore(); SC();}
+
+function paperScraps(x,y,t,s=1){ W2(); g.save(); g.translate(x,y); g.scale(s,s);
+  const rn=rnd(8); for(let i=0;i<7;i++){ const a=t*2.5+i*.9, r=8+i*1.5;
+    g.save(); g.translate(Math.cos(a)*r,Math.sin(a)*r*.5); g.rotate(a+t); g.globalAlpha=.85;
+    g.fillStyle=i%2?'#efe8d8':'#d8cfba'; g.fillRect(-3,-2,6,4); g.restore(); }
+  g.restore(); SC();}
+
+function carryFX(kind,hx,hy,t){ if(kind==='open') windSwirl(hx,hy-6,t,1); else if(kind==='water') waterOrb(hx,hy-4,t,1); else if(kind==='paper') paperScraps(hx,hy-4,t,1); }
+
+// ---- combat targets ----
+function scribble(x,y,melt,t){ W2(); g.save(); g.translate(x,y);
+  const rn=rnd(21); const m=ease(melt);
+  if(m>=.98){ // mostly puddle
+    g.globalAlpha=.85; g.fillStyle='#1a1410'; g.beginPath(); g.ellipse(0,12,38,10,0,0,7); g.fill();
+    g.fillStyle='rgba(60,90,110,.45)'; for(let i=0;i<10;i++){ g.beginPath(); g.ellipse((rn()-.5)*50, 8+rn()*14, 3+rn()*4, 2,0,0,7); g.fill(); }
+    g.restore(); SC(); return; }
+  const sag=1+m*1.3, sink=m*28;
+  g.globalAlpha=1-m*.45; g.strokeStyle='#1a1410'; g.lineWidth=2.6*(1-m*.4);
+  for(let i=0;i<20;i++){ const a0=rn()*6.3, r0=6+rn()*16; g.beginPath();
+    g.moveTo(Math.cos(a0)*r0*.3, Math.sin(a0)*r0*.25-18+sink);
+    for(let k=0;k<4;k++){ const a=a0+k*.7+(t*.4); g.lineTo(Math.cos(a)*(r0+k*2)*sag, Math.sin(a)*(r0*.7)*sag-18+sink+m*k*8); }
+    g.stroke(); }
+  if(m>0){ g.fillStyle=`rgba(18,14,12,${.7*m})`; g.beginPath(); g.ellipse(0,10+m*18,20+m*36,6+m*10,0,0,7); g.fill();
+    g.fillStyle=`rgba(70,120,150,${.5*m})`; for(let i=0;i<12;i++){ const a=rn()*6; g.beginPath(); g.ellipse(Math.cos(a)*m*42, 12+m*22+rn()*8, 2.5+rn()*3, 3.5+rn()*2,0,0,7); g.fill(); }
+  }
+  g.restore();
+  g.globalAlpha=.25; g.fillStyle='#000'; g.beginPath(); g.ellipse(x,y+4+m*10,22+m*16,7,0,0,7); g.fill();
+  SC();}
+
+function staplerChrome(x,y,paperU,t){ W2(); g.save(); g.translate(x,y);
+  // chrome body
+  const gr=g.createLinearGradient(-20,-30,20,10); gr.addColorStop(0,'#e8eef4'); gr.addColorStop(.45,'#9aa8b4'); gr.addColorStop(1,'#6a7480');
+  if(paperU>0){ // become paper
+    g.globalAlpha=1-paperU*.2; g.fillStyle=`rgba(242,236,220,${.5+paperU*.5})`;
+    g.beginPath(); g.moveTo(-22,-8); g.lineTo(18,-14); g.lineTo(20,6); g.lineTo(-18,10); g.closePath(); g.fill();
+    g.strokeStyle='rgba(90,80,60,.5)'; g.lineWidth=1; for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(-16+i*8,-6); g.lineTo(-10+i*8,8); g.stroke(); }
+    // flutter
+    g.globalAlpha=paperU; g.fillStyle='#efe8d8'; for(let i=0;i<6;i++){ const a=t*3+i; g.save(); g.translate(Math.cos(a)*20*paperU, -10-Math.sin(a)*12*paperU); g.rotate(a); g.fillRect(-3,-2,5,3); g.restore(); }
+  } else {
+    g.fillStyle=gr; g.beginPath(); g.roundRect(-22,-18,44,22,4); g.fill();
+    g.fillStyle='#c0c8d0'; g.fillRect(-8,-28,16,12); // anvil
+    // specular
+    g.globalAlpha=.55; g.fillStyle='#fff'; g.beginPath(); g.ellipse(-8,-10,6,3, -.4,0,7); g.fill();
+  }
+  g.restore(); SC();}
+
+function projectile(kind,from,to,u,t){ if(u<=0||u>=1)return; const e=ease(u);
+  const cx=(from.x+to.x)/2, cy=Math.min(from.y,to.y)-50;
+  const x=(1-e)*(1-e)*from.x+2*(1-e)*e*cx+e*e*to.x;
+  const y=(1-e)*(1-e)*from.y+2*(1-e)*e*cy+e*e*to.y;
+  if(kind==='open') windSwirl(x,y,t,1.1);
+  else if(kind==='water') waterOrb(x,y,t,1.15);
+  else paperScraps(x,y,t,1.1);
+  // trail
+  W2(); for(let k=1;k<8;k++){ const v=cl(e-k*.04,0,1); if(v<=0)continue;
+    const xx=(1-v)*(1-v)*from.x+2*(1-v)*v*cx+v*v*to.x, yy=(1-v)*(1-v)*from.y+2*(1-v)*v*cy+v*v*to.y;
+    g.globalAlpha=.35*(1-k/8); g.fillStyle=kind==='water'?'#7ec8e8':kind==='open'?'#c8e8ff':'#efe8d8';
+    g.beginPath(); g.arc(xx,yy,2.5,0,7); g.fill(); } SC();
+}
+
+function burst(cx,cy,u,col,seed){ if(u<=0||u>=1)return; const rn=rnd(seed); W2();
+  for(let i=0;i<20;i++){ const a=rn()*7, d=(12+rn()*40)*ease(u*1.4); g.globalAlpha=(1-u)*.9;
+    g.fillStyle=col; g.beginPath(); g.arc(cx+Math.cos(a)*d, cy+Math.sin(a)*d*.75, 1.5+rn()*2.5*(1-u),0,7); g.fill(); } SC();}
+
+function hud(obj,done,cap,hint){
+  // objective (skip when empty — combat teach beat)
+  if(obj){ g.font='500 19px Plex'; const tw=g.measureText(obj).width+58, x0=640-tw/2;
+  g.fillStyle='rgba(5,12,18,.9)'; g.beginPath(); g.roundRect(x0,10,tw,34,17); g.fill();
+  g.strokeStyle=done?'#7dcea0':'#78e4e8'; g.lineWidth=1.5; g.stroke();
+  g.fillStyle=done?'#7dcea0':'#78e4e8'; text(done?'✓':'◆', x0+21, 27, 16);
+  g.fillStyle='#e8eef2'; text(obj, x0+40, 27, 19, '#e8eef2', 'left'); }
+  // caption (dialogue only)
+  if(cap){ g.fillStyle='rgba(4,12,18,.72)'; const cw=Math.min(900, g.measureText(cap).width+28);
+    g.beginPath(); g.roundRect(640-cw/2, H-BOT+28, cw, 36, 8); g.fill();
+    text(cap, 640, H-BOT+46, 22, '#e8eef2'); }
+  // tiny control hint (not world text)
+  if(hint){ text(hint, 640, H-18, 13, 'rgba(180,200,210,.55)'); }
+}
+
+function pathLerp(a,b,u){ return {x:lerp(a.x,b.x,u), y:lerp(a.y,b.y,u)}; }
+
+// ---- timeline --------------------------------------------------------------
+const END=20;
+function frameAt(t){
+  t=((t%END)+END)%END;
+  g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,W,H); g.fillStyle='#04080c'; g.fillRect(0,0,W,H);
+
+  let n={...P_START,dir:'E'}, sheet='noor_idle', f=0, doorK=0, winOpen=1, coolWater=1, carry=null;
+  let takeWin=0, throwDoor=0, takeCool=0, throwScr=0, melt=0, burstU=0;
+  let nearWin=false, nearDoor=false, nearCool=false, showScrib=false;
+  let obj='Get through the door', done=false, cap='', hint='E take   ·   F throw   ·   J attack';
+
+  // phases
+  if(t<2.2){ // establish
+    n={...P_START,dir:'E'}; sheet='noor_idle'; f=0;
+    cap = t<1.2 ? 'The door is locked.' : '';
+    nearWin=false;
+  } else if(t<4.0){ // walk to window
+    const u=ease(seg(t,2.2,3.9)); n={...pathLerp(P_START,P_WIN,u), dir:'E'}; sheet='noor_walk'; f=Math.floor(t*12)%8;
+    nearWin=u>.7; if(nearWin) cap='';
+  } else if(t<5.6){ // TAKE open from window
+    n={...P_WIN,dir:'N'}; sheet='noor_peel'; f=Math.min(9, Math.floor(seg(t,4.0,5.2)*10));
+    takeWin=seg(t,4.1,5.3); winOpen=1-ease(takeWin); carry = takeWin>.35 ? 'open' : null;
+    cap = takeWin>.2 && takeWin<.95 ? 'The open comes free.' : '';
+    nearWin=takeWin<.5;
+  } else if(t<7.2){ // walk to door carrying open
+    const u=ease(seg(t,5.6,7.1)); n={...pathLerp(P_WIN,P_DOOR,u), dir:'W'}; sheet='noor_walk'; f=Math.floor(t*12)%8;
+    winOpen=0; carry='open'; nearDoor=u>.75;
+    cap='';
+  } else if(t<9.0){ // THROW open at door
+    n={...P_DOOR,dir:'N'}; sheet='noor_throw'; f=Math.min(9, Math.floor(seg(t,7.2,8.2)*10));
+    throwDoor=seg(t,7.35,8.05); winOpen=0;
+    carry = throwDoor<.85 ? 'open' : null;
+    burstU=seg(t,7.9,8.7); doorK=ease(seg(t,8.05,9.0));
+    cap = throwDoor>.5 ? 'The door takes the open.' : '';
+    nearDoor=true;
+  } else if(t<10.4){ // door open beat
+    n={...P_DOOR,dir:'N'}; sheet='noor_idle'; doorK=1; winOpen=0; done=true; obj='Door open. Walk through';
+    cap='';
+  } else if(t<12.0){ // walk to cooler
+    const u=ease(seg(t,10.4,11.9)); n={...pathLerp(P_DOOR,P_COOL,u), dir:'E'}; sheet='noor_walk'; f=Math.floor(t*12)%8;
+    doorK=1; winOpen=0; nearCool=u>.7; obj='Door open. Walk through'; done=true;
+  } else if(t<13.5){ // TAKE water
+    n={...P_COOL,dir:'N'}; sheet='noor_peel'; f=Math.min(9, Math.floor(seg(t,12.0,13.1)*10));
+    takeCool=seg(t,12.1,13.2); coolWater=1-ease(takeCool); carry=takeCool>.3?'water':null;
+    doorK=1; winOpen=0; nearCool=takeCool<.5; showScrib=true;
+    cap = takeCool>.25 ? 'Water.' : ''; obj=''; done=false;
+  } else if(t<15.0){ // face scribble, throw water
+    n={...P_FIGHT,dir:'E'}; sheet = t<14.0 ? 'noor_walk' : 'noor_throw';
+    if(t<14.0){ const u=ease(seg(t,13.5,14.0)); n={...pathLerp(P_COOL,P_FIGHT,u),dir:'E'}; f=Math.floor(t*12)%8; carry='water'; }
+    else { f=Math.min(9, Math.floor(seg(t,14.0,14.9)*10)); throwScr=seg(t,14.1,14.85); carry=throwScr<.8?'water':null; }
+    doorK=1; winOpen=0; coolWater=0; showScrib=true; melt=0; obj='';
+    cap='';
+  } else if(t<18.5){ // melt
+    n={...P_FIGHT,dir:'E'}; sheet='noor_idle'; doorK=1; winOpen=0; coolWater=0; showScrib=true;
+    melt=ease(seg(t,15.0,17.2)); carry=null; obj='';
+    cap = melt>.1 && melt<.85 ? 'It melts.' : '';
+  } else { // hold
+    n={...P_FIGHT,dir:'E'}; sheet='noor_idle'; doorK=1; winOpen=0; coolWater=0; showScrib=true; melt=1; obj='';
+    cap=''; hint='';
+  }
+
+  // draw world
+  room(doorK);
+  rainWindow(winOpen, t);
+  cooler(coolWater, t, takeCool);
+  if(doorK<0.95) chains(1-doorK, burstU);
+
+  // shimmers on takeable objects
+  shimmer(WIN.x, WIN.y+20, 70, 36, t, nearWin && winOpen>.5);
+  shimmer(DOOR.x, DOOR.y+10, 42, 50, t, nearDoor && doorK<.1 && carry==='open');
+  shimmer(COOL.x, COOL.y+10, 28, 36, t, nearCool && coolWater>.4);
+
+  if(showScrib) scribble(SCRIB.x, SCRIB.y, melt, t);
+
+  // projectiles
+  if(throwDoor>0 && throwDoor<1) projectile('open', hand(n), {x:DOOR.x, y:DOOR.y+10}, throwDoor, t);
+  if(throwScr>0 && throwScr<1) projectile('water', hand(n), {x:SCRIB.x, y:SCRIB.y-20}, throwScr, t);
+  if(burstU>0) burst(DOOR.x, DOOR.y+8, burstU, '#c8d0d8', 17);
+  if(takeWin>0 && takeWin<1){ // pull wind out of window toward hand
+    const h=hand(n); const u=ease(takeWin);
+    windSwirl(lerp(WIN.x, h.x, u), lerp(WIN.y+30, h.y, u), t, 1.2-u*.3);
+  }
+  if(takeCool>0 && takeCool<1){
+    const h=hand(n); const u=ease(takeCool);
+    waterOrb(lerp(COOL.x, h.x, u), lerp(COOL.y+40, h.y, u), t, 1.1);
+  }
+
+  // Noor + carried quality
+  noorAt(sheet, n.dir, f, n.x, n.y);
+  if(carry){ const h=hand(n); carryFX(carry, h.x, h.y, t); }
+
+  // letterbox pillars (match clarity band)
+  g.fillStyle='#04080c'; g.fillRect(0,0,W,TOP); g.fillRect(0,H-BOT,W,BOT);
+  // side fill outside scaled world
+  g.fillRect(0,TOP,OX,H-TOP-BOT); g.fillRect(OX+1280*R,TOP,W-(OX+1280*R),H-TOP-BOT);
+
+  hud(obj, done, cap, hint);
+
+  // fade edges of loop
+  if(t<0.35){ g.fillStyle=`rgba(4,8,12,${1-t/.35})`; g.fillRect(0,0,W,H); }
+  if(t>END-0.6){ g.fillStyle=`rgba(4,8,12,${seg(t,END-0.6,END)})`; g.fillRect(0,0,W,H); }
+}
+
+(async()=>{
+  await document.fonts.load('500 20px Plex');
+  I.office=await img(A+'rooms/office.jpg');
+  I.door=[]; for(let i=0;i<10;i++) I.door.push(await img(A+`office11/door/lift_0${i}.jpg`));
+  for(const n of ['noor_idle','noor_walk']) I[n]=await J(n);
+  for(const n of ['noor_peel','noor_throw']) I[n]=await J12(n);
+  const q=new URLSearchParams(location.search);
+  window.frameAt=frameAt; window.END=END; window.ready=true;
+  if(q.has('t')){ frameAt(+q.get('t')); return; }
+  const t0=performance.now();
+  (function loop(){ frameAt(((performance.now()-t0)/1000)%END); requestAnimationFrame(loop); })();
+})();
+</script></body></html>

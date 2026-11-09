@@ -296,3 +296,7 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 ## 17. Viewport fill + WASD unstick (9 Nov 2026)
 - **WASD stuck:** if Noor's feet overlap a desk footprint (bad checkpoint / knock-in), `slide` could not escape and she looked frozen. `unstick()` now pushes to the nearest free cell each frame and after spawn; WASD/arrows are keyboard-captured. Regression covered in `office11` playtest.
 - **Empty side margins:** clarity + setupCameras no longer letterbox the room with side pillars. World camera is **full width** in the band above the caption (zoom 1 / cover); HUD overlays. Check stills in `game/screenshots/fit/`.
+
+## 18. Steal-qualities preview mock (9 Nov 2026)
+- Playtest rejected code-vision READ + hovering word tags (too much text / confusing).
+- Approved direction preview: **`mock-steal/`** — physical object states, E take / F throw / J attack, no words on objects or enemies. Clip `mock-steal/flow.mp4` + stills. Not wired into `game/src` yet; waiting on owner sign-off.
