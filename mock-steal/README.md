@@ -2,6 +2,38 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
+## v8 — clean throw path + heavy chain-break impact
+
+Addresses v7 feedback (throw detour) + heavy-tier lock break physics.
+
+**Fixes / adds**
+1. **Throw path** — gust leaves the throwing hand and flies a clean shallow arc to `DOOR_CHAIN` (handles). No up-left plant detour. Distance to door shrinks every flight frame (`bad_increase=0`).
+2. **Anticipation → travel** — wrap on hand, then fast travel with smear; SW/S 3/4 cheat pose.
+3. **Rip→carry hitch** — longer ease_in_out bridge (no hard freeze).
+4. **Heavy impact** — longer hit-stop freeze on chain hit; flash on chain/lock; directional speed lines; strong shake. **No radial floor rings.**
+5. **Chain / padlock physics** — taut → whip → snap at a link; broken links fly with gravity, spin, floor bounce; padlock springs open/cracks, drops, bounces 1–2×, settles. Door recoil jolt before open. Debris/dust puffs + gust splash on the door. Lock sized to the door, in-scene style.
+6. **Stills** — `05-throw`, `close-throw-2x`, `throw-path-strip`, **`break-01..06-2x` + `break-sequence-strip`** (2× close-up break sequence).
+
+| file | what |
+|---|---|
+| `v8/beat.mp4` | ~11.5 s beat |
+| `v8/beat.gif` | 640-wide loop |
+| `v8/compare.mp4` | **v7 vs v8** |
+| `v8/stills/` | 9 stills + gust/throw/door 2× + throw-path strip + 6-frame break strip |
+
+### Rebuild
+```bash
+# reuses steal_noor_v7 hurl sheets (copied into steal_noor_v8)
+python3 art/tools/compose_steal_v8.py
+```
+
+### Honesty / weak spots
+- Chain/padlock break pieces are canvas overlays (not re-lit Blender mesh debris).
+- Gust splash / speed lines are 2D strokes — readable, not volumetrics.
+- Impact freeze is wall-clock; world time holds at the hit frame (~0.37 s).
+- Padlock bounce height is tuned for readability at game scale; still small by design.
+- Lift interior depth remains optional soft gradient/spill from v7.
+
 ## v7 — streak gust, collision path, readable throw, fixed lift door
 
 Addresses v6 feedback.

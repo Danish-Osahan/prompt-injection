@@ -316,6 +316,12 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21e. mock-steal/v8 — throw path + heavy chain-break impact
+- **`mock-steal/v8/`** beat / gif / compare (v7 vs v8) / stills. Clean shallow throw arc hand→`DOOR_CHAIN` (no plant detour; path QA `bad_increase=0`); SW/S 3/4 throw + smear; longer rip→carry bridge.
+- **Heavy impact:** hit-stop freeze on chain hit; lock/chain flash; directional speed lines; strong shake; **no radial floor rings**. Chain taut→whip→snap; links + padlock with gravity/spin/bounce; door recoil then open; debris/dust + gust splash. Lock door-scale, in-scene style.
+- Stills include `05-throw`, `close-throw-2x`, `throw-path-strip`, `break-01..06-2x` + `break-sequence-strip`. Compose: `art/tools/compose_steal_v8.py`. Noor sheets reused from `art/render/steal_noor_v7/` → `steal_noor_v8/`.
+- Weak spots: break pieces are canvas overlays (not Blender debris); freeze is wall-clock; padlock bounce tuned for readability.
+
 ## 21d. mock-steal/v7 — streak gust, path, throw, lift fix
 - **`mock-steal/v7/`** beat / gif / compare (v6 vs v7). Directional tapering wind streaks (no atom rings); collision-safe path; SE-cheat throw + smear; lift frames pasted at O11_DOOR; soft spill. Compose: `art/tools/compose_steal_v7.py`. Hurl sheets in `art/render/steal_noor_v7/`.
 
