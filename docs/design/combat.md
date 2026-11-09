@@ -111,7 +111,7 @@ Rework of art-v12b. **Identity change:** range is short, charge is long, cost is
 | Knockback | Strong on primary (see §5). Recoil step on Noor −5 px (from sheet). |
 | Hit-stop | 70 ms on release contact. |
 | Cooldown | 4.0 s after release (UI ring on the TYPE button). |
-| Room reaction (Phase 1 target feel; greybox can stub) | Papers in the path flutter; lights dip 1 beat; brief scorched-code trail on the floor that fades in 1.2 s. Full version deferred to polish. |
+| Room reaction (greybox, code-only, locked 9 Nov 2026) | Papers in the path flutter; lights dip 1 beat; brief scorched-code trail on the floor that fades in 1.2 s. Simple Phaser/canvas stubs ship with `?combat=1`; richer art deferred to polish. |
 
 N/S facing: keep the 40° cheat from art-v12b so the arm reads.
 
@@ -221,7 +221,7 @@ Collision: uses the same prop footprints as Noor (`clarity` / room collision). I
 
 **Counters:** Peel SHIELDED from the side/behind, or bait Snap and punish the 900 ms hang. Jab from behind while it guards. Beam from the side once shield is down.
 
-**Rooms / mix:** Archive elite before the exit (1). Arena Draft phase 1 add (1, teaches peel under pressure).
+**Rooms / mix:** Arena Draft phase 1 add (1, teaches peel under pressure). Archive elite for first ship is Eraser Brute (Stapler is not the archive elite).
 
 ---
 
@@ -277,7 +277,7 @@ Front push: while not in slam recovery, frontal hits from Noor deal damage but a
 
 **Counters:** Dash behind during the 800 ms slam tell; full combo. Throw LIGHT if available. Beam is risky inside smudge (wipes carried words on the charge if she steps in). Clear the zone, then beam.
 
-**Rooms / mix:** Archive mid-boss (1, alone, after wave 2). Optional second appearance as Draft phase 3 add (1) — only if greybox says archive taught it well.
+**Rooms / mix:** Archive mid-boss / elite for first ship (1, alone, after wave 3). Optional second appearance as Draft phase 3 add (1) — only if greybox says archive taught it well.
 
 ---
 
@@ -344,10 +344,10 @@ Front push: while not in slam recovery, frontal hits from Noor deal damage but a
 
 | Room | Combat content | Target time in combat | Teach |
 |---|---|---|---|
-| Office (clarity) | Practice dummy only (STILL → optional QUICK). Greybox enemies behind a `?combat=1` flag. | 0–1 min optional | Combo, peel/throw onto dummy ARMORED→PAPER, beam finisher once. |
+| Office (clarity) | Practice dummy only (**ARMORED → PAPER**, locked 9 Nov 2026). Greybox enemies behind a `?combat=1` flag. | 0–1 min optional | Combo, peel/throw onto dummy ARMORED→PAPER, beam finisher once. |
 | Hub | None (gap dash only). | — | Dash. |
 | Dark Corridor | Paper Dummy tutorial → 1 Scribble. | ~1 min | Attack, first live grunt. |
-| Flooded Archive | Wave 1: 2 Scribbles. Wave 2: Sticky Swarm (5) + 1 Scribble. Wave 3: 1 Redline. Elite: 1 Stapler **or** mid-boss Eraser Brute (pick one for first ship; other moves to Phase 2 if dense). | 3–4 min | Full kit under pressure; desks as weapons. |
+| Flooded Archive | Wave 1: 2 Scribbles. Wave 2: Sticky Swarm (5) + 1 Scribble. Wave 3: 1 Redline. Elite / mid-boss: **Eraser Brute** (locked 9 Nov 2026). Stapler appears as a Draft Arena phase-1 add and is deferred as an archive elite to a later pass. | 3–4 min | Full kit under pressure; desks as weapons. |
 | Draft Arena | Boss, 3 phases, light adds. | 4–6 min | Guard peel, fake-shadow read, beam as finisher. |
 | Message Room | None. | — | Story. |
 
@@ -403,11 +403,11 @@ Kept from session 2 so the story script still works; numbers TBD in greybox.
 
 ---
 
-## 9. Open questions for the owner
+## 9. Locked owner answers (9 Nov 2026)
 
-1. **Archive elite:** Stapler **or** Eraser Brute for first ship? (Doc currently says pick one.)
-2. **Dummy word:** keep tutorial `STILL`→`QUICK`, or switch the office dummy to `ARMORED`→`PAPER` so the first lesson matches Scribble?
-3. **Beam room reactions** (fluttering paper, light dip, scorched trail): ship a minimal code version in greybox, or wait for polish after enemy feel is locked?
+1. **Archive elite for first ship:** **Eraser Brute**. Stapler stays in the roster as a Draft Arena phase-1 add / later archive elite.
+2. **Office dummy word:** **ARMORED → PAPER** (matches Scribble; replaces the old STILL→QUICK tutorial pair for the clarity office dummy).
+3. **Beam room reactions:** ship a **simple code-only** version in the greybox (paper flutter, light dip, scorched trail). No Blender; polish art later.
 
 ---
 
