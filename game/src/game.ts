@@ -12,6 +12,7 @@ import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
 import { Office9, ViewMap } from './office9';
 import { Clarity, DOOR_DEF } from './clarity';
+import { CombatGreybox } from './combat/greybox';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -24,7 +25,7 @@ const READ_R = 90, FOCUS_R = 120;
 const HOLD_T = 0.22, CHARGE_T = 0.5, AIM_R = 150, BEAM_R = 560;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
-type EKind = 'dummy' | 'scribble' | 'note' | 'draft';
+type EKind = 'dummy' | 'scribble' | 'note' | 'draft' | 'redline' | 'stapler';
 export interface Enemy {
   kind: EKind; x: number; y: number; hp: number; maxHp: number; g: Phaser.GameObjects.Container; body: Phaser.GameObjects.Graphics;
   state: string; t: number; kx: number; ky: number; tx: number; ty: number; hx: number; hy: number; dead: boolean; hitBy: number; phase: number;
@@ -85,6 +86,7 @@ export class GameScene extends Phaser.Scene {
   // art-v11 clarity office + the new attack input (tap = combo, hold/release = typed beam)
   clar: Clarity | null = null; debugCollision = false; hudBlur: Phaser.GameObjects.Image | null = null;
   atkPending = false; atkHeldT = 0; chargeG: Phaser.GameObjects.Graphics | null = null; aimG: Phaser.GameObjects.Graphics | null = null; beamN = 0; beamHits = 0; comboHits = 0;
+  combat: CombatGreybox | null = null; combatHoldBeam = 0.85;
   constructor() { super('game'); }
 
   create() {
@@ -292,7 +294,7 @@ export class GameScene extends Phaser.Scene {
     this.shadow = this.add.ellipse(0, 0, 40, 12, 0x000000, 0.22); this.objs.push(this.shadow);   // art-v10: soft AO only (the contact shadow is rendered into the sprite)
     this.noor = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192); this.objs.push(this.noor);
     this.noor.play('noor_idle_S');
-    this.noor.on('animationcomplete', (a: Phaser.Animations.Animation) => { if (/^noor_(attack|dash|type)/.test(a.key)) this.noor.play(`noor_idle_${this.dir}`); });
+    this.noor.on('animationcomplete', (a: Phaser.Animations.Animation) => { if (/^noor_(attack|dash|type|combo|peel|throw|release|charge_in)/.test(a.key)) this.noor.play(`noor_idle_${this.dir}`); });
     this.caret = this.add.sprite(0, 0, 'caret_idle').setScale(0.45).setOrigin(0.5, 0.83).play('caret_idle_S').setVisible(this.save.seen.includes('caret')); this.objs.push(this.caret);
     const cp = this.save.checkpoint;
     const spawn = fromLoad && cp.room === id ? cp : r.spawn;
@@ -303,6 +305,12 @@ export class GameScene extends Phaser.Scene {
     this.words.quiet = !!this.clar;
     this.setupRoom(id);
     this.clar?.start();
+    // combat greybox: office only, behind ?combat=1
+    this.combat?.destroy(); this.combat = null;
+    if (id === 'office' && this.clar && new URLSearchParams(location.search).has('combat')) {
+      this.combat = new CombatGreybox(this, new URLSearchParams(location.search).get('tune') === '1');
+      this.combatHoldBeam = this.combat.tune.holdBeam;
+    }
     this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
     this.cameras.main.fadeIn(220, 4, 8, 12);
@@ -469,7 +477,7 @@ export class GameScene extends Phaser.Scene {
   spawnEnemy(kind: EKind, x: number, y: number, phase = 0) {
     const g = this.add.container(x, y); const body = this.add.graphics(); g.add(body);
     const sh = kind === 'draft' ? null : this.add.ellipse(0, 0, kind === 'note' ? 16 : 40, 10, 0, 0.4); if (sh) g.addAt(sh, 0);
-    const hp = { dummy: 6, scribble: 3, note: 1, draft: DRAFT.hp }[kind];
+    const hp = { dummy: 6, scribble: 3, note: 1, draft: DRAFT.hp, redline: 5, stapler: 6 }[kind];
     if (kind === 'dummy') { body.fillStyle(0xd8d0bc, 1).fillRect(-16, -62, 32, 48).fillCircle(0, -72, 13); body.fillStyle(0x8a826e, 1).fillRect(-3, -14, 6, 14); body.lineStyle(2, 0x5a5444, 1).lineBetween(-10, -50, 10, -50).lineBetween(-10, -40, 8, -40); }
     if (kind === 'scribble') { body.lineStyle(4, 0x0c0e1e, 1); body.beginPath(); for (let i = 0; i <= 24; i++) { const a = i * 0.9, r = 14 + (i % 3) * 6; const px = Math.cos(a) * r, py = -22 + Math.sin(a) * r * 0.7; if (i) body.lineTo(px, py); else body.moveTo(px, py); } body.strokePath(); body.lineStyle(1.5, 0x78e4e8, 0.7).strokeCircle(-6, -26, 3).strokeCircle(6, -26, 3); }
     if (kind === 'note') { body.fillStyle(0xf2dc6a, 1).fillRect(-9, -28, 18, 18); body.fillStyle(0xd8c050, 1).fillRect(-9, -14, 18, 4); }
@@ -484,6 +492,10 @@ export class GameScene extends Phaser.Scene {
   }
   hurtEnemy(e: Enemy, dmg: number, kx: number, ky: number, mark = false) {
     if (e.dead) return;
+    if (this.combat) {
+      const mod = this.combat.onHurt(e, dmg, kx, ky);
+      if (mod) { if (mod.blocked || mod.dmg <= 0) { if (mod.blocked) return; dmg = mod.dmg; if (dmg <= 0) return; } else dmg = mod.dmg; }
+    }
     if (e.practice) {   // the office's stuffed practice dummy: flash, wobble, count; never breaks
       sfx('hit'); const fl = this.add.ellipse(e.x, e.y - 60, 70, 100, 0xffffff, 0.7).setDepth(e.y + 2).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(fl);
       this.tweens.add({ targets: fl, alpha: 0, scale: 1.2, duration: 130, onComplete: () => fl.destroy() });
@@ -504,7 +516,7 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: e.g, scaleX: 1.14, scaleY: 0.88, duration: 55, yoyo: true, ease: 'Quad.easeOut' });
     if (mark) { const m = this.add.text(e.x + 14, e.y - 50, '|', { fontFamily: 'JetBrains Mono', fontSize: '30px', fontStyle: 'bold', color: C.cyan }).setOrigin(0.5).setDepth(3200); this.objs.push(m); this.tweens.add({ targets: m, alpha: 0, duration: 265, yoyo: true, repeat: 2, onComplete: () => m.destroy() }); }
     if (e.hp <= 0) {
-      e.dead = true; this.save.defeated.push(e.kind === 'note' ? 'note' + e.phase : e.kind);
+      e.dead = true; this.combat?.onKill(e, 'combo'); this.save.defeated.push(e.kind === 'note' ? 'note' + e.phase : e.kind);
       this.tweens.killTweensOf(e.g); this.tweens.add({ targets: e.g, scaleX: 0.2, scaleY: 0.1, alpha: 0, duration: 380, onComplete: () => e.g.setVisible(false) });
       e.flash?.clear();
       if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. Swaps wake things up.', 2200); }
@@ -525,6 +537,7 @@ export class GameScene extends Phaser.Scene {
       const dx = this.x - e.x, dy = this.y - e.y, d = Math.hypot(dx, dy) || 1;
       const fl = e.flash!; fl.clear();
       if (e.practice) { e.g.setPosition(e.x, e.y).setDepth(e.y); continue; }
+      if (this.combat && (e as Enemy & { gb?: string }).gb) { continue; }  // CombatGreybox owns AI
       if (e.kind === 'dummy') {
         if (!this.flags.quick) { e.state = 'idle'; e.g.setRotation(0); }
         else {
@@ -1033,8 +1046,10 @@ export class GameScene extends Phaser.Scene {
   /** aim bracket on the auto-aim target (combo range; the beam's longer range while charging) + the charge ring */
   drawAim() {
     const g = this.aimG, cg = this.chargeG; if (!g || !cg) return; g.clear(); cg.clear();
-    const charging = this.atkPending && this.atkHeldT > HOLD_T;
-    const e = this.aimTarget(charging ? BEAM_R : AIM_R);
+    const holdAim = this.combat ? this.combat.tune.holdBeam : HOLD_T;
+    const beamR = this.combat ? this.combat.tune.beamRange : BEAM_R;
+    const charging = this.atkPending && this.atkHeldT > holdAim;
+    const e = this.aimTarget(charging ? beamR : AIM_R);
     if (e && !this.busy) {
       const b = (e.kind === 'note' ? 26 : 44) + 3 * Math.sin(this.t * 6), cy = e.y - (e.kind === 'note' ? 20 : e.practice ? 70 : 46), h = b * (e.practice ? 1.25 : 0.8), L = 12;
       g.lineStyle(2, hex(C.cyan), charging ? 1 : 0.75);
@@ -1042,7 +1057,7 @@ export class GameScene extends Phaser.Scene {
       g.setDepth(e.y + 5);
     }
     if (charging) {
-      const u = Math.min(1, (this.atkHeldT - HOLD_T) / CHARGE_T), r = 40;
+      const u = Math.min(1, (this.atkHeldT - holdAim) / (this.combat ? holdAim : CHARGE_T)), r = 40;
       cg.lineStyle(3, hex(C.cyan), 0.25).strokeCircle(this.x, this.y - 64, r);
       cg.lineStyle(4, hex(u >= 1 ? C.inkBright : C.cyan), 1); cg.beginPath(); cg.arc(this.x, this.y - 64, r, -Math.PI / 2, -Math.PI / 2 + u * Math.PI * 2); cg.strokePath();
       cg.setDepth(this.y + 4);
@@ -1050,6 +1065,7 @@ export class GameScene extends Phaser.Scene {
   }
   /** HOLD then RELEASE: the typed beam. Auto-aims at the nearest enemy in range; hits everything along the line. */
   fireBeam(charge: number) {
+    if (this.combat) { this.combat.fireBeam(); return; }
     const tgt = this.aimTarget(BEAM_R); let v = this.dirVec();
     if (tgt) { const dx = tgt.x - this.x, dy = tgt.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; }
     const L = tgt ? Math.min(BEAM_R, Math.hypot(tgt.x - this.x, tgt.y - this.y) + 50) : 360, x0 = this.x, y0 = this.y;
@@ -1160,15 +1176,19 @@ export class GameScene extends Phaser.Scene {
     }
     if (control && f.dash && this.dashT === DASH_T) { this.dashStartAt = this.t; sfx('dash'); }
     // art-v11 attack input (global): TAP = the 3-hit combo, HOLD then RELEASE = the typed beam. Both auto-aim.
+    // combat greybox: longer hold for short-range beam; attack while carrying a word = throw.
+    const holdT = this.combat ? this.combat.tune.holdBeam : HOLD_T;
     if (control && f.attack) {
       if (this.stored) this.paste();
-      else if (this.dashT > 0 || this.sinceDash < 0.15) this.backspace(); else { this.atkPending = true; this.atkHeldT = 0; }
+      else if (this.dashT > 0 || this.sinceDash < 0.15) this.backspace();
+      else if (this.combat?.preferThrow()) { this.combat.tryThrow(); }
+      else { this.atkPending = true; this.atkHeldT = 0; }
     }
     if (this.atkPending) {
-      if (control && f.attackHeld) { this.atkHeldT += dt; this.selecting = this.atkHeldT > HOLD_T; }
+      if (control && f.attackHeld) { this.atkHeldT += dt; this.selecting = this.atkHeldT > holdT; }
       else {
-        if (control && this.atkHeldT <= HOLD_T) this.typeAttack();
-        else if (control && this.atkHeldT - HOLD_T >= 0.18) this.fireBeam(Math.min(1, (this.atkHeldT - HOLD_T) / CHARGE_T));
+        if (control && this.atkHeldT <= holdT) this.typeAttack();
+        else if (control && this.atkHeldT >= holdT) this.fireBeam(Math.min(1, (this.atkHeldT - holdT) / Math.max(0.01, holdT)));
         this.atkPending = false; this.atkHeldT = 0; this.selecting = false;
       }
     }
@@ -1190,7 +1210,7 @@ export class GameScene extends Phaser.Scene {
     if (Math.hypot(mx, my) > 0.1 && this.swingT <= 0) this.dir = DIRS[(Math.round(Math.atan2(my, mx) / (Math.PI / 4)) + 8) % 8];
     const moving = Math.hypot(this.x - ox, this.y - oy) > 0.5;
     const cur = this.noor.anims.currentAnim?.key ?? '';
-    const held = /^noor_(attack|dash|type)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look)/.test(cur));   // art-v9 reactions hold while still
+    const held = /^noor_(attack|dash|type|combo|peel|throw|release|charge)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look)/.test(cur));   // art-v9 reactions hold while still
     if (!held || !this.noor.anims.isPlaying) {
       let want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`;
       const fi = this.noor.anims.currentFrame?.index ?? 1, nf = this.noor.anims.currentAnim?.frames.length ?? 1;
@@ -1220,6 +1240,7 @@ export class GameScene extends Phaser.Scene {
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);
+    this.combat?.update(dt);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
@@ -1240,7 +1261,8 @@ export class GameScene extends Phaser.Scene {
     // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
     const tg = this.aimTarget(AIM_R); let v = this.dirVec();
     if (tg) { const dx = tg.x - this.x, dy = tg.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; if (l > 74) this.slide(v.x * Math.min(26, l - 70), v.y * Math.min(26, l - 70)); }
-    this.noor.play(`noor_type${hit}_${this.dir}`, true);
+    if (this.combat?.usingSheets) this.noor.play(`noor_combo${hit}_${this.dir}`, true);
+    else this.noor.play(`noor_type${hit}_${this.dir}`, true);
     const a0 = Math.atan2(v.y, v.x), ox = this.x, oy = this.y;
     // damage lands on the sheet's hit_frame (type1/2 frame 2 @24 fps, type3 frame 3 @22 fps); anticipation frames read first
     const at = hit === 3 ? 120 : 70;
@@ -1253,7 +1275,11 @@ export class GameScene extends Phaser.Scene {
         if (d < 92 && (da < 1.3 || d < 30)) { struck.push(e); this.hurtEnemy(e, hit === 3 ? 2 : 1, v.x * 140, v.y * 140, hit === 3); }
       }
       if (struck.some(e => e.practice) && this.clar) { this.clar.comboHits++; this.comboHits++; if (hit === 3) this.markTut('o11combo'); }
-      if (struck.length) { this.hitStopT = hit === 3 ? 0.07 : 0.05; this.noor.anims.pause(); this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003); }
+      if (struck.length) {
+        this.combat?.onComboHit(hit);
+        const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
+        this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause(); this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003);
+      }
       if (hit === 1) this.fxJab(v, struck.length > 0);
       else if (hit === 2) this.fxSlash(a0, struck.length > 0);
       else this.fxTypedLine(v, struck, ox, oy);
@@ -1394,7 +1420,7 @@ export class GameScene extends Phaser.Scene {
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
       hand: this.hand, flags: { ...this.flags },
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
-      office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
+      office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, combat: this.combat ? this.combat.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })),
       ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
@@ -1432,6 +1458,17 @@ export class GameScene extends Phaser.Scene {
       perfectDodge: (src: string) => { this.iframes = 0.3; this.dashT = 0.15; this.dashStartAt = this.t; return this.hurtNoor(src); },
       press: (a: 'root') => this.ctl.trigger(a),
       damageAll: () => { for (const e of this.enemies) if (!e.dead) { if (e.kind === 'dummy' && !this.flags.quick) continue; this.hurtEnemy(e, 99, 0, 0); } },
+      combat: (k: string, a?: string, b?: string) => {
+        const c = this.combat; if (!c) return false;
+        if (k === 'ink') { c.ink = Number(a); return c.ink; }
+        if (k === 'give') { c.carried.push(a ?? 'PAPER'); return c.carried; }
+        if (k === 'peel') return c.tryPeel();
+        if (k === 'throw') return c.tryThrow();
+        if (k === 'beam') return c.fireBeam();
+        if (k === 'apply') { const e = this.enemies.find(en => !en.dead && ((en as { gb?: string }).gb === a || (a === 'dummy' && en.practice))); if (!e) return false; c.applyWord(e, b ?? 'PAPER'); return true; }
+        if (k === 'spawn') { c.spawnGB(a as 'scribble' | 'redline' | 'stapler', Number(b?.split(',')[0] ?? 700), Number(b?.split(',')[1] ?? 400)); return true; }
+        return c.state();
+      },
     };
   }
 }

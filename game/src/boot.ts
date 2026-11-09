@@ -29,6 +29,9 @@ export class BootScene extends Phaser.Scene {
     for (const [k, c] of Object.entries(OFFICE8C.close)) { this.load.image('o8c_' + k, A(c.img)); this.load.image('o8c_' + k + '_code', A(c.code)); (c.dolly ?? []).forEach((f, i) => this.load.image(`o8d_${k}_${i}`, A(f))); }
     for (const p of O11_PROPS) if (p.fg) this.load.image('o11fg_' + p.name, A(p.fg));
     O11_DOOR.frames.forEach((f, i) => this.load.image('o11door_' + i, A(f))); this.load.image('o11_dummy', A(O11_DUMMY.img));
+    // art-v12 attack set (combat greybox / wire-in). Loaded always; used when ?combat=1.
+    const A12 = ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release'];
+    for (const s of A12) this.load.atlas(s, `assets/sprites12/${s}.png`, `assets/sprites12/${s}.json`);
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
     const t = this.add.text(640, 360, '> loading_', { fontFamily: 'JetBrains Mono', fontSize: '18px', color: '#B4EEF0' }).setOrigin(0.5);
     this.load.on('progress', (p: number) => t.setText(`> loading ${Math.round(p * 100)}%_`));
@@ -44,6 +47,17 @@ export class BootScene extends Phaser.Scene {
         const FPS: Record<string, number> = { noor_phone: 4, noor_shadow: 5, noor_surprise: 14, noor_attack: 22, noor_walk: 12, noor_dash: 30, noor_type1: 24, noor_type2: 24, noor_type3: 22 };
         const once = ['noor_phone', 'noor_shadow', 'noor_surprise', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3'].includes(s);
         this.anims.create({ key: `${s}_${d}`, frames: frames.map(f => ({ key: s, frame: f })), frameRate: FPS[s] ?? 8, repeat: once ? 0 : -1 });
+      }
+    }
+    // sprites12 attack anims (per-frame duration is applied in combat when playing)
+    for (const s of ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release']) {
+      if (!this.textures.exists(s)) continue;
+      const names = this.textures.get(s).getFrameNames();
+      const dirs = new Set(names.map(n => n.split('_').slice(-2, -1)[0]));
+      const once = s !== 'noor_charge_hold';
+      for (const d of dirs) {
+        const frames = names.filter(n => n.split('_').slice(-2, -1)[0] === d).sort();
+        this.anims.create({ key: `${s}_${d}`, frames: frames.map(f => ({ key: s, frame: f })), frameRate: 18, repeat: once ? 0 : -1 });
       }
     }
     this.scene.start('game');

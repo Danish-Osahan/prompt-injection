@@ -214,6 +214,7 @@ export class Clarity {
   interact(): boolean {
     if (this.modal === 'card') { this.closeCard(); return true; }
     if (this.modal === 'picker') { this.choose(); return true; }
+    if (this.s.combat?.handleInteract()) { this.s.markTut('o11peel'); return true; }
     const p = this.nearest(); if (!p) return false;
     if (INTER[p.def.id].tag) return this.openPicker(p.def.id);
     return this.openCard(p);
@@ -230,6 +231,7 @@ export class Clarity {
     const pts: [number, number][] = [[x, y]]; for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; pts.push([x + Math.cos(a) * FOOT.rx, y + Math.sin(a) * FOOT.ry]); }
     for (const p of O11_PROPS) { const b = p.poly; if (x < Math.min(...b.map(q => q[0])) - 16 || x > Math.max(...b.map(q => q[0])) + 16 || y < Math.min(...b.map(q => q[1])) - 8 || y > p.baseY + 8) continue; if (pts.some(([u, v]) => inPoly(b, u, v))) return true; }
     for (const e of this.s.enemies) if (!e.dead && e.practice && ((x - e.x) / 26) ** 2 + ((y - e.y) / 11) ** 2 < 1) return true;
+    if (this.s.combat?.enemyBlocked(x, y)) return true;
     return false;
   }
 
@@ -264,8 +266,14 @@ export class Clarity {
     if (this.capMsg && this.capMsg.until > s.t) t = this.capMsg.text; else this.capMsg = null;
     if (!t && this.modal === 'picker') t = kb ? `Pick ${this.pickAlt}.  E` : `Tap ${this.pickAlt}.`;
     if (!t && !this.modal && this.dummy && Math.hypot(s.x - this.dummy.x, s.y - this.dummy.y) < 170) {
-      if (!s.save.tutorials.includes('o11combo')) t = kb ? 'Tap attack (J / click): 3-hit combo' : 'Tap TYPE: 3-hit combo';
-      else if (!s.save.tutorials.includes('o11beam')) t = kb ? 'Hold attack, release: beam' : 'Hold TYPE, release: beam';
+      if (s.combat) {
+        if (!s.save.tutorials.includes('o11peel')) t = kb ? 'E near a painted word: peel it' : 'READ near a painted word: peel';
+        else if (!s.save.tutorials.includes('o11combo')) t = kb ? 'Tap attack: 3-hit combo' : 'Tap TYPE: 3-hit combo';
+        else if (!s.save.tutorials.includes('o11beam')) t = kb ? 'Hold attack 0.85s, release: short beam' : 'Hold TYPE, release: short beam';
+      } else {
+        if (!s.save.tutorials.includes('o11combo')) t = kb ? 'Tap attack (J / click): 3-hit combo' : 'Tap TYPE: 3-hit combo';
+        else if (!s.save.tutorials.includes('o11beam')) t = kb ? 'Hold attack, release: beam' : 'Hold TYPE, release: beam';
+      }
     }
     if (!t && !this.modal && this.near) {
       const p = s.plateById(this.near)!;
@@ -290,6 +298,7 @@ export class Clarity {
     for (const r of Object.values(s.extraWalk)) if (r) g.lineStyle(1, 0x00ff88, 0.9).strokeRect(r.x, r.y, r.w, r.h);
     for (const p of O11_PROPS) { g.lineStyle(2, 0xff4040, 0.9).fillStyle(0xff4040, 0.18); g.beginPath(); g.moveTo(p.poly[0][0], p.poly[0][1]); for (const q of p.poly.slice(1)) g.lineTo(q[0], q[1]); g.closePath(); g.fillPath(); g.strokePath(); g.lineStyle(1, 0xffff00, 0.5).lineBetween(p.poly[0][0], p.baseY, p.poly[0][0] + 30, p.baseY); }
     for (const e of s.enemies) if (!e.dead && e.practice) g.lineStyle(2, 0xff9040, 0.9).strokeEllipse(e.x, e.y, 52, 22);
+    for (const e of s.enemies) if (!e.dead && (e as { gb?: string }).gb) g.lineStyle(2, 0xff60c0, 0.9).strokeEllipse(e.x, e.y, 40, 22);
     g.lineStyle(2, 0x40c0ff, 1).strokeEllipse(s.x, s.y, FOOT.rx * 2, FOOT.ry * 2);
   }
   state() {
