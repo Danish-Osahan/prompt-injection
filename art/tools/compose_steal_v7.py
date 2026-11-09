@@ -1,0 +1,753 @@
+#!/usr/bin/env python3
+"""Compose mock-steal/v7: streak gust (no rings), smooth rip→carry, collision path,
+readable throw, fixed lift door paste + soft spill."""
+import os, math, json, subprocess, random, re
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
+import numpy as np
+
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+OUT = os.path.join(ROOT, 'mock-steal/v7')
+STILLS = os.path.join(OUT, 'stills')
+FRAMES = os.path.join(OUT, '_frames')
+NOOR = os.path.join(ROOT, 'art/render/steal_noor_v7')
+COMP_D = os.path.join(ROOT, 'art/render/steal_v4/comp')
+COMP_W = os.path.join(ROOT, 'art/render/steal_v3/comp')
+ASSETS = os.path.join(ROOT, 'game/public/assets')
+V6_MP4 = os.path.join(ROOT, 'mock-steal/v6/beat.mp4')
+
+W, H = 1280, 720
+TOP, BOT = 48, 94
+FPS = 24
+DUR = 11.5
+NFRAMES = int(DUR * FPS)
+os.makedirs(STILLS, exist_ok=True); os.makedirs(FRAMES, exist_ok=True)
+rng = random.Random(11)
+
+def load(p): return Image.open(p).convert('RGBA')
+def lerp(a,b,u): return a+(b-a)*u
+def ease(u):
+    u=max(0.,min(1.,u)); return u*u*(3-2*u)
+def ease_in_out(u):
+    u=max(0.,min(1.,u)); return 3*u*u - 2*u*u*u
+def ease_out(u):
+    u=max(0.,min(1.,u)); return 1-(1-u)*(1-u)
+def seg(t,a,b):
+    return 0. if b<=a else max(0.,min(1.,(t-a)/(b-a)))
+def clamp(v,a,b): return max(a,min(b,v))
+
+office = load(os.path.join(ASSETS,'rooms/office.jpg')).convert('RGBA')
+# Lift frames are 196x296 sprites pasted at O11_DOOR (112,62) — NOT full-plate crops
+lift = [load(os.path.join(ASSETS,f'office11/door/lift_{i:02d}.jpg')) for i in range(10)]
+DOOR_XY = (112, 62)
+rain_amb=[]
+for i in range(12):
+    p=os.path.join(ROOT,f'art/render/rooms/R7_office_amb_rain_{i:02d}.png')
+    if os.path.exists(p): rain_amb.append(load(p))
+
+def sheet_frames(png, js, prefix, dir_, n):
+    im=load(png); meta=json.load(open(js))['frames']; out=[]
+    for i in range(n):
+        key=f'{prefix}_{dir_}_{i:02d}'
+        if key not in meta:
+            key=next(k for k in meta if k.startswith(f'{prefix}_{dir_}_'))
+        fr=meta[key]['frame']
+        out.append(im.crop((fr['x'],fr['y'],fr['x']+fr['w'],fr['y']+fr['h'])))
+    return out
+
+idle_S = sheet_frames(f'{ASSETS}/sprites/noor_idle.png', f'{ASSETS}/sprites/noor_idle.json','noor_idle','S',6)
+idle_E = sheet_frames(f'{ASSETS}/sprites/noor_idle.png', f'{ASSETS}/sprites/noor_idle.json','noor_idle','E',6)
+walk_E = sheet_frames(f'{ASSETS}/sprites/noor_walk.png', f'{ASSETS}/sprites/noor_walk.json','noor_walk','E',8)
+walk_W = sheet_frames(f'{ASSETS}/sprites/noor_walk.png', f'{ASSETS}/sprites/noor_walk.json','noor_walk','W',8)
+walk_S = sheet_frames(f'{ASSETS}/sprites/noor_walk.png', f'{ASSETS}/sprites/noor_walk.json','noor_walk','S',8)
+walk_N = sheet_frames(f'{ASSETS}/sprites/noor_walk.png', f'{ASSETS}/sprites/noor_walk.json','noor_walk','N',8)
+
+def load_seq(prefix, n, dirs=('S',)):
+    out=[]
+    for i in range(n):
+        for d in dirs:
+            p=f'{NOOR}/{prefix}_{d}_{i:02d}.png'
+            if os.path.exists(p): out.append(load(p)); break
+        else:
+            raise FileNotFoundError(f'missing {prefix} {i} in {dirs}')
+    return out
+
+pull_S = carry_S = hurl_thr = None
+
+door_hang = [Image.open(f'{COMP_D}/door_hang_full_{i:02d}.jpg').convert('RGBA') for i in range(4)]
+door_snap = [Image.open(f'{COMP_D}/door_snap_full_{i:02d}.jpg').convert('RGBA') for i in range(12)]
+win_fr = [Image.open(f'{COMP_W}/win_full_{i:02d}.jpg').convert('RGBA') for i in range(8)]
+
+FONT=None
+for fp in [f'{ASSETS}/fonts/IBMPlexMono-Medium.ttf']:
+    if os.path.exists(fp): FONT=fp; break
+def font(sz):
+    return ImageFont.truetype(FONT, sz) if FONT else ImageFont.load_default()
+
+DOOR=(168,155); WIN=(960,130)
+P_START=(500,520); P_WIN=(900,310); P_DOOR=(235,280)
+NS=0.78
+WIN_BOX=(740,55,1180,220)
+DOOR_BOX=(100,50,320,370)
+DESK_PAPERS = [(820,340),(845,355),(870,335),(800,360)]
+
+# --- collision footprints from office11art.ts ---
+def load_polys():
+    ts=open(os.path.join(ROOT,'game/src/office11art.ts')).read()
+    m=re.search(r'O11_PROPS: O11Prop\[\] = (\[.*?\]);', ts, re.S)
+    props=json.loads(m.group(1))
+    return [(p['name'], p['poly']) for p in props]
+
+POLYS = load_polys()
+
+def point_in_poly(x, y, poly):
+    # ray cast
+    n=len(poly); inside=False
+    j=n-1
+    for i in range(n):
+        xi,yi=poly[i]; xj,yj=poly[j]
+        if ((yi>y)!=(yj>y)) and (x < (xj-xi)*(y-yi)/((yj-yi) or 1e-9)+xi):
+            inside=not inside
+        j=i
+    return inside
+
+def blocked(x, y, pad=14):
+    """Foot circle vs furniture polys (expanded)."""
+    for name, poly in POLYS:
+        # expand poly AABB quick reject
+        xs=[p[0] for p in poly]; ys=[p[1] for p in poly]
+        if x<min(xs)-pad or x>max(xs)+pad or y<min(ys)-pad or y>max(ys)+pad:
+            continue
+        # check center + 4 offsets
+        for dx,dy in ((0,0),(pad,0),(-pad,0),(0,pad),(0,-pad),(pad*0.7,pad*0.7)):
+            if point_in_poly(x+dx, y+dy, poly):
+                return name
+    return None
+
+# Hand-authored waypoints that clear furniture (verified)
+# start → window (east then north, south of kabir desk)
+PATH_TO_WIN = [(500,520),(600,500),(720,455),(840,380),(900,310)]
+# window → door (south clear of kabir, west through open floor, north to door south of podW)
+PATH_TO_DOOR = [(900,310),(860,400),(760,480),(620,520),(480,520),(320,480),(260,360),(235,280)]
+
+def path_pos(waypoints, u):
+    """u in [0,1] along polyline."""
+    if u<=0: return list(waypoints[0])
+    if u>=1: return list(waypoints[-1])
+    # cumulative lengths
+    lens=[0.0]
+    for i in range(1,len(waypoints)):
+        a,b=waypoints[i-1],waypoints[i]
+        lens.append(lens[-1]+math.hypot(b[0]-a[0], b[1]-a[1]))
+    total=lens[-1] or 1
+    d=u*total
+    for i in range(1,len(lens)):
+        if d<=lens[i]:
+            seg_u=(d-lens[i-1])/max(1e-6, lens[i]-lens[i-1])
+            a,b=waypoints[i-1],waypoints[i]
+            return [lerp(a[0],b[0],seg_u), lerp(a[1],b[1],seg_u)]
+    return list(waypoints[-1])
+
+def facing_along(waypoints, u):
+    p0=path_pos(waypoints, max(0,u-0.02)); p1=path_pos(waypoints, min(1,u+0.02))
+    dx,dy=p1[0]-p0[0], p1[1]-p0[1]
+    ang=math.atan2(dy,dx)  # 0=E, +y down so S is +
+    # map to NESW-ish
+    deg=math.degrees(ang)  # 0 E, 90 S, ±180 W, -90 N
+    if -45<=deg<45: return 'E', walk_E
+    if 45<=deg<135: return 'S', walk_S
+    if deg>=135 or deg<-135: return 'W', walk_W
+    return 'N', walk_N
+
+def paste_rgb_region(dst, src_full, box):
+    x0,y0,x1,y1=box
+    dst.paste(src_full.crop((x0,y0,x1,y1)), (x0,y0))
+
+def blend_sprites(a, b, u):
+    if u<=0: return a
+    if u>=1: return b
+    if a.size!=b.size:
+        b=b.resize(a.size, Image.LANCZOS)
+    return Image.blend(a, b, u)
+
+def sample_anim(frames, u):
+    if not frames: return None
+    if len(frames)==1: return frames[0]
+    x=clamp(u,0,0.99999)*(len(frames)-1)
+    i=int(x); f=x-i
+    return blend_sprites(frames[i], frames[min(i+1,len(frames)-1)], ease(f))
+
+def draw_noor(canvas, sprite, x, y, scale=NS, alpha=1.0):
+    sc = scale*(192/384) if sprite.width>=300 else scale
+    w=max(1,int(sprite.width*sc)); h=max(1,int(sprite.height*sc))
+    im=sprite.resize((w,h), Image.LANCZOS)
+    if alpha<0.999:
+        a=im.split()[3].point(lambda v: int(v*alpha))
+        im.putalpha(a)
+    px=int(x-w/2); py=int(y-h*0.90)
+    sh=Image.new('RGBA', canvas.size,(0,0,0,0))
+    d=ImageDraw.Draw(sh); d.ellipse([x-20,y-4,x+20,y+5], fill=(0,0,0,int(65*alpha)))
+    canvas.alpha_composite(sh); canvas.alpha_composite(im,(px,py))
+
+def hand_pos(nx, ny, phase='carry', dir_='S'):
+    if phase=='pull':
+        return (nx+24, ny-72) if dir_ in ('S','SE') else (nx-6, ny-68)
+    if phase=='throw':
+        # arm extended toward door / readable
+        if dir_ in ('S','SE'): return (nx-22, ny-70)
+        return (nx-18, ny-66)
+    return (nx+16, ny-60) if dir_ in ('S','SE') else (nx-12, ny-58)
+
+# ---------- curling WIND STREAKS (no rings, no atom dots) ----------
+def _bezier(p0,p1,p2,p3,n=14):
+    out=[]
+    for i in range(n+1):
+        t=i/n; u=1-t
+        x=u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0]
+        y=u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]
+        out.append((x,y))
+    return out
+
+def _taper_stroke(d, pts, rgba, width0):
+    """Draw stroke that tapers to thin tip — open curve, not a loop."""
+    if len(pts)<2: return
+    n=len(pts)
+    for i in range(n-1):
+        u=i/(n-1)
+        # thick at root, thin at tip
+        w=max(1, width0*(1.0-u*0.92))
+        aa=int(rgba[3]*(1.0-u*0.55))
+        d.line([pts[i], pts[i+1]], fill=(rgba[0],rgba[1],rgba[2],aa), width=max(1,int(round(w))))
+
+def wind_streaks(canvas, hx, hy, t, strength=1.0, mode='wrap', scale=1.0):
+    if strength<=0: return
+    ov=Image.new('RGBA', canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    s=strength; sc=scale
+    rng2=random.Random(int(t*20)+7)
+
+    if mode=='shimmer':
+        # short open wisps near window — never closed
+        for i in range(5):
+            a=t*1.3+i*1.3
+            L=(30+i*8)*sc
+            p0=(hx+math.cos(a)*8, hy+math.sin(a)*4)
+            p3=(p0[0]+math.cos(a+0.4)*L, p0[1]+math.sin(a+0.4)*L*0.35-6)
+            c1=(p0[0]+math.cos(a)*L*0.3, p0[1]-10*sc)
+            c2=(p3[0]-math.cos(a)*8, p3[1]+4)
+            pts=_bezier(p0,c1,c2,p3,n=10)
+            aa=int((28+16*math.sin(t*2+i))*s)
+            _taper_stroke(d, pts, (185,228,255,aa), 2.0)
+        canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(0.4))); return
+
+    if mode=='pull':
+        wx,wy=WIN[0]-10, WIN[1]+45
+        for i in range(11):
+            u=i/10.0
+            # uneven lengths
+            length_bias=0.55+0.55*((i*37)%10)/10.0
+            p0=(wx+math.sin(t*4+i)*10, wy+math.cos(t*3+i)*8)
+            p3=(hx+math.sin(t*2+i)*6, hy+math.cos(t*2.2+i)*4)
+            mid=((p0[0]+p3[0])/2+math.sin(t*3+i)*26*sc*length_bias,
+                 (p0[1]+p3[1])/2-30*sc*length_bias)
+            # break apart: some streaks stop early
+            if (i+int(t*3))%5==0:
+                p3=(lerp(p0[0],p3[0],0.55), lerp(p0[1],p3[1],0.55))
+            c1=(lerp(p0[0],mid[0],0.4), lerp(p0[1],mid[1],0.5)-8)
+            c2=(lerp(mid[0],p3[0],0.35), lerp(mid[1],p3[1],0.5))
+            pts=_bezier(p0,c1,c2,p3,n=16)
+            aa=int((115+25*math.sin(t*2.5+i))*s)
+            _taper_stroke(d, pts, (210,240,255,clamp(aa,0,210)), (3.4+1.5*((i*3)%4))*sc)
+            # few rain droplets along streak (not evenly spaced)
+            if i in (1,4,7,9):
+                k=4+(i*3)%8
+                if k<len(pts):
+                    x,y=pts[k]
+                    d.ellipse([x-1.8,y-2.6,x+1.8,y+2.6], fill=(230,245,255,int(100*s)))
+                    d.line([(x,y),(x-1,y+5)], fill=(200,230,255,int(70*s)), width=1)
+        canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(0.25))); return
+
+    if mode=='wrap':
+        # Directional anime wind: open S-curve streaks drifting LEFT/UP from the hand.
+        # Uneven lengths, taper to tips, some break mid-way. NO closed loops, NO orbit dots.
+        hy2=hy-8*sc
+        for i in range(8):
+            # start near hand with small jitter
+            jx=(i-3.5)*5*sc + 3*math.sin(t*2.3+i)
+            jy=(i%3-1)*4*sc
+            p0=(hx+jx*0.4, hy2+jy)
+            # prevailing drift: left-up, with curl
+            L=(48+i*11+18*math.sin(t*1.4+i*1.9))*sc  # uneven
+            drift= -1 if True else 1
+            p1=(p0[0]+drift*L*0.25, p0[1]-L*0.35 - 6*sc)
+            p2=(p0[0]+drift*L*0.55 + 10*sc*math.sin(t+i), p0[1]-L*0.15 + 8*sc*math.cos(t*1.2+i))
+            p3=(p0[0]+drift*L*0.95, p0[1]-L*0.55 - 4*sc)
+            # break apart ~1/3 of streaks early
+            if (i*3+int(t*3))%3==0:
+                p3=(lerp(p0[0],p3[0],0.55), lerp(p0[1],p3[1],0.55))
+                p2=(lerp(p0[0],p2[0],0.6), lerp(p0[1],p2[1],0.6))
+            pts=_bezier(p0,p1,p2,p3,n=16)
+            aa=int((105+35*math.sin(t*2+i))*s)
+            _taper_stroke(d, pts, (210,240,255,clamp(aa,0,210)), (3.6+2.0*((i*7)%3))*sc)
+        # few rain droplets streaking ALONG a couple strokes (sparse, not a ring)
+        for i in (1,4,6):
+            jx=(i-3.5)*5*sc
+            L=(55+i*10)*sc
+            u=0.35+0.25*math.sin(t*3+i)
+            x=hx+jx*0.4 - L*u
+            y=hy2 - L*u*0.5
+            d.ellipse([x-1.8,y-2.5,x+1.8,y+2.5], fill=(230,245,255,int(115*s)))
+            d.line([(x,y),(x-2,y+5)], fill=(200,230,255,int(65*s)), width=1)
+        canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(0.25))); return
+
+    if mode=='flight':
+        pass
+
+def wind_flight(canvas, u, frm, to, t, scale=1.0):
+    if u<=0 or u>=1: return
+    e=ease(u); sc=scale
+    cx=(frm[0]+to[0])/2; cy=min(frm[1],to[1])-75*sc
+    def bez(tt):
+        return ((1-tt)*(1-tt)*frm[0]+2*(1-tt)*tt*cx+tt*tt*to[0],
+                (1-tt)*(1-tt)*frm[1]+2*(1-tt)*tt*cy+tt*tt*to[1])
+    ov=Image.new('RGBA',canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    # twisting OPEN streaks along path — taper, break, uneven
+    for k in range(14):
+        v=e-k*0.03 - 0.01*((k*3)%4)
+        if v<=0: continue
+        x,y=bez(max(0,v))
+        tang=bez(min(1,v+0.05)); ang=math.atan2(tang[1]-y, tang[0]-x)
+        L=(22+8*((k*5)%3))*sc*(1-k/16)
+        twist=math.sin(t*7+k*1.1)*14*sc
+        nx,ny=-math.sin(ang), math.cos(ang)
+        p0=(x+nx*twist*0.3, y+ny*twist*0.2)
+        p3=(x+math.cos(ang)*L+nx*twist, y+math.sin(ang)*L*0.7+ny*twist*0.5)
+        c1=(p0[0]+math.cos(ang+0.6)*L*0.4, p0[1]+math.sin(ang+0.6)*L*0.3)
+        c2=(p3[0]-math.cos(ang)*L*0.25, p3[1]-math.sin(ang)*L*0.2)
+        pts=_bezier(p0,c1,c2,p3,n=10)
+        aa=int(125*(1-k/14)*(1-u*0.1))
+        _taper_stroke(d, pts, (205,238,255,aa), 3.5*sc)
+        if k in (1,5,9):
+            d.ellipse([x-2,y-2.5,x+2,y+2.5], fill=(230,248,255,int(aa*0.9)))
+    tip=bez(e)
+    # tip wisp only — not a nucleus ring
+    _taper_stroke(d, [(tip[0],tip[1]),(tip[0]+8,tip[1]-4),(tip[0]+16,tip[1]-2)],
+                  (220,245,255,int(110*(1-u*0.3))), 3.0*sc)
+    canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(0.25)))
+
+def throw_smear(canvas, hx, hy, tx, ty, u):
+    """Short arc trail on release frames."""
+    if u<=0: return
+    ov=Image.new('RGBA',canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    for i in range(6):
+        v=u*(1-i/7)
+        x=lerp(hx,tx,v*0.35); y=lerp(hy,ty,v*0.35)-math.sin(v*math.pi)*18
+        aa=int(90*(1-i/6)*u)
+        d.ellipse([x-3,y-2,x+3,y+2], fill=(220,240,255,aa))
+        d.arc([x-20,y-12,x+8,y+10], 200, 320, fill=(200,230,255,aa//2), width=2)
+    canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(0.4)))
+
+def tiny_dust(canvas, cx, cy, u, t, n=8):
+    if u<=0: return
+    ov=Image.new('RGBA', canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    for i in range(n):
+        ang=-0.5+i*(math.pi/n)+0.15*math.sin(i+t)
+        dist=5+u*18+i
+        x=cx+math.cos(ang)*dist*0.85
+        y=cy+math.sin(ang)*dist*0.3 - u*7
+        aa=int(80*(1-u)*(1-i/n)); r=1.1+0.5*math.sin(t+i)
+        d.ellipse([x-r,y-r*0.7,x+r,y+r*0.7], fill=(210,225,235,aa))
+    canvas.alpha_composite(ov)
+
+def living_window(canvas, t, approach, open_amt=1.0):
+    if open_amt<=0.02: return
+    sway = 0.5+0.5*math.sin(t*3.2)
+    wi_a = int(sway*2.99) % 4
+    wi_b = (wi_a+1)%4
+    a=win_fr[wi_a].crop(WIN_BOX); b=win_fr[wi_b].crop(WIN_BOX)
+    blended=Image.blend(a,b, ease(sway*2%1))
+    canvas.paste(blended, (WIN_BOX[0], WIN_BOX[1]))
+    pulse=0.55+0.45*math.sin(t*2.4)
+    pulse *= (0.35+0.65*approach)*open_amt
+    if pulse > 0.05:
+        glow=Image.new('RGBA', canvas.size,(0,0,0,0)); gd=ImageDraw.Draw(glow)
+        cx, cy = WIN[0]+10, WIN[1]+55
+        for k, mul in ((90, 0.2), (55, 0.32), (28, 0.48)):
+            gd.ellipse([cx-k, cy-k*0.45, cx+k, cy+k*0.45], fill=(140,190,230,int(65*pulse*mul)))
+        canvas.alpha_composite(glow.filter(ImageFilter.GaussianBlur(4)))
+    ov=Image.new('RGBA', canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    for i in range(16):
+        x0=WIN[0]-40+(i*17+t*40)%280
+        y0=WIN[1]+20+(i*11)%70
+        aa=int((50+40*approach)*open_amt*(0.6+0.4*math.sin(t*6+i)))
+        d.line([(x0,y0),(x0-8*approach-4, y0+10+6*approach)], fill=(190,220,245,aa), width=1)
+    for i in range(5):
+        u=((t*0.28+i*0.18)%1.0)
+        x=lerp(WIN[0]+30, P_WIN[0]-20, u)+math.sin(t*1.8+i)*14
+        y=lerp(WIN[1]+85, P_WIN[1]-5, u)+math.sin(t*2.4+i)*8
+        aa=int(110*open_amt*(1-u*0.55)*(0.35+0.65*approach))
+        if i%2==0:
+            d.ellipse([x-3,y-1.5,x+3,y+1.5], fill=(160,185,145,aa))
+        else:
+            d.polygon([(x,y-2),(x+4,y),(x,y+2),(x-3,y)], fill=(225,228,232,aa))
+    for i,(px,py) in enumerate(DESK_PAPERS):
+        flap=math.sin(t*8+i*1.7)*2.5*approach*open_amt
+        aa=int(120*open_amt*(0.5+0.5*approach))
+        d.polygon([(px,py+flap),(px+12,py+flap*0.4),(px+11,py+5),(px+1,py+5)], fill=(230,232,236,aa))
+    canvas.alpha_composite(ov)
+    wind_streaks(canvas, WIN[0]+10, WIN[1]+55, t, strength=(0.35+0.65*approach)*open_amt, mode='shimmer', scale=1.0+0.3*approach)
+
+def door_rattle(canvas, t, intense=0.0):
+    hi = int(t*2.5 + (3 if (int(t*0.7)%5==0) else 0)) % 4
+    paste_rgb_region(canvas, door_hang[hi], DOOR_BOX)
+
+def paste_lift(canvas, frame_i):
+    """Correct: full 196x296 sprite at O11_DOOR origin."""
+    fi=int(clamp(frame_i, 0, 9))
+    canvas.paste(lift[fi], DOOR_XY)
+
+def soft_door_spill(canvas, open_u):
+    """Warm spill from the opening only — very soft, low alpha, no hard cone."""
+    if open_u<=0.02: return
+    ov=Image.new('RGBA', canvas.size,(0,0,0,0)); d=ImageDraw.Draw(ov)
+    cx, cy = DOOR_XY[0]+98, DOOR_XY[1]+255
+    aa0=int(42*open_u)
+    for k, mul, dy in ((70, 0.3, 38), (45, 0.45, 28), (25, 0.55, 16)):
+        d.ellipse([cx-k, cy, cx+k, cy+dy], fill=(255,225,180, int(aa0*mul)))
+    canvas.alpha_composite(ov.filter(ImageFilter.GaussianBlur(18)))
+
+def apply_cam(img, zoom, focus, shake=(0,0)):
+    im=img
+    if zoom>1.001:
+        cw,ch=W/zoom,H/zoom; fx,fy=focus
+        left=max(0,min(W-cw,fx-cw/2)); top=max(0,min(H-ch,fy-ch/2))
+        im=im.crop((int(left),int(top),int(left+cw),int(top+ch))).resize((W,H), Image.LANCZOS)
+    if shake!=(0,0):
+        blank=Image.new('RGBA',(W,H),(4,8,12,255))
+        blank.alpha_composite(im if im.mode=='RGBA' else im.convert('RGBA'), (int(shake[0]), int(shake[1])))
+        im=blank
+    return im
+
+def hud(canvas, hint):
+    d=ImageDraw.Draw(canvas)
+    d.rectangle([0,0,W,TOP], fill=(4,8,12,255))
+    d.rectangle([0,H-BOT,W,H], fill=(4,8,12,255))
+    if hint:
+        f=font(13); bb=d.textbbox((0,0),hint,font=f); tw=bb[2]-bb[0]
+        d.text(((W-tw)//2,H-22), hint, font=f, fill=(180,200,210,140))
+
+def frame_at(t):
+    """
+    Continuous timeline (NO hard hit-stop freeze that pops into carry):
+    0-2.3 walk to window along collision-safe path + lure
+    2.3-2.7 reach blend
+    2.7-4.5 pull + slam + 2x cam (soft slow-mo, not freeze)
+    4.5-5.0 crossfade rip→carry with sub-motion
+    5.0-6.4 carry walk to door along safe path
+    6.4-7.8 throw (3/4 cheat sheets) + 2x cam
+    7.8-9.5 snap + lift open (correct paste) + soft spill
+    9.5-11.5 settle
+    """
+    # Soft slow-mo around rip (compress time slightly, never hard freeze)
+    def map_time(tt):
+        # brief ease through rip window instead of freeze
+        if 4.05 <= tt <= 4.35:
+            # slow: 0.3s real → 0.12s world
+            local=(tt-4.05)/0.3
+            return 4.05 + local*0.12, 'window_slow'
+        if tt > 4.35:
+            return tt - 0.18, None  # account for slow-mo debt
+        if 7.25 <= tt <= 7.45:
+            local=(tt-7.25)/0.2
+            return (tt-0.18) - (tt-7.25) + local*0.08, 'door_slow'
+        if tt > 7.45:
+            return tt - 0.18 - 0.12, None
+        return tt, None
+
+    wt, impact = map_time(t)
+    base = office.copy()
+
+    # Noor path positions
+    if wt < 2.3:
+        u=ease(seg(wt,0.15,2.25)); n=path_pos(PATH_TO_WIN, u)
+    elif wt < 4.55:
+        n=list(P_WIN)
+    elif wt < 6.4:
+        u=ease(seg(wt,5.0,6.3)); n=path_pos(PATH_TO_DOOR, u)
+    else:
+        n=list(P_DOOR)
+
+    # safety nudge if somehow blocked
+    hit=blocked(n[0], n[1], pad=12)
+    if hit:
+        for ang in range(0,360,30):
+            nx=n[0]+18*math.cos(math.radians(ang)); ny=n[1]+18*math.sin(math.radians(ang))
+            if not blocked(nx,ny,pad=12):
+                n=[nx,ny]; break
+
+    approach = clamp(1.0 - math.hypot(n[0]-P_WIN[0], n[1]-P_WIN[1])/420.0, 0, 1)
+    win_open = 1.0 - ease(seg(wt, 3.9, 4.25))
+
+    if rain_amb and win_open>0.05:
+        ri=rain_amb[int(wt*10)%len(rain_amb)].copy()
+        ri.putalpha(ri.split()[-1].point(lambda a: int(a*win_open*0.65)))
+        base.alpha_composite(ri)
+
+    # WINDOW
+    if win_open > 0.08:
+        lure = max(0.55, approach, seg(wt,0.0,1.8)*0.85)
+        living_window(base, wt, approach=lure, open_amt=win_open)
+    else:
+        u=seg(wt,3.75,4.25)
+        xf=4+u*3.99; i0=int(xf); f=xf-i0
+        a=win_fr[min(7,i0)].crop(WIN_BOX); b=win_fr[min(7,i0+1)].crop(WIN_BOX)
+        base.paste(Image.blend(a,b,ease(f)), (WIN_BOX[0], WIN_BOX[1]))
+        if 0.15<u<0.9:
+            tiny_dust(base, WIN[0]+10, WIN[1]+60, (u-0.15)/0.6, wt, n=8)
+
+    # DOOR / LIFT
+    door_open_u=0.0
+    if wt < 7.0:
+        door_rattle(base, wt, intense=0.3*seg(wt,6.6,7.0))
+    elif wt < 8.8:
+        u=seg(wt,7.0,8.5)
+        if u<0.2:
+            paste_rgb_region(base, door_snap[0], DOOR_BOX)
+            door_rattle(base, wt, intense=0.7)
+        else:
+            su=ease_in_out((u-0.2)/0.8)
+            snap_i=min(11, int(su*11))
+            ca=door_snap[snap_i].crop(DOOR_BOX)
+            cb=door_snap[min(11,snap_i+1)].crop(DOOR_BOX)
+            base.paste(Image.blend(ca,cb, su*11-snap_i), (DOOR_BOX[0], DOOR_BOX[1]))
+        door_open_u=ease_out(seg(wt,7.6,9.2))
+    else:
+        paste_rgb_region(base, door_snap[11], DOOR_BOX)
+        door_open_u=ease_out(seg(wt,7.6,9.2))
+
+    if door_open_u>0.02:
+        # chains mostly gone — show lift doors sliding within frame
+        # first clear door region from snap plate by pasting lift over door sprite area
+        di=min(6, int(door_open_u*6.5))  # stop before empty cream shaft
+        paste_lift(base, di)
+        soft_door_spill(base, door_open_u)
+        if door_open_u<0.45:
+            tiny_dust(base, DOOR[0]+10, DOOR[1]+40, door_open_u*2, wt, n=10)
+
+    # --- Noor ---
+    sprite=idle_E[0]; phase='walk'; zoom=1.0; focus=(W/2,H/2); shake=(0,0)
+    hint=''; throw_u=0; gust_scale=1.2
+    hx=hy=0; ndir='E'
+
+    if wt < 2.3:
+        u=ease(seg(wt,0.15,2.25))
+        n=path_pos(PATH_TO_WIN, u)
+        ndir, wsheet = facing_along(PATH_TO_WIN, u)
+        wf=(wt*10)%8
+        sprite=blend_sprites(wsheet[int(wf)%8], wsheet[(int(wf)+1)%8], wf%1)
+        phase='walk'
+        zoom=1.0+0.06*approach
+        focus=(lerp(n[0],WIN[0],0.35), lerp(n[1],WIN[1],0.35))
+    elif wt < 2.7:
+        bu=ease(seg(wt,2.3,2.7))
+        n=list(P_WIN); ndir='S'; phase='reach'
+        draw_noor(base, walk_E[0], n[0], n[1], alpha=1-bu)
+        sprite=pull_S[0]
+        hx,hy=hand_pos(*n,'pull','S')
+        wind_streaks(base, hx, hy, wt, 0.25+0.4*bu, 'pull', gust_scale)
+        hint='E take'
+        zoom=1.0+0.15*bu; focus=(P_WIN[0]-20, P_WIN[1]+10)
+    elif wt < 4.55:
+        n=list(P_WIN); ndir='S'; phase='pull'
+        u=seg(wt,2.7,4.4)
+        if u<0.28: uu=u/0.28*0.33
+        elif u<0.48: uu=0.33+(u-0.28)/0.2*0.17
+        elif u<0.68: uu=0.5+(u-0.48)/0.2*0.17
+        elif u<0.85: uu=0.67+(u-0.68)/0.17*0.17
+        else: uu=0.84+(u-0.85)/0.15*0.16
+        sprite=sample_anim(pull_S, clamp(uu,0,1))
+        fi=uu*(len(pull_S)-1)
+        hx,hy=hand_pos(*n,'pull','S')
+        if 12<=fi<=16: n[0]+=4; n[1]-=1
+        if fi<18:
+            wind_streaks(base, hx, hy, wt, 0.55+0.4*seg(wt,2.7,3.9), 'pull', gust_scale)
+        else:
+            wind_streaks(base, hx, hy, wt, 0.95, 'wrap', gust_scale)
+        zoom=lerp(1.15, 2.0, ease(seg(wt,3.7,4.25)))
+        focus=(P_WIN[0]-30, P_WIN[1]+20)
+        if fi>=17:
+            shake=(rng.uniform(-1.2,1.2)*seg(wt,4.0,4.3), rng.uniform(-0.8,0.8)*seg(wt,4.0,4.3))
+            tiny_dust(base, WIN[0], WIN[1]+55, seg(wt,4.0,4.3), wt, n=7)
+        hint='E take'
+    elif wt < 5.25:
+        # CONTINUOUS rip→carry: hold rip with sub-motion, crossfade into carry
+        n=list(P_WIN); ndir='S'; phase='bridge'
+        bu=ease(seg(wt,4.55,5.25))
+        # sub-motion on rip hold: slight sway via carry breath on pull last frame
+        rip = pull_S[-1]
+        car = sample_anim(carry_S, (wt*0.9)%1.0)
+        sprite=blend_sprites(rip, car, bu)
+        hx,hy=hand_pos(*n,'carry','S')
+        # gust keeps breathing (sub-motion during "freeze" feel)
+        wind_streaks(base, hx, hy, wt, 0.95, 'wrap', gust_scale)
+        zoom=lerp(2.0, 1.7, bu)
+        focus=(n[0], n[1]-40)
+        hint='F throw'
+    elif wt < 6.4:
+        u=ease(seg(wt,5.25,6.3))
+        n=path_pos(PATH_TO_DOOR, u)
+        ndir, _ = facing_along(PATH_TO_DOOR, u)
+        # prefer S/SE carry sheets for readable arms while moving
+        phase='carry'
+        sprite=sample_anim(carry_S, (wt*0.9)%1.0)
+        # blend walk facing briefly under
+        hx,hy=hand_pos(n[0],n[1],'carry','S')
+        wind_streaks(base, hx, hy, wt, 0.95, 'wrap', gust_scale)
+        zoom=lerp(1.7, 1.05, ease_in_out(seg(wt,5.25,6.1)))
+        focus=(n[0], n[1]-40)
+        hint='F throw'
+    elif wt < 7.85:
+        n=list(P_DOOR); phase='throw'
+        u=seg(wt,6.4,7.7)
+        # use SE/S cheated sheets for 3/4 readability, facing doorish
+        ndir='SE'
+        if u<0.42:
+            sprite=sample_anim(hurl_thr, (u/0.42)*0.42)
+            hx,hy=hand_pos(*n,'throw','SE')
+            wind_streaks(base, hx, hy, wt, 0.9, 'wrap', gust_scale)
+            zoom=lerp(1.05, 2.0, ease_in_out(u/0.42))
+            focus=(DOOR[0]+20, DOOR[1]+20)
+            hint='F throw'
+        else:
+            fu=(u-0.42)/0.58
+            # hold in release region of anim (~0.45-0.55 of sheet)
+            anim_u=0.42+fu*0.55
+            sprite=sample_anim(hurl_thr, anim_u)
+            throw_u=ease(fu)
+            hx,hy=hand_pos(*n,'throw','SE')
+            wind_flight(base, throw_u, (hx,hy), (DOOR[0]+15, DOOR[1]+40), wt, scale=gust_scale*1.1)
+            if fu<0.35:
+                throw_smear(base, hx, hy, DOOR[0], DOOR[1]+30, 1-fu/0.35)
+            zoom=2.0
+            focus=(DOOR[0]+10, DOOR[1]+30)
+            if throw_u>0.7:
+                shake=(rng.uniform(-1.5,1.5)*(throw_u-0.7), rng.uniform(-1,1)*(throw_u-0.7))
+                tiny_dust(base, DOOR[0]+10, DOOR[1]+35, (throw_u-0.7)/0.3, wt, n=10)
+            hint=''
+    else:
+        n=list(P_DOOR); ndir='S'; phase='recover'
+        ru=seg(wt,7.85,9.2)
+        sprite=sample_anim(hurl_thr, clamp(0.8+ru*0.2,0,1))
+        if wt>9.0:
+            sprite=blend_sprites(hurl_thr[-1], idle_S[int(wt*5)%6], ease(seg(wt,9.0,10.0)))
+        zoom=lerp(2.0, 1.0, ease(seg(wt,7.9,9.5)))
+        focus=(DOOR[0]+20, DOOR[1]+50) if wt<9.0 else (n[0], n[1]-30)
+        hint=''
+
+    draw_noor(base, sprite, n[0], n[1])
+
+    # gust in front while carrying / bridge
+    if phase in ('carry','bridge') or (phase=='pull' and wt>4.2):
+        hx,hy=hand_pos(n[0],n[1],'carry','S')
+        wind_streaks(base, hx, hy, wt, 0.85 if phase!='pull' else 0.55, 'wrap', gust_scale)
+    if phase=='throw' and throw_u<=0 and wt<6.9:
+        hx,hy=hand_pos(n[0],n[1],'throw','SE')
+        wind_streaks(base, hx, hy, wt, 0.75, 'wrap', gust_scale)
+
+    framed=apply_cam(base, zoom, focus, shake)
+    out=Image.new('RGBA',(W,H),(4,8,12,255))
+    out.alpha_composite(framed if framed.mode=='RGBA' else framed.convert('RGBA'))
+    hud(out, hint)
+    clip=blocked(n[0], n[1], pad=10)
+    return out.convert('RGB'), dict(wt=wt, impact=impact, n=n, phase=phase, zoom=zoom, hint=hint, clip=clip)
+
+def closeup(im, cx, cy, r=140):
+    x0=clamp(int(cx-r),0,W-1); y0=clamp(int(cy-r),0,H-1)
+    x1=clamp(int(cx+r),0,W); y1=clamp(int(cy+r),0,H)
+    crop=im.crop((x0,y0,x1,y1))
+    return crop.resize((crop.width*2, crop.height*2), Image.LANCZOS)
+
+def main():
+    global pull_S, carry_S, hurl_thr
+    # pull/carry 24/12 from v7 folder (copied from v6); hurl may be 26
+    pull_S=load_seq('pull_side',24,('S','SE'))
+    carry_S=load_seq('carry',12,('S',))
+    # detect hurl frame count
+    n_hurl=0
+    for i in range(40):
+        if any(os.path.exists(f'{NOOR}/hurl_{d}_{i:02d}.png') for d in ('SE','S','SW')):
+            n_hurl=i+1
+        else:
+            break
+    hurl_thr=load_seq('hurl', n_hurl, ('SE','S','SW'))
+    print('loaded', len(pull_S), len(carry_S), len(hurl_thr), 'hurl dirs prefer SE')
+
+    # verify path clear
+    for label, path in (('to_win', PATH_TO_WIN), ('to_door', PATH_TO_DOOR)):
+        for u in np.linspace(0,1,40):
+            x,y=path_pos(path, float(u))
+            hit=blocked(x,y,pad=12)
+            if hit:
+                print('WARN path', label, 'hits', hit, 'at', x,y, 'u', u)
+
+    still_at={
+        '01-lure': 1.4,
+        '02-pull': 3.3,
+        '03-rip-bridge': 4.7,
+        '04-carry': 5.6,
+        '05-throw': 7.0,
+        '06-snap': 7.9,
+        '07-door-open': 9.2,
+        '08-settle': 10.5,
+    }
+    clip_hits=[]; text_hits=[]; ring_flags=[]
+    for i in range(NFRAMES):
+        t=i/FPS
+        im, meta = frame_at(t)
+        im.save(f'{FRAMES}/f_{i:04d}.png')
+        if meta.get('clip'):
+            clip_hits.append((i, meta['clip'], meta['n']))
+        if meta.get('hint') and any(w in meta['hint'].upper() for w in ('OPEN','WET','PAPER')):
+            text_hits.append((i, meta['hint']))
+        for name,ts in still_at.items():
+            if abs(t-ts)<0.5/FPS:
+                im.save(f'{STILLS}/{name}.png')
+        if i%24==0:
+            print(f'  {i}/{NFRAMES} wt={meta["wt"]:.2f} {meta["phase"]} zoom={meta["zoom"]:.2f} clip={meta["clip"]}')
+
+    # unzoomed close-ups
+    real_cam = apply_cam
+    globals()['apply_cam'] = lambda img, zoom, focus, shake=(0,0): real_cam(img, 1.0, focus, (0,0))
+    for ts, name, center in [
+        (5.6, 'close-gust-2x.png', None),
+        (7.05, 'close-throw-2x.png', None),
+        (9.2, 'close-door-2x.png', (DOOR[0]+20, DOOR[1]+40)),
+    ]:
+        im, meta = frame_at(ts)
+        if center is None:
+            cx,cy=int(meta['n'][0]), int(meta['n'][1]-45)
+        else:
+            cx,cy=center
+        closeup(im, cx, cy, 150).save(f'{STILLS}/{name}')
+        print('close', name, meta['phase'])
+    globals()['apply_cam']=real_cam
+
+    mp4=f'{OUT}/beat.mp4'
+    subprocess.check_call(['ffmpeg','-y','-framerate',str(FPS),'-i',f'{FRAMES}/f_%04d.png',
+        '-c:v','libx264','-pix_fmt','yuv420p','-crf','17', mp4],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.check_call(['ffmpeg','-y','-i',mp4,'-vf','fps=12,scale=640:-1:flags=lanczos','-loop','0', f'{OUT}/beat.gif'],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if os.path.exists(V6_MP4):
+        subprocess.check_call([
+            'ffmpeg','-y','-i',V6_MP4,'-i',mp4,
+            '-filter_complex',
+            "[0:v]scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,drawtext=text='v6':x=16:y=16:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.5[a];"
+            "[1:v]scale=640:360:force_original_aspect_ratio=decrease,pad=640:360:(ow-iw)/2:(oh-ih)/2,setsar=1,drawtext=text='v7':x=16:y=16:fontsize=28:fontcolor=white:box=1:boxcolor=black@0.5[b];"
+            '[a][b]hstack=inputs=2',
+            '-c:v','libx264','-pix_fmt','yuv420p','-crf','20', f'{OUT}/compare.mp4'
+        ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    print('clip_hits', clip_hits[:10], 'total', len(clip_hits))
+    print('text_hits', text_hits)
+    print('DONE', mp4)
+
+if __name__=='__main__':
+    main()

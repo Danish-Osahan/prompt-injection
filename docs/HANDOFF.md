@@ -316,6 +316,9 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
+## 21d. mock-steal/v7 — streak gust, path, throw, lift fix
+- **`mock-steal/v7/`** beat / gif / compare (v6 vs v7). Directional tapering wind streaks (no atom rings); collision-safe path; SE-cheat throw + smear; lift frames pasted at O11_DOOR; soft spill. Compose: `art/tools/compose_steal_v7.py`. Hurl sheets in `art/render/steal_noor_v7/`.
+
 ## 21c. mock-steal/v6 — living lure + smooth steal
 - **`mock-steal/v6/`** beat / gif / compare (v5 vs v6) / stills. No window blur-box; living window lure + door rattle; denser Noor keys in `art/render/steal_noor_v6/`; ~2× eased cam; no quality captions. Compose: `art/tools/compose_steal_v6.py`.
 

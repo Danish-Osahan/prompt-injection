@@ -193,6 +193,9 @@ PLAN = {
           F(c=.48, lean=-6, tw=30, ar=D(-.4, .25, .95), al=D(.75, .1, -.15), sm=True, step=2),
           F(c=.45, lean=0, tw=16, ar=D(.15, .3, 1.0), al=D(.55, .2, -.35), sm=True, step=4),
           F(c=.48, lean=10, tw=0, ar=D(.7, .15, .7), al=D(.1, .3, -.5), dz=-.02, step=7, ev='release'),
+          # hold release 2 frames for readability
+          F(c=.5, lean=14, tw=-8, ar=D(.95, .08, .5), al=D(-.2, .35, -.55), dz=-.025, step=8),
+          F(c=.52, lean=16, tw=-12, ar=D(1.05, .05, .42), al=D(-.3, .4, -.6), dz=-.028, step=9),
           F(c=.5, lean=16, tw=-14, ar=D(1.05, .05, .4), al=D(-.35, .4, -.65), dz=-.03, step=9),
           F(c=.53, lean=20, tw=-24, ar=D(1.0, -.3, .1), al=D(-.45, .4, -.58), dz=-.032, step=11),
           F(c=.55, lean=22, tw=-30, ar=D(.95, -.55, -.15), al=D(-.5, .4, -.55), dz=-.035, step=12),
