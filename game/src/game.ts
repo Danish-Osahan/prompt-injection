@@ -672,6 +672,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   interact() {
+    if (this.impactLab?.stealMode || this.impactLab?.on) return false;
     if (this.clar) return this.clar.interact();
     const p = this.nearestPlate(READ_R); if (!p) return false;
     if (this.hand && p.def.slot >= 0 && p.def.id !== this.hand.from) return this.swap(this.hand.from, p.def.id);
@@ -1213,7 +1214,7 @@ export class GameScene extends Phaser.Scene {
     if (this.hitStopT > 0) { this.hitStopT -= dt; edt = 0; if (this.hitStopT <= 0) this.noor.anims.resume(); }
     this.selectCd -= dt;
     if (this.composer && (f.attack || f.interact)) this.typeKey();
-    if (this.clar?.modal && f.interact) { this.clar.interact(); f.interact = false; }
+    if (this.clar?.modal && f.interact && !(this.impactLab?.stealMode || this.impactLab?.on)) { this.clar.interact(); f.interact = false; }
     const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
     if (control && f.dash && this.dashCd <= 0 && this.dashT <= 0) {
@@ -1285,8 +1286,8 @@ export class GameScene extends Phaser.Scene {
     if (this.caret.visible) { this.caret.x += (this.x - 46 - this.caret.x) * Math.min(1, dt * 6); this.caret.y += (this.y - 56 - this.caret.y) * Math.min(1, dt * 6); this.caret.setDepth(this.y + 1); }
     this.darkness?.setPosition(this.x, this.y - 30);
 
-    if (control && f.interact && !this.composer) this.interact();
-    this.words.update(dt, f.interactHeld);
+    if (control && f.interact && !this.composer && !(this.impactLab?.stealMode || this.impactLab?.on)) this.interact();
+    this.words.update(dt, (this.impactLab?.stealMode || this.impactLab?.on) ? false : f.interactHeld);
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);

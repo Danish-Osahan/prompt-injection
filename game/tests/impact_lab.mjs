@@ -120,6 +120,39 @@ async function main() {
   }
   console.log('PASS chain settle assertion');
 
+  // FREEZE / word-UI assert after throw
+  const resume = await page.evaluate(() => {
+    const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
+    const x0 = s.x; s.x += 12;
+    return {
+      hitStopT: s.hitStopT, timeScale: s.timeScale, broken: s.impactLab.chain.broken,
+      done: s.impactLab.done, door: s.plateById('o_door')?.slotWord,
+      codeOn: s.words.codeOn, codeA: s.words.codeA, hand: s.hand,
+      tagsVis: (s.clar?.tags ?? []).some(t => t.c.visible),
+      objVis: s.clar?.objective?.visible, moved: s.x === x0 + 12,
+      steal: s.impactLab.stealMode,
+    };
+  });
+  console.log('resume', resume);
+  if (resume.hitStopT > 0.01 || resume.timeScale < 0.99) {
+    console.error('FAIL freeze: time did not resume', resume); process.exit(1);
+  }
+  if (!resume.broken || !resume.moved) {
+    console.error('FAIL chain/input after throw', resume); process.exit(1);
+  }
+  if (resume.codeOn || resume.codeA > 0.05 || resume.hand || resume.tagsVis || resume.objVis) {
+    console.error('FAIL old word UI still active', resume); process.exit(1);
+  }
+  // Door may open shortly after (420ms timer) — wait and recheck
+  await page.waitForTimeout(500);
+  const door = await page.evaluate(() => {
+    const s = window.__game.scene.scenes.find(x => x.scene.key === 'game');
+    return s.plateById('o_door')?.slotWord;
+  });
+  console.log('door after wait', door);
+  if (door !== 'OPEN') { console.error('FAIL door not open', door); process.exit(1); }
+  console.log('PASS resume + no word UI + door open');
+
   // Settle still (full frame, links on floor)
   fs.writeFileSync(path.join(STILLS, '08-settle.png'), await page.screenshot({ type: 'png' }));
   fs.writeFileSync(path.join(STILLS, '07-scatter.png'), await page.screenshot({ type: 'png' }));

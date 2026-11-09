@@ -1,6 +1,5 @@
-// Reusable hit-feel tiers (docs/design/impact-spec.md). Phaser 4.
-// LIGHT = freeze + spark + tint (no zoom / no screen flash).
-// HEAVY/BIG = true silhouette impact frames of attacker+target+spark, not a screen wash.
+// Reusable hit-feel tiers. LIGHT = freeze+spark+tint (no zoom/flash).
+// HEAVY/BIG = silhouette of real sprite alpha (Noor / chain / gust) — never a door rect.
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
 import { sfx } from '../sfx';
@@ -10,12 +9,12 @@ export type ImpactTierName = 'light' | 'heavy' | 'big';
 export interface ImpactTier {
   name: ImpactTierName;
   hitStopMs: number;
-  punchZoom: number;   // 1 = none; heavy ≤1.05 held; big a bit more
-  punchHoldMs: number; // time at punch before ease-back
-  punchEaseMs: number; // slow ease back
+  punchZoom: number;
+  punchHoldMs: number;
+  punchEaseMs: number;
   shakeAmp: number;
   shakeMs: number;
-  silFrames: number;   // 0 / 1 / 2 true silhouette frames
+  silFrames: number;
   silMs: number;
   slowMo: number;
   slowMoMs: number;
@@ -32,12 +31,12 @@ export const TIERS: Record<ImpactTierName, ImpactTier> = {
   heavy: {
     name: 'heavy', hitStopMs: 120, punchZoom: 1.04, punchHoldMs: 80, punchEaseMs: 300,
     shakeAmp: 0.008, shakeMs: 140, silFrames: 1, silMs: 70, slowMo: 1, slowMoMs: 0,
-    sparkScale: 0.95, knockback: 18,
+    sparkScale: 0.95, knockback: 14,
   },
   big: {
     name: 'big', hitStopMs: 190, punchZoom: 1.06, punchHoldMs: 120, punchEaseMs: 380,
-    shakeAmp: 0.014, shakeMs: 220, silFrames: 2, silMs: 70, slowMo: 0.4, slowMoMs: 360,
-    sparkScale: 1.25, knockback: 26,
+    shakeAmp: 0.014, shakeMs: 220, silFrames: 2, silMs: 70, slowMo: 0.45, slowMoMs: 280,
+    sparkScale: 1.2, knockback: 20,
   },
 };
 
@@ -45,13 +44,15 @@ export interface ImpactOpts {
   tier: ImpactTierName;
   x: number; y: number;
   dir?: { x: number; y: number };
-  /** Target sprite/image to tint, squash, and silhouette. */
+  /** Optional tint/squash target — must have real alpha (sprite/image with transparency). JPG doors are rejected. */
   target?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
-  /** Attacker (usually Noor) — frozen + silhouetted with the target. */
   attacker?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image;
+  /** Extra silhouette sources (chain links, gust) — preferred over door. */
+  silhouettes?: (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image)[];
   onHitStopEnd?: () => void;
-  pausePhysics?: boolean;
 }
+
+const FAILSAFE_MS = 400;
 
 export class ImpactFX {
   private veil?: Phaser.GameObjects.Rectangle;
@@ -60,6 +61,7 @@ export class ImpactFX {
   private punchTw?: Phaser.Tweens.Tween;
   private baseZoom = 1;
   private sparkSpr?: Phaser.GameObjects.Sprite;
+  private resumeTimer?: ReturnType<typeof setTimeout>;
 
   constructor(private s: GameScene) {}
 
@@ -69,60 +71,52 @@ export class ImpactFX {
     const L = Math.hypot(dir.x, dir.y) || 1;
     const dx = dir.x / L, dy = dir.y / L;
 
-    // --- Hit-stop: freeze attacker/target pose so the eye registers contact ---
+    // Hit-stop via scene clock + REAL-TIME failsafe (never leave the game frozen)
     this.s.hitStopT = Math.max(this.s.hitStopT, t.hitStopMs / 1000);
     try { this.s.noor.anims.pause(); } catch { /* */ }
-    if (opts.attacker && 'anims' in opts.attacker) {
-      try { (opts.attacker as Phaser.GameObjects.Sprite).anims.pause(); } catch { /* */ }
-    }
 
-    // --- Spark first so it exists during the freeze ---
     this.burstSpark(opts.x, opts.y, dx, dy, t.sparkScale);
 
-    // --- Target white flash (1–2 frames) + knockback squash ---
-    if (opts.target) this.hitTarget(opts.target, dx, dy, t);
+    // Only tint/squash targets with usable alpha (skip JPG door plates)
+    if (opts.target && this.hasAlpha(opts.target)) this.hitTarget(opts.target, dx, dy, t);
 
-    // --- Camera: light = tiny shake only; heavy/big = directional shake + optional held punch-in ---
     const cam = this.s.cameras.main;
     this.baseZoom = this.s.frameZoom || cam.zoom || 1;
     if (t.shakeAmp > 0) {
       cam.shake(t.shakeMs, t.shakeAmp);
-      // tiny directional bias (light ≈ 2–3px)
-      const kick = (opts.tier === 'light' ? 2.5 : 7) * (t.shakeAmp / 0.008);
+      const kick = (opts.tier === 'light' ? 2.5 : 6) * (t.shakeAmp / 0.008);
       cam.scrollX += dx * kick;
-      cam.scrollY += dy * kick * 0.5;
+      cam.scrollY += dy * kick * 0.4;
     }
     if (t.punchZoom > 1.001) {
-      // Held punch-in, then slow ease-back — never a snap in/out
       const targetZ = this.baseZoom * t.punchZoom;
       this.punchTw?.stop();
       cam.setZoom(targetZ);
-      this.s.time.delayedCall(t.punchHoldMs + t.hitStopMs * 0.3, () => {
-        this.punchTw = this.s.tweens.add({
-          targets: cam, zoom: this.baseZoom, duration: t.punchEaseMs, ease: 'Sine.easeInOut',
-          onComplete: () => { try { cam.setZoom(this.baseZoom); cam.centerOn(640, 360); } catch { /* */ } },
-        });
-      });
+      // Ease-back on real time so a paused Phaser clock can't strand zoom
+      window.setTimeout(() => {
+        try {
+          this.punchTw = this.s.tweens.add({
+            targets: cam, zoom: this.baseZoom, duration: t.punchEaseMs, ease: 'Sine.easeInOut',
+            onComplete: () => { try { cam.setZoom(this.baseZoom); cam.centerOn(640, 360); } catch { /* */ } },
+          });
+        } catch { try { cam.setZoom(this.baseZoom); } catch { /* */ } }
+      }, t.punchHoldMs + Math.min(t.hitStopMs, 120));
     }
 
-    // --- True silhouette impact frames (attacker + target + spark only) ---
     if (t.silFrames > 0) {
       this.runSilhouetteFrames(t, opts, dx, dy);
-      if (opts.tier !== 'light') this.speedLines(opts.x, opts.y, dx, dy, opts.tier === 'big' ? 14 : 10);
+      this.speedLines(opts.x, opts.y, dx, dy, opts.tier === 'big' ? 12 : 8);
     }
 
-    // --- Slow-mo ease back (big) ---
-    const end = () => {
-      try { this.s.noor.anims.resume(); } catch { /* */ }
-      opts.onHitStopEnd?.();
-    };
+    // Resume schedule: real-time timer (independent of Phaser timeScale / hitStop)
+    const totalMs = t.slowMo < 1 ? t.hitStopMs + t.slowMoMs : t.hitStopMs;
+    this.armResume(Math.min(totalMs, FAILSAFE_MS), t, opts);
+    // Also start soft slow-mo after hit-stop via real time
     if (t.slowMo < 1) {
-      this.s.time.delayedCall(t.hitStopMs, () => {
+      window.setTimeout(() => {
+        if (this.s.hitStopT > 0) this.s.hitStopT = 0;
         this.s.timeScale = t.slowMo;
-        this.s.time.delayedCall(t.slowMoMs, () => { this.s.timeScale = 1; end(); });
-      });
-    } else {
-      this.s.time.delayedCall(t.hitStopMs, end);
+      }, t.hitStopMs);
     }
 
     if (opts.tier === 'light') sfx('hit');
@@ -130,27 +124,50 @@ export class ImpactFX {
     else sfx('impact_big');
   }
 
+  /** Always clear hit-stop / timeScale / anims — real wall clock. */
+  private armResume(ms: number, t: ImpactTier, opts: ImpactOpts) {
+    if (this.resumeTimer) clearTimeout(this.resumeTimer);
+    this.resumeTimer = setTimeout(() => {
+      this.resumeTimer = undefined;
+      this.s.hitStopT = 0;
+      this.s.timeScale = 1;
+      try { this.s.noor.anims.resume(); } catch { /* */ }
+      this.clearSil();
+      opts.onHitStopEnd?.();
+    }, Math.min(ms, FAILSAFE_MS));
+  }
+
+  /** JPG / opaque full-bleed textures silhouette as a grey rect — reject those. */
+  private hasAlpha(src: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image): boolean {
+    try {
+      const key = src.texture?.key ?? '';
+      // Door lift frames are JPEGs under o11door_*
+      if (key.startsWith('o11door_')) return false;
+      const srcImg = src.texture?.getSourceImage?.() as HTMLImageElement | HTMLCanvasElement | undefined;
+      if (!srcImg) return true;
+      // Heuristic: jpeg paths / no canvas alpha
+      const url = (srcImg as HTMLImageElement).src ?? '';
+      if (/\.jpe?g($|\?)/i.test(url)) return false;
+      return true;
+    } catch { return false; }
+  }
+
   private hitTarget(
     spr: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image,
     dx: number, dy: number, t: ImpactTier,
   ) {
     const ox = spr.x, oy = spr.y, sx = spr.scaleX, sy = spr.scaleY;
-    // White fill flash for ~2 frames (~50–70ms)
     spr.setTint(0xffffff).setTintMode(Phaser.TintModes.FILL);
-    this.s.time.delayedCall(55, () => { try { spr.clearTint(); spr.setTintMode(Phaser.TintModes.MULTIPLY); } catch { /* */ } });
-    // Knockback + squash
+    window.setTimeout(() => { try { spr.clearTint(); spr.setTintMode(Phaser.TintModes.MULTIPLY); } catch { /* */ } }, 55);
     const kb = t.knockback;
     this.s.tweens.add({
       targets: spr,
-      x: ox + dx * kb,
-      y: oy + dy * kb * 0.35,
-      scaleX: sx * 1.12,
-      scaleY: sy * 0.82,
-      duration: 50,
-      ease: 'Quad.easeOut',
+      x: ox + dx * kb, y: oy + dy * kb * 0.3,
+      scaleX: sx * 1.1, scaleY: sy * 0.85,
+      duration: 50, ease: 'Quad.easeOut',
       onComplete: () => {
         this.s.tweens.add({
-          targets: spr, x: ox + dx * kb * 0.4, y: oy, scaleX: sx, scaleY: sy,
+          targets: spr, x: ox + dx * kb * 0.35, y: oy, scaleX: sx, scaleY: sy,
           duration: 120, ease: 'Sine.easeOut',
         });
       },
@@ -162,37 +179,35 @@ export class ImpactFX {
     if (!this.s.textures.exists('fx_hit_spark_0')) return;
     const ang = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
     const sp = this.s.add.sprite(x, y, 'fx_hit_spark_0')
-      .setDepth(8500).setScale(scale).setAngle(ang)
-      .setBlendMode(Phaser.BlendModes.NORMAL);
+      .setDepth(8500).setScale(scale).setAngle(ang);
     this.sparkSpr = sp;
     let fi = 0;
-    this.s.time.addEvent({
-      delay: 40, repeat: 3, callback: () => {
-        fi++;
-        if (fi < 4 && this.s.textures.exists('fx_hit_spark_' + fi)) sp.setTexture('fx_hit_spark_' + fi);
-        else { sp.destroy(); if (this.sparkSpr === sp) this.sparkSpr = undefined; }
-      },
-    });
+    const tick = () => {
+      fi++;
+      if (fi < 4 && this.s.textures.exists('fx_hit_spark_' + fi)) sp.setTexture('fx_hit_spark_' + fi);
+      else { try { sp.destroy(); } catch { /* */ } if (this.sparkSpr === sp) this.sparkSpr = undefined; return; }
+      window.setTimeout(tick, 40);
+    };
+    window.setTimeout(tick, 40);
   }
 
-  /**
-   * True impact frames: darken the scene, draw solid silhouettes of attacker + target + spark.
-   * Frame 1 = white silhouettes on dark; frame 2 (big) = inverted (black on light).
-   */
   private runSilhouetteFrames(t: ImpactTier, opts: ImpactOpts, dx: number, dy: number) {
     this.clearSil();
-    // Darken everything else
-    this.veil = this.s.add.rectangle(640, 360, 1280, 720, 0x05080c, 0.78)
+    this.veil = this.s.add.rectangle(640, 360, 1280, 720, 0x05080c, 0.72)
       .setScrollFactor(0).setDepth(8800);
+
+    const sources: (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image)[] = [];
+    const atk = opts.attacker ?? this.s.noor;
+    if (atk) sources.push(atk);
+    for (const s of opts.silhouettes ?? []) if (s && this.hasAlpha(s)) sources.push(s);
+    // Never add door JPG as silhouette
+    if (opts.target && this.hasAlpha(opts.target)) sources.push(opts.target);
 
     const drawSil = (invert: boolean) => {
       this.clearSilSpritesOnly();
       const fill = invert ? 0x0a0c10 : 0xffffff;
-      if (invert && this.veil) this.veil.setFillStyle(0xf2f0ea, 0.92);
-      else if (this.veil) this.veil.setFillStyle(0x05080c, 0.78);
-
-      const addSil = (src?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Image) => {
-        if (!src || !src.texture) return;
+      if (this.veil) this.veil.setFillStyle(invert ? 0xf2f0ea : 0x05080c, invert ? 0.9 : 0.72);
+      for (const src of sources) {
         const frame = (src as Phaser.GameObjects.Sprite).frame?.name;
         const im = this.s.add.image(src.x, src.y, src.texture.key, frame)
           .setOrigin(src.originX, src.originY)
@@ -202,14 +217,11 @@ export class ImpactFX {
           .setDepth(8900);
         im.setTint(fill).setTintMode(Phaser.TintModes.FILL);
         this.silSprites.push(im);
-      };
-      addSil(opts.attacker ?? this.s.noor);
-      addSil(opts.target);
-      // Spark as hard white/black burst at contact
+      }
       if (this.s.textures.exists('fx_hit_spark_0')) {
         const ang = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
         const sp = this.s.add.image(opts.x, opts.y, 'fx_hit_spark_0')
-          .setDepth(8950).setScale(TIERS[opts.tier].sparkScale * 1.05).setAngle(ang);
+          .setDepth(8950).setScale(TIERS[opts.tier].sparkScale).setAngle(ang);
         sp.setTint(fill).setTintMode(Phaser.TintModes.FILL);
         this.silSprites.push(sp);
       }
@@ -217,12 +229,12 @@ export class ImpactFX {
 
     drawSil(false);
     if (t.silFrames >= 2) {
-      this.s.time.delayedCall(t.silMs, () => {
+      window.setTimeout(() => {
         drawSil(true);
-        this.s.time.delayedCall(t.silMs, () => this.clearSil());
-      });
+        window.setTimeout(() => this.clearSil(), t.silMs);
+      }, t.silMs);
     } else {
-      this.s.time.delayedCall(t.silMs, () => this.clearSil());
+      window.setTimeout(() => this.clearSil(), t.silMs);
     }
   }
 
@@ -233,15 +245,15 @@ export class ImpactFX {
     const base = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
     for (let i = 0; i < n; i++) {
       const a = Phaser.Math.DegToRad(base + (i - n / 2) * 14 + (i % 2 ? 5 : -5));
-      const r0 = 28 + (i % 3) * 8;
-      const r1 = r0 + 38 + (i % 2) * 18;
-      g.lineStyle(3.5 - (i % 3) * 0.6, 0xffffff, 0.85);
+      const r0 = 24 + (i % 3) * 8;
+      const r1 = r0 + 36 + (i % 2) * 16;
+      g.lineStyle(3.2 - (i % 3) * 0.5, 0xffffff, 0.8);
       g.lineBetween(x + Math.cos(a) * r0, y + Math.sin(a) * r0, x + Math.cos(a) * r1, y + Math.sin(a) * r1);
     }
-    this.s.tweens.add({
-      targets: g, alpha: 0, duration: 180, delay: 40,
-      onComplete: () => { g.destroy(); if (this.lines === g) this.lines = undefined; },
-    });
+    window.setTimeout(() => {
+      try { this.s.tweens.add({ targets: g, alpha: 0, duration: 160, onComplete: () => g.destroy() }); }
+      catch { try { g.destroy(); } catch { /* */ } }
+    }, 50);
   }
 
   private clearSilSpritesOnly() {
@@ -262,6 +274,6 @@ export class ImpactFX {
     });
     em.setParticleSpeed(dir.x * 40, dir.y * 20);
     em.explode(n);
-    this.s.time.delayedCall(600, () => em.destroy());
+    window.setTimeout(() => { try { em.destroy(); } catch { /* */ } }, 600);
   }
 }

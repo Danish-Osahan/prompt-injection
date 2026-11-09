@@ -27,3 +27,11 @@ No new third-party assets. Everything added is original work made here:
 - art-v7b props in `art-v7/tools/rooms7.py` (office storytelling props, cables, nook, printer; hub mirror pane, reversed clock, ghost desks, door panel; archive hinged bridge with chains) are procedural Blender geometry. New procedural textures `art-v7/tex/whiteboard.png`, `rain_light.png`, `clock_mirror.png`, `mon_mirror.png` (PIL, no text, no third-party images). Office and hub furniture reuse the already-credited Kenney Furniture Kit / Mini Characters (CC0).
 - Noor dash hair secondary motion (`art-v7/tools/noor7.py`), jab/slash/hit FX (code-drawn in `game/src/game.ts`).
 - `game/public/assets/sprites/fern_seated.png` is the existing Fern sheet with the baked speech text and ring masked out (same masking as the mock-words `fern_clean.png`).
+
+## Impact Lab / Steal FX (Nov 2026)
+Original procedural PIL textures under `public/assets/fx/` (no third-party images):
+- `hit_spark_0..3.png` — hard-edged comic hit sparks (our own)
+- `wind_wisp.png`, `wind_streak_0..3.png` — tapered S-curve wind mass for OPEN peel/throw (our own, CC0)
+- `smoke_soft.png`, `dust_puff.png` — soft smoke/dust (our own)
+- `chain_link.png`, `padlock.png`, `padlock_open.png` — Matter.js chain + padlock (our own)
+SFX: Kenney Impact Sounds / Interface Sounds where used (CC0, kenney.nl); whoosh/clank/snap/bounce synthesized or from Kenney CC0 packs — see `public/assets/sfx/` filenames.

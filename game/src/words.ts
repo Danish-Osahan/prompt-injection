@@ -195,6 +195,14 @@ export class WordUI {
   }
 
   update(dt: number, readHeld: boolean) {
+    // Steal / Impact Lab: fully disable old word system (no READ, chips, captions)
+    if (this.s.impactLab?.stealMode || this.s.impactLab?.on) {
+      this.held = 0; this.codeOn = false;
+      if (this.codeA > 0) { this.codeA = 0; this.clearCode(); this.codeBk?.setAlpha(0); this.codeImg?.setAlpha(0); this.ghost?.setAlpha(0); this.noorLine?.setAlpha(0); }
+      this.heading.setVisible(false); this.chipG.setVisible(false); this.pil.setVisible(false);
+      this.bar.setVisible(false);
+      return;
+    }
     const s = this.s;
     const hide = s.busy && !!s.composer;
     const vis = !s.composer && !s.paused;
@@ -233,7 +241,7 @@ export class WordUI {
   }
 
   // ---------------- code view ----------------
-  private clearCode() {
+  clearCode() {
     for (const o of this.codeObjs) o.destroy(); this.codeObjs = []; this.codeLines = [];
     for (const c of this.chips.filter(c => c.where === 'code')) c.zone.destroy();
     this.chips = this.chips.filter(c => c.where !== 'code');

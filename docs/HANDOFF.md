@@ -316,12 +316,13 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
 
-## 21j. Impact lab in-game (Phaser) — mock-steal/v13-ingame
-- **Run:** `cd game && npm install && npm run lab`  OR  `npm run dev` → `http://localhost:5173/?impact=1` (bare `?impact` = same as `npm run lab`). Hard-refresh (or clear site data) if a stale build appears — SW/caches are unregistered on load; vite sends `Cache-Control: no-store`.
-- **Isolated:** `?impact` uses a fresh **in-memory** save (`setEphemeralSave`) — never reads/writes/wipes `localStorage`. Spawn open floor near the rain window (880,400). Debug overlay **only** with `?debug` (URL only). Build stamp in the debug panel.
-- **Framing:** `fitRoomCamera` CONTAINS the full 1280×720 room in the HUD band (no top/bottom furniture crop; small side pillars). Stills: `game/screenshots/fit2/`.
-- **ImpactFX:** light = freeze + white tint + spark + 2–3px shake (NO zoom, NO screen flash). heavy = silhouette impact frame (attacker+target+spark) + speed lines + held ≤4% punch. big = 2 sil frames + stronger shake + slow-mo. Strips: `mock-steal/v13-ingame/stills/combo-sequence-strip.png`, `chain-sequence-strip.png`.
-- Hold **E** at the window for OPEN, **F** to throw. Modules: `game/src/impact/*`.
+## 21j. Steal mechanic in-game (Phaser Impact Lab) — mock-steal/v14-steal
+- **Run:** `cd game && npm install && npm run lab`  OR  `npm run dev` → `http://localhost:5173/?impact=1` (bare `?impact` = same as `npm run lab`). Hard-refresh if a stale build appears — SW/caches unregistered on load; vite `Cache-Control: no-store`. Verify stamp with `?impact=1&debug=1`.
+- **Isolated:** fresh **in-memory** save — never touches `localStorage`. Spawn (880,400). Debug overlay **only** with `?debug`.
+- **OLD WORD SYSTEM OFF** under `?impact`: no READ/code vision on E, no SAD/HAPPY picker, no OPEN/SHUT chips, no captions/tags. Words only in dialogue/story. E is hold-to-peel only.
+- **Steal flow:** hold E near window → OPEN rips as tapered wind streaks (v7), window shuts / rain stops → gust swirls on hand → F throw → heavy contact + big snap → Matter chain falls to floor → door opens. J on dummy = light/heavy ImpactFX.
+- **ImpactFX:** silhouettes from real sprite alpha (Noor + chain links) — NEVER the door JPG (that was the grey rectangle). Hit-stop resumes on real `setTimeout` with 400ms failsafe. Verify: `node tests/verify_steal.mjs` → `mock-steal/v14-steal/`.
+- **Framing:** `fitRoomCamera` contain. Modules: `game/src/impact/*`. Spec: `docs/design/power-rules.md`, `docs/design/impact-spec.md`.
 
 ## 21i. mock-steal/v12 — full Blender beat (stop canvas composite)
 - Danishpreet killed the PIL canvas-composite path ("looks so bad"; wants it to feel like how games handle breaking/hitting). **`mock-steal/v12/`** is ONE Eevee scene: mini office set + noor12 rig throw + chunky chain/padlock + in-scene wind blobs + spark mesh + hit-stop + flat sil frames from the same scene + punch cam + door recoil→open.

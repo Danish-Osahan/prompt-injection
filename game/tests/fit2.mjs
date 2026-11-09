@@ -18,16 +18,19 @@ const SIZES = [
   ['1366x768', 1366, 768],
 ];
 
-const PORT = 5181;
-const base = `http://127.0.0.1:${PORT}`;
+const PORT = process.env.PORT || 5181;
+const base = process.env.GAME_URL || `http://127.0.0.1:${PORT}`;
 
 async function main() {
-  const vite = spawn('npm', ['run', 'dev', '--', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], {
-    cwd: path.join(ROOT, 'game'), stdio: 'pipe',
-  });
-  for (let i = 0; i < 60; i++) {
-    await new Promise(r => setTimeout(r, 400));
-    try { await fetch(base); break; } catch { /* */ }
+  let vite = null;
+  if (!process.env.GAME_URL) {
+    vite = spawn('npm', ['run', 'dev', '--', '--port', String(PORT), '--strictPort', '--host', '127.0.0.1'], {
+      cwd: path.join(ROOT, 'game'), stdio: 'pipe',
+    });
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 400));
+      try { await fetch(base); break; } catch { /* */ }
+    }
   }
 
   const browser = await chromium.launch({ headless: true });
@@ -58,7 +61,7 @@ async function main() {
     await page.close();
   }
   await browser.close();
-  vite.kill();
+  try { vite?.kill(); } catch {}
   console.log('DONE', OUT);
 }
 main().catch(e => { console.error(e); process.exit(1); });

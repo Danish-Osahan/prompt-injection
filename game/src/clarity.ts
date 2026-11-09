@@ -93,7 +93,11 @@ export class Clarity {
     const bg = s.add.graphics(); const t = s.add.text(0, 1, '', { fontFamily: 'JetBrains Mono', fontSize: main ? '17px' : '13px', fontStyle: 'bold', color: C.cyan }).setOrigin(0.5);
     const c = s.add.container(0, 0, [bg, t]).setScrollFactor(0).setDepth(D - 2); s.objs.push(c);
     c.setSize(80, 30).setInteractive({ useHandCursor: true });
-    c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => { ev?.stopPropagation(); this.openPicker(id); });
+    c.on('pointerdown', (_p: Phaser.Input.Pointer, _x: number, _y: number, ev: Phaser.Types.Input.EventData) => {
+      ev?.stopPropagation();
+      if (this.s.impactLab?.stealMode || this.s.impactLab?.on) return;
+      this.openPicker(id);
+    });
     this.tags.push({ id, c, bg, t, w: 80, main });
   }
   private drawTags() {
@@ -124,7 +128,9 @@ export class Clarity {
     this.pointer.setVisible(showP); if (showP) this.pointer.setPosition(d.c.x, d.c.y - 24 - 5 * Math.abs(Math.sin(s.t * 3))).setAlpha(0.75 + 0.25 * Math.sin(s.t * 3));
   }
   openPicker(id: string) {
-    const s = this.s, p = s.plateById(id); if (!p || !p.visible || this.modal || s.busy || s.dying) return false;
+    const s = this.s;
+    if (s.impactLab?.stealMode || s.impactLab?.on) return false;
+    const p = s.plateById(id); if (!p || !p.visible || this.modal || s.busy || s.dying) return false;
     this.closePicker(); const def = INTER[id];
     let alt = ''; if (id === 'o_door') alt = p.slotWord === 'OPEN' ? 'SHUT' : 'OPEN';
     else { const partner = s.plates.find(q => q !== p && q.def.toy && (q.def.pair ?? '') === (p.def.pair ?? '')); alt = partner?.slotWord ?? ''; }
@@ -218,6 +224,11 @@ export class Clarity {
   // ---------- input ----------
   /** E / READ: close what is open, choose in the picker, else the nearest interactable */
   interact(): boolean {
+    // Steal mode (?impact): E is peel only — never open picker / card / READ
+    if (this.s.impactLab?.stealMode || this.s.impactLab?.on) {
+      if (this.modal) this.closeAll();
+      return false;
+    }
     if (this.modal === 'card') { this.closeCard(); return true; }
     if (this.modal === 'picker') { this.choose(); return true; }
     if (this.s.combat?.handleInteract()) { this.s.markTut('o11peel'); return true; }
@@ -262,7 +273,7 @@ export class Clarity {
     if (this.headT > 0) { this.headT += dt; const t = this.headT; this.heading.setAlpha(t < 0.4 ? t / 0.4 : t < 2.4 ? 1 : Math.max(0, 1 - (t - 2.4) / 0.6)); if (t > 3.1) { this.headT = 0; this.heading.setAlpha(0); } }
     // near-glow outline on the object Noor can use
     this.glow.clear();
-    if (this.near && !s.words.codeOn) { const [bx, by, bw, bh] = INTER[this.near].box; const a = s.toScreen(bx, by), b = s.toScreen(bx + bw, by + bh); const k = 0.55 + 0.3 * Math.sin(s.t * 4);
+    if (this.near && !s.words.codeOn && !(s.impactLab?.stealMode || s.impactLab?.on)) { const [bx, by, bw, bh] = INTER[this.near].box; const a = s.toScreen(bx, by), b = s.toScreen(bx + bw, by + bh); const k = 0.55 + 0.3 * Math.sin(s.t * 4);
       const col = INTER[this.near].tag ? hex(C.cyan) : hex(C.lamp);
       this.glow.lineStyle(6, col, 0.12 * k).strokeRoundedRect(a.x - 6, a.y - 6, b.x - a.x + 12, b.y - a.y + 12, 9).lineStyle(1.5, col, 0.7 * k).strokeRoundedRect(a.x - 4, a.y - 4, b.x - a.x + 8, b.y - a.y + 8, 7); }
     this.drawTags();

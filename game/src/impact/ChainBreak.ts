@@ -91,7 +91,7 @@ export class ChainBreak {
     }
     sfx('impact_clank');
     // Snap after a short taut beat (independent of hit-stop length)
-    this.s.time.delayedCall(100, () => { this.snap(dir); onSnap?.(); });
+    window.setTimeout(() => { try { this.snap(dir); onSnap?.(); } catch (e) { console.warn('[ChainBreak] snap', e); } }, 100);
   }
 
   private snap(dir: { x: number; y: number }) {
@@ -134,11 +134,11 @@ export class ChainBreak {
     this.padKin = { vx: dx * 30 + 40, vy: -200, spin: 6 };
     this.useKin = true;
 
-    this.s.time.delayedCall(50, () => {
+    window.setTimeout(() => {
       this.padOpen = true;
       if (this.s.textures.exists('fx_padlock_open')) this.pad.setTexture('fx_padlock_open');
       sfx('impact_padlock');
-    });
+    }, 50);
     sfx('impact_snap');
   }
 
