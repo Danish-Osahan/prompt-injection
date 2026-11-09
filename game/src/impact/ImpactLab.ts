@@ -2,13 +2,13 @@
 // Panel sits on the wall beside the lift doors (baked plate, never kitchen/printer). Old word system off.
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
-import { O11_DOOR } from '../office11art';
+import { O11_DOOR, O11_PROPS } from '../office11art';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
 /**
- * v15g layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
+ * v15h layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
  * Panel sits on the wall immediately RIGHT of the steel frame — never on kitchen/printer.
  */
 const LIFT_OX = 30, LIFT_OY = 26, LIFT_OW = 128, LIFT_OH = 236, LIFT_FRAME = 11;
@@ -18,8 +18,10 @@ const PANEL = {
   x: O11_DOOR.x + LIFT_OX + LIFT_OW + LIFT_FRAME + 14 + 17, // ≈ 312
   y: O11_DOOR.y + LIFT_OY + 100, // ≈ 188
 };
-/** Readable desk lamp ON the west pod desk (desk_podW ~115,273). */
-const LAMP = { x: 148, y: 268 };
+/** Desk lamp on relocated pod desk (right of lift panel; clears entrance). */
+const LAMP = { x: 388, y: 295 };
+/** Impact-lab-only shift of desk_podW / chair_podW away from lift entrance. */
+const POD_W_SHIFT = { dx: 240, dy: 27 }; // desk 115,273 → 355,300
 const LIFT_FOCUS = { x: O11_DOOR.x + LIFT_OX + LIFT_OW / 2, y: O11_DOOR.y + LIFT_OY + LIFT_OH / 2 };
 /** Opening bounds in world space (for capture asserts). */
 export const LIFT_OPEN_BOUNDS = {
@@ -68,6 +70,8 @@ export class ImpactLab {
   private openingMaskGfx?: Phaser.GameObjects.Graphics;
   private openingMask?: Phaser.Display.Masks.GeometryMask;
   private leafAnimToken = 0;
+  private podWOrig: { name: string; x: number; y: number; baseY: number; poly: number[][] }[] = [];
+  private bumpedProps: { name: string; depth: number }[] = [];
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
@@ -102,7 +106,7 @@ export class ImpactLab {
     this.keyF = this.s.input.keyboard?.addKey('F');
     // Slightly wider follow so lamp + lift share the frame when near
     this.s.setupFollowCamera?.(1.85);
-    this.s.x = LAMP.x + 36; this.s.y = LAMP.y + 50; this.s.dir = 'NW';
+    this.s.x = LAMP.x + 40; this.s.y = LAMP.y + 55; this.s.dir = 'NW';
     this.s.unstick();
 
     window.setTimeout(() => {
@@ -130,6 +134,8 @@ export class ImpactLab {
     this.leafR?.destroy(); this.leafR = undefined;
     this.liftFrame?.destroy(); this.liftFrame = undefined;
     this.liftRecess?.destroy(); this.liftRecess = undefined;
+    this.relocatePodW(false);
+    this.bumpCoverOccludedProps(false);
     this.wallPatch?.destroy(); this.wallPatch = undefined;
     this.wallCover?.destroy(); this.wallCover = undefined;
     this.floorInd?.destroy(); this.darkGap?.destroy();
@@ -203,6 +209,11 @@ export class ImpactLab {
       this.s.objs.push(this.wallPatch);
     }
 
+    // Clear lift entrance: move west pod desk+chair right of the panel; bump
+    // overlapping FG props above the wall cover so calendar/plant/printer aren't clipped.
+    this.relocatePodW(true);
+    this.bumpCoverOccludedProps(true);
+
     // (a) recess
     if (this.s.textures.exists('lift_recess')) {
       this.liftRecess = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_recess')
@@ -266,10 +277,10 @@ export class ImpactLab {
 
     this.liftDoorK = 0;
 
-    // Desk lamp — keep painted sprite; depth above desk_podW (346) so desk stays in front of lift
+    // Desk lamp on relocated pod desk (depth above new desk baseY)
     const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
     this.lampSpr = this.s.add.image(LAMP.x, LAMP.y, ltex)
-      .setDepth(360).setScale(1.15).setOrigin(0.5, 0.92);
+      .setDepth(400).setScale(1.15).setOrigin(0.5, 0.92);
     this.s.objs.push(this.lampSpr);
   }
 
@@ -671,7 +682,79 @@ export class ImpactLab {
     tick();
   }
 
-  /**
+  /** Shift desk_podW + chair_podW (sprites + collision polys) clear of the lift mouth. */
+  private relocatePodW(on: boolean) {
+    const names = ['desk_podW', 'chair_podW'];
+    if (on) {
+      this.podWOrig = [];
+      for (const name of names) {
+        const def = O11_PROPS.find(p => p.name === name);
+        if (!def || def.x == null || def.y == null) continue;
+        this.podWOrig.push({
+          name,
+          x: def.x, y: def.y, baseY: def.baseY,
+          poly: def.poly.map(q => [...q]),
+        });
+        def.x += POD_W_SHIFT.dx;
+        def.y += POD_W_SHIFT.dy;
+        def.baseY += POD_W_SHIFT.dy;
+        def.poly = def.poly.map(([px, py]) => [px + POD_W_SHIFT.dx, py + POD_W_SHIFT.dy]);
+        // move live sprite
+        for (const o of this.s.objs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const im = o as any;
+          if (im?.texture?.key === 'o11fg_' + name) {
+            im.x = def.x; im.y = def.y; im.setDepth(def.baseY);
+          }
+        }
+      }
+    } else {
+      for (const orig of this.podWOrig) {
+        const def = O11_PROPS.find(p => p.name === orig.name);
+        if (!def) continue;
+        def.x = orig.x; def.y = orig.y; def.baseY = orig.baseY;
+        def.poly = orig.poly.map(q => [...q]);
+        for (const o of this.s.objs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const im = o as any;
+          if (im?.texture?.key === 'o11fg_' + orig.name) {
+            im.x = orig.x; im.y = orig.y; im.setDepth(orig.baseY);
+          }
+        }
+      }
+      this.podWOrig = [];
+    }
+  }
+
+  /** Ensure calendar/bookcase, plant, printer draw above wall_cover (not clipped by it). */
+  private bumpCoverOccludedProps(on: boolean) {
+    const names = ['bookcase', 'plantW', 'printer', 'kitchen'];
+    if (on) {
+      this.bumpedProps = [];
+      for (const name of names) {
+        for (const o of this.s.objs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const im = o as any;
+          if (im?.texture?.key === 'o11fg_' + name && typeof im.depth === 'number') {
+            this.bumpedProps.push({ name, depth: im.depth });
+            // Keep isometric sort-ish but always above wall_cover (~96) and frame (~102)
+            im.setDepth(Math.max(im.depth, 220));
+          }
+        }
+      }
+    } else {
+      for (const b of this.bumpedProps) {
+        for (const o of this.s.objs) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const im = o as any;
+          if (im?.texture?.key === 'o11fg_' + b.name) im.setDepth(b.depth);
+        }
+      }
+      this.bumpedProps = [];
+    }
+  }
+
+    /**
    * Crop each leaf to the intersection with the steel opening.
    * Phaser keeps crop UVs in texture space, so remaining pixels stay world-aligned
    * (pocket parts simply don't draw). WebGL-safe replacement for GeometryMask.

@@ -1,3 +1,36 @@
+# HANDOFF — Impact Lab v15h (seamless wall cover + clear entrance)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Invisible wall_cover (plate-matched gradient + feather), props not clipped, desk/lamp clear of lift entrance.
+
+## Fixes vs v15g
+
+1. **wall_cover** regenerated from `rooms/office.jpg`: per-row L/R wall samples, opaque only over frame+opening (stops before floor), feathered edges. Seam assert: plate wall vs cover pad `dMax ≤ 28` (capture measured **0**).
+2. **Props:** `bookcase` / `plantW` / `printer` / `kitchen` depth bumped above cover during lab; cover no longer paints over calendar (shrunk past frame).
+3. **Entrance:** `desk_podW` + `chair_podW` shifted `(+240,+27)` at runtime (sprites + `O11_PROPS` collision); lamp → `(388,295)` on relocated desk. Restored on `stop()`.
+
+## Stills
+
+`mock-steal/v15h/stills/01-closed-dead-lift.png`  
+`mock-steal/v15h/stills/02-bolt-hit.png`  
+`mock-steal/v15h/stills/03-doors-half-open.png`  
+`mock-steal/v15h/stills/04-doors-open-cab.png`  
+`mock-steal/v15h/stills/05-walk-in.png`  
++ `playthrough.mp4`  
+Capture: `node game/tests/capture_v15h.mjs`
+
+## Tests
+
+`capture_v15h` PASS (wall outside-frame, wall seam, panel-beside-frame, walk-in clear path).
+
+## Weak spots
+
+- Runtime mutates `O11_PROPS` for pod desk; other systems reading that array during impact see the shifted polys (intentional for collision).
+- Flat-shaded lift sprites; calendar is baked plate art to the right of the frame (now fully visible).
+- Vision stills sometimes misread closed leaves / stile as “outside-frame slats”; pixel asserts are authoritative.
+
+---
+
 # HANDOFF — Impact Lab v15g (wall cover + leaf crop)
 
 **Date:** 2026-11-10 (Asia/Calcutta)
