@@ -315,3 +315,10 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Outputs: `mock-steal/v3/beat.mp4`, `beat.gif`, `compare.mp4` (v2 vs v3), stills + pull/throw/snap 2× close-ups.
 - Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
 - Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.
+
+## 21. Steal-qualities v4 (9 Nov 2026)
+- v3 feedback: lock looked like scattered blobs / too big; wind too faint without hits.
+- **v4 lock:** in-scene tidy horizontal chain across door seam + normal padlock (bright rim metal) + red LED by keypad (`STEALV4=1` → `steal_v4_office.py`). Not oversized.
+- **v4 FX:** brighter gust streaks/droplets; anime impact frames at window rip + door hit (anticipation, hit-stop, invert/punch/white flash, radial speed lines, shockwave, shake).
+- Keeps v3 blinds, `pull_side` S, snap+door open. Outputs `mock-steal/v4/` (+ compare v3 vs v4).
+- Weak spots: padlock still small at game scale (by design); simplified link mesh; impact flashes are canvas not relit Blender.

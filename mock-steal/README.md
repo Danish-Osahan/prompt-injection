@@ -2,54 +2,38 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
-## v3 — window→door beat (in-scene Blender)
+## v4 — tidy lock + visible gust + impact frames
 
-v2 was rejected: pasted prop sheets, messy chains, curtain style mismatch, solid white “ribbon,” unreadable back-facing pull, snap too fast.
+v3 lock read as scattered blobs; wind was too faint without hits.
 
-**v3 rebuilds only this beat** with chains + blinds modelled **inside** the clarity office Blender scene (same camera/lights/flat-shaded materials), a camera-facing `pull_side` pose, thin translucent gust FX, and a ~0.2 s chain-snap hit-stop + door push-in.
+**v4 keeps** blinds, three-quarter `pull_side`, chain snap + door open, and rebuilds:
+1. **Door lock** — realistically sized: neat horizontal chain across the double-door seam + normal padlock with bright metal rim, plus a small red lock light by the keypad. Modelled in the office Blender scene (not oversized).
+2. **Wind** — brighter streaks + rain droplets with a defined curl; still not a solid sash.
+3. **Impact frames** — at window rip and door hit: anticipation, 1–3 frame invert/punch/white flash, hit-stop, radial speed lines + shockwave, screen shake.
 
 | file | what |
 |---|---|
-| `v3/beat.mp4` | ~9 s window→door beat |
-| `v3/beat.gif` | 640-wide loop |
-| `v3/compare.mp4` | side-by-side **v2 vs v3** |
-| `v3/stills/` | 6 key stills + close-ups (pull / throw / snap) + `close-pull-pose-2x.png` |
-
-### Beat
-1. Establish — chunky in-scene chains (2×~6 links + padlock + red lock light) and open blinds + rain.
-2. Pull — `pull_side` facing the camera (S); both arms/brace readable; thin gust streaks + droplets into the hand; blinds slam shut.
-3. Throw — full-arm `hurl` (SW) with a streaky gust trail (not a sash).
-4. Snap — hit-stop ~0.2 s, camera push-in, links pop and fall with bounce; padlock drops last; door opens with light spill.
-
-Only UI text: control hint + one caption.
+| `v4/beat.mp4` | ~9.2 s beat |
+| `v4/beat.gif` | 640-wide loop |
+| `v4/compare.mp4` | **v3 vs v4** |
+| `v4/stills/` | 6 key stills (incl. both impacts) + lock / impact 2× close-ups |
 
 ### Rebuild
 ```bash
-# Noor (face-camera pull)
-CHEAT='{"S":0,"SE":-10}' blender -b --python art/tools/noor12.py -- pull_side,hurl art/render/steal_noor_v3 24 S,SE,SW,W
-
-# In-scene office props (chains + blinds)
-SKIPMAIN=1 NOTILES=1 STEALV3=1 STEALSPP=20 blender -b --python art/tools/scene7.py -- R7_office art/render/steal_v3 1280 720 24
-
-# Feather onto plate + compose
-python3 - <<'PY'
-# see art/tools/compose_steal_v3.py header — post blend lives in the compose prep
-PY
-python3 art/tools/compose_steal_v3.py
+SKIPMAIN=1 NOTILES=1 STEALV4=1 STEALSPP=20 blender -b --python art/tools/scene7.py -- R7_office art/render/steal_v4 1280 720 24
+python3 art/tools/post_steal_v4.py   # or feather blend in compose prep
+python3 art/tools/compose_steal_v4.py
 ```
+Noor poses reused from `art/render/steal_noor_v3/`. Blinds reused from v3.
 
 ### Honesty / weak spots
-- Chains/blinds are **in-scene** border renders feather-blended onto the game plate (same method family as `office11` lift frames) — not isolated prop sheets.
-- Gust is intentional **code glue**: thin translucent streaks/droplets, kept small. Not Blender volume.
-- Chain links are chunky low-poly toruses; at game scale they read, but interlocking is still simplified.
-- `pull_side` S with CHEAT 0 faces the camera; claw frames (0–3) still hide arms more than rip frames (4–6) — the beat holds on the rip.
-- Shut blinds still show some sky between slats (not a blackout shutter).
-- Cooler / Scribble not in this clip. `game/src` untouched.
+- Lock is door-proportioned and tidier than v3; at ~50px game scale the padlock silhouette is still small — readability comes from bright rim + red LED, not size.
+- Chain interlocking is simplified (few links on a crossbar).
+- Impact flashes are canvas overlays (invert/punch/white + radial lines), anime-styled to fit the flat look — not Blender light probes.
+- Window-impact still must be grabbed mid-freeze (flash is only a few frames).
+- Cooler/Scribble still not in this clip. `game/src` untouched.
 
-## v2 — (superseded)
-See `v2/` and git history. Kept for `compare.mp4`.
-
-## v1 — full ~20 s canvas loop (code FX)
-```bash
-python3 -m http.server 4191   # → /mock-steal/index.html
-```
+## Earlier versions
+- **v3** — in-scene blinds + pull_side; lock was messy. Kept for compare.
+- **v2** — pasted props; rejected.
+- **v1** — full 20 s code-FX loop in `index.html`.

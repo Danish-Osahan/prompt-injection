@@ -432,5 +432,6 @@ if os.environ.get('AMBPASS'):                 # art-v8 ambient loops: each frame
 if MODE.startswith('R9_'): passes9()
 if os.environ.get('O11'): exec(open(T5+'office11.py').read())
 if os.environ.get('STEALV3'): exec(open(T5+'steal_v3_office.py').read())
+if os.environ.get('STEALV4'): exec(open(T5+'steal_v4_office.py').read())
 if MODE.startswith('R8C_'): closeups8(os.environ.get('CLOSE9', ','.join(CLOSE)).split(','), OUT)
 print('DONE', MODE)
