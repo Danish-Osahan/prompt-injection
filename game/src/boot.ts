@@ -41,7 +41,7 @@ export class BootScene extends Phaser.Scene {
   'lift_panel_dead', 'lift_panel_live', 'lift_panel_cracked', 'lift_panel_cover',
   'spark_orb_0', 'spark_orb_1', 'spark_orb_2', 'spark_orb_3',
   'lightning_0', 'lightning_1', 'lightning_2', 'lightning_3',
-  'spark_pop', 'lift_floor_ind_off', 'lift_floor_ind_on',
+  'spark_pop', 'lift_floor_ind_off', 'lift_floor_ind_on', 'lift_cab',
   'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3',
 ];
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);

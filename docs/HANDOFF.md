@@ -1,3 +1,40 @@
+# HANDOFF — Impact Lab v15c (bolt path, lamp, lift cab, flush panel)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Fix v15b weak spots — bolt aims at panel (fast), readable desk lamp, real lift interior, flush steel panel
+
+## Fixes vs v15b
+
+1. **Bolt path:** Travel is parametric hand→panel over ~150ms (`boltT / 0.15`). Jag ≤~4px perpendicular so the overall vector always points at the panel. `frameHandPanel()` centers the camera on the hand↔panel midpoint. Tip sprite scaled down; beam carries the read.
+2. **Lamp:** Replaced oversized cut-out with a properly scaled desk lamp (~monitor height) on `desk_podW` (world ≈148,268), arm+shade+bulb+sparks, depth above the desk. Blender kitbash `lampSquareTable` was a cube lamp; final in-game art is a painted match to office grey/warm lighting at game scale.
+3. **Lift interior:** `fx_lift_cab` overlay + composited Blender cab into `office11/door/lift_01..09.jpg` (handrail, ceiling light, floor seams, side buttons). Cab alpha rises with `doorK`. Door leaves still use the existing open-frame slide.
+4. **Panel:** Flush steel plate with bevel highlights, drop shadow, screws, recessed screen + button. Live state keeps a green glow rim (lit), not a giant floating UI box. Scale ~1.2 on the lift jamb (~240,180).
+
+## Stills
+
+`mock-steal/v15c/stills/` + `playthrough.mp4`  
+Capture: `node game/tests/capture_v15c.mjs`
+
+## Best verification stills
+
+- `01-lamp-lure.png` — readable lamp + E; panel on lift jamb
+- `06-bolt-midflight.png` — bolt mid-path hand→panel under `frameHandPanel`
+- `09-doors-fully-open.png` — open doors + lit cab + live panel beside lift
+
+## Weak spots (honest)
+
+- Lamp is still a 2D sprite (not a full Blender office-kit cutout); style matches greys/warms but not true Cycles shading of desk_podW.
+- Cab interior can wash bright at high zoom; handrail/buttons are clearer in the asset than in some stills.
+- Live panel green rim can still read slightly “UI” vs pure wall plate.
+- Midflight ADD bloom can briefly white-out Noor/panel; path is correct but contrast is hot.
+
+## Tests
+
+`capture_v15c`, `verify_steal`, `impact_lab` PASS.
+
+
+---
+
 # HANDOFF — Impact Lab v15b (dead lift)
 
 **Date:** 2026-11-09 (Asia/Calcutta)
