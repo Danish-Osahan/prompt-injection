@@ -8,10 +8,10 @@ import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
 /**
- * Call panel ON the lift — right door leaf / jamb (local ~148,108 → world ~260,170).
- * Clearly attached to the doors. Kitchen FG starts ~299; printer/plantW ~81 — stay clear of both.
+ * Call panel on the wall jamb OUTSIDE the doorway (never covers the opening).
+ * Door plate right edge ≈ O11_DOOR.x+196=308; opening right ≈ 252. Kitchen FG hidden in lab.
  */
-const PANEL = { x: O11_DOOR.x + 128, y: O11_DOOR.y + 118 }; // ≈ (240, 180) on right door leaf, clear of kitchen
+const PANEL = { x: O11_DOOR.x + 222, y: O11_DOOR.y + 112 }; // ≈ (334, 174) on wall jamb past door plate edge
 /** Readable desk lamp ON the west pod desk (desk_podW ~115,273), a few steps from the lift. */
 const LAMP = { x: 148, y: 268 }; // on desk_podW top (~monitor height)
 /** Midpoint used to frame Noor + lift together. */
@@ -153,7 +153,7 @@ export class ImpactLab {
       .setDepth(248);
     this.s.objs.push(sh);
     this.panelSpr = this.s.add.image(PANEL.x, PANEL.y, ptex)
-      .setDepth(250).setScale(1.2).setOrigin(0.5, 0.5);
+      .setDepth(250).setScale(1.05).setOrigin(0.5, 0.5);
     this.s.objs.push(this.panelSpr);
 
     if (this.s.textures.exists('fx_lift_floor_ind_off')) {
@@ -162,12 +162,8 @@ export class ImpactLab {
       this.s.objs.push(this.floorInd);
     }
 
-    // Lift cab interior — sits behind door plate, revealed as doors open
-    if (this.s.textures.exists('fx_lift_cab')) {
-      this.liftCab = this.s.add.image(O11_DOOR.x + 98, O11_DOOR.y + 148, 'fx_lift_cab')
-        .setDepth(O11_DOOR.y - 1).setOrigin(0.5, 0.5).setAlpha(0).setScale(0.92);
-      this.s.objs.push(this.liftCab);
-    }
+    // Cab interior is baked into door JPGs (v15d). No overlay — overlay was painting a black wedge.
+    this.liftCab = undefined;
 
     // Desk lamp — Blender lampSquareTable, ~monitor height, ON desk top (depth above desk_podW)
     const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
@@ -510,7 +506,7 @@ export class ImpactLab {
     this.darkGap?.destroy(); this.darkGap = undefined;
 
     // Hold camera on the doors as they open
-    if (this.liftCab) this.liftCab.setAlpha(0.25);
+    if (this.liftCab) this.liftCab.setAlpha(0);
     this.frameDoors(2.1);
 
     const door = this.s.clar?.door;
@@ -537,7 +533,7 @@ export class ImpactLab {
           this.s.clar.doorK = k;
           this.s.clar.doorWant = 1;
           this.s.clar.drawDoor();
-          if (this.liftCab) this.liftCab.setAlpha(Math.min(1, k * 1.15));
+          if (this.liftCab) this.liftCab.setAlpha(0);
           this.frameDoors(2.15);
           if (k < 1) window.setTimeout(step, 90);
         };

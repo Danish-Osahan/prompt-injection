@@ -1,3 +1,39 @@
+# HANDOFF — Impact Lab v15d (wedge out, panel on jamb, dim cab)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Fix v15c 09-doors-fully-open — black cab wedge, panel over doorway, wash-out cab; optional Blender lamp
+
+## Fixes vs v15c
+
+1. **Black wedge removed:** Baked dark slanted quad inside open `lift_0N.jpg` frames was painted out surgically (bright-opening seed + dilated wedge mask → dimmed cab fill). `fx_lift_cab` overlay disabled (it re-drew a black shell). Door leaves/frame geometry preserved so leaves still read as sliding into the sides.
+2. **Panel on jamb outside opening:** `PANEL ≈ (334, 174)` = `O11_DOOR + (222, 112)` — past door-plate right edge (~308), never covers the gap. Scale 1.05. Kitchen FG still hidden in lab.
+3. **Cab brightness:** Opening fill uses ~0.72× sampled beige + extra wash dim; handrail inked into open frames so it stays visible.
+4. **Desk lamp:** Retried simple Blender lamp (base disk, 2 arm cylinders, cone shade, emissive bulb) in `art/render/impact_v15d/` — arms disconnect at the elbow. **Kept painted sprite** (`fx_lamp_on/off`).
+
+## Stills
+
+`mock-steal/v15d/stills/` + `playthrough.mp4`  
+Capture: `node game/tests/capture_v15d.mjs`
+
+## Best verification stills
+
+- `09-doors-fully-open.png` — open cab without black wedge; live panel on wall jamb; handrail readable
+- `01-lamp-lure.png` — painted desk lamp + E; dead panel on jamb; fern line
+
+## Weak spots (honest)
+
+- Cab fill is a soft paint-over of the Blender door plate, not a re-rendered Cycles interior — floor seams/handrail are simplified.
+- Live panel green rim still reads a bit “UI”; baked-in door-plate call button remains near the frame.
+- Midflight ADD bloom can still white-out Noor briefly.
+- Blender desk lamp needs connected elbows before it can replace the painted sprite.
+
+## Tests
+
+`capture_v15d`, `verify_steal`, `impact_lab` PASS.
+
+
+---
+
 # HANDOFF — Impact Lab v15c (bolt path, lamp, lift cab, flush panel)
 
 **Date:** 2026-11-10 (Asia/Calcutta)
