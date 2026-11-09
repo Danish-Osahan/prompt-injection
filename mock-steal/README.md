@@ -2,38 +2,44 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
-## v4 — tidy lock + visible gust + impact frames
+## v5 — animated take/throw (OPEN: window → door)
 
-v3 lock read as scattered blobs; wind was too faint without hits.
+Danishpreet: stop looking like static flat stuff. Full animation pass preview for one quality.
 
-**v4 keeps** blinds, three-quarter `pull_side`, chain snap + door open, and rebuilds:
-1. **Door lock** — realistically sized: neat horizontal chain across the double-door seam + normal padlock with bright metal rim, plus a small red lock light by the keypad. Modelled in the office Blender scene (not oversized).
-2. **Wind** — brighter streaks + rain droplets with a defined curl; still not a solid sash.
-3. **Impact frames** — at window rip and door hit: anticipation, 1–3 frame invert/punch/white flash, hit-stop, radial speed lines + shockwave, screen shake.
+**Keeps from v4:** door-sized lock (one chain across handles, padlock, red LED), blinds, three-quarter readable facing.
+
+**Changes:**
+1. **Noor body** — new Blender keyframed `pull_side` (16), `carry` loop (6), `hurl` (14): anticipation → dig → resist → tug-forward → rip → carry breathe → throw windup/release/follow-through/recovery. Rendered via `noor12.py` → `art/render/steal_noor_v5/`.
+2. **OPEN as living gust** — anime curling strokes + rain droplets; orbits hand while carried; twisting trail in flight. **No radial floor rings / spider-web speed lines.**
+3. **Physical reactions** — blinds slam sequence, chain strain→snap with bounce, padlock drop, door open with light spill.
+4. **Impact** — ~3–5 frame hit-stop, local object flash + debris only, small shake + camera push-in.
+5. **Shimmer** on the window before take.
 
 | file | what |
 |---|---|
-| `v4/beat.mp4` | ~9.2 s beat |
-| `v4/beat.gif` | 640-wide loop |
-| `v4/compare.mp4` | **v3 vs v4** |
-| `v4/stills/` | 6 key stills (incl. both impacts) + lock / impact 2× close-ups |
+| `v5/beat.mp4` | ~10 s beat |
+| `v5/beat.gif` | 640-wide loop |
+| `v5/compare.mp4` | **v4 vs v5** |
+| `v5/stills/` | 8 key stills + pull/carry/throw/door-snap 2× close-ups |
 
 ### Rebuild
 ```bash
-SKIPMAIN=1 NOTILES=1 STEALV4=1 STEALSPP=20 blender -b --python art/tools/scene7.py -- R7_office art/render/steal_v4 1280 720 24
-python3 art/tools/post_steal_v4.py   # or feather blend in compose prep
-python3 art/tools/compose_steal_v4.py
+CHEAT='{"S":42,"SE":18,"SW":18}' NSUB=4 blender -b --python art/tools/noor12.py -- pull_side art/render/steal_noor_v5 14 S,SE
+CHEAT='{"S":42}' NSUB=4 blender -b --python art/tools/noor12.py -- carry art/render/steal_noor_v5 14 S
+CHEAT='{"SW":18,"S":42}' NSUB=4 blender -b --python art/tools/noor12.py -- hurl art/render/steal_noor_v5 14 SW,S
+python3 art/tools/compose_steal_v5.py
+# door lock / blinds reused from art/render/steal_v4/comp + steal_v3/comp
 ```
-Noor poses reused from `art/render/steal_noor_v3/`. Blinds reused from v3.
 
 ### Honesty / weak spots
-- Lock is door-proportioned and tidier than v3; at ~50px game scale the padlock silhouette is still small — readability comes from bright rim + red LED, not size.
-- Chain interlocking is simplified (few links on a crossbar).
-- Impact flashes are canvas overlays (invert/punch/white + radial lines), anime-styled to fit the flat look — not Blender light probes.
-- Window-impact still must be grabbed mid-freeze (flash is only a few frames).
-- Cooler/Scribble still not in this clip. `game/src` untouched.
+- Gust is still code-composited (Bezier strokes), not volumetrics — reads better than v4 dots/ribbon, but not a Blender fluid sim.
+- Throw silhouette at ~50px is improved vs held poses, but full-arm read is still hard in pure top-down; three-quarter CHEAT helps pull more than hurl.
+- Door snap timing reuses v4 lock frames (no new Blender lock render this pass) — strain/rattle is mostly timing + local flash/debris.
+- Window slam reuses v3 blind frames; mist puff is canvas debris.
+- Soft story-cost flicker not in this preview.
 
 ## Earlier versions
-- **v3** — in-scene blinds + pull_side; lock was messy. Kept for compare.
+- **v4** — tidy lock + gust + impact frames (included radial rings — removed in v5).
+- **v3** — in-scene blinds + pull_side; lock messy.
 - **v2** — pasted props; rejected.
 - **v1** — full 20 s code-FX loop in `index.html`.
