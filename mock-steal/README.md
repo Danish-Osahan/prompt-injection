@@ -2,6 +2,38 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
+## v10 — clean-mask impact (fix v9)
+
+v9 silhouette used a brightness threshold → blotchy Noor, white paper props, clip-art 8-point star, oversized chain, grey box. v10 fixes the approach.
+
+**Fixes**
+1. **Clean masks** — Noor sprite alpha + door rect + chain/lock pass alpha. Flat black (door/Noor) + light (chain/lock) silhouettes on warm-white burst. Props out. No speckle.
+2. **Timing** — 2 silhouette frames @24fps, 1 colour-return burst, then punch-zoom on real colour with sparks/debris.
+3. **Spark** — asymmetric directional burst (3–5 uneven thick tapered spikes, hot core, secondary slivers, slight rotate/scale-in). No orange ring, no 8-point star.
+4. **Chain scale** — taut ≤ ~150px across door handles (door sprite 196px). Fixed scale for scatter so links stay chunky (no bbox-squash).
+5. **No grey HUD boxes.**
+6. **Debris** — Blender snap/settle passes visible in colour frames with floor contact shadows.
+
+| file | what |
+|---|---|
+| `v10/beat.mp4` | ~11.5 s beat |
+| `v10/beat.gif` | 640-wide loop |
+| `v10/compare.mp4` | **v9 vs v10** |
+| `v10/stills/` | `impact-01..08-2x` + strip + `10-impact-1x` |
+
+### Rebuild
+```bash
+python3 art/tools/compose_steal_v10.py
+```
+
+### Honesty / weak spots
+- Silhouette door is a rounded rect, not the exact door mesh outline.
+- Scatter is still authored ballistic (same break renders as v9).
+- Soft wind remains canvas masses.
+- Padlock body is a dark metal block — can read as “grey” at 1× if the shackle is hard to see.
+- Settled debris is darker than flying chrome; floor contact shadows help but pieces can blend into the dark carpet.
+
+## v9 — impact overhaul (heavy tier)
 ## v9 — impact overhaul (heavy tier)
 
 Danishpreet rejected v8's contact frame (thin white line-stack gust, translucent grey box, outline-icon chain/lock). v9 changes the **approach**, not the parameters.

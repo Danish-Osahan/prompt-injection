@@ -18,7 +18,7 @@ that uses it. **Scale every piece relative to the character**, not the screen.
 |---|---|---|
 | **0. Anticipation** | 3–8 | Wind-up pose, weapon / gust coils, target may micro-flinch. Camera may ease in slightly. |
 | **1. Contact** | 1 | Collision registers. Victim / lock snaps to a strong hit pose. No lag. |
-| **2. Impact frames** | **1–3** | High-contrast stylised frames: flat inverted **or** black-and-white silhouette of actors + target against a bright burst. A **bold directional hit-spark** (thick tapered star spikes — never hairline strokes). |
+| **2. Impact frames** | **1–2** | High-contrast stylised frames from **clean alpha masks** (actor/pass alpha — never luminance threshold). Flat solid silhouettes of **key actors only** (Noor, door, chain/lock) against a bright warm burst. Props stay out or one dim flat tone. No speckle. A **bold asymmetric directional hit-spark** (3–5 uneven thick tapered spikes — never clip-art 8-point stars or orange rings). |
 | **3. Hit-stop** | tiered | World freezes on the strongest contact pose so the spark and silhouette can be read. |
 | **4. Camera punch** | with hit-stop | Punch-zoom toward the contact point + **directional** shake along the hit vector (not random jitter, not radial floor rings). |
 | **5. Follow-through** | 6–20 | Debris / sparks with motion blur, dust burst along the floor plane, target recoil / dent / flex, attacker recovery. Physics (rigid body) owns this window for breakables. |
@@ -46,8 +46,8 @@ Reusable preset. Every melee, beam, and throw picks one.
 | | **light** | **heavy** | **big** |
 |---|---|---|---|
 | Use | jab, light projectile | charged throw, heavy melee, door lock break | finisher, boss break, screen-clear |
-| Impact frames | 1 (flash + small spark) | **2–3** silhouette / invert | **3** full-bleed silhouette + longer burst |
-| Hit-stop | 2–3 f (~80–120 ms) | **6–10 f** (~250–400 ms) | **12–16 f** (~500–650 ms) |
+| Impact frames | 1 (flash + small spark) | **2** clean-mask silhouette + **1** colour-return | **2** silhouette + **1** colour-return |
+| Hit-stop | 2–3 f (~80–120 ms) | **3 f** (~125 ms) short | **4 f** (~165 ms) |
 | Punch-zoom | 1.15× | **2.0–2.5×** on contact | 2.8× then ease |
 | Shake | short, mild, directional | strong directional, decaying | violent then long decay |
 | Hit-spark | small 4–6 spike star | **large thick star**, tapered spikes ≥ character hand width | oversized star + secondary sparks |
