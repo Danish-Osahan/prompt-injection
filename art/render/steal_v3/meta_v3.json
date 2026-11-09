@@ -1,0 +1,30 @@
+{
+ "door": [
+  "door_hang_00.png",
+  "door_hang_01.png",
+  "door_hang_02.png",
+  "door_hang_03.png",
+  "door_snap_00.png",
+  "door_snap_01.png",
+  "door_snap_02.png",
+  "door_snap_03.png",
+  "door_snap_04.png",
+  "door_snap_05.png",
+  "door_snap_06.png",
+  "door_snap_07.png",
+  "door_snap_08.png",
+  "door_snap_09.png",
+  "door_snap_10.png",
+  "door_snap_11.png"
+ ],
+ "window": [
+  "win_00.png",
+  "win_01.png",
+  "win_02.png",
+  "win_03.png",
+  "win_04.png",
+  "win_05.png",
+  "win_06.png",
+  "win_07.png"
+ ]
+}

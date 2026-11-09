@@ -308,3 +308,10 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Pipeline: `noor12.py` new `pull` + `hurl` plans (E,N @ 24 spp) → `art/render/steal_noor/`; `steal_props.py` + `steal_ribbon3.py` → chains/padlock/curtains/rain/ribbon in `art/render/steal_props/`; `compose_steal_v2.py` layers onto clarity `office.jpg` + `office11` lift frames. Camera push-in / shake / glow = code glue only.
 - Cost: Noor ~28 s; props+ribbon fix passes ~1 min total CPU Cycles; composite ~30 s. Did **not** re-render unrelated office sheets. Sheets ≤ 640 px.
 - Weak spots: ribbon **flight** still flatter than wrap (bezier stamps); curtains are composited sheets not in-scene cloth; slow-mo is timing+zoom not subframe re-renders. Judge quality from `v2/beat.mp4` + stills before any gameplay rewrite.
+
+## 20. Steal-qualities v3 window→door beat (9 Nov 2026)
+- v2 rejected: messy/pasted chains, curtain style mismatch, solid white ribbon, back-facing pull, snap too fast/small.
+- **v3:** in-scene chains+blinds via `STEALV3=1` → `art/tools/steal_v3_office.py` (hooked from `scene7.py`); feather-blend onto clarity plate; `noor12` `pull_side` (S, CHEAT 0) + `hurl` (SW); thin gust code glue; ~0.2 s snap hit-stop + door push-in.
+- Outputs: `mock-steal/v3/beat.mp4`, `beat.gif`, `compare.mp4` (v2 vs v3), stills + pull/throw/snap 2× close-ups.
+- Cost: Noor ~12–60 s; office STEALV3 border pass ~2 min @20 spp; compose ~30 s. No unrelated sheet re-renders. Dirty `art/out` / `rnd-pixel` left alone.
+- Weak spots: simplified link interlocking; shut blinds not fully opaque; gust is code not volume; claw frames still less readable than rip frames.

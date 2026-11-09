@@ -2,55 +2,54 @@
 
 A no-words office mechanic preview. Nothing in `game/src` changed.
 
-## v2 — window→door beat (Blender)
+## v3 — window→door beat (in-scene Blender)
 
-Danishpreet liked the steal idea but called v1 FX/animation sloppy. **v2 re-does only the window→door teach beat** with Blender-rendered main elements (reuse clarity office plate + `noor12.py` pull/hurl + prop sheets). Cooler/Scribble are **not** in this clip.
+v2 was rejected: pasted prop sheets, messy chains, curtain style mismatch, solid white “ribbon,” unreadable back-facing pull, snap too fast.
 
-Open / compare:
+**v3 rebuilds only this beat** with chains + blinds modelled **inside** the clarity office Blender scene (same camera/lights/flat-shaded materials), a camera-facing `pull_side` pose, thin translucent gust FX, and a ~0.2 s chain-snap hit-stop + door push-in.
 
 | file | what |
 |---|---|
-| `v2/beat.mp4` | ~8.2 s window→door beat |
-| `v2/beat.gif` | same, 640-wide loop |
-| `v2/compare.mp4` | side-by-side v1 (code FX) vs v2 (Blender) |
-| `v2/stills/` | 6 numbered key stills + `close-pull-2x.png` / `close-throw-2x.png` |
+| `v3/beat.mp4` | ~9 s window→door beat |
+| `v3/beat.gif` | 640-wide loop |
+| `v3/compare.mp4` | side-by-side **v2 vs v3** |
+| `v3/stills/` | 6 key stills + close-ups (pull / throw / snap) + `close-pull-pose-2x.png` |
 
-### Beat (6–9 s target; this cut ≈ 8.2 s)
-1. **Establish** — chained lift door (rendered heavy chains + padlock + red lock light) and open rainy window (rain amb + curtains).
-2. **Pull** — new brace/claw `pull` pose; dense wind ribbon wraps the forearm; window slams, rain cuts, curtains drop.
-3. **Push-in / slow-mo** — simulated on the rip and the throw.
-4. **Throw** — new full-arm `hurl` with follow-through; ribbon flies to the door; chains snap and fall; padlock drops; door opens with light spill.
+### Beat
+1. Establish — chunky in-scene chains (2×~6 links + padlock + red lock light) and open blinds + rain.
+2. Pull — `pull_side` facing the camera (S); both arms/brace readable; thin gust streaks + droplets into the hand; blinds slam shut.
+3. Throw — full-arm `hurl` (SW) with a streaky gust trail (not a sash).
+4. Snap — hit-stop ~0.2 s, camera push-in, links pop and fall with bounce; padlock drops last; door opens with light spill.
 
-Only UI text: small control hint + one caption line. No words on objects.
+Only UI text: control hint + one caption.
 
 ### Rebuild
 ```bash
-# Noor poses (already in art/render/steal_noor/)
-blender -b --python art/tools/noor12.py -- pull,hurl art/render/steal_noor 24 E,N
+# Noor (face-camera pull)
+CHEAT='{"S":0,"SE":-10}' blender -b --python art/tools/noor12.py -- pull_side,hurl art/render/steal_noor_v3 24 S,SE,SW,W
 
-# Props (chains / ribbon / curtains / rain)
-blender -b --python art/tools/steal_props.py -- art/render/steal_props 24
-blender -b --python art/tools/steal_ribbon3.py -- art/render/steal_props 32   # denser face-on ribbon
+# In-scene office props (chains + blinds)
+SKIPMAIN=1 NOTILES=1 STEALV3=1 STEALSPP=20 blender -b --python art/tools/scene7.py -- R7_office art/render/steal_v3 1280 720 24
 
-# Composite → mock-steal/v2/
-python3 art/tools/compose_steal_v2.py
+# Feather onto plate + compose
+python3 - <<'PY'
+# see art/tools/compose_steal_v3.py header — post blend lives in the compose prep
+PY
+python3 art/tools/compose_steal_v3.py
 ```
-
-Sheets stay ≤ 640 px (prop frames) / 384 px (Noor). No re-render of unrelated office sheets.
 
 ### Honesty / weak spots
-- **Main elements rendered:** Noor pull/hurl, chain+padlock sheets, curtain sheets, rain streak sheets, wind-ribbon sash. Office plate + lift-door frames reused from clarity (`office11`).
-- **Code glue only:** caption/hint, camera push-in crop, screen shake, soft glow under ribbon, small red LED bloom, wet-glass tint.
-- **Ribbon flight** still reads flatter than the wrap — flight path is stamped wrap frames + thin fly sheets along a bezier; a true volumetric trail would need another Blender pass.
-- **Curtains** are isolated prop sheets composited over the plate window, not simulated cloth in the office scene.
-- **Pull/hurl** are 10-frame sheets; slow-mo is timing + camera zoom, not re-timed subframe renders.
-- v1 full loop (cooler + Scribble melt) is unchanged in `mock-steal/index.html` + `flow.mp4`.
+- Chains/blinds are **in-scene** border renders feather-blended onto the game plate (same method family as `office11` lift frames) — not isolated prop sheets.
+- Gust is intentional **code glue**: thin translucent streaks/droplets, kept small. Not Blender volume.
+- Chain links are chunky low-poly toruses; at game scale they read, but interlocking is still simplified.
+- `pull_side` S with CHEAT 0 faces the camera; claw frames (0–3) still hide arms more than rip frames (4–6) — the beat holds on the rip.
+- Shut blinds still show some sky between slats (not a blackout shutter).
+- Cooler / Scribble not in this clip. `game/src` untouched.
+
+## v2 — (superseded)
+See `v2/` and git history. Kept for `compare.mp4`.
 
 ## v1 — full ~20 s canvas loop (code FX)
-
 ```bash
-python3 -m http.server 4191
-# → http://localhost:4191/mock-steal/index.html
+python3 -m http.server 4191   # → /mock-steal/index.html
 ```
-
-Re-shoot: `node mock-steal/shoot.mjs` (server up). Concept, controls, and honesty notes for the code-drawn FX live in git history for `index.html`; see HANDOFF §18–19.

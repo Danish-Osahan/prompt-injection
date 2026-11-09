@@ -135,6 +135,18 @@ PLAN = {
           F(c=.4, lean=-10, tw=-4, ar=D(.5, .2, -.4), al=D(.15, -.4, -.7), pinch=0, dz=-.01),
           F(c=.2, lean=-2, ar=D(.4, .25, -.7), al=D(.2, -.3, -.8)),
           F(lean=0, ar=D(.3, .3, -.9), al=D(.25, -.25, -.9))],
+ # pull_side: THREE-QUARTER readable — plant facing cam, both arms claw to her LEFT (window), brace lean, rip
+ # render with DIRS=S,SE and STEAL CHEAT so torso faces camera enough to show arms
+ 'pull_side': [F(c=.3, lean=2, tw=22, hd=8, ar=D(.5, .7, -.15), al=D(1.0, .15, .35), wide=10),
+          F(c=.45, lean=6, tw=26, hd=12, ar=D(.65, .55, .1), al=D(1.15, .2, .5), pinch=1, wide=12, step=2),
+          F(c=.55, lean=10, tw=30, hd=14, ar=D(.75, .4, .25), al=D(1.25, .25, .55), pinch=1, wide=14, step=3),
+          F(c=.6, lean=12, tw=32, hd=16, ar=D(.85, .3, .35), al=D(1.3, .3, .6), pinch=1, wide=14, step=4, ev='claw'),
+          F(c=.65, lean=-18, tw=8, hd=10, ar=D(.35, .55, .05), al=D(.5, -.7, .2), pinch=0, dz=-.02, wide=16, step=2, ev='rip'),
+          F(c=.7, lean=-28, tw=0, hd=8, ar=D(.25, .6, -.15), al=D(.35, -.85, .05), pinch=0, dz=-.035, wide=16),
+          F(c=.55, lean=-20, tw=-6, ar=D(.4, .45, -.2), al=D(.4, -.6, -.15), pinch=0, dz=-.02, wide=12),
+          F(c=.4, lean=-10, tw=-4, ar=D(.45, .35, -.4), al=D(.4, -.45, -.35), pinch=0, dz=-.01, wide=8),
+          F(c=.25, lean=-2, tw=0, ar=D(.4, .3, -.65), al=D(.35, -.35, -.55), wide=4),
+          F(lean=0, tw=0, ar=D(.3, .3, -.9), al=D(.25, -.25, -.9))],
  # hurl: antic coil 0-2, smear 3, SNAP release 4, deep follow-through 5-7, recover 8-9
  'hurl': [F(c=.25, lean=-8, tw=28, ar=D(-.6, .55, -.2), al=D(.5, .3, -.8), dz=-.01),
           F(c=.4, lean=-14, tw=42, ar=D(-.7, .35, .85), al=D(.85, .05, -.15), dz=-.02),
@@ -150,7 +162,8 @@ PLAN = {
 }
 LOOPS = {'charge_hold'}
 BEAM = {'charge_in', 'charge_hold', 'release'}
-CHEAT = json.loads(os.environ.get('CHEAT', '{"S": 35, "N": 35}'))   # N/S: turn her a little so the thrust arm reads sideways
+STEAL = {'pull', 'pull_side', 'hurl'}
+CHEAT = json.loads(os.environ.get('CHEAT', '{"S": 40, "N": 35, "SE": 15, "SW": 15}'))  # steal/beam: show the arms
 # follow-through: hair + coat hem run on a damped spring driven by how fast the torso turns / pitches, and keep moving after she stops
 # (each anim gets 3 extra 'settle' frames appended at runtime only if the last frame still has motion -> instead we bake the settle into the last frames)
 def secondary(plan, loop=False):
@@ -307,7 +320,7 @@ for an in want:
     META[an] = {'frames': len(plan), 'events': {str(k): f['ev'] for k, f in enumerate(plan) if f['ev']}, 'smear': [k for k, f in enumerate(plan) if f['sm']],
                 'step_px': [f['step'] for f in plan], 'loop': an in LOOPS, 'hand': {}}
     for dn in DIRS:
-        yaw0 = R(ROT[dn] + (CHEAT.get(dn, 0) if an in BEAM else 0)); hands = []
+        yaw0 = R(ROT[dn] + (CHEAT.get(dn, 0) if an in (BEAM | STEAL) else 0)); hands = []
         for k, f in enumerate(plan[:int(os.environ.get('NMAX', 99))]):
             path = os.path.join(OUT, '%s_%s_%02d.png' % (an, dn, k))
             if f['sm'] and k > 0:
