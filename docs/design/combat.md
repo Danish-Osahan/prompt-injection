@@ -16,10 +16,10 @@
 ## 1. Core loop
 
 1. Close distance (walk / dash).
-2. Read the painted word on the enemy or surface (shimmer when near and facing it).
-3. Peel a useful word nearby, or keep one already carried.
-4. Throw / place the word onto the enemy (or a surface rule).
-5. Punish the opening with the 3-hit combo (or the beam if the opening is big enough).
+2. Read a **world** label that has real text on it (printer tray, wet-floor sign, cooler, window etch). Enemies themselves show **no words**.
+3. Peel the word (E / READ). It orbits Noor's hand as glowing ink.
+4. Arm it (tap the glyph) then **F / THROW**, or press THROW — the ink splats on and the enemy **physically morphs** (~0.3 s). No text appears on the creature.
+5. Punish with the 3-hit combo (or the short beam if the opening is big enough).
 6. Dash out of the next telegraph.
 
 Ink fuels peels-beyond-free and the beam. Combo hits refill ink. Dying undoes to the last checkpoint (`phase-1-levels.md`).
@@ -127,13 +127,25 @@ N/S facing: keep the 40° cheat from art-v12b so the arm reads.
 
 ---
 
-## 3. Diegetic word rules (combat)
+## 3. Diegetic word rules (combat) — locked 9 Nov 2026 (no labels on creatures)
 
-1. Every combatant that can be rewritten wears **one painted word** on its body (or shield / zone). Bosses may wear more across phases.
-2. Room surfaces can also wear words (OPEN on a whiteboard, PAPER on a printer tray). These are the ammo.
-3. A swap is always **source word → target slot**. The thrown word overwrites the painted word.
-4. One short world caption on success, e.g. `ARMORED → PAPER`, then gone. No lore dump mid-fight.
-5. Word Memory (`phase-1-systems.md`) still logs every swap for later phases.
+1. **Enemies never wear text.** Their trait is the material look: chrome plating (Stapler), glossy red pen + skid marks (Redline), dense tangled ink (Scribble). The practice dummy has a metal plate strapped on — no ARMORED tag.
+2. **Words live only on world surfaces** that would really have text: printer tray **PAPER**, wet-floor sign **SLOW**, cooler label **WET**, window etch **GLASS**. Holding READ makes peelable labels glow.
+3. Peel → carry (max 2, orbiting ink glyphs). **Throw is explicit:** tap a carried glyph to arm it, then **F** / **THROW** button. Attack (J / TYPE) is always combo / beam — it never auto-throws.
+4. A thrown word **physically transforms** the enemy over ~0.3 s (splat → morph). Caption names the word once (`PAPER — flimsy. One hit left.`). No text is drawn on the body.
+5. Word Memory (`phase-1-systems.md`) still logs every throw for later phases.
+
+### 3.1 Transform matrix (any word × any foe)
+
+| Word \ Target | Scribble | Redline | Stapler | Dummy |
+|---|---|---|---|---|
+| **PAPER** | ★★ folds, 1 HP | ★ light shell | ★★★ strips chrome, crumples in 1 | ★★★ strips plate, crumples in 1 |
+| **WET** | ★★★ ink runs, −50% spd, weaker hits | ★ smeared charge | ★★ plating softens (0.5× block) | ★★ sags |
+| **SLOW** | ★★ stiffer lunge | ★★★ matte, crawl telegraphs | ★ walks slower, shield stays | ★ sluggish |
+| **GLASS** | ★★ brittle, next hit shatters | ★★ next hit shatters | ★★★ brittle chrome, shatters | ★★★ shatters |
+
+★★★ = intended answer for that foe. Other words still apply with weaker effect.
+
 
 ---
 
@@ -146,12 +158,11 @@ HP is in **heart-equivalents** (jab = 1). Speed is px/s. Aggro is the radius tha
 | | |
 |---|---|
 | Role | Melee fodder. Teaches lunge punish + first combat throw. |
-| Look | Crawling ink doodle, charcoal ARMORED scrawled across the body. |
+| Look | Dense tangled charcoal ink ball. No text. |
 | HP | 3 (folds to 1 after PAPER). |
 | Speed | 95 idle drift / 160 lunge. |
 | Aggro | 220 px. |
-| Painted word | **ARMORED**. Swap → **PAPER** (from printer tray / archive note / office printer). |
-| On PAPER | Material goes grey, papery, creased. Next hit of any kind kills it (1 HP). Combo tears it (visual). |
+| Crack | Throw **PAPER** (folds, 1 HP) or **WET** (ink runs, −50% speed). World sources nearby. |
 
 **Attacks**
 
@@ -177,8 +188,8 @@ HP is in **heart-equivalents** (jab = 1). Speed is px/s. Aggro is the radius tha
 | HP | 5. |
 | Speed | 70 wander / **320** during charge. |
 | Aggro | 280 px. |
-| Painted word | **FAST**. Swap → **SLOW**. |
-| On SLOW | Charge speed ×0.45, wind-up +200 ms; can be comboed freely. |
+| Look | Glossy red pen; leaves ink skid marks while charging. No text. |
+| Crack | Throw **SLOW** (matte, crawl). **GLASS** also works (shatters next hit). |
 
 **Attacks**
 
@@ -207,8 +218,8 @@ Collision: uses the same prop footprints as Noor (`clarity` / room collision). I
 | HP | 6 (body). Shield absorbs all frontal hits while SHIELDED is painted. |
 | Speed | 70. |
 | Aggro | 200 px. |
-| Painted word | **SHIELDED** (on the shield). **Peel it off** (do not need a replacement word) → shield drops for the rest of its life. Optionally place OPEN / EXPOSED from a nearby surface for the same effect + a caption. |
-| On shield down | All angles deal full damage; it tries to keep its back to walls. |
+| Look | Walking stapler with **chrome plating** (specular sheen). Frontal block while plated. No text. |
+| Crack | Throw **PAPER** (strips plating, crumples in 1) or **GLASS** (brittle, next hit shatters). |
 
 **Attacks**
 
@@ -344,7 +355,7 @@ Front push: while not in slam recovery, frontal hits from Noor deal damage but a
 
 | Room | Combat content | Target time in combat | Teach |
 |---|---|---|---|
-| Office (clarity) | Practice dummy only (**ARMORED → PAPER**, locked 9 Nov 2026). Greybox enemies behind a `?combat=1` flag. | 0–1 min optional | Combo, peel/throw onto dummy ARMORED→PAPER, beam finisher once. |
+| Office (clarity) | Practice dummy with a metal plate (no text). Greybox enemies behind `?combat=1`. World words: PAPER / SLOW / WET / GLASS. | 0–1 min optional | Peel PAPER, throw to strip the plate, combo crumple; beam finisher once. |
 | Hub | None (gap dash only). | — | Dash. |
 | Dark Corridor | Paper Dummy tutorial → 1 Scribble. | ~1 min | Attack, first live grunt. |
 | Flooded Archive | Wave 1: 2 Scribbles. Wave 2: Sticky Swarm (5) + 1 Scribble. Wave 3: 1 Redline. Elite / mid-boss: **Eraser Brute** (locked 9 Nov 2026). Stapler appears as a Draft Arena phase-1 add and is deferred as an archive elite to a later pass. | 3–4 min | Full kit under pressure; desks as weapons. |
@@ -361,7 +372,7 @@ Hint rule unchanged: after ~45 s stuck on a **puzzle**, Fern points. Combat deat
 
 ### 7.1 First three enemies (in order)
 
-1. **Scribble** — capsule + ARMORED label. Validate lunge tell, miss-stuck punish, PAPER throw → one-hit fold, combo DPS to 3 HP.
+1. **Scribble** — tangled ink ball (no label). Validate lunge tell, miss-stuck punish, PAPER throw → one-hit fold, WET melt, combo DPS to 3 HP.
 2. **Redline** — long thin AABB. Validate scrape line, charge, **desk crash stun** against real office footprints, SLOW throw.
 3. **Stapler** — block + frontal shield arc. Validate block angles, Snap punish, peel SHIELDED.
 
@@ -386,7 +397,7 @@ Sticky Swarm and Eraser Brute enter greybox pass 2 once the first three feel rig
 - A fresh playtester understands peel→throw from the dummy tutorial alone (no text wall).
 - No soft-lock: ink=0 still allows bare combo + dash clears, just slower.
 
-**Greybox status (9 Nov 2026):** built into the clarity office behind `?combat=1` (`game/src/combat/greybox.ts`). Owner locks above applied. **No Blender rendering** until greybox pass/fail is signed off by the owner.
+**Greybox status (9 Nov 2026):** built into the clarity office behind `?combat=1` (`game/src/combat/greybox.ts`). World-only words + material transforms (no creature labels). **No Blender rendering** until greybox pass/fail is signed off by the owner.
 
 ---
 
@@ -406,8 +417,10 @@ Kept from session 2 so the story script still works; numbers TBD in greybox.
 ## 9. Locked owner answers (9 Nov 2026)
 
 1. **Archive elite for first ship:** **Eraser Brute**. Stapler stays in the roster as a Draft Arena phase-1 add / later archive elite.
-2. **Office dummy word:** **ARMORED → PAPER** (matches Scribble; replaces the old STILL→QUICK tutorial pair for the clarity office dummy).
+2. **Dummy / enemy labels (revised same day):** enemies and the dummy show **no words**. Dummy wears a visible metal plate; **PAPER** on the printer tray is the hint. Supersedes the earlier "ARMORED → PAPER on the dummy" text-label form.
 3. **Beam room reactions:** ship a **simple code-only** version in the greybox (paper flutter, light dip, scorched trail). No Blender; polish art later.
+4. **Throw vs beam:** throw is **F / THROW** (or tap a carried glyph to arm, then THROW). J / TYPE never auto-throws.
+5. **World words in the office greybox:** PAPER (printer), SLOW (wet-floor sign), WET (cooler), GLASS (window etch).
 
 ---
 

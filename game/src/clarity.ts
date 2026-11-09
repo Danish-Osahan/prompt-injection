@@ -267,8 +267,8 @@ export class Clarity {
     if (!t && this.modal === 'picker') t = kb ? `Pick ${this.pickAlt}.  E` : `Tap ${this.pickAlt}.`;
     if (!t && !this.modal && this.dummy && Math.hypot(s.x - this.dummy.x, s.y - this.dummy.y) < 170) {
       if (s.combat) {
-        if (!s.save.tutorials.includes('o11peel')) t = kb ? 'E near a painted word: peel it' : 'READ near a painted word: peel';
-        else if (!s.save.tutorials.includes('o11combo')) t = kb ? 'Tap attack: 3-hit combo' : 'Tap TYPE: 3-hit combo';
+        if (!s.save.tutorials.includes('o11peel')) t = kb ? 'E near a room label: peel PAPER / WET / SLOW / GLASS' : 'READ a room label to peel it';
+        else if (!s.save.tutorials.includes('o11combo')) t = kb ? 'F / THROW to hurl a word · tap attack: combo' : 'THROW then TYPE for combo';
         else if (!s.save.tutorials.includes('o11beam')) t = kb ? 'Hold attack 0.85s, release: short beam' : 'Hold TYPE, release: short beam';
       } else {
         if (!s.save.tutorials.includes('o11combo')) t = kb ? 'Tap attack (J / click): 3-hit combo' : 'Tap TYPE: 3-hit combo';

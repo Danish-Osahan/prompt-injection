@@ -287,8 +287,8 @@ Decision: the pixel look and the lower office9/v10 camera are dropped. The defau
 - Beam v2 (art-v12b): `noor12.py` new charge_in/charge_hold/release (braced stance `wide`, arm scale `sr/sl`, hair/coat `blow`, N/S `CHEAT` 40 deg, no smears); FX are canvas in `mock-attack/index.html` (`beamShot`, `chargeFX`, `beamFX`). Render only those: `CHEAT='{"N": 40, "S": 40}' blender -b --python art/tools/noor12.py -- charge_in,charge_hold,release art/render/sprites12 24` (~6 min), then `pack12.py`, `closeups12.py`.
 
 ## 16. Close-combat design + office greybox (9 Nov 2026)
-- Phase 1 combat is **close combat**: 3-hit combo, dash, diegetic peel/throw of painted words, and a **short-range beam finisher** (long charge, high ink cost). Drag-line SELECT and hold-0.22s beam spam are out.
-- Full numbers, enemy roster, ink, hit-stop, pacing: **`docs/design/combat.md`**. Owner locks: Archive elite = Eraser Brute; office dummy = ARMORED→PAPER; beam room reactions ship as simple code FX in greybox.
-- **Greybox (built):** open `?combat=1` (optional `&tune=1`) on the clarity office. Code: `game/src/combat/greybox.ts` + `tune.ts`. Placeholder Scribble / Redline / Stapler with telegraphs, ink meter, peel/throw, short beam (96 px, 0.85 s hold) with paper-flutter / light-dip / scorched-trail. Art-v12 sheets load from `game/public/assets/sprites12/` when present.
-- Tests: `ONLY_COMBAT=1 npm run playtest` (`tests/combat_greybox.mjs`, also runs in the full suite). Clips: `game/screenshots/combat-greybox/` (`node tests/motion_combat.mjs`).
-- Next: greybox pass/fail with the owner, then Sticky Swarm + Eraser Brute, then wire attack sheets into non-flag combat and roll clarity collision to other rooms. No new Blender until greybox is signed off.
+- Phase 1 combat is **close combat**: 3-hit combo, dash, diegetic peel/throw, short-range beam finisher. Drag-line SELECT and hold-0.22s beam spam are out.
+- Full numbers + **transform matrix**: **`docs/design/combat.md`**.
+- **No text on creatures (locked):** enemies and the dummy show material by look (chrome / glossy pen / ink tangle / metal plate). Words come only from world surfaces (PAPER, SLOW, WET, GLASS). A throw physically morphs the foe (~0.3 s). Throw is **F / THROW** (tap a carried glyph to arm); J / TYPE never auto-throws.
+- **Greybox:** `?combat=1` (`&tune=1` optional). Code: `game/src/combat/greybox.ts`. Clips: `game/screenshots/combat-greybox/`. Tests: `ONLY_COMBAT=1 npm run playtest`.
+- Next: owner playtest, then Sticky Swarm + Eraser Brute greybox. No new Blender until signed off.
