@@ -13,7 +13,11 @@ export async function combatGreybox(browser, { ok, st, pi, waitFor, shot, URL_ }
   const words = s.combat.paints.map(p => p.word).sort();
   ok('combat: world paints are PAPER/SLOW/WET/GLASS only', words.join(',') === 'GLASS,PAPER,SLOW,WET' || (words.includes('PAPER') && words.includes('SLOW') && words.includes('WET') && words.includes('GLASS') && words.length >= 4), JSON.stringify(words));
   ok('combat: every paint is owner=world (no enemy labels)', s.combat.paints.every(p => p.owner === 'world'), JSON.stringify(s.combat.paints.map(p => [p.id, p.owner, p.word])));
-  ok('combat: no enemy reports a text label', s.combat.enemies.every(e => e.hasTextLabel === false), JSON.stringify(s.combat.enemies.map(e => [e.kind, e.hasTextLabel])));
+  // movement still works with greybox mounted (WASD must not be swallowed)
+  const p0 = s.player; await page.keyboard.down('KeyD'); await sleep(500); await page.keyboard.up('KeyD');
+  const p1 = (await st(page)).player;
+  ok('combat: WASD still moves Noor with greybox on', p1.x > p0.x + 30, JSON.stringify({ p0, p1 }));
+    ok('combat: no enemy reports a text label', s.combat.enemies.every(e => e.hasTextLabel === false), JSON.stringify(s.combat.enemies.map(e => [e.kind, e.hasTextLabel])));
   await shot(page, 'combat-greybox/01-entry');
 
   // Peel PAPER from printer (stand on the label so adjacent-peel ignores facing)

@@ -100,18 +100,19 @@ export class GameScene extends Phaser.Scene {
     this.makeTextures();
     this.buildHud();
     this.debugOn = q.has('debug') && q.get('debug') !== 'collision'; this.debugCollision = q.get('debug') === 'collision';
-    this.input.keyboard!.addCapture('SPACE,UP,DOWN,LEFT,RIGHT');
+    this.input.keyboard!.addCapture('W,A,S,D,SPACE,UP,DOWN,LEFT,RIGHT');
     this.setupCameras();
     this.buildRoom(this.save.room, true);
     if (q.has('test')) this.installHooks();
   }
 
-  /** Caption-bar fix (art-v8): the world is framed in a letterbox ABOVE the caption bar (zoom BAR_Y/720, centred, thin pillars),
-   *  so no prop or walkable pixel is ever under the bar, in every room. HUD/caption objects (scrollFactor 0) render on a separate
-   *  full-screen UI camera; world objects on the framed main camera. */
+  /** Caption-bar framing: world camera is full-width above the caption bar (zoom 1, slight vertical crop).
+   *  HUD/caption (scrollFactor 0) render on a separate full-screen UI camera. Clarity further insets the top for the objective bar. */
+  /** World camera fills the band above the caption bar at full width (ENVELOP / cover).
+   *  Side pillars are gone; a little top/bottom of the 1280×720 plate may crop. HUD stays on uiCam. */
   setupCameras() {
-    const z = this.frameZoom = BAR_Y / 720; const vw = Math.round(1280 * z);
-    const cam = this.cameras.main; cam.setViewport(Math.round((1280 - vw) / 2), 0, vw, BAR_Y).setZoom(z).centerOn(640, 360);
+    this.frameZoom = 1;
+    const cam = this.cameras.main; cam.setViewport(0, 0, 1280, BAR_Y).setZoom(1).centerOn(640, BAR_Y / 2);
     this.uiCam = this.cameras.add(0, 0, 1280, 720, false, 'ui');
     const sort = () => {
       const m = cam.id, u = this.uiCam.id;
@@ -255,7 +256,7 @@ export class GameScene extends Phaser.Scene {
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
     this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
-    { const vw = Math.round(1280 * this.frameZoom); this.cameras.main.setViewport(Math.round((1280 - vw) / 2), 0, vw, BAR_Y).setZoom(this.frameZoom).centerOn(640, 360); }
+    { this.cameras.main.setViewport(0, 0, 1280, BAR_Y).setZoom(this.frameZoom || 1).centerOn(640, BAR_Y / 2); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
@@ -298,7 +299,7 @@ export class GameScene extends Phaser.Scene {
     this.caret = this.add.sprite(0, 0, 'caret_idle').setScale(0.45).setOrigin(0.5, 0.83).play('caret_idle_S').setVisible(this.save.seen.includes('caret')); this.objs.push(this.caret);
     const cp = this.save.checkpoint;
     const spawn = fromLoad && cp.room === id ? cp : r.spawn;
-    this.x = spawn.x; this.y = spawn.y; this.hp = MAX_HP; this.dashCd = 0; this.dashT = 0; this.iframes = 0; this.moved = 0;
+    this.x = spawn.x; this.y = spawn.y; this.unstick(); this.hp = MAX_HP; this.dashCd = 0; this.dashT = 0; this.iframes = 0; this.moved = 0;
     this.caret.setPosition(this.x - 40, this.y - 40);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
@@ -1031,6 +1032,21 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) { if (e.dead) continue; const d = Math.hypot(e.x - this.x, e.y - this.y); if (d < bd) { bd = d; best = e; } }
     return best;
   }
+  /** If Noor is embedded in a footprint (bad checkpoint / knock-in), push her to the nearest free cell so WASD can work again. */
+  unstick() {
+    if (this.canStand(this.x, this.y)) return false;
+    for (let r = 4; r <= 96; r += 4) {
+      for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2;
+        const nx = this.x + Math.cos(a) * r, ny = this.y + Math.sin(a) * r;
+        if (this.canStand(nx, ny)) { this.x = nx; this.y = ny; return true; }
+      }
+    }
+    // last resort: room spawn
+    const sp = this.room.spawn;
+    if (this.canStand(sp.x, sp.y)) { this.x = sp.x; this.y = sp.y; return true; }
+    return false;
+  }
   /** move with smooth sliding: full step, else each axis, else along the blocking edge (rotated probes), so corners never stick */
   slide(dx: number, dy: number) {
     if (!dx && !dy) return;
@@ -1198,6 +1214,7 @@ export class GameScene extends Phaser.Scene {
     if (this.swingT > 0 || this.selecting) { vx *= 0.35; vy *= 0.35; }
     if (this.dashT > 0) { this.dashTrail(dt); this.hairEcho(dt); this.dashT -= dt; vx = this.dashVec.x * DASH_SPEED; vy = this.dashVec.y * DASH_SPEED; if (this.dashT <= 0) this.sinceDash = 0; }
     if (this.bsT > 0) { this.bsT -= dt; for (const e of this.enemies) if (!e.dead && !this.bsHit.has(e) && Math.hypot(e.x - this.x, e.y - this.y) < 70) { this.bsHit.add(e); const a = Math.atan2(e.y - this.y, e.x - this.x); this.hurtEnemy(e, 1, Math.cos(a) * 520, Math.sin(a) * 520); } }
+    if (!this.dying) this.unstick();
     const ox = this.x, oy = this.y;
     if (!this.dying) {
       this.slide(vx * dt, vy * dt);
@@ -1435,6 +1452,7 @@ export class GameScene extends Phaser.Scene {
     (window as unknown as { __pi: unknown }).__pi = {
       state: () => this.getTestState(),
       teleport: (x: number, y: number) => { this.x = x; this.y = y; },
+      canStand: (x: number, y: number) => this.canStand(x, y),
       interact: () => this.interact(),
       read: (id: string) => { const p = this.plateById(id); if (!p || !p.visible) return false; this.x = p.def.x; this.y = p.def.y - 20; return this.read(p); },
       swap: (from: string, to: string) => { const a = this.plateById(from); if (!a || !a.visible) return false; this.inspectOff = true; this.read(a); this.inspectOff = false; return this.swap(from, to); },

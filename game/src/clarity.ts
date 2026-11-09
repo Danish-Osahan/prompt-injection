@@ -1,5 +1,5 @@
 // art-v11 CLARITY office (approved mock-clarity/, 2 Nov 2026). Office only, old near-overhead angle (v8 plate).
-//  - no gameplay zoom: the whole room is fitted between the top objective bar and the bottom caption strip
+//  - world camera fills the band between the objective bar and caption (full width; slight vertical crop OK)
 //  - inspect = a framed close-up CARD over the dimmed room (rendered close-up still, slow push, the one lore line)
 //  - minimal text: nothing at the bottom while walking; ONE caption line on interaction (shrinks to fit, never wraps)
 //  - objective bar driven by the room's real progress; the swappable word is a tag ON the object (+ attached picker)
@@ -58,8 +58,10 @@ export class Clarity {
   debugG: Phaser.GameObjects.Graphics | null = null; near: string | null = null;
   objs: Phaser.GameObjects.GameObject[] = [];
   constructor(private s: GameScene) {
-    const cam = s.cameras.main, z = (BAR_Y - TOP) / 720, vw = Math.round(1280 * z);
-    cam.setViewport(Math.round((1280 - vw) / 2), TOP, vw, BAR_Y - TOP).setZoom(z).centerOn(640, 360);
+    // Full-width cover in the HUD band (no side pillars). Zoom ≥1 crops a little top/bottom of the plate.
+    const bandH = BAR_Y - TOP, z = Math.max(1, bandH / 720);
+    const cam = s.cameras.main; s.frameZoom = z;
+    cam.setViewport(0, TOP, 1280, bandH).setZoom(z).centerOn(640, 360);
     const ui = <T extends Phaser.GameObjects.GameObject>(o: T) => { (o as unknown as Phaser.GameObjects.Components.ScrollFactor).setScrollFactor(0); s.objs.push(o); return o; };
     // depth-sorted overlays (exact plate pixels) + the lift door
     for (const p of O11_PROPS) if (p.fg) s.objs.push(s.add.image(p.x!, p.y!, 'o11fg_' + p.name).setOrigin(0).setDepth(p.baseY));

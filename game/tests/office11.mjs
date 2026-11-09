@@ -1,5 +1,5 @@
-// art-v11 CLARITY office: no zoom, objective bar, word tag + attached picker opens the lift, close-up cards, one caption line,
-// real collision (each desk), practice dummy (tap combo + hold/release beam), breathing idle, the lift exit.
+// art-v11 CLARITY office: full-width room between objective bar and caption, word tag + picker, close-up cards, one caption line,
+// real collision (each desk), WASD/arrows from spawn, practice dummy, breathing idle, the lift exit.
 import { open, sleep, DESKTOP } from './helpers.mjs';
 export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   const log = { errors: [], external: [] };
@@ -10,13 +10,26 @@ export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   const sample = async () => { const q = await st(page); zooms.push(q.cam.zoom); if (q.chips.length || q.hand) chipsSeen.push(JSON.stringify(q.chips) + JSON.stringify(q.hand)); const c = q.clar; if (c && (c.capLines > 1 || c.capW > 1180)) capBad.push(c.caption); return q; };
   const chipsSeen = [], capBad = [];
   ok('office11: the clarity office is the default (old angle, no Office9 camera)', !!s.clar && !s.office9, JSON.stringify({ clar: !!s.clar, o9: !!s.office9 }));
-  ok('office11: the whole room is fitted between the objective bar and the caption strip', s.cam.y === 48 && s.cam.y + s.cam.h === s.cam.barY && Math.abs(Z - 578 / 720) < 0.002, JSON.stringify(s.cam));
+  ok('office11: world camera fills the HUD band full-width (no side pillars)', s.cam.y === 48 && s.cam.w === 1280 && s.cam.y + s.cam.h === s.cam.barY && s.cam.zoom >= 0.999, JSON.stringify(s.cam));
   await sleep(700); s = await sample();
   ok('office11: the scene heading shows on entry', s.clar.heading > 0.5, String(s.clar.heading));
   ok('office11: the objective reads "Get through the door"', s.clar.objective === 'Get through the door', s.clar.objective);
-  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 230 && s.clar.tag.x < 330 && s.clar.tag.y > 100 && s.clar.tag.y < 220, JSON.stringify(s.clar.tag));
+  ok('office11: the door word is a glowing SHUT tag on the door, with a first-time pointer', s.clar.tag.visible && s.clar.tag.word === 'SHUT' && s.clar.pointer && s.clar.tag.x > 170 && s.clar.tag.x < 260 && s.clar.tag.y > 80 && s.clar.tag.y < 160, JSON.stringify({ ...s.clar.tag, pointer: s.clar.pointer }));
   await shot(page, 'v11c-01-entry');
-  await sleep(3200); s = await sample(); ok('office11: the heading fades after entry', s.clar.heading === 0, String(s.clar.heading));
+  // MAJOR: spawn walkable + real WASD / arrows (would have caught the stuck-Noor bug)
+  const spawn = (await st(page)).player;
+  ok('office11: spawn is not inside any collider', await pi(page, 'canStand', spawn.x, spawn.y) === true, JSON.stringify(spawn));
+  await page.keyboard.down('KeyD'); await sleep(700); await page.keyboard.up('KeyD');
+  const pD = (await st(page)).player;
+  ok('office11: WASD (D) moves Noor from spawn', pD.x > spawn.x + 40, JSON.stringify({ spawn, pD }));
+  await page.keyboard.down('ArrowLeft'); await sleep(700); await page.keyboard.up('ArrowLeft');
+  const pL = (await st(page)).player;
+  ok('office11: arrow keys move Noor', pL.x < pD.x - 40, JSON.stringify({ pD, pL }));
+  await pi(page, 'teleport', 685, 300); await sleep(220);
+  const u = (await st(page)).player;
+  ok('office11: overlapping a desk auto-unsticks to free ground', await pi(page, 'canStand', u.x, u.y) === true && (Math.hypot(u.x - 685, u.y - 300) > 8), JSON.stringify(u));
+  await pi(page, 'teleport', spawn.x, spawn.y); await sleep(80);
+  await sleep(2500); s = await sample(); ok('office11: the heading fades after entry', s.clar.heading === 0, String(s.clar.heading));
   // nothing at the bottom while walking in open floor
   await pi(page, 'teleport', 650, 470); await input.move(-1, 0); let walkCaps = []; for (let i = 0; i < 4; i++) { await sleep(110); walkCaps.push((await sample()).clar.caption); } await input.stop();
   ok('office11: nothing at the bottom while walking', walkCaps.every(c => c === ''), JSON.stringify(walkCaps));

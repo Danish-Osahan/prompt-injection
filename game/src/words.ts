@@ -50,12 +50,9 @@ export class WordUI {
     this.bar = sc.add.graphics().setScrollFactor(0).setDepth(D);
     this.bar.fillStyle(0x02060a, 1).fillRect(0, BAR_Y, 1280, 720 - BAR_Y);
     this.bar.lineStyle(1, hex(C.faint), 0.55).lineBetween(420, BAR_Y + 4, 860, BAR_Y + 4);
-    // art-v8 letterbox: the world is framed above the bar (see GameScene.setupCameras); thin pillars + a hairline frame
-    const vw = Math.round(1280 * BAR_Y / 720), px = Math.round((1280 - vw) / 2);
-    // pillars sit at the bottom of the UI camera's draw order, so the HUD text stays on top of them
+    // World camera is full-width above the caption bar; only a hairline separates room from bar (no side pillars).
     const pil = this.pil = sc.add.graphics().setScrollFactor(0).setDepth(-100000);
-    pil.fillStyle(0x02060a, 1).fillRect(0, 0, px, BAR_Y).fillRect(1280 - px, 0, px, BAR_Y);
-    pil.lineStyle(1, hex(C.faint), 0.35).lineBetween(px, 0, px, BAR_Y).lineBetween(1280 - px, 0, 1280 - px, BAR_Y).lineBetween(px, BAR_Y, 1280 - px, BAR_Y);
+    pil.lineStyle(1, hex(C.faint), 0.35).lineBetween(0, BAR_Y, 1280, BAR_Y);
     this.heading = sc.add.text(640, BAR_Y + 16, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: C.dim, letterSpacing: 2 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setScrollFactor(0).setDepth(D + 1);
     this.chipG = sc.add.graphics().setScrollFactor(0).setDepth(D + 1);
     for (let i = 0; i < 2; i++) this.hl.push(sc.add.image(0, 0, 'pool').setBlendMode(Phaser.BlendModes.ADD).setDepth(2050).setAlpha(0));
