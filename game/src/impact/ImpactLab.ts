@@ -134,8 +134,7 @@ export class ImpactLab {
     else {
       window.setTimeout(() => {
         try {
-          this.s.subQueue.push({ who: 'fern', line: "That lamp's been angry all morning. The lift's dead — maybe it wants the spark.", ms: 3200 });
-          if (!this.s.subBusy) this.s.nextSub();
+          this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 2800);
         } catch { /* */ }
       }, 600);
     }
@@ -482,6 +481,7 @@ export class ImpactLab {
       this.s.noor.setTint(0xc8e8ff);
       window.setTimeout(() => { try { this.s.noor.clearTint(); } catch { /* */ } }, 450);
     } catch { /* */ }
+    try { this.s.say('noor', 'What— what is this?', 1800); } catch { /* */ }
   }
 
   throwBolt() {
@@ -667,10 +667,27 @@ export class ImpactLab {
         try { writeSave(this.s.save); } catch { /* */ }
         sfx('impact_hum');
         this.animateLeavesOpen();
+        this.speakDiscovery();
       }, 220);
     } else {
       this.animateLeavesOpen();
+      this.speakDiscovery();
     }
+  }
+
+  /** Protected discovery lines (power-rewrite §7), moved from the window teach to the lamp. */
+  private speakDiscovery() {
+    if (this.s.save.seen.includes('sc_steal')) return;
+    this.s.save.seen.push('sc_steal');
+    try { writeSave(this.s.save); } catch { /* */ }
+    window.setTimeout(() => {
+      try {
+        this.s.say('fern', "You're not supposed to be able to do that.", 2400);
+        this.s.say('fern', "Things keep their words. People don't peel them.", 2400);
+        this.s.say('noor', 'Then what am I?', 1600);
+        this.s.say('fern', 'For now, go through.', 2000);
+      } catch { /* */ }
+    }, 400);
   }
 
   /** Slide leaves sideways over ~0.9s with a slight residual shudder. */

@@ -478,7 +478,7 @@ export class GameScene extends Phaser.Scene {
           this.say('noor', 'Why are things moving?', 1700); this.say('fern', 'Say something enough, and it listens.', 2400);
           this.say('noor', 'And you?', 1200); this.say('fern', 'You talked to me. Every morning.', 2300);
           this.say('fern', "You came back. They said you wouldn't.", 2400); this.say('noor', 'Came back from where?', 1700);
-          this.say('fern', 'Look, the door. Try it.', 2400);
+          this.say('fern', 'Look. The door.', 2400);
         });
       }
     }

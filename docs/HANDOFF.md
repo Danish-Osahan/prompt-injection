@@ -1,3 +1,27 @@
+# HANDOFF — Phase 1 step 2: lamp discovery dialogue
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Short cold-open / discovery lines that teach steal via the buzzing lamp (not the window), from `docs/story/power-rewrite.md` and `docs/design/power-rules.md` C1/C2.
+
+## Dialogue
+
+- Office entry: Fern, “That lamp’s been buzzing since you sat down. The lift is dead.”
+- After the peel: Noor, “What— what is this?”
+- After the doors open (protected lines): Fern, “You’re not supposed to be able to do that.” / “Things keep their words. People don’t peel them.” / Noor, “Then what am I?” / Fern, “For now, go through.”
+- Hub intro keeps the world-rule exchange, but the last line is now “Look. The door.” — no window teach, no “try it.” Exit-ownership lines stay verbatim for when the hub exit opens (step 3).
+
+C1 in the design doc still says “no peel in the real office.” Implementation choice: the v15j lamp/lift beat *is* the C1 teach, and the C2 window beat is retired.
+
+## §8 open questions — simplest picks
+
+1. **Cost visibility:** No thinning / glitch after a steal in Phase 1. Save it for Phase 3–4 so discovery stays panic, not a systems meter.
+2. **Exit ownership:** Keep Fern’s “Only the owner of the words leaves.” verbatim (and Noor / Fern follow-ups). No rewrite this pass.
+3. **Draft’s last line:** Spoken only (“…So did I.”). Drop the floor text “I TRIED SO HARD.” in the arena conversion (step 3).
+4. **Archive pair:** Take **low** from the drawer, throw it into the water. (Not take-high from the water.)
+5. **Title:** Stay “Prompt Injection.” No storefront rename in this pass.
+
+---
+
 # HANDOFF — Phase 1 step 1: dead-lift beat in normal office (R0)
 
 **Date:** 2026-11-10 (Asia/Calcutta)
