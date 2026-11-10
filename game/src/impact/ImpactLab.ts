@@ -6,6 +6,7 @@ import { O11_DOOR } from '../office11art';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
+import { writeSave } from '../save';
 
 /**
  * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
@@ -96,11 +97,14 @@ export class ImpactLab {
     this.on = true;
     this.stealMode = true;
 
-    const door = this.s.plateById('o_door');
-    if (door && door.slotWord !== 'SHUT') {
-      door.setSlotWord('SHUT');
-      this.s.save.plates[door.def.id] = 'SHUT';
-      this.s.evaluate(true);
+    const alreadyOpen = this.s.plateById('o_door')?.slotWord === 'OPEN';
+    if (!alreadyOpen) {
+      const door = this.s.plateById('o_door');
+      if (door && door.slotWord !== 'SHUT') {
+        door.setSlotWord('SHUT');
+        this.s.save.plates[door.def.id] = 'SHUT';
+        this.s.evaluate(true);
+      }
     }
 
     this.suppressWordUi(true);
@@ -120,15 +124,37 @@ export class ImpactLab {
     this.keyF = this.s.input.keyboard?.addKey('F');
     // Whole office visible and crisp — no follow punch-in.
     this.s.setupStaticCamera?.();
-    this.s.x = LAMP.x + 36; this.s.y = LAMP.y + 48; this.s.dir = 'NW';
-    this.s.unstick();
+    // ?impact lab still drops Noor by the lamp; normal play keeps the room spawn / checkpoint.
+    if (this.s.labMode) {
+      this.s.x = LAMP.x + 36; this.s.y = LAMP.y + 48; this.s.dir = 'NW';
+      this.s.unstick();
+    }
 
-    window.setTimeout(() => {
-      try {
-        this.s.subQueue.push({ who: 'fern', line: "That lamp's been angry all morning. The lift's dead — maybe it wants the spark.", ms: 3200 });
-        if (!this.s.subBusy) this.s.nextSub();
-      } catch { /* */ }
-    }, 600);
+    if (alreadyOpen) this.restoreOpen();
+    else {
+      window.setTimeout(() => {
+        try {
+          this.s.subQueue.push({ who: 'fern', line: "That lamp's been angry all morning. The lift's dead — maybe it wants the spark.", ms: 3200 });
+          if (!this.s.subBusy) this.s.nextSub();
+        } catch { /* */ }
+      }, 600);
+    }
+  }
+
+  /** Resume a solved office: doors already OPEN from the save. */
+  private restoreOpen() {
+    this.done = true;
+    this.lampOn = false;
+    this.carrying = false;
+    this.lure?.destroy(); this.lure = undefined;
+    if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
+    this.applyLiftDoorK(1);
+    if (this.s.clar) {
+      this.s.clar.doorWant = 1;
+      this.s.clar.doorK = 1;
+      if (this.s.clar.door) this.s.clar.door.setVisible(false);
+    }
+    this.s.extraWalk.lift = { x: 155, y: 150, w: 100, h: 60 };
   }
 
   stop() {
@@ -360,7 +386,8 @@ export class ImpactLab {
 
   update(dt: number) {
     if (!this.keyI) this.keyI = this.s.input.keyboard?.addKey('I');
-    if (Phaser.Input.Keyboard.JustDown(this.keyI!)) {
+    // I toggles the isolated lab only under ?impact — never strip the lift mid-play.
+    if (this.s.labMode && Phaser.Input.Keyboard.JustDown(this.keyI!)) {
       if (!this.on) this.start();
       else this.stop();
     }
@@ -418,6 +445,12 @@ export class ImpactLab {
         this.drawBoltBeam(hx, hy, tx, ty);
         this.onPanelHit();
       }
+    }
+
+    // Normal office: walk into the open cab to leave for the hub. Lab stays put.
+    if (this.done && !this.s.labMode && !this.s.transitioning) {
+      const x = this.s.x, y = this.s.y;
+      if (x > 155 && x < 255 && y > 150 && y < 180) this.s.goRoom('hub');
     }
   }
 
@@ -630,6 +663,8 @@ export class ImpactLab {
           this.s.clar.doorK = 1;
           if (this.s.clar.door) this.s.clar.door.setVisible(false);
         }
+        this.s.extraWalk.lift = { x: 155, y: 150, w: 100, h: 60 };
+        try { writeSave(this.s.save); } catch { /* */ }
         sfx('impact_hum');
         this.animateLeavesOpen();
       }, 220);

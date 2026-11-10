@@ -399,14 +399,14 @@ export class GameScene extends Phaser.Scene {
       this.combat = new CombatGreybox(this, new URLSearchParams(location.search).get('tune') === '1');
       this.combatHoldBeam = this.combat.tune.holdBeam;
     }
-    // Impact lab: live Phaser hit-feel (chain break / OPEN throw). ?impact=1 or press I.
+    // Dead-lift beat is normal R0 play (zoom 1, full-bleed). ?impact still starts the isolated lab.
     if (id === 'office' && this.clar) {
       this.impactLab?.stop();
       this.impactLab = new ImpactLab(this);
-      if (new URLSearchParams(location.search).has('impact')) this.impactLab.start();
     }
     this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
+    if (id === 'office' && this.clar) this.impactLab?.start();
     this.cameras.main.fadeIn(220, 4, 8, 12);
   }
 
@@ -1040,6 +1040,7 @@ export class GameScene extends Phaser.Scene {
     return null;
   }
   updateHint(dt: number) {
+    if (this.impactLab?.on) { if (this.hintObj) { this.hintObj.destroy(); this.hintObj = null; } this.hintOn = false; return; }
     const target = this.hintTarget();
     if (!target || this.busy) { if (this.hintObj) { this.hintObj.destroy(); this.hintObj = null; } this.hintOn = false; return; }
     this.stuck += dt;
@@ -1062,6 +1063,8 @@ export class GameScene extends Phaser.Scene {
 
   // ---------- office composer + SC2 ----------
   openComposer() {
+    // Steal office path: no typist / SC2 word-hook. Exit is the open lift.
+    if (this.impactLab?.on) return;
     this.busy = true;
     this.startCutscene('sc1', 0, () => {}, () => { this.markSeen('sc1'); if (!this.save.seen.includes('sc1')) this.save.seen.push('sc1'); this.goRoom('hub'); });
     this.say('noor', 'Rephrase. Again.', 1600); this.say('noor', 'Fine. Honest version.', 1600);

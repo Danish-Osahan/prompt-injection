@@ -38,7 +38,7 @@ const INTER: Record<string, Inter> = {
   o_line: { box: [1088, 590, 42, 26] },
 };
 export const DOOR_DEF: PlateDef = { id: 'o_door', words: ['DOOR', 'IS', 'SHUT'], slot: 2, x: 205, y: 226, sx: 205, sy: 142, kind: 'rule', cap: 'The lift door is {}.', code: 'lift.door' };
-const LIFT = { x: 165, y: 150, w: 80, h: 56 };           // walkable inside the open lift; the exit trigger is its back half
+const LIFT = { x: 155, y: 150, w: 100, h: 60 };          // v15j cab: walkable inside the open lift; exit is the back half
 const FOOT = { rx: 13, ry: 5 };
 const inPoly = (P: number[][], x: number, y: number) => { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [x1, y1] = P[i], [x2, y2] = P[j]; if ((y1 > y) !== (y2 > y) && x < (x2 - x1) * (y - y1) / (y2 - y1 + 1e-9) + x1) c = !c; } return c; };
 
@@ -80,8 +80,12 @@ export class Clarity {
   }
   /** after plates + evaluate: the dummy, first-visit captions */
   start() {
-    const s = this.s, e = s.spawnEnemy('dummy', O11_DUMMY.x, O11_DUMMY.y); e.practice = true; e.body.clear();
-    const im = s.add.image(0, 0, 'o11_dummy'); im.setOrigin(O11_DUMMY.ox / im.width, O11_DUMMY.oy / im.height); e.g.add(im); this.dummy = { x: O11_DUMMY.x, y: O11_DUMMY.y };
+    const s = this.s;
+    // Practice dummy is ?combat only — not part of the steal office path.
+    if (new URLSearchParams(location.search).has('combat')) {
+      const e = s.spawnEnemy('dummy', O11_DUMMY.x, O11_DUMMY.y); e.practice = true; e.body.clear();
+      const im = s.add.image(0, 0, 'o11_dummy'); im.setOrigin(O11_DUMMY.ox / im.width, O11_DUMMY.oy / im.height); e.g.add(im); this.dummy = { x: O11_DUMMY.x, y: O11_DUMMY.y };
+    }
     this.headT = 0.001;
   }
   get doorOpen() { return this.s.plateById('o_door')?.slotWord === 'OPEN'; }
@@ -257,7 +261,7 @@ export class Clarity {
     const s = this.s;
     // door frames ease toward the wanted state (0.8 s)
     if (this.doorK !== this.doorWant) { this.doorK = Phaser.Math.Clamp(this.doorK + Math.sign(this.doorWant - this.doorK) * dt / 0.8, 0, 1); this.drawDoor(); }
-    if (this.doorOpen && this.doorK > 0.95 && !s.transitioning && s.x > LIFT.x && s.x < LIFT.x + LIFT.w && s.y < LIFT.y + 26) s.goRoom('hub');
+    if (this.doorOpen && this.doorK > 0.95 && !s.transitioning && s.x > LIFT.x && s.x < LIFT.x + LIFT.w && s.y < LIFT.y + 30) s.goRoom('hub');
     this.near = this.modal ? null : this.nearest()?.def.id ?? null;
     // objective (real progress) — hidden during Impact Lab (no words over gameplay)
     if (s.impactLab?.on) {

@@ -1,3 +1,24 @@
+# HANDOFF — Phase 1 step 1: dead-lift beat in normal office (R0)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Promote the v15j lamp→panel→open lift→walk-in beat from `?impact` into normal office play at zoom 1, full-bleed. Remove word-swap / READ / caption remnants from the office path.
+
+## What changed
+
+- The default clarity office now always starts `ImpactLab` (same Blender lift + desk lamp, static zoom 1, `office_bleed.jpg`). `?impact` still isolates a fresh in-memory save and drops Noor next to the lamp.
+- Word UI stays suppressed (no tags, no caption chips, no READ / code vision, no typist composer / SC2 hook). The practice dummy is `?combat` only. Fern’s word-swap leaf hint is off while the lab is running. Pressing I no longer toggles the lift off in normal play.
+- After the panel hit opens the doors, walking into the cab (`x` 155–255, `y` 150–180) goes to the mirror hub. A solved save (`o_door = OPEN`) resumes with the lift already open. Progress is written to the save.
+- Normal play keeps the room spawn / checkpoint (does not teleport to the lamp).
+
+## Still leftover for later steps
+
+- Discovery dialogue is still the short lab line (“That lamp’s been angry…”). Step 2 rewrites it.
+- Hub / corridor / archive / arena / message are still word-swap. Steps 3–4 convert them and update the playtest.
+
+Do not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Impact Lab v15j (full-bleed room, Blender lift + desk lamp)
 
 **Date:** 2026-11-10 (Asia/Calcutta)
