@@ -28,6 +28,7 @@ export interface Save {
   toys: string[];                       // toy rooms played with (room ids)
   unread?: number;                      // art-v9: the office phone's unread count (ticks up while you linger)
   settings?: { reduceMotion?: boolean };
+  playMs?: number;
 }
 
 const KEY = 'pi.save.v1';
@@ -37,7 +38,7 @@ export function setEphemeralSave(on: boolean) { ephemeralSave = on; }
 export function isEphemeralSave() { return ephemeralSave; }
 export function freshSave(): Save {
   return { v: 1, room: 'office', checkpoint: { room: 'office', x: 110, y: 470, plate: null }, plates: {}, lore: [], helped: [], wilted: [], defeated: [],
-    tutorials: [], seen: [], wordLog: [], swapLog: [], fernGrowth: 0, deaths: 0, phaseComplete: false, draftLastBarDeath: false, looked: [], lines: [], visits: {}, idle: [], toys: [] };
+    tutorials: [], seen: [], wordLog: [], swapLog: [], fernGrowth: 0, deaths: 0, phaseComplete: false, draftLastBarDeath: false, looked: [], lines: [], visits: {}, idle: [], toys: [], playMs: 0 };
 }
 export function loadSave(): Save {
   if (ephemeralSave) return freshSave();
@@ -47,6 +48,17 @@ export function loadSave(): Save {
 export function writeSave(s: Save) {
   if (ephemeralSave) return; // leave the player's real save untouched
   try { localStorage.setItem(KEY, JSON.stringify(s)); } catch { /* private mode */ }
+}
+export function hasSave(): boolean {
+  if (ephemeralSave) return false;
+  try {
+    const raw = localStorage.getItem(KEY);
+    if (!raw) return false;
+    const s = JSON.parse(raw);
+    if (!s || s.v !== 1) return false;
+    const visits = s.visits && Object.keys(s.visits).length > 0;
+    return !!(s.phaseComplete || s.seen?.length || visits || (s.plates && Object.keys(s.plates).length) || (s.playMs ?? 0) > 0);
+  } catch { return false; }
 }
 export function wipeSave() {
   if (ephemeralSave) return; // never wipe real save from the lab

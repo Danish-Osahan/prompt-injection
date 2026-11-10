@@ -1,3 +1,26 @@
+# HANDOFF — Level 1 step 1: boot splash + title screen
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** A real launch: short studio splash, then a typographic title menu over the dimmed full-bleed office plate. No new Blender or video.
+
+## What shipped
+
+- Boot now starts `TitleScene` unless the URL has `?impact`, `?combat`, `?v9`, `?swap`, or `?skipTitle` (so verify_steal / impact_lab / office11 / linger / combat still boot into gameplay).
+- Splash: typographic “AFTER HOURS / presents” (~1.6s, click or Enter skips), then title “PROMPT INJECTION” / “LEVEL 1” over `bg_office_base` (office_bleed), dimmed, with the existing office-window rain amb and a code-drawn desk-lamp flicker.
+- Menu: New Game, Continue (only if a real `pi.save.v1` exists), Settings (volume 0–100, fullscreen toggle), Credits (short excerpt of CREDITS.md). Keyboard (WASD / arrows, Enter/Space, Esc back) and mouse, 56×420 hit areas.
+- Volume lives in `pi.settings.v1` (not the game save) and is a master multiplier on Kenney samples + synth. Fullscreen is a user toggle only — never auto-entered.
+- New Game wipes the save and starts the office as today. Continue starts the existing save. The intro cutscene is step 2; it is not in this commit.
+- `window.__pi` on the title screen (`?test=1`): `screen` is `boot` during splash and `title` on the menu; hooks for newGame / continueGame / settings / credits / volume / fullscreen / skipSplash.
+
+## Honest leftovers / next
+
+- Existing `?test=1` playtest still expects to start in the office, so it will wait on `window.__pi` from TitleScene until step 5 rewires the suite. Lab / swap / combat URLs are unchanged.
+- Continue is wired but play-time / last-room resume polish is step 3. No room-name cards or end screen yet.
+- No new SFX downloaded; title uses existing Kenney Interface Sounds (`tell`, `key`, `block`).
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Phase 1 step 4: steal playtest + stills
 
 **Date:** 2026-11-10 (Asia/Calcutta)

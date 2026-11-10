@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BootScene } from './boot';
 import { GameScene } from './game';
+import { TitleScene } from './title';
 
 async function start() {
   // Floor text is drawn into canvases, so the fonts must be ready before the first plate is drawn.
@@ -20,7 +21,7 @@ async function start() {
       default: 'matter',
       matter: { gravity: { x: 0, y: 1.6 }, enableSleeping: true, debug: false },
     },
-    scene: [BootScene, GameScene],
+    scene: [BootScene, TitleScene, GameScene],
   });
   // a drag that ends outside the canvas must never leave the page panned (the HUD would read as clipped on the left)
   const pin = () => { if (window.scrollX || window.scrollY) window.scrollTo(0, 0); };

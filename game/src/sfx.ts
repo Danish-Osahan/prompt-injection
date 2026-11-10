@@ -1,5 +1,6 @@
 // Tiny WebAudio synth + optional loaded CC0 samples (Kenney Interface Sounds).
 let ctx: AudioContext | null = null;
+let master = 1;
 function ac() { if (!ctx) { try { ctx = new AudioContext(); } catch { return null; } } if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return ctx; }
 
 type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win';
@@ -19,12 +20,18 @@ const SAMPLE: Partial<Record<ImpactKind, string>> = {
 
 /** Optional: scene caches Phaser sound instances after boot. */
 let sceneRef: { sound: { play: (k: string, cfg?: object) => void }; cache: { audio: { exists: (k: string) => boolean } } } | null = null;
-export function bindSfxScene(s: typeof sceneRef extends null ? never : NonNullable<typeof sceneRef>) { sceneRef = s; }
+export function bindSfxScene(s: typeof sceneRef extends null ? never : NonNullable<typeof sceneRef>) { sceneRef = s; try { if (s && 'volume' in s.sound) (s.sound as { volume: number }).volume = master; } catch { /* */ } }
+export function setMasterVolume(v: number) {
+  master = Math.max(0, Math.min(1, v));
+  try { if (sceneRef && 'volume' in sceneRef.sound) (sceneRef.sound as { volume: number }).volume = master; } catch { /* */ }
+}
+export function getMasterVolume() { return master; }
+
 
 export function sfx(kind: SfxKind) {
   const sample = (SAMPLE as Record<string, string>)[kind];
   if (sample && sceneRef?.cache?.audio?.exists(sample)) {
-    try { sceneRef.sound.play(sample, { volume: 0.55 }); return; } catch { /* fall through */ }
+    try { sceneRef.sound.play(sample, { volume: 0.55 * master }); return; } catch { /* fall through */ }
   }
   const a = ac(); if (!a) return;
   const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
@@ -44,6 +51,6 @@ export function sfx(kind: SfxKind) {
   };
   const [type, f0, f1, dur, vol] = P[kind] ?? P.hit;
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
-  g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  g.gain.setValueAtTime(vol * master, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
 }

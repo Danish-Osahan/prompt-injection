@@ -3,6 +3,7 @@ import { ROOMART } from './roomart';
 import { OFFICE9 } from './office9art';
 import { OFFICE8C } from './office8art';
 import { O11_PROPS, O11_DOOR, O11_DUMMY } from './office11art';
+import { shouldSkipTitle } from './settings';
 
 export const SHEETS = ['noor_idle', 'noor_walk', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3', 'noor_lookL', 'noor_lookR', 'noor_phone', 'noor_shadow', 'noor_surprise', 'fern_seated', 'caret_idle', 'caret_move'];
 
@@ -78,6 +79,6 @@ export class BootScene extends Phaser.Scene {
         this.anims.create({ key: `${s}_${d}`, frames: frames.map(f => ({ key: s, frame: f })), frameRate: 18, repeat: once ? 0 : -1 });
       }
     }
-    this.scene.start('game');
+    this.scene.start(shouldSkipTitle() ? 'game' : 'title');
   }
 }

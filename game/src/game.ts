@@ -7,15 +7,16 @@ import { Plate } from './plate';
 import { WordUI, BAR_Y } from './words';
 import { ROOMS, type Rect, type RoomDef } from './rooms';
 import { DraftFight, DRAFT } from './boss';
-import { sfx } from './sfx';
+import { sfx, setMasterVolume, bindSfxScene } from './sfx';
 import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
 import { Office9, ViewMap } from './office9';
 import { Clarity, DOOR_DEF } from './clarity';
 import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
+import type { TitleStartData } from './title';
+import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
-import { bindSfxScene } from './sfx';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -96,7 +97,14 @@ export class GameScene extends Phaser.Scene {
   /** ?impact=1 — isolated in-memory lab; never touches localStorage. */
   labMode = false;
   swapMode = false;
+  fromTitle = false;
+  startMode: 'new' | 'continue' | '' = '';
   buildStamp = '';
+  init(data?: TitleStartData) {
+    this.fromTitle = !!data?.fromTitle;
+    this.startMode = data?.mode ?? '';
+  }
+
   stealOn() { return !!(this.impactLab?.on || this.stealPlay?.on); }
   constructor() { super('game'); }
 
@@ -104,6 +112,8 @@ export class GameScene extends Phaser.Scene {
     const q = new URLSearchParams(location.search);
     this.labMode = q.has('impact');
     this.swapMode = q.has('swap') || q.has('v9');
+    setMasterVolume(loadSettings().volume);
+
     // Impact Lab: fresh isolated in-memory save. Do NOT wipe or write the player's localStorage.
     if (this.labMode) {
       setEphemeralSave(true);
@@ -1542,7 +1552,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- test hooks (only with ?test) ----------
   getTestState() {
     return {
-      state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp,
+      screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp,
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
