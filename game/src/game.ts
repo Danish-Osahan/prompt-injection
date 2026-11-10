@@ -16,6 +16,7 @@ import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
 import type { TitleStartData } from './title';
 import { IntroCutscene } from './intro';
+import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
 import type { PlateDef } from './plate';
@@ -102,6 +103,10 @@ export class GameScene extends Phaser.Scene {
   startMode: 'new' | 'continue' | '' = '';
   introPending = false;
   intro: IntroCutscene | null = null;
+  playAcc = 0;
+  roomCard?: Phaser.GameObjects.Container;
+  endScreen?: Phaser.GameObjects.Container;
+  ending = false;
   buildStamp = '';
   init(data?: TitleStartData) {
     this.fromTitle = !!data?.fromTitle;
@@ -307,8 +312,10 @@ export class GameScene extends Phaser.Scene {
 
   updateHud() {
     const h = this.hud;
-    h.path.setText(this.room.path); h.title.setText(this.room.title); for (const o of [h.path, h.title, h.meta]) o.setVisible(!this.clar); this.hudBlur?.setVisible(!this.clar);
-    h.caret.setX(32 + h.title.width + 4).setVisible(!this.clar && Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
+    h.path.setText(this.room.path); h.title.setText(this.room.title);
+    const showPath = !this.clar && this.swapMode; // steal / default play uses a fading room card instead of ~/hub/
+    for (const o of [h.path, h.title, h.meta]) o.setVisible(showPath); this.hudBlur?.setVisible(showPath);
+    h.caret.setX(32 + h.title.width + 4).setVisible(showPath && Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
     h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off'));
     const st = fernStage(this.save.fernGrowth);
     h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}${this.save.lines.length ? `   unsent ${this.save.lines.length}/${LINES.length}` : ''}`);
@@ -430,6 +437,7 @@ export class GameScene extends Phaser.Scene {
     if (id === 'office' && this.clar && !this.swapMode && !new URLSearchParams(location.search).has('combat')) this.impactLab?.start();
     if (STEAL_ROOMS.includes(id) && !this.swapMode) { this.stealPlay = new StealPlay(this); this.stealPlay.start(); }
     this.cameras.main.fadeIn(220, 4, 8, 12);
+    if (!this.introPending && !this.intro?.playing && !this.swapMode) showRoomCard(this, id);
   }
 
   drawFloor(r: RoomDef) {
@@ -549,8 +557,8 @@ export class GameScene extends Phaser.Scene {
       const finish = () => {
         if (finished) return; finished = true; this.cutscene = null;
         this.plateById('m_stairs')?.setVisibleState(true);
-        this.floorText(560, 340, 'PHASE 1 COMPLETE', C.ok, 34, 0);
         this.save.phaseComplete = true; if (!this.save.seen.includes('sc5')) this.save.seen.push('sc5'); this.markSeen('sc5'); writeSave(this.save);
+        this.time.delayedCall(1200, () => showEndScreen(this));
       };
       this.startCutscene('sc5', 0, () => {}, () => { this.subQueue = []; this.nextSub(); lines.forEach(([who, l, side], i) => { const b = this.add.text(side ? 880 : 400, 90 + i * 40, l, { fontFamily: 'IBM Plex Mono', fontSize: '16px', fontStyle: '500', color: who === 'ai' ? C.fern : '#F6E6C8', backgroundColor: 'rgba(10,16,24,0.9)', padding: { x: 10, y: 5 } }).setOrigin(side ? 1 : 0, 0).setDepth(-840); this.objs.push(b); }); this.time.removeAllEvents(); finish(); });
       const run = () => {
@@ -1237,6 +1245,7 @@ export class GameScene extends Phaser.Scene {
   }
   goRoom(to: RoomId) {
     if (this.transitioning) return; this.stealPlay?.leaveRoom(); this.transitioning = true;
+    flushPlay(this); writeSave(this.save);
     this.cameras.main.fadeOut(180, 4, 8, 12);
     this.cameras.main.once('camerafadeoutcomplete', () => { this.transitioning = false; this.buildRoom(to); });
   }
@@ -1272,10 +1281,18 @@ export class GameScene extends Phaser.Scene {
   update(_t: number, dms: number) {
     const dt = Math.min(dms / 1000, 0.05);
     const f: Frame = this.ctl.read();
+    if (this.cutscene?.id === 'end') {
+      if (f.pause || f.attack) { f.pause = false; backToTitle(this); }
+      return;
+    }
     if (this.intro?.playing && this.intro.handleInput(f, Math.min(dms / 1000, 0.05))) { f.pause = false; return; }
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
     if (this.paused) return;
+    if (!this.labMode) {
+      this.playAcc += dms;
+      if (this.playAcc > 8000) { flushPlay(this); writeSave(this.save); }
+    }
     this.t += dt;
     this.dashCd = Math.max(0, this.dashCd - dt); this.iframes = Math.max(0, this.iframes - dt); this.comboT -= dt; this.swingT -= dt; this.sinceDash += dt;
 
@@ -1572,7 +1589,7 @@ export class GameScene extends Phaser.Scene {
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state })),
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
-      intro: !!this.intro?.playing, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
+      intro: !!this.intro?.playing, endScreen: !!this.endScreen, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.[1] as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
       boss: this.fight ? { hp: this.fight.real.hp, state: this.fight.real.state, guarded: this.fight.guarded, guardT: this.fight.guardT, split: this.fight.split, fake: !!this.fight.fake, won: this.fight.won, punishCount: this.fight.punishCount, lastTell: this.fight.lastTell, tellCount: this.fight.tellCount, sign: this.plateById('r_guard')?.words.join(' '), signX: this.plateById('r_guard')?.container.x, x: this.fight.real.x, y: this.fight.real.y, pinT: this.fight.real.pinT ?? 0, balls: this.fight.balls.length, ring: !!this.fight.ring } : null, composer: this.composer ? this.composer.i : -1, paused: this.paused, save: JSON.parse(JSON.stringify(this.save)),
     };
   }
@@ -1594,6 +1611,8 @@ export class GameScene extends Phaser.Scene {
       },
       openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
       skipIntro: () => { if (this.intro?.playing) { this.intro.skip(); return true; } return !this.intro?.playing; },
+      endScreen: () => { showEndScreen(this); return true; },
+      toMenu: () => { backToTitle(this); return true; },
 
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },

@@ -1,3 +1,24 @@
+# HANDOFF — Level 1 step 3: room cards, end screen, Continue
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Level flow around the already-playable rooms. Typographic UI only.
+
+## What shipped
+
+- The leftover `~/hub/` path HUD (and the fern/dash meta line) is hidden on the default steal path. HP and the esc menu stay.
+- A clean room-name card fades in at the top of each room and out after ~1.6s: THE REAL OFFICE, THE MIRROR OFFICE, THE DARK CORRIDOR, THE FLOODED ARCHIVE, THE DRAFT, THE MESSAGE ROOM. The office card is skipped when New Game plays the intro (that already has FLOOR 2 / 11:48 PM).
+- After the message-room cutscene (or a skip of it), an end screen: LEVEL 1 COMPLETE, play time, “Thank you for playing.” / “To be continued.”, then Back to menu (click, Enter, or Esc) returns to the title. `phaseComplete` is saved.
+- Play time accumulates in `pi.save.v1.playMs` (flushed on room change, every 8s, and at the end screen). Continue already loads `save.room` / checkpoint, so it resumes the last room.
+
+## Honest leftovers / next
+
+- Full-bleed plates, corridor brightness, arena hint / HP overlap, archive caption vs bridge, and the late office-doors still are step 4.
+- Playtest still starts in the office until step 5 walks boot → title → intro → playthrough → end → Continue.
+- Swap / lab / combat URLs are unchanged (path HUD still shows in `?swap=1`).
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Level 1 step 2: skippable office intro
 
 **Date:** 2026-11-10 (Asia/Calcutta)
