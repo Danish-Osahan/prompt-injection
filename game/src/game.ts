@@ -14,6 +14,7 @@ import { Office9, ViewMap } from './office9';
 import { Clarity, DOOR_DEF } from './clarity';
 import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
+import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
 import { bindSfxScene } from './sfx';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
@@ -91,9 +92,11 @@ export class GameScene extends Phaser.Scene {
   atkPending = false; atkHeldT = 0; chargeG: Phaser.GameObjects.Graphics | null = null; aimG: Phaser.GameObjects.Graphics | null = null; beamN = 0; beamHits = 0; comboHits = 0;
   combat: CombatGreybox | null = null; combatHoldBeam = 0.85;
   impactLab: ImpactLab | null = null;
+  stealPlay: StealPlay | null = null;
   /** ?impact=1 — isolated in-memory lab; never touches localStorage. */
   labMode = false;
   buildStamp = '';
+  stealOn() { return !!(this.impactLab?.on || this.stealPlay?.on); }
   constructor() { super('game'); }
 
   create() {
@@ -342,7 +345,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
-    this.impactLab?.stop(); this.impactLab = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
+    this.impactLab?.stop(); this.impactLab = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
@@ -390,7 +393,7 @@ export class GameScene extends Phaser.Scene {
     this.caret.setPosition(this.x - 40, this.y - 40);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
-    this.words.quiet = !!this.clar;
+    this.words.quiet = !!this.clar || STEAL_ROOMS.includes(id);
     this.setupRoom(id);
     this.clar?.start();
     // combat greybox: office only, behind ?combat=1
@@ -407,6 +410,7 @@ export class GameScene extends Phaser.Scene {
     this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
     if (id === 'office' && this.clar) this.impactLab?.start();
+    if (STEAL_ROOMS.includes(id)) { this.stealPlay = new StealPlay(this); this.stealPlay.start(); }
     this.cameras.main.fadeIn(220, 4, 8, 12);
   }
 
@@ -468,8 +472,7 @@ export class GameScene extends Phaser.Scene {
       if (this.art && this.fgImgs.door_panel) this.roomVis.doorPanel = this.fgImgs.door_panel;
       else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
       this.addPrompt('dash', 640, 342, 'SPACE TO DASH', 'TAP DASH', () => this.y < 240, () => this.y < 400);
-      this.addPrompt('swap', 640, 535, 'E AT THE DOOR  ·  OR CLICK SHUT IN THE CAPTION', 'TAP SHUT IN THE CAPTION', () => this.flags.door, () => !!this.hand);
-      this.addPrompt('p_tap', 0, 0, 'CLICK THE BOXED WORD IN THE CAPTION', 'TAP THE BOXED WORD IN THE CAPTION', () => !!this.hand || s.tutorials.includes('tapchip') || this.flags.door, () => Math.hypot(this.x - 300, this.y - 560) < 200);
+      // steal path: no word-swap / caption prompts (lure shows E / F)
       if (!s.seen.includes('sc3')) {
         s.seen.push('sc3'); writeSave(s);
         this.startCutscene('sc3', 0, () => {}, () => { this.subQueue = []; this.nextSub(); });
@@ -490,7 +493,7 @@ export class GameScene extends Phaser.Scene {
         this.litImg = this.add.image(0, 0, 'litmask').setOrigin(0).setDepth(-999); this.objs.push(this.litImg);
       } else { this.darkness = this.add.image(this.x, this.y, 'dark').setDepth(2500); this.objs.push(this.darkness); }
       this.dyn.dark = { x: 600, y: 330, w: 24, h: 140 };
-      this.addPrompt('p_hold', 0, 0, 'HOLD E TO SEE THE CODE', 'HOLD READ TO SEE THE CODE', () => s.tutorials.includes('holdread'), () => !this.flags.lit && this.moved > 40);
+      // steal path: no READ / code-vision prompt
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
       this.spawnEnemy('dummy', 1110, 500);
       this.addPrompt('attack', 1090, 640, 'CLICK OR J TO TYPE', 'TAP TYPE', () => this.enemies.some(e => e.kind === 'dummy' && e.hp < e.maxHp) || s.defeated.includes('dummy'), () => this.flags.quick);
@@ -515,7 +518,7 @@ export class GameScene extends Phaser.Scene {
         this.save.checkpoint = { room: 'arena', x: this.room.spawn.x, y: this.room.spawn.y, plate: null };
         this.fight = new DraftFight(this);
         this.startCutscene('sc4', 1500, () => { this.say('fern', "No shadow. It's a copy. Fight.", 2400); }, () => { if (this.fight) { this.fight.real.g.setAlpha(1); this.fight.real.t = 0; } });
-        this.addPrompt('rewrite', 0, 0, 'E AT "PAPER IS WEAK": SLOW-MO REWRITE', 'READ "PAPER IS WEAK": SLOW-MO REWRITE', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
+        this.addPrompt('rewrite', 0, 0, 'HOLD E AT THE PILLAR, F AT THE DRAFT', 'HOLD E AT THE PILLAR, F AT THE DRAFT', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
         this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
         this.addPrompt('root', 0, 0, 'R: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
       } else { this.plateById('r_guard')?.setVisibleState(false); this.plateById('r_weak')?.setVisibleState(false); }
@@ -613,8 +616,8 @@ export class GameScene extends Phaser.Scene {
       e.dead = true; this.combat?.onKill(e, 'combo'); this.save.defeated.push(e.kind === 'note' ? 'note' + e.phase : e.kind);
       this.tweens.killTweensOf(e.g); this.tweens.add({ targets: e.g, scaleX: 0.2, scaleY: 0.1, alpha: 0, duration: 380, onComplete: () => e.g.setVisible(false) });
       e.flash?.clear();
-      if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. Swaps wake things up.', 2200); }
-      if (e.kind === 'draft') { this.time.delayedCall(2400, () => { this.plateById('r_line')?.setVisibleState(!this.save.lines.includes('r_line')); this.ambState(); }); this.dyn.arenaDoor = null; this.floorText(e.x, e.y - 120, 'I TRIED SO HARD.', C.inkBright, 22, 3200); this.say('noor', '...So did I.', 2200); }
+      if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. It woke up.', 2200); }
+      if (e.kind === 'draft') { this.time.delayedCall(2400, () => { this.plateById('r_line')?.setVisibleState(!this.save.lines.includes('r_line')); this.ambState(); }); this.dyn.arenaDoor = null; this.say('noor', '...So did I.', 2200); }
       writeSave(this.save);
     }
   }
@@ -687,7 +690,7 @@ export class GameScene extends Phaser.Scene {
     if (this.iframes > 0) {
       if (this.dashT > 0 && this.t - this.dashStartAt < 0.2 && !this.stored) {
         this.stored = src; this.perfectN++; sfx('swap'); this.floorText(this.x, this.y - 120, `CUT: ${src.toUpperCase()}`, C.cyan, 14, 800);
-        if (this.room.id === 'arena' && this.fight && !this.hand && this.plateById('r_weak')?.slotWord === 'WEAK') { this.hand = { word: 'WEAK', from: 'r_weak' }; this.floorText(this.x, this.y - 150, 'FRAGMENT: WEAK', C.ok, 13, 900); }
+        if (this.room.id === 'arena' && this.fight && !this.stealPlay?.on && !this.hand && this.plateById('r_weak')?.slotWord === 'WEAK') { this.hand = { word: 'WEAK', from: 'r_weak' }; this.floorText(this.x, this.y - 150, 'FRAGMENT: WEAK', C.ok, 13, 900); }
         if (!this.save.tutorials.includes('cutpaste')) { this.save.tutorials.push('cutpaste'); this.say('floor', this.ctl.last === 'touch' ? 'perfect dodge. TAP TYPE to PASTE it back.' : 'perfect dodge. J / CLICK to PASTE it back.', 2200); }
       }
       return false;
@@ -700,7 +703,7 @@ export class GameScene extends Phaser.Scene {
   }
   die() {
     if (this.dying) return;
-    this.dying = true; this.deathAt = performance.now(); this.save.deaths++;
+    this.dying = true; this.deathAt = performance.now(); this.save.deaths++; this.stealPlay?.snapHome();
     if (this.fight && !this.fight.won) { if (this.fight.real.hp <= DRAFT.bar) this.save.draftLastBarDeath = true; this.save.checkpoint = { room: 'arena', x: this.room.spawn.x, y: this.room.spawn.y, plate: null }; }
     this.cameras.main.shake(160, 0.01);
     const parts = [hex(C.cyan), hex(C.fern), 0xffffff].map((c, i) => {
@@ -731,7 +734,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   interact() {
-    if (this.impactLab?.stealMode || this.impactLab?.on) return false;
+    if (this.stealOn()) return false;
     if (this.clar) return this.clar.interact();
     const p = this.nearestPlate(READ_R); if (!p) return false;
     if (this.hand && p.def.slot >= 0 && p.def.id !== this.hand.from) return this.swap(this.hand.from, p.def.id);
@@ -1215,7 +1218,7 @@ export class GameScene extends Phaser.Scene {
     this.floorText(tgt.x, tgt.y - 140, `ROOTED ${st.rootS}s`, '#7ad08a', 14, 900);
   }
   goRoom(to: RoomId) {
-    if (this.transitioning) return; this.transitioning = true;
+    if (this.transitioning) return; this.stealPlay?.leaveRoom(); this.transitioning = true;
     this.cameras.main.fadeOut(180, 4, 8, 12);
     this.cameras.main.once('camerafadeoutcomplete', () => { this.transitioning = false; this.buildRoom(to); });
   }
@@ -1276,7 +1279,7 @@ export class GameScene extends Phaser.Scene {
     if (this.hitStopT > 0) { this.hitStopT -= dt; edt = 0; if (this.hitStopT <= 0) this.noor.anims.resume(); }
     this.selectCd -= dt;
     if (this.composer && (f.attack || f.interact)) this.typeKey();
-    if (this.clar?.modal && f.interact && !(this.impactLab?.stealMode || this.impactLab?.on)) { this.clar.interact(); f.interact = false; }
+    if (this.clar?.modal && f.interact && !this.stealOn()) { this.clar.interact(); f.interact = false; }
     const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
     if (control && f.dash && this.dashCd <= 0 && this.dashT <= 0) {
@@ -1348,13 +1351,14 @@ export class GameScene extends Phaser.Scene {
     if (this.caret.visible) { this.caret.x += (this.x - 46 - this.caret.x) * Math.min(1, dt * 6); this.caret.y += (this.y - 56 - this.caret.y) * Math.min(1, dt * 6); this.caret.setDepth(this.y + 1); }
     this.darkness?.setPosition(this.x, this.y - 30);
 
-    if (control && f.interact && !this.composer && !(this.impactLab?.stealMode || this.impactLab?.on)) this.interact();
-    this.words.update(dt, (this.impactLab?.stealMode || this.impactLab?.on) ? false : f.interactHeld);
+    if (control && f.interact && !this.composer && !this.stealOn()) this.interact();
+    this.words.update(dt, this.stealOn() ? false : f.interactHeld);
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);
     this.combat?.update(dt);
     this.impactLab?.update(dt);
+    this.stealPlay?.update(dt);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
@@ -1540,7 +1544,7 @@ export class GameScene extends Phaser.Scene {
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
-      hand: this.hand, flags: { ...this.flags },
+      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null,
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
       office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, combat: this.combat ? this.combat.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
@@ -1562,6 +1566,15 @@ export class GameScene extends Phaser.Scene {
       read: (id: string) => { const p = this.plateById(id); if (!p || !p.visible) return false; this.x = p.def.x; this.y = p.def.y - 20; return this.read(p); },
       swap: (from: string, to: string) => { const a = this.plateById(from); if (!a || !a.visible) return false; this.inspectOff = true; this.read(a); this.inspectOff = false; return this.swap(from, to); },
       goto: (r: RoomId) => this.goRoom(r),
+      steal: (op?: string, id?: string) => {
+        const sp = this.stealPlay; if (!sp) return false;
+        if (op === 'take') return sp.take(id);
+        if (op === 'throw') return sp.throwAt(id);
+        if (op === 'undo') return sp.undo();
+        return sp.state();
+      },
+      openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
+
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
       clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },

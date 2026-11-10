@@ -76,6 +76,10 @@ export class OnboardLure {
     if (this.destroyed) return;
     const t = this.s.t;
     this.sourceAct?.(t, dt);
+    this.sourceGlow?.setPosition(this.source.x, this.source.y - 22);
+    this.targetGlow?.setPosition(this.target.x, this.target.y);
+    this.sourceGlyph?.setX(this.source.x);
+    this.targetGlyph?.setX(this.target.x);
 
     const nearSrc = Math.hypot(this.s.x - this.source.x, this.s.y - this.source.y) < this.nearR;
     const nearTgt = Math.hypot(this.s.x - this.target.x, this.s.y - this.target.y) < this.nearR + 40;

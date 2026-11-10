@@ -1,3 +1,27 @@
+# HANDOFF — Phase 1 step 3: steal/throw in remaining rooms
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Convert hub, corridor, archive, and Draft arena from word-swap to steal/throw. Message room stays a cutscene (no steal required).
+
+## What each room’s steal puzzle is now
+
+- **R0 office:** Take the lamp’s spark, throw it into the lift panel, walk into the open cab → hub.
+- **C2 mirror hub:** Take **open** from the lamp, throw it at the shut/chained door. Rebound off Fern (“Not me.”). Exit-ownership lines and Caret stay. Window teach is retired.
+- **C3 dark corridor:** Take **on** from the painted-over switch, throw it into the dark lamp. Then take **quick** from the clock, throw it at the dummy, and attack. (No paper-scrap plate in this room.)
+- **C4 flooded archive:** Take **low** from the drawer, throw it into the water (drain). Take **down** from the now-reachable stairs, throw it at the bridge. **dry** / **apart** / **wet** still peel from towel / books / ink for combat throws.
+- **C5 Draft arena:** Take **weak** from the paper pillar, throw it at the Draft to drop its guard. Living copies are not a source. Defeat line is spoken only (“…So did I.”) — no floor text.
+- **C6 message room:** Unchanged cutscene; no steal needed to go downstairs.
+
+## Rules implemented (lean)
+
+One held quality (a second take snaps the first home). F throws; incompatible targets rebound to the source. U (or E at the applied target) undoes the last throw. A held quality snaps home at a room threshold; solved throws stay. OnboardLure + ImpactFX light/heavy tiers reused. Word chips / READ / caption swap prompts are off in these rooms.
+
+## §8 picks used
+
+Cost: no thinning VFX. Exit ownership lines kept verbatim. Draft last line spoken only. Archive pair is drawer **low** → water. Title stays Prompt Injection.
+
+---
+
 # HANDOFF — Phase 1 step 2: lamp discovery dialogue
 
 **Date:** 2026-11-10 (Asia/Calcutta)
