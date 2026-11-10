@@ -107,6 +107,7 @@ export class GameScene extends Phaser.Scene {
   roomCard?: Phaser.GameObjects.Container;
   endScreen?: Phaser.GameObjects.Container;
   ending = false;
+  endTimer?: Phaser.Time.TimerEvent;
   buildStamp = '';
   init(data?: TitleStartData) {
     this.fromTitle = !!data?.fromTitle;
@@ -131,7 +132,9 @@ export class GameScene extends Phaser.Scene {
       // Open floor near the rain window (not the coffee counter / old checkpoints)
       this.save.checkpoint = { room: 'office', x: 880, y: 400, plate: null };
     } else {
-      if (q.has('new')) wipeSave();
+      // ?new=1 is for lab / playtest URLs that boot straight into a fresh game.
+      // Title Continue must not honor it — the page URL still has ?new=1 from New Game.
+      if (q.has('new') && this.startMode !== 'continue') wipeSave();
       this.save = loadSave();
     }
     try { this.seenEver = this.labMode ? [] : JSON.parse(localStorage.getItem('pi.seenEver') ?? '[]'); } catch { this.seenEver = []; }
@@ -374,6 +377,9 @@ export class GameScene extends Phaser.Scene {
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
+    this.endTimer?.remove(false); this.endTimer = undefined;
+    this.endScreen?.destroy(); this.endScreen = undefined; this.ending = false;
+    this.roomCard?.destroy(); this.roomCard = undefined;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
   }
 
@@ -418,7 +424,7 @@ export class GameScene extends Phaser.Scene {
     this.caret.setPosition(this.x - 40, this.y - 40);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
-    this.words.quiet = !!this.clar || (STEAL_ROOMS.includes(id) && !this.swapMode);
+    this.words.quiet = !!this.clar || ((STEAL_ROOMS.includes(id) || id === 'message') && !this.swapMode);
     this.setupRoom(id);
     this.clar?.start();
     // combat greybox: office only, behind ?combat=1
@@ -560,7 +566,7 @@ export class GameScene extends Phaser.Scene {
         if (finished) return; finished = true; this.cutscene = null;
         this.plateById('m_stairs')?.setVisibleState(true);
         this.save.phaseComplete = true; if (!this.save.seen.includes('sc5')) this.save.seen.push('sc5'); this.markSeen('sc5'); writeSave(this.save);
-        this.time.delayedCall(1200, () => showEndScreen(this));
+        this.endTimer?.remove(false); this.endTimer = this.time.delayedCall(1200, () => showEndScreen(this));
       };
       this.startCutscene('sc5', 0, () => {}, () => { this.subQueue = []; this.nextSub(); lines.forEach(([who, l, side], i) => { const b = this.add.text(side ? 880 : 400, 90 + i * 40, l, { fontFamily: 'IBM Plex Mono', fontSize: '16px', fontStyle: '500', color: who === 'ai' ? C.fern : '#F6E6C8', backgroundColor: 'rgba(10,16,24,0.9)', padding: { x: 10, y: 5 } }).setOrigin(side ? 1 : 0, 0).setDepth(-840); this.objs.push(b); }); this.time.removeAllEvents(); finish(); });
       const run = () => {

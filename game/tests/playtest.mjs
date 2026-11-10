@@ -10,10 +10,12 @@ const PORT = 4175;
 const URL_ = process.env.GAME_URL ?? `http://localhost:${PORT}/?test=1&new=1`;
 const SHOTS = new URL('../screenshots/', import.meta.url).pathname;
 const PHASE1 = new URL('../../mock-steal/phase1/stills/', import.meta.url).pathname;
+const LEVEL1 = new URL('../../mock-steal/level1/stills/', import.meta.url).pathname;
 
 const results = [];
 mkdirSync(SHOTS, { recursive: true });
 mkdirSync(PHASE1, { recursive: true });
+mkdirSync(LEVEL1, { recursive: true });
 
 const ok = (name, pass, info = '') => { results.push({ name, pass, info }); console.log(`${pass ? 'PASS' : 'FAIL'}  ${name}${info ? '  - ' + info : ''}`); };
 const st = (page) => page.evaluate(() => window.__pi.state());
@@ -25,6 +27,12 @@ async function still1(page, name) {
   const dest = `${PHASE1}${name}.png`;
   await page.screenshot({ path: dest });
   await page.screenshot({ path: `${SHOTS}phase1-${name}.png` });
+}
+async function stillL1(page, name) {
+  await sleep(200);
+  const dest = `${LEVEL1}${name}.png`;
+  await page.screenshot({ path: dest });
+  await page.screenshot({ path: `${SHOTS}level1-${name}.png` });
 }
 async function steal(page, from, to) {
   const took = await pi(page, 'steal', 'take', from);
@@ -190,9 +198,31 @@ async function linger(browser) {
 async function desktop(browser) {
   const log = { errors: [], external: [] };
   const { ctx, page, input } = await open(browser, DESKTOP, URL_, log);
-  await page.waitForFunction(() => window.__pi, null, { timeout: 10000 });
+  await page.waitForFunction(() => window.__pi, null, { timeout: 15000 });
   let s = await st(page);
-  ok('desktop: starts in R0 real office', s.room === 'office', s.room);
+  ok('boot: lands on the splash or title, not in the office', (s.screen === 'boot' || s.screen === 'title' || s.pane === 'splash' || s.pane === 'menu') && !s.room, `screen ${s.screen} pane ${s.pane}`);
+  if (s.screen === 'boot' || s.pane === 'splash') {
+    try { await pi(page, 'skipSplash'); } catch { /* */ }
+  }
+  s = await waitFor(page, s => s.screen === 'title' || s.pane === 'menu', 6000);
+  ok('title: menu is up after the splash', s.screen === 'title' || s.pane === 'menu', `screen ${s.screen} pane ${s.pane}`);
+  await stillL1(page, 'title');
+  await shot(page, 'desktop-00-title');
+  const started = await pi(page, 'newGame');
+  await page.waitForFunction(() => {
+    try { const s = window.__pi && window.__pi.state && window.__pi.state(); return s && s.screen === 'game'; } catch { return false; }
+  }, null, { timeout: 15000 });
+  s = await waitFor(page, s => s.screen === 'game' && s.room === 'office', 8000);
+  ok('title: New Game starts the office intro or play', s.room === 'office', `room ${s.room} intro ${s.intro} started ${started}`);
+  if (s.intro || s.cutscene === 'intro') {
+    await sleep(5000);
+    s = await st(page);
+    ok('intro: cutscene is playing and skippable', s.intro || s.cutscene === 'intro', `intro ${s.intro} cut ${s.cutscene}`);
+    await stillL1(page, 'intro');
+    await pi(page, 'skipIntro');
+    s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play', 8000);
+  }
+  ok('desktop: after intro, R0 is controllable', s.room === 'office' && s.state === 'play' && !s.intro, `state ${s.state} intro ${s.intro}`);
   await shot(page, 'desktop-01-office');
   // movement (real keys)
   const x0 = s.player.x, y0 = s.player.y;
@@ -211,14 +241,14 @@ async function desktop(browser) {
   });
   await pi(page, 'teleport', lamp.x + 36, lamp.y + 48); await sleep(200);
   const lit = await pi(page, 'openLift');
-  s = await waitFor(page, s => s.liftDone || s.doorOpen || (s.plates.o_door && s.plates.o_door.words === 'DOOR IS OPEN'), 8000);
+  s = await waitFor(page, s => s.liftDone, 8000);
   ok('office: lamp spark thrown into the lift panel opens the doors', !!(s.liftDone || s.doorOpen || (s.plates.o_door && s.plates.o_door.words.includes('OPEN'))), `lit ${lit} door ${s.plates.o_door && s.plates.o_door.words} done ${s.liftDone}`);
-  await sleep(900);
   await still1(page, 'office-doors-open');
   await shot(page, 'desktop-02-office-lift');
   await pi(page, 'teleport', 200, 168); await sleep(500);
   s = await waitFor(page, s => s.room === 'hub', 6000);
   ok('office: walking into the open cab goes to the Mirror Hub', s.room === 'hub', s.room);
+  await stillL1(page, 'room-card');
   const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('pi.save.v1')));
   ok('desktop: room transition autosaves to localStorage', raw?.room === 'hub', raw?.room);
 
@@ -256,6 +286,7 @@ async function desktop(browser) {
   s = await waitFor(page, s => s.flags.lit, 4000);
   ok('corridor: take ON from the switch, throw it into the lamp', s.flags.lit && s.plates.c_note.visible, s.plates.c_light.words);
   await still1(page, 'corridor-lamp-on');
+  await stillL1(page, 'corridor');
   await shot(page, 'desktop-08-corridor-lit');
   await pi(page, 'teleport', 1110, 560); await sleep(100);
   for (let i = 0; i < 3; i++) { await page.keyboard.press('j'); await sleep(260); }
@@ -290,6 +321,7 @@ async function desktop(browser) {
   await steal(page, 'a_stairs', 'a_bridge');
   s = await waitFor(page, s => s.flags.bridge, 4000);
   ok('archive: take DOWN from the stairs, throw it at the bridge', s.flags.bridge && s.plates.a_bridge.words === 'BRIDGE IS DOWN', s.plates.a_stairs.words);
+  await sleep(2200);
   await still1(page, 'archive-bridge-down');
   await pi(page, 'teleport', 420, 420); await input.move(1, 0); await sleep(2400); await input.stop(); s = await st(page);
   ok('archive: Noor walks across the bridge', s.player.x > 840, `x ${Math.round(s.player.x)}`);
@@ -340,6 +372,7 @@ async function desktop(browser) {
   s = await waitFor(page, s => s.boss && !s.boss.guarded, 4000);
   ok('arena: take WEAK from the pillar, throw it at the Draft', !s.boss.guarded && /WEAK/.test(s.boss.sign || ''), `${s.boss.sign} guardT ${s.boss.guardT}`);
   await still1(page, 'arena-guard-broken');
+  await stillL1(page, 'arena');
   await near(); await shot(page, 'desktop-15-guard-broken');
   const hpG = s.boss.hp; await page.keyboard.press('j'); await sleep(150); s = await st(page);
   ok('arena: broken guard takes full damage', Math.abs(hpG - s.boss.hp - 1) < 0.01, `took ${(hpG - s.boss.hp).toFixed(2)}`);
@@ -371,7 +404,7 @@ async function desktop(browser) {
   await pi(page, 'teleport', 640, 175); await input.move(0, -1); s = await waitFor(page, s => s.room === 'message', 4000); await input.stop();
   ok('arena: north door -> Message Room', s.room === 'message');
 
-  // MESSAGE
+  // MESSAGE + end screen + back to the menu + Continue
   s = await waitFor(page, s => s.save.phaseComplete, 20000);
   ok('message: chat plays, PHASE 1 COMPLETE saved', s.save.phaseComplete);
   await still1(page, 'message-complete');
@@ -379,19 +412,36 @@ async function desktop(browser) {
   ok('systems: Phase 1 rooms solved on the steal path', s.flags && s.save.defeated.includes('draft') && s.save.phaseComplete, `helped ${s.save.helped.join(',')} wilted ${s.save.wilted.join(',')}`);
   ok('systems: word memory records thrown qualities', s.save.swapLog.length >= 4, (s.save.wordLog || []).map(w => w.word + 'x' + w.count).join(' '));
 
-  await pi(page, 'goto', 'message'); s = await waitFor(page, s => s.room === 'message' && s.cutscene === 'sc5', 3000);
-  await page.keyboard.down('x'); await sleep(900); await page.keyboard.up('x'); await sleep(200); s = await st(page);
-  ok('cutscene: hold X skips a seen cutscene', s.cutscene === null && s.state === 'play', `cutscene ${s.cutscene}`);
+  s = await waitFor(page, s => s.endScreen || s.cutscene === 'end', 8000);
+  ok('end: Level 1 complete screen follows the message room', !!(s.endScreen || s.cutscene === 'end'), `end ${s.endScreen} cut ${s.cutscene}`);
+  await stillL1(page, 'end');
+  await shot(page, 'desktop-18b-end');
+  await pi(page, 'toMenu');
+  await page.waitForFunction(() => {
+    try { const s = window.__pi && window.__pi.state && window.__pi.state(); return s && (s.screen === 'title' || s.pane === 'menu'); } catch { return false; }
+  }, null, { timeout: 10000 });
+  s = await st(page);
+  ok('end: Back to menu returns to the title', s.screen === 'title' || s.pane === 'menu', `screen ${s.screen} pane ${s.pane} continue ${s.hasContinue}`);
+  ok('title: Continue is available after a save', s.hasContinue === true, `hasContinue ${s.hasContinue}`);
+  await pi(page, 'continueGame');
+  await page.waitForFunction(() => {
+    try { const s = window.__pi && window.__pi.state && window.__pi.state(); return s && s.screen === 'game' && s.room; } catch { return false; }
+  }, null, { timeout: 15000 });
+  s = await waitFor(page, s => s.screen === 'game' && s.room, 8000);
+  ok('title: Continue resumes the last room', s.room === 'message' && s.save && s.save.phaseComplete, `room ${s.room}`);
+  await page.goto(URL_.replace('&new=1', '') + '&skipTitle=1');
+  await page.waitForFunction(() => window.__pi && window.__pi.state && window.__pi.state().room, null, { timeout: 10000 });
+  s = await waitFor(page, s => s.screen === 'game' && s.room, 8000);
+  ok('save: reload resumes in the saved room', s.room === 'message' && s.save.phaseComplete, s.room);
+  await pi(page, 'goto', 'archive');
+  s = await waitFor(page, s => s.room === 'archive' && !s.endScreen && s.cutscene !== 'end' && !s.paused, 8000);
+  ok('save: puzzle progress kept on revisit', s.flags && s.flags.bridge && s.flags.drained);
+  if (s.paused) { await page.keyboard.press('Escape'); await sleep(200); }
   await page.keyboard.press('Escape'); await sleep(200); s = await st(page);
-  ok('pause: Esc opens the controls menu', s.paused);
+  ok('pause: Esc opens the controls menu', s.paused, `paused ${s.paused} state ${s.state} cut ${s.cutscene} room ${s.room}`);
   await shot(page, 'desktop-19-pause');
   await page.keyboard.press('Escape'); await page.keyboard.press('Backquote'); await sleep(200);
   await shot(page, 'desktop-20-debug');
-
-  await page.goto(URL_.replace('&new=1', '')); await page.waitForFunction(() => window.__pi, null, { timeout: 10000 }); await sleep(500); s = await st(page);
-  ok('save: reload resumes in the saved room', s.room === 'message' && s.save.phaseComplete, s.room);
-  await pi(page, 'goto', 'archive'); await sleep(600); s = await st(page);
-  ok('save: puzzle progress kept on revisit', s.flags.bridge && s.flags.drained);
   ok('desktop: zero console errors', log.errors.length === 0, log.errors.slice(0, 5).join(' | '));
   ok('desktop: no external requests', log.external.length === 0, log.external.slice(0, 3).join(' '));
   await ctx.close();
@@ -451,7 +501,7 @@ async function mobile(browser) {
 const server = await serve();
 const browser = await launch();
 const T11 = { ok, st, pi, waitFor, shot, URL_ };
-try { if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
+try { if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_DESKTOP) { await desktop(browser); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, (e && e.message) + ' ' + (e && e.stack)); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);

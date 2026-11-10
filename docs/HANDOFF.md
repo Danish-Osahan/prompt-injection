@@ -1,3 +1,38 @@
+# HANDOFF — Level 1 step 5: playtest, stills, Continue
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** A real launch-to-end playtest, and honest stills of the new shell.
+
+## Tests
+
+- `npm run playtest` **191/191 passed** (boot → title → New Game → skippable intro → Phase 1 steal playthrough → end screen → menu → Continue, plus linger / office11 / combat / mobile).
+- `verify_steal` **PASS**, `impact_lab` **PASS**.
+
+## Stills
+
+`mock-steal/level1/stills/title.png`  
+`mock-steal/level1/stills/intro.png`  
+`mock-steal/level1/stills/room-card.png`  
+`mock-steal/level1/stills/corridor.png`  
+`mock-steal/level1/stills/arena.png`  
+`mock-steal/level1/stills/end.png`
+
+The office-doors still in `mock-steal/phase1/stills/office-doors-open.png` is now taken after `liftDone`, with the cab actually open.
+
+## Honest leftovers (looked at the stills)
+
+- Title is clean: dimmed full-bleed office, rain, typographic menu. Continue is visible but dim when there is no save.
+- Intro still is the “office goes still” beat with Noor at her desk. Rain in the window is still moving (the pause didn’t fully freeze it). HP, esc menu, and a couple of edge pixels (caret / skip) stay on during the cutscene. Noor overlaps the desk slightly.
+- Room card “THE MIRROR OFFICE” is clear and the old `~/hub/` path HUD is gone. The hub’s late mirror-copy of Noor is still visible, and the card sits over the neon door.
+- Corridor is readable with the lamp on. The navy fill around the U-shaped room is still a wide dark margin; the top-right clock desk has a slightly mismatched patch.
+- Arena: the HOLD E hint is gone. “GUARD BROKEN” is a toast under the boss bar, not over the HP pips. The void is a dark navy instead of a black letterbox. Boss chrome (name, bar, “guard broken 5.8s”, toast) still stacks at the top centre.
+- End screen is typographic and readable (Level 1 complete, 1:15, thank-you / to be continued, Back to menu). The claim-shard “FILED” and a ghost of the HP pips still show faintly through the scrim.
+- Hub side/bottom bleeds are still close in value to the old letterbox. Message-room side fills are flat wall-color slabs with visible seams (see step 4).
+- `?new=1` in the URL no longer wipes a Title Continue (the playtest URL keeps `new=1` after New Game).
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Level 1 step 4: leftover plate and UI fixes
 
 **Date:** 2026-11-10 (Asia/Calcutta)

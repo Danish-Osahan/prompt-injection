@@ -52,7 +52,7 @@ export function showRoomCard(s: GameScene, id: RoomId) {
 }
 
 export function showEndScreen(s: GameScene) {
-  if (s.endScreen) return;
+  if (s.endScreen || s.room?.id !== 'message' || s.transitioning || s.ending) return;
   flushPlay(s);
   s.save.phaseComplete = true;
   writeSave(s.save);
@@ -60,7 +60,7 @@ export function showEndScreen(s: GameScene) {
   s.cutscene = { id: 'end', skip: () => backToTitle(s) };
   const time = formatPlayTime(s.save.playMs ?? 0);
   const c = s.add.container(0, 0).setScrollFactor(0).setDepth(8600);
-  const dim = s.add.rectangle(640, 360, 1280, 720, 0x04080c, 0.88).setInteractive();
+  const dim = s.add.rectangle(640, 360, 1280, 720, 0x04080c, 0.96).setInteractive();
   const kicker = s.add.text(640, 200, 'LEVEL 1', {
     fontFamily: FONT, fontSize: '16px', color: C.cyan, letterSpacing: 6,
   } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5);

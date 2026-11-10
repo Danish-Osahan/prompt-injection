@@ -43,6 +43,8 @@ export class IntroCutscene {
     const s = this.s;
     s.x = DESK.x; s.y = DESK.y; s.dir = 'N';
     try { s.unstick(); } catch { /* */ }
+    s.noor.setPosition(s.x, s.y);
+    try { s.shadow?.setPosition(s.x, s.y + 8); } catch { /* */ }
     try { s.noor.play('noor_type1_N', true); } catch { try { s.noor.play('noor_idle_N'); } catch { /* */ } }
     s.noor.on('animationcomplete', this.onType);
 
@@ -125,6 +127,8 @@ export class IntroCutscene {
       s.noor.off('animationcomplete', this.onType);
       s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
       try { s.unstick(); } catch { /* */ }
+      s.noor.setPosition(s.x, s.y);
+      try { s.shadow?.setPosition(s.x, s.y + 8); } catch { /* */ }
       try { s.noor.play('noor_idle_S'); } catch { /* */ }
       s.busy = false;
       s.cutscene = null;

@@ -766,6 +766,7 @@ export class ImpactLab {
     if (this.leafR) this.leafR.x = LEAF_R0.x + slide;
     this.clipLeavesToOpening();
     this.syncOpenFx(kk);
+    if (kk >= 1) this.done = true;
   }
 
     get lampAlive() { return this.lampOn; }
