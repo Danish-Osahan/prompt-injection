@@ -296,7 +296,7 @@ export class GameScene extends Phaser.Scene {
     hand.on('dragstart', (p: Phaser.Input.Pointer) => { this.ctl.uiPointer = p.id; });
     hand.on('drag', (_p: Phaser.Input.Pointer, dx: number, dy: number) => { hand.setPosition(dx, dy); });
     hand.on('dragend', (p: Phaser.Input.Pointer) => { this.ctl.uiPointer = null; this.words.dropAt(p.x, p.y); hand.setPosition(640, BAR_Y - 32); });
-    const sub = this.add.text(640, BAR_Y - 80, '', { fontFamily: 'IBM Plex Mono', fontSize: '17px', fontStyle: '500', color: C.inkBright, align: 'center', backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 12, y: 6 } }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 2).setVisible(false);
+    const sub = this.add.text(640, 688, '', { fontFamily: 'IBM Plex Mono', fontSize: '17px', fontStyle: '500', color: C.inkBright, align: 'center', backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 12, y: 6 } }).setOrigin(0.5).setScrollFactor(0).setDepth(D + 2).setVisible(false);
     // Fern speaks via a sticky-note popup
     const fern = this.add.container(1080, 120).setScrollFactor(0).setDepth(D + 3).setVisible(false);
     const card = this.add.rectangle(0, 0, 300, 78, 0x2a1830, 0.94).setStrokeStyle(2, hex(C.fern), 1);
@@ -544,9 +544,11 @@ export class GameScene extends Phaser.Scene {
         this.save.checkpoint = { room: 'arena', x: this.room.spawn.x, y: this.room.spawn.y, plate: null };
         this.fight = new DraftFight(this);
         this.startCutscene('sc4', 1500, () => { this.say('fern', "No shadow. It's a copy. Fight.", 2400); }, () => { if (this.fight) { this.fight.real.g.setAlpha(1); this.fight.real.t = 0; } });
-        this.addPrompt('rewrite', 0, 0, 'HOLD E AT THE PILLAR, F AT THE DRAFT', 'HOLD E AT THE PILLAR, F AT THE DRAFT', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
-        this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
-        this.addPrompt('root', 0, 0, 'R: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
+        if (this.swapMode) {
+          this.addPrompt('rewrite', 0, 0, 'HOLD E AT THE PILLAR, F AT THE DRAFT', 'HOLD E AT THE PILLAR, F AT THE DRAFT', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
+          this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
+          this.addPrompt('root', 0, 0, 'R: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
+        }
       } else { this.plateById('r_guard')?.setVisibleState(false); this.plateById('r_weak')?.setVisibleState(false); }
     }
     if (id === 'message') {

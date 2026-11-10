@@ -631,7 +631,7 @@ export class ImpactLab {
   }
 
   private openLift() {
-    this.done = true;
+    if (this.done) return;
     this.lure?.destroy(); this.lure = undefined;
     this.darkGap?.destroy(); this.darkGap = undefined;
 
@@ -711,6 +711,7 @@ export class ImpactLab {
       this.clipLeavesToOpening();
       this.syncOpenFx(k);
       if (k < 1) window.setTimeout(tick, 90);
+      else this.done = true;
     };
     tick();
   }

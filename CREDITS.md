@@ -172,3 +172,9 @@ at `/workspace/tools/blender-4.2.9-linux-x64/blender` (not vendored in the repo)
 The full-bleed office plate `game/public/assets/rooms/office_bleed.jpg` is an inpaint
 extension of `rooms/office.jpg` (same source painting; no new third-party art).
 
+The full-bleed hub, corridor, archive, arena, and message plates
+(`*_bleed.jpg` next to the originals in `game/public/assets/rooms/`) are
+inpainted / edge-extended versions of the original Blender plates, same
+method as the office plate. `corridor_dark_bleed.jpg` also has a midtone
+lift so the unlit corridor is readable. See `game/tools/bleed_plates.py`.
+

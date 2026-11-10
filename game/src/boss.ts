@@ -44,7 +44,7 @@ export class DraftFight {
   }
   setGuardWord(w: string) {
     const g = this.s.plateById('r_guard'); if (!g) return;
-    if (w === 'WEAK' && this.guardT <= 0) { this.guardT = DRAFT.guardBreakS; this.s.floorText(this.real.x, this.real.y - 170, 'GUARD BROKEN', C.ok, 18, 1400); sfx('win'); }
+    if (w === 'WEAK' && this.guardT <= 0) { this.guardT = DRAFT.guardBreakS; this.guardToast('GUARD BROKEN', C.ok); sfx('win'); }
     if (w !== 'WEAK') this.guardT = 0;
   }
   restoreGuard() {
@@ -90,9 +90,14 @@ export class DraftFight {
     sfx('win'); writeSave(sv);
   }
 
+  private guardToast(text: string, color: string) {
+    const t = this.s.add.text(640, 100, text, { fontFamily: 'JetBrains Mono', fontSize: '18px', fontStyle: 'bold', color, backgroundColor: 'rgba(4,12,18,0.78)', padding: { x: 10, y: 4 } }).setOrigin(0.5).setScrollFactor(0).setDepth(4060);
+    this.s.objs.push(t);
+    this.s.tweens.add({ targets: t, alpha: 0, y: 88, delay: 1100, duration: 300, onComplete: () => t.destroy() });
+  }
   update(rdt: number, dt: number) {
     const s = this.s, e = this.real;
-    if (this.guardT > 0 && !this.won) { this.guardT -= rdt; if (this.guardT <= 0) { this.guardT = 0; this.restoreGuard(); s.floorText(e.x, e.y - 170, 'RE-GUARD', C.coral, 16, 1000); } }
+    if (this.guardT > 0 && !this.won) { this.guardT -= rdt; if (this.guardT <= 0) { this.guardT = 0; this.restoreGuard(); this.guardToast('RE-GUARD', C.coral); } }
     // guard sign follows the real Draft
     const g = s.plateById('r_guard');
     if (g && !e.dead) { g.def.x = e.x; g.def.y = e.y; const sy = Math.max(100, e.y - 150); g.def.sx = e.x; g.def.sy = sy; g.container.setPosition(e.x, sy); }

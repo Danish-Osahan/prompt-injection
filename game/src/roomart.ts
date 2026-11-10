@@ -107,8 +107,8 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "hub": {
   "images": {
-   "shut": "rooms/hub_shut.jpg",
-   "open": "rooms/hub_open.jpg"
+   "shut": "rooms/hub_shut_bleed.jpg",
+   "open": "rooms/hub_open_bleed.jpg"
   },
   "code": {
    "shut": "rooms/hub_shut_code.jpg",
@@ -203,8 +203,8 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "corridor": {
   "images": {
-   "dark": "rooms/corridor_dark.jpg",
-   "lit": "rooms/corridor_lit.jpg"
+   "dark": "rooms/corridor_dark_bleed.jpg",
+   "lit": "rooms/corridor_lit_bleed.jpg"
   },
   "code": {
    "dark": "rooms/corridor_dark_code.jpg",
@@ -309,8 +309,8 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "archive": {
   "images": {
-   "H": "rooms/archive_H.jpg",
-   "L": "rooms/archive_L.jpg"
+   "H": "rooms/archive_H_bleed.jpg",
+   "L": "rooms/archive_L_bleed.jpg"
   },
   "code": {
    "H": "rooms/archive_H_code.jpg",
@@ -497,7 +497,7 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "arena": {
   "images": {
-   "base": "rooms/arena.jpg"
+   "base": "rooms/arena_bleed.jpg"
   },
   "code": {
    "base": "rooms/arena_code.jpg"
@@ -559,7 +559,7 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "message": {
   "images": {
-   "base": "rooms/message.jpg"
+   "base": "rooms/message_bleed.jpg"
   },
   "code": {
    "base": "rooms/message_code.jpg"

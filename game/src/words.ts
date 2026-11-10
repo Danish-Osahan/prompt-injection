@@ -206,7 +206,7 @@ export class WordUI {
     const s = this.s;
     const hide = s.busy && !!s.composer;
     const vis = !s.composer && !s.paused;
-    this.bar.setVisible(true); this.heading.setVisible(vis && !this.quiet); this.chipG.setVisible(vis && !this.quiet); this.pil.setVisible(!this.quiet);
+    this.bar.setVisible(!this.quiet); this.heading.setVisible(vis && !this.quiet); this.chipG.setVisible(vis && !this.quiet); this.pil.setVisible(!this.quiet);
     if (this.quiet) {
       if (this.key !== 'quiet') { this.key = 'quiet'; this.clearLine(); }
       for (const p of s.plates) p.setFocus(false);

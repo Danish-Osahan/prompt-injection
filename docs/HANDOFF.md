@@ -1,3 +1,29 @@
+# HANDOFF — Level 1 step 4: leftover plate and UI fixes
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Full-bleed rooms, a readable dark corridor, and the leftover UI/timing bugs. No new Blender.
+
+## Plates
+
+New `*_bleed.jpg` files in `game/public/assets/rooms/` (originals kept). `game/tools/bleed_plates.py` fills the uniform letterbox with the median color of the painted edge, the same idea as `office_bleed.jpg`. The arena keeps its circle; only the near-black void is covered with a dark floor tone. `corridor_dark_bleed.jpg` also has a midtone lift so the unlit room is readable.
+
+## UI / timing
+
+- Arena: the leftover “HOLD E AT THE PILLAR, F AT THE DRAFT” prompt is no longer added on the steal path. “GUARD BROKEN” / “RE-GUARD” are a UI toast under the boss bar (y=100), not world text over the HP bar.
+- Archive: the steal path hides the old caption bar. Floor/sub lines sit at the bottom of the screen (y=688) so “the water drains…” no longer sits on the lowering bridge.
+- Office: `liftDone` now flips only after the lift leaves have fully opened (~0.9s), so a still or playtest wait on `liftDone` catches open doors.
+
+## Honest leftovers
+
+- Hub side/bottom fills are close in value to the original letterbox, so a dark margin is still faintly visible. The painted floor still ends short of the canvas.
+- The message room’s side fills are flat wall-color slabs; the seams are visible compared to the original inset.
+- Archive_L still has a slightly darker bottom strip than Archive_H.
+- Corridor_dark’s lifted margins include a slightly mismatched patch at the top-right (clock desk). The room is readable, not bright.
+- The office-doors still itself is recaptured in step 5, once the playtest waits on the new `liftDone`.
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Level 1 step 3: room cards, end screen, Continue
 
 **Date:** 2026-11-10 (Asia/Calcutta)
