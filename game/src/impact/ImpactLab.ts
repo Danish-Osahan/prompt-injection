@@ -131,7 +131,7 @@ export class ImpactLab {
     }
 
     if (alreadyOpen) this.restoreOpen();
-    else {
+    else if (!this.s.introPending) {
       window.setTimeout(() => {
         try {
           this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 2800);

@@ -1,3 +1,33 @@
+# HANDOFF — Level 1 step 2: skippable office intro
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** A short, skippable intro on New Game, then a fade into controllable R0 office play. Existing sprites and typographic cards only.
+
+## Beats
+
+1. Card: FLOOR 2 / 11:48 PM. Noor at her desk, typing.
+2. Noor: “Rephrase. Again.”
+3. A glitch (shake, flash, scanlines). AI: “I’LL HANDLE IT.”
+4. Rain pauses, the room dims: “The office goes still.”
+5. The desk lamp starts buzzing (code-drawn flicker + existing hum).
+6. Fern unfurls near the lamp, then a fade into play at the room spawn.
+
+Fern’s discovery line (“That lamp’s been buzzing since you sat down. The lift is dead.”) plays after the fade, not during the intro. A one-time controls hint follows: WASD move, E take, F throw, J attack, SPACE dash (touch labels when last input is touch).
+
+## Skip / when it plays
+
+- Esc skips immediately. Hold X (or hold the top-right) also skips, even on the first viewing.
+- Only `startMode === 'new'` from the title screen. Labs, `?swap`, `?combat`, `?skipIntro`, and Continue do not play it, so verify_steal / impact_lab stay on the existing boot path.
+
+## Honest leftovers / next
+
+- No fall-through-the-floor hook: the steal path stays in the real office and uses the lamp / lift teach. The glitch is a short sting, not SC2.
+- Fern fades out with the intro; she is a voice in R0, a sprite in the hub, same as today.
+- Room-name cards, the end screen, and Continue-at-last-room polish are step 3. Playtest still expects to start in the office until step 5.
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Level 1 step 1: boot splash + title screen
 
 **Date:** 2026-11-10 (Asia/Calcutta)

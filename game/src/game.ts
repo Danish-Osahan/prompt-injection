@@ -15,6 +15,7 @@ import { Clarity, DOOR_DEF } from './clarity';
 import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
 import type { TitleStartData } from './title';
+import { IntroCutscene } from './intro';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
 import type { PlateDef } from './plate';
@@ -99,6 +100,8 @@ export class GameScene extends Phaser.Scene {
   swapMode = false;
   fromTitle = false;
   startMode: 'new' | 'continue' | '' = '';
+  introPending = false;
+  intro: IntroCutscene | null = null;
   buildStamp = '';
   init(data?: TitleStartData) {
     this.fromTitle = !!data?.fromTitle;
@@ -113,6 +116,7 @@ export class GameScene extends Phaser.Scene {
     this.labMode = q.has('impact');
     this.swapMode = q.has('swap') || q.has('v9');
     setMasterVolume(loadSettings().volume);
+    this.introPending = this.startMode === 'new' && !this.labMode && !this.swapMode && !q.has('combat') && !q.has('skipIntro');
 
     // Impact Lab: fresh isolated in-memory save. Do NOT wipe or write the player's localStorage.
     if (this.labMode) {
@@ -141,6 +145,8 @@ export class GameScene extends Phaser.Scene {
     this.buildRoom(this.save.room, true);
     if (this.labMode) this.setupStaticCamera();
     else this.setupStaticCamera();
+    this.intro = new IntroCutscene(this);
+    if (this.intro.shouldPlay()) this.intro.start();
     if (q.has('test')) this.installHooks();
   }
 
@@ -1266,6 +1272,7 @@ export class GameScene extends Phaser.Scene {
   update(_t: number, dms: number) {
     const dt = Math.min(dms / 1000, 0.05);
     const f: Frame = this.ctl.read();
+    if (this.intro?.playing && this.intro.handleInput(f, Math.min(dms / 1000, 0.05))) { f.pause = false; return; }
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
     if (this.paused) return;
@@ -1565,7 +1572,7 @@ export class GameScene extends Phaser.Scene {
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state })),
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
-      hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
+      intro: !!this.intro?.playing, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
       boss: this.fight ? { hp: this.fight.real.hp, state: this.fight.real.state, guarded: this.fight.guarded, guardT: this.fight.guardT, split: this.fight.split, fake: !!this.fight.fake, won: this.fight.won, punishCount: this.fight.punishCount, lastTell: this.fight.lastTell, tellCount: this.fight.tellCount, sign: this.plateById('r_guard')?.words.join(' '), signX: this.plateById('r_guard')?.container.x, x: this.fight.real.x, y: this.fight.real.y, pinT: this.fight.real.pinT ?? 0, balls: this.fight.balls.length, ring: !!this.fight.ring } : null, composer: this.composer ? this.composer.i : -1, paused: this.paused, save: JSON.parse(JSON.stringify(this.save)),
     };
   }
@@ -1586,6 +1593,7 @@ export class GameScene extends Phaser.Scene {
         return sp.state();
       },
       openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
+      skipIntro: () => { if (this.intro?.playing) { this.intro.skip(); return true; } return !this.intro?.playing; },
 
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
