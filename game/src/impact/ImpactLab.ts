@@ -8,29 +8,30 @@ import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
 /**
- * v15i layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
- * Lift sits IN the baked back-wall recess at room scale (calendar/shelf/whiteboard).
- * Panel on the wall immediately RIGHT of the steel frame, hand height, no green rim.
- * Lamp sits on the original desk_podW top face. Camera is static zoom 1 (whole office).
+ * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
+ * camera (ortho 8.4, pitch 38, yaw -30). Geometry matches assets/fx/lift_layers/meta.json.
+ * Lift sits IN the baked back-wall recess. Camera is static zoom 1. Office uses office_bleed.jpg.
  */
 /** Baked recess measured from office.jpg: doors x≈149–260, y≈81–200. */
 const LIFT_OPEN = { x: 150, y: 81, w: 110, h: 119 }; // bottom = 200
-const LIFT_FRAME = 4;
-const LIFT_FRAME_OUTER = {
-  x: LIFT_OPEN.x - LIFT_FRAME,
-  y: LIFT_OPEN.y - LIFT_FRAME,
-  w: LIFT_OPEN.w + 2 * LIFT_FRAME,
-  h: LIFT_OPEN.h + 2 * LIFT_FRAME,
-}; // 146,77,118,127 — bottom 204, wall-floor at door ≈ 202
-const LIFT_LEAF_W = 55;
-/** wall_cover.png origin (tight pad around frame). */
+/** Cropped Blender frame layer (includes a 3D sill that sits on the floor). */
+const LIFT_FRAME_OUTER = { x: 140, y: 72, w: 130, h: 141 }; // bottom 213
+const LIFT_LEAF_W = 59;
+const LEAF_L0 = { x: 148, y: 79 };
+const LEAF_R0 = { x: 203, y: 79 };
 const WALL_COVER_ORIG = { x: 143, y: 74 };
 const WALL_FLOOR_Y = 202;
-/** Call panel center: just right of the frame, hand height, below the sconce. */
-const PANEL = { x: 276, y: 164 };
-/** Desk lamp on original desk_podW (115,273); top face world y ≈ 273–305. */
+/** Call panel (Blender layer at 265,151, 22×31) — center, hand height, right of the frame. */
+const PANEL = { x: 276, y: 167 };
+const PANEL_SPRITE = { x: 265, y: 151 };
+/** Desk lamp interact / spark point. Sprite is placed at LAMP_SPRITE with origin 0,0. */
 const LAMP = { x: 178, y: 291 };
-const LAMP_SCALE = 0.82;
+const LAMP_SPRITE = { x: 150, y: 256 };
+const LAMP_SCALE = 1;
+const SEAM_POS = { x: 202, y: 81 };
+const SPILL_POS = { x: 140, y: 202 };
+const IND_OFF_POS = { x: 193, y: 69 };
+const IND_ON_POS = { x: 190, y: 64 };
 const LIFT_FOCUS = { x: LIFT_OPEN.x + LIFT_OPEN.w / 2, y: LIFT_OPEN.y + LIFT_OPEN.h / 2 };
 /** Opening + frame bounds in world space (for capture asserts). */
 export const LIFT_OPEN_BOUNDS = {
@@ -80,6 +81,8 @@ export class ImpactLab {
   private liftDoorK = 0; // 0 shut … 1 open (layered leaves)
   private wallPatch?: Phaser.GameObjects.Rectangle;
   private wallCover?: Phaser.GameObjects.Image;
+  private liftSeam?: Phaser.GameObjects.Image;
+  private liftSpill?: Phaser.GameObjects.Image;
   private openingMaskGfx?: Phaser.GameObjects.Graphics;
   private openingMask?: Phaser.Display.Masks.GeometryMask;
   private leafAnimToken = 0;
@@ -147,6 +150,8 @@ export class ImpactLab {
     this.liftRecess?.destroy(); this.liftRecess = undefined;
     this.wallPatch?.destroy(); this.wallPatch = undefined;
     this.wallCover?.destroy(); this.wallCover = undefined;
+    this.liftSeam?.destroy(); this.liftSeam = undefined;
+    this.liftSpill?.destroy(); this.liftSpill = undefined;
     this.floorInd?.destroy(); this.darkGap?.destroy();
     if (this.s.clar?.door) this.s.clar.door.setVisible(true);
     this.cover?.destroy();
@@ -229,21 +234,26 @@ export class ImpactLab {
 
     // (d) cab behind leaves
     if (this.s.textures.exists('lift_cab')) {
-      this.liftCab = this.s.add.image(LIFT_OPEN.x, LIFT_OPEN.y, 'lift_cab')
+      this.liftCab = this.s.add.image(147, 82, 'lift_cab')
         .setOrigin(0, 0).setDepth(depth - 3).setAlpha(1);
       this.s.objs.push(this.liftCab);
     }
 
     // (c) door leaves — closed over cab; cropped to opening so slides vanish into pockets
     if (this.s.textures.exists('lift_leaf_l')) {
-      this.leafL = this.s.add.image(LIFT_OPEN.x, LIFT_OPEN.y, 'lift_leaf_l')
+      this.leafL = this.s.add.image(LEAF_L0.x, LEAF_L0.y, 'lift_leaf_l')
         .setOrigin(0, 0).setDepth(depth - 1);
       this.s.objs.push(this.leafL);
     }
     if (this.s.textures.exists('lift_leaf_r')) {
-      this.leafR = this.s.add.image(LIFT_OPEN.x + LIFT_LEAF_W, LIFT_OPEN.y, 'lift_leaf_r')
+      this.leafR = this.s.add.image(LEAF_R0.x, LEAF_R0.y, 'lift_leaf_r')
         .setOrigin(0, 0).setDepth(depth - 1);
       this.s.objs.push(this.leafR);
+    }
+    if (this.s.textures.exists('lift_seam')) {
+      this.liftSeam = this.s.add.image(SEAM_POS.x, SEAM_POS.y, 'lift_seam')
+        .setOrigin(0, 0).setDepth(depth - 0.5);
+      this.s.objs.push(this.liftSeam);
     }
     this.clipLeavesToOpening();
 
@@ -254,29 +264,35 @@ export class ImpactLab {
       this.s.objs.push(this.liftFrame);
     }
 
-    // Floor indicator just above the lintel (centered on opening)
-    const indX = LIFT_OPEN.x + LIFT_OPEN.w / 2;
-    const indY = LIFT_FRAME_OUTER.y - 6;
+    // Floor indicator just above the lintel
     const indTex = this.s.textures.exists('lift_ind_off') ? 'lift_ind_off' : 'fx_lift_floor_ind_off';
-    if (this.s.textures.exists(indTex) || this.s.textures.exists('lift_ind_off')) {
-      this.floorInd = this.s.add.image(indX, indY, this.s.textures.exists('lift_ind_off') ? 'lift_ind_off' : indTex)
-        .setDepth(depth + 1).setOrigin(0.5, 0.5);
+    if (this.s.textures.exists('lift_ind_off') || this.s.textures.exists(indTex)) {
+      this.floorInd = this.s.add.image(IND_OFF_POS.x, IND_OFF_POS.y, this.s.textures.exists('lift_ind_off') ? 'lift_ind_off' : indTex)
+        .setDepth(depth + 1).setOrigin(0, 0);
       this.s.objs.push(this.floorInd);
     }
 
-    // (e) call panel ON THE WALL immediately right of the frame (small, no fat UI shadow)
+    // (e) call panel ON THE WALL immediately right of the frame
     const ptex = this.s.textures.exists('lift_panel_dead') ? 'lift_panel_dead'
       : (this.s.textures.exists('fx_lift_panel_dead') ? 'fx_lift_panel_dead' : 'fx_spark_core');
-    this.panelSpr = this.s.add.image(PANEL.x, PANEL.y, ptex)
-      .setDepth(depth + 2).setScale(1).setOrigin(0.5, 0.5);
+    this.panelSpr = this.s.add.image(PANEL_SPRITE.x, PANEL_SPRITE.y, ptex)
+      .setDepth(depth + 2).setScale(1).setOrigin(0, 0);
     this.s.objs.push(this.panelSpr);
+
+    // Warm light spilling onto the office floor when the doors open
+    if (this.s.textures.exists('lift_spill')) {
+      this.liftSpill = this.s.add.image(SPILL_POS.x, SPILL_POS.y, 'lift_spill')
+        .setOrigin(0, 0).setDepth(depth + 3).setAlpha(0).setBlendMode(Phaser.BlendModes.ADD);
+      this.s.objs.push(this.liftSpill);
+    }
 
     this.liftDoorK = 0;
 
-    // Desk lamp ON desk_podW top face (depth above desk baseY 346)
-    const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
-    this.lampSpr = this.s.add.image(LAMP.x, LAMP.y, ltex)
-      .setDepth(360).setScale(LAMP_SCALE).setOrigin(0.5, 0.92);
+    // Banker / anglepoise desk lamp ON desk_podW top face (depth above desk baseY 346)
+    const ltex = this.s.textures.exists('lift_lamp_on') ? 'lift_lamp_on'
+      : (this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core');
+    this.lampSpr = this.s.add.image(LAMP_SPRITE.x, LAMP_SPRITE.y, ltex)
+      .setDepth(360).setScale(LAMP_SCALE).setOrigin(0, 0);
     this.s.objs.push(this.lampSpr);
   }
 
@@ -290,14 +306,14 @@ export class ImpactLab {
       if (!this.lampOn || !this.lampSpr) return;
       const flick = Math.sin(t * 17) * Math.sin(t * 3.1);
       const on = flick > -0.5;
-      if (this.s.textures.exists(on ? 'fx_lamp_on' : 'fx_lamp_off')) {
-        this.lampSpr.setTexture(on ? 'fx_lamp_on' : 'fx_lamp_off');
-      }
+      const onK = this.s.textures.exists('lift_lamp_on') ? (on ? 'lift_lamp_on' : 'lift_lamp_off')
+        : (on ? 'fx_lamp_on' : 'fx_lamp_off');
+      if (this.s.textures.exists(onK)) this.lampSpr.setTexture(onK);
       this.lampSpr.setAlpha(on ? 1 : 0.75);
       this.buzzT += 1 / 60;
       if (this.buzzT > 0.4 && Math.random() < 0.06) {
         this.buzzT = 0;
-        this.popSpark(LAMP.x + 2, LAMP.y - 40);
+        this.popSpark(LAMP.x, LAMP.y - 22);
         try { sfx('impact_whoosh'); } catch { /* */ }
       }
     };
@@ -422,7 +438,7 @@ export class ImpactLab {
     if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) {
       this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
     }
-    this.popSpark(LAMP.x, LAMP.y - 40);
+    this.popSpark(LAMP.x, LAMP.y - 22);
 
     const h = this.handOff();
     const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : 'fx_spark_core';
@@ -635,12 +651,13 @@ export class ImpactLab {
       const slide = k * (LIFT_LEAF_W - 4);
       const shudder = (i < 3) ? ((i % 2) * 2 - 1) : 0;
       if (this.leafL) {
-        this.leafL.x = LIFT_OPEN.x - slide + shudder;
+        this.leafL.x = LEAF_L0.x - slide + shudder;
       }
       if (this.leafR) {
-        this.leafR.x = LIFT_OPEN.x + LIFT_LEAF_W + slide - shudder;
+        this.leafR.x = LEAF_R0.x + slide - shudder;
       }
       this.clipLeavesToOpening();
+      this.syncOpenFx(k);
       if (k < 1) window.setTimeout(tick, 90);
     };
     tick();
@@ -651,6 +668,20 @@ export class ImpactLab {
    * Phaser keeps crop UVs in texture space, so remaining pixels stay world-aligned
    * (pocket parts simply don't draw). WebGL-safe replacement for GeometryMask.
    */
+
+  private syncOpenFx(k: number) {
+    this.liftSeam?.setVisible(k < 0.08);
+    if (this.liftSpill) this.liftSpill.setAlpha(Math.max(0, (k - 0.12) / 0.88) * 0.9);
+    if (this.floorInd && this.s.textures.exists(k > 0.2 ? 'lift_ind_on' : 'lift_ind_off')) {
+      const on = k > 0.2;
+      this.floorInd.setTexture(on ? 'lift_ind_on' : 'lift_ind_off');
+      this.floorInd.setPosition(on ? IND_ON_POS.x : IND_OFF_POS.x, on ? IND_ON_POS.y : IND_OFF_POS.y);
+    }
+    if (this.panelSpr && this.s.textures.exists(k > 0.05 ? 'lift_panel_live' : 'lift_panel_dead')) {
+      // panel goes live on bolt hit (already swapped); keep
+    }
+  }
+
   private clipLeavesToOpening() {
     const openL = LIFT_OPEN.x;
     const openR = openL + LIFT_OPEN.w;
@@ -678,9 +709,10 @@ export class ImpactLab {
     const kk = Math.min(1, Math.max(0, k));
     this.liftDoorK = kk;
     const slide = kk * (LIFT_LEAF_W - 4);
-    if (this.leafL) this.leafL.x = LIFT_OPEN.x - slide;
-    if (this.leafR) this.leafR.x = LIFT_OPEN.x + LIFT_LEAF_W + slide;
+    if (this.leafL) this.leafL.x = LEAF_L0.x - slide;
+    if (this.leafR) this.leafR.x = LEAF_R0.x + slide;
     this.clipLeavesToOpening();
+    this.syncOpenFx(kk);
   }
 
     get lampAlive() { return this.lampOn; }

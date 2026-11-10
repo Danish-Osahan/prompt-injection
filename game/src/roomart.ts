@@ -5,7 +5,7 @@ export interface RoomArt { images: Record<string, string>; code: Record<string, 
 export const ROOMART: Record<string, RoomArt> = {
  "office": {
   "images": {
-   "base": "rooms/office.jpg"
+   "base": "rooms/office_bleed.jpg"
   },
   "code": {
    "base": "rooms/office_code.jpg"

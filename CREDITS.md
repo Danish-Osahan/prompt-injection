@@ -160,3 +160,15 @@ No new third-party asset packs. Added in this session:
 
 No Unity/Godot. Phaser 4 Matter.js for the chain. No hairline canvas strokes / grey HUD boxes / radial floor rings in the ImpactFX path.
 
+## Impact Lab v15j (lift + desk lamp) — 2026-11-10
+
+Original Blender 4.2.9 LTS models (no third-party meshes or AI images), rendered
+headless with Cycles CPU at the office plate camera (ortho 8.4, pitch 38°, yaw −30°,
+AgX Medium High Contrast). Script: `art/tools/impact_v15j.py`. Outputs live in
+`game/public/assets/fx/lift_layers/` (frame, leaves, cab, spill, panel, indicator,
+banker/anglepoise desk lamp). The official Linux tarball was installed on the box
+at `/workspace/tools/blender-4.2.9-linux-x64/blender` (not vendored in the repo).
+
+The full-bleed office plate `game/public/assets/rooms/office_bleed.jpg` is an inpaint
+extension of `rooms/office.jpg` (same source painting; no new third-party art).
+

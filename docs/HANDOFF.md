@@ -1,3 +1,47 @@
+# HANDOFF — Impact Lab v15j (full-bleed room, Blender lift + desk lamp)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Danishpreet approved v15i layout; fix the five leftovers (border, black-hole cab, dark cabinet doors, shrunken floor-lamp, flat lift).
+
+## Fixes vs v15i
+
+1. **Border:** The 1280×720 plate had a baked diorama void (~70px left/right, ~29px top, ~40px wainscot at the bottom). `office_bleed.jpg` inpaints those margins with continued wall/floor so the room art reaches every canvas edge. Zoom stays 1. HUD (hp, esc/menu) remains in screen space on the visible area. Capture asserts no void-coloured edge pixels (bolt-hit veil excluded).
+2. **Open cab:** Blender-rendered lit interior — warm ceiling, back/side walls, floor, left control panel, and a warm spill on the office floor when the doors are open. No longer a black hole.
+3. **Closed doors:** Brushed-steel leaves with a centre seam, highlight, frame, floor indicator above, and call panel on the wall. Reads as a lift, not a cabinet.
+4. **Lamp:** Replaced the shrunken floor-lamp drawing with a banker/anglepoise desk lamp (green cowl, brass fittings, base on `desk_podW` top). Flicker, E glyph, and bolt source kept.
+5. **Flat lift:** Original Blender 4.2.9 LTS models, same office camera (ortho 8.4, pitch 38, yaw −30) as the plate. Layers: frame, leaf_l/r, seam, cab, spill, panel, indicator. Doors still slide with `setCrop`.
+
+## Stills
+
+`mock-steal/v15j/stills/1440x800/01-closed-dead-lift.png`  
+`mock-steal/v15j/stills/1440x800/02-bolt-hit.png`  
+`mock-steal/v15j/stills/1440x800/03-doors-open.png`  
+`mock-steal/v15j/stills/1440x800/04-walk-in.png`  
+`mock-steal/v15j/stills/1512x945/01-closed-dead-lift.png`  
+`mock-steal/v15j/stills/1512x945/02-bolt-hit.png`  
+`mock-steal/v15j/stills/1512x945/03-doors-open.png`  
+`mock-steal/v15j/stills/1512x945/04-walk-in.png`  
+
+Capture: `node game/tests/capture_v15j.mjs`
+
+## Tests
+
+`capture_v15j` PASS (layout + no-border edges; 3D sill base gap 11px ≤ 14).  
+`verify_steal` PASS, `impact_lab` PASS (static zoom 1).
+
+## Honest leftovers
+
+- Closed steel is quite bright against the muted office palette (intentional so it cannot be read as a cabinet).
+- The cab is lit and has a floor, a left panel, and spill, but it is still relatively frontal at room-scale zoom; the handrail is hard to see.
+- The banker shade reads clearly on the desk; the articulated arms are mostly hidden under the cowl from this 3/4 camera.
+- The inpainted bleed margins are slightly softer than the painted floor (especially near the bottom-right plant).
+- At 1512×945, ENVELOP crops ~64 world-px per side, so the “menu” label can clip.
+- The 3D sill sits ~11px onto the floor (a threshold, not a hanging box).
+- Impact FX still does a brief 1.06× punch on bolt hit, then returns to zoom 1.
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Impact Lab v15i (zoom 1, lift in the wall, lamp on desk)
 
 **Date:** 2026-11-10 (Asia/Calcutta)

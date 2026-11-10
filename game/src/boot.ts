@@ -47,7 +47,7 @@ export class BootScene extends Phaser.Scene {
   'hit_spark_0', 'hit_spark_1', 'hit_spark_2', 'hit_spark_3',
 ];
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
-    const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on','wall_cover'];
+    const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on','wall_cover','seam','spill','lamp_on','lamp_off'];
     for (const f of LL) this.load.image('lift_' + f, `assets/fx/lift_layers/${f}.png`);
     const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
