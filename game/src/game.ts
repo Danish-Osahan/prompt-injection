@@ -95,6 +95,7 @@ export class GameScene extends Phaser.Scene {
   stealPlay: StealPlay | null = null;
   /** ?impact=1 — isolated in-memory lab; never touches localStorage. */
   labMode = false;
+  swapMode = false;
   buildStamp = '';
   stealOn() { return !!(this.impactLab?.on || this.stealPlay?.on); }
   constructor() { super('game'); }
@@ -102,6 +103,7 @@ export class GameScene extends Phaser.Scene {
   create() {
     const q = new URLSearchParams(location.search);
     this.labMode = q.has('impact');
+    this.swapMode = q.has('swap') || q.has('v9');
     // Impact Lab: fresh isolated in-memory save. Do NOT wipe or write the player's localStorage.
     if (this.labMode) {
       setEphemeralSave(true);
@@ -393,7 +395,7 @@ export class GameScene extends Phaser.Scene {
     this.caret.setPosition(this.x - 40, this.y - 40);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
-    this.words.quiet = !!this.clar || STEAL_ROOMS.includes(id);
+    this.words.quiet = !!this.clar || (STEAL_ROOMS.includes(id) && !this.swapMode);
     this.setupRoom(id);
     this.clar?.start();
     // combat greybox: office only, behind ?combat=1
@@ -409,8 +411,8 @@ export class GameScene extends Phaser.Scene {
     }
     this.chargeG = this.add.graphics().setDepth(3400); this.aimG = this.add.graphics().setDepth(3390); this.objs.push(this.chargeG, this.aimG);
     this.evaluate(true);
-    if (id === 'office' && this.clar) this.impactLab?.start();
-    if (STEAL_ROOMS.includes(id)) { this.stealPlay = new StealPlay(this); this.stealPlay.start(); }
+    if (id === 'office' && this.clar && !this.swapMode && !new URLSearchParams(location.search).has('combat')) this.impactLab?.start();
+    if (STEAL_ROOMS.includes(id) && !this.swapMode) { this.stealPlay = new StealPlay(this); this.stealPlay.start(); }
     this.cameras.main.fadeIn(220, 4, 8, 12);
   }
 
@@ -703,7 +705,7 @@ export class GameScene extends Phaser.Scene {
   }
   die() {
     if (this.dying) return;
-    this.dying = true; this.deathAt = performance.now(); this.save.deaths++; this.stealPlay?.snapHome();
+    this.dying = true; this.deathAt = performance.now(); this.save.deaths++; this.stealPlay?.snapHeld();
     if (this.fight && !this.fight.won) { if (this.fight.real.hp <= DRAFT.bar) this.save.draftLastBarDeath = true; this.save.checkpoint = { room: 'arena', x: this.room.spawn.x, y: this.room.spawn.y, plate: null }; }
     this.cameras.main.shake(160, 0.01);
     const parts = [hex(C.cyan), hex(C.fern), 0xffffff].map((c, i) => {
@@ -1544,7 +1546,7 @@ export class GameScene extends Phaser.Scene {
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
-      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null,
+      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null, liftDone: !!this.impactLab?.done, doorOpen: !!this.clar?.doorOpen,
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
       office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, combat: this.combat ? this.combat.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),

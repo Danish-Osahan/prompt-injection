@@ -4,7 +4,7 @@
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
 import type { RoomId } from '../save';
-import { writeSave } from '../save';
+import { writeSave, logSwap } from '../save';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
@@ -115,13 +115,19 @@ export class StealPlay {
     this.stop();
   }
 
-  /** Dying / room change: carried quality and last throw snap back. */
+  /** Undo key: revert last throw and any held quality. */
   snapHome() {
     if (this.lastApply) this.revertLast();
-    if (this.held) this.returnTo(this.held.from, this.held.word);
+    this.snapHeld();
+  }
+  /** Death / threshold: only a carried quality snaps home. Solved throws stay (checkpoint-safe). */
+  snapHeld() {
+    if (!this.held) { this.clearOrb(); this.lure?.setCarrying(false); return; }
+    this.returnTo(this.held.from, this.held.word);
     this.held = null;
     this.clearOrb();
     this.lure?.setCarrying(false);
+    this.s.evaluate(false);
   }
 
   update(dt: number) {
@@ -342,6 +348,7 @@ export class StealPlay {
     const prev = p.slotWord ?? '';
     this.setPlate(dest, word);
     this.lastApply = { from, word, onto: dest, prev };
+    logSwap(this.s.save, { placed: word, removed: prev, room: this.s.room.id, plate: dest, t: Date.now() });
     if (dest === 'h_door' && word === 'OPEN') this.s.setCheckpoint(p);
   }
 

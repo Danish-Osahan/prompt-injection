@@ -1,3 +1,35 @@
+# HANDOFF — Phase 1 step 4: steal playtest + stills
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Full Phase 1 Playwright playthrough on the steal mechanic, plus one still per room.
+
+## Tests
+
+- `npm run playtest` **184/184 passed** (desktop steal walk office → message; linger / office11 / combat / mobile kept on `?swap=1` or `?combat`).
+- `verify_steal` **PASS**, `impact_lab` **PASS**.
+
+## Stills (one key beat per room)
+
+`mock-steal/phase1/stills/office-doors-open.png`  
+`mock-steal/phase1/stills/hub-door-open.png`  
+`mock-steal/phase1/stills/corridor-lamp-on.png`  
+`mock-steal/phase1/stills/archive-bridge-down.png`  
+`mock-steal/phase1/stills/arena-guard-broken.png`  
+`mock-steal/phase1/stills/message-complete.png`
+
+## Honest leftovers / skipped
+
+- The office still was grabbed as soon as `liftDone` flipped, which is before the leaves finish sliding; the frame can still show shut/mid doors and Noor’s peel line (“What— what is this?”) instead of the open cab + Fern discovery lines.
+- Archive still can catch the drain caption overlapping the bridge mid-lower.
+- Arena still keeps the “HOLD E AT THE PILLAR, F AT THE DRAFT” floor prompt after the throw already landed. No enemy word plates, but the boss HP bar and “GUARD BROKEN” status are still UI chrome.
+- Message-room chat lines may already have faded; the art is a framed inset with dark margins, not a full-bleed office.
+- Hub/corridor/archive/message still show the old path/title HUD (`~/hub/` etc.). Word chips and READ are off.
+- No paper-scrap source in the corridor (quick/still only). No thinning/cost VFX. No new Blender or art polish. Combat waves in the archive are the existing Scribble + notes, not a full Eraser Brute retune.
+- Legacy word-swap office (tags, typist, dummy) still exists behind `?swap=1` so office11 / linger / mobile keep passing.
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Phase 1 step 3: steal/throw in remaining rooms
 
 **Date:** 2026-11-10 (Asia/Calcutta)

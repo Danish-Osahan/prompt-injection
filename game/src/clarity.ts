@@ -81,8 +81,8 @@ export class Clarity {
   /** after plates + evaluate: the dummy, first-visit captions */
   start() {
     const s = this.s;
-    // Practice dummy is ?combat only — not part of the steal office path.
-    if (new URLSearchParams(location.search).has('combat')) {
+    // Practice dummy stays on the legacy/combat office; the steal path has no dummy.
+    if (this.s.swapMode || new URLSearchParams(location.search).has('combat')) {
       const e = s.spawnEnemy('dummy', O11_DUMMY.x, O11_DUMMY.y); e.practice = true; e.body.clear();
       const im = s.add.image(0, 0, 'o11_dummy'); im.setOrigin(O11_DUMMY.ox / im.width, O11_DUMMY.oy / im.height); e.g.add(im); this.dummy = { x: O11_DUMMY.x, y: O11_DUMMY.y };
     }
