@@ -1,3 +1,48 @@
+# HANDOFF — Impact Lab v15i (zoom 1, lift in the wall, lamp on desk)
+
+**Date:** 2026-11-10 (Asia/Calcutta)
+**Focus:** Danishpreet’s v15h Mac screenshot: 2× follow cam too close/blurry, lift pasted on and hanging over the floor, lamp floating above a desk.
+
+## Fixes vs v15h
+
+1. **Camera:** `?impact` now uses `setupStaticCamera()` (zoom 1, no follow, no 2.1× punch-in on `frameDoors` / `frameLift` / `frameHandPanel`). The whole 1280×720 office fills the browser under `Scale.ENVELOP` (no letterbox). Crisp, not upscaled.
+2. **Lift rebuilt in the baked recess.** Opening `(150, 81, 110, 119)` — bottom 200, frame outer `(146, 77, 118, 127)` bottom 204, wall-floor at the door ≈ 202 (2 px gap). Same scale as the calendar / bookcase / whiteboard. Dark steel leaves + darker receding cab (no beige box, no handrail rod). Tight plate-sampled `wall_cover`. Panel `(276, 164)` — 16×24, hand height, immediately right of the frame, no green-rim UI. Desk is **not** shifted (v15h `POD_W_SHIFT` reverted) so no baked desk/chair remnants under a hanging lift.
+3. **Lamp on `desk_podW`.** `(178, 291)`, scale 0.82, origin 0.92 — base sits on the desktop top face (desk at 115,273, top face y 273–305). Lure kept (flicker, E glyph, bolt path to the panel).
+
+## Stills
+
+Captured at real browser aspects, zoom 1, no follow:
+
+`mock-steal/v15i/stills/1440x800/01-closed-dead-lift.png`  
+`mock-steal/v15i/stills/1440x800/02-bolt-hit.png`  
+`mock-steal/v15i/stills/1440x800/03-doors-open.png`  
+`mock-steal/v15i/stills/1440x800/04-walk-in.png`  
+`mock-steal/v15i/stills/1280x800/01-closed-dead-lift.png`  
+`mock-steal/v15i/stills/1280x800/02-bolt-hit.png`  
+`mock-steal/v15i/stills/1280x800/03-doors-open.png`  
+`mock-steal/v15i/stills/1280x800/04-walk-in.png`  
+
+(Flat prefix copies also under `mock-steal/v15i/stills/`.)  
+Capture: `node game/tests/capture_v15i.mjs`
+
+## Tests
+
+`capture_v15i` PASS — lift frame does not intersect plant/desk AABBs or printer footprint; lift base within 2 px of wall-floor; lamp base on desk top; panel adjacent to frame (12 px gap); zoom = 1, no follow.  
+`verify_steal` PASS (now asserts static zoom ≈ 1).  
+`impact_lab` PASS (no longer forces follow 2.0).
+
+## Honest leftovers
+
+- Lift is front-facing code-drawn steel on an isometric painted room — sits in the wall at the right scale, but still flatter than the bookcase.
+- Closed doors are very dark (can read as a cabinet until they open). Cab interior is a simple shaded box, not painted.
+- Painted lamp is still a floor-lamp design; it now sits on the desk at a smaller scale.
+- Printer sprite AABB kisses the lower-left jamb (printer draws in front at depth 241; footprints do not intersect) — matches the original plate.
+- At 1280×800, ENVELOP crops ~71 world-px on each side (west wall / far-right props; the “menu” label can clip). 1440×800 shows the full plate width; the dark left strip is the room’s west wall, not letterbox.
+- Impact FX still does a brief 1.06× punch on the bolt hit, then returns to zoom 1.
+- Did not touch dirty `art/rnd-pixel` or `art/out`.
+
+---
+
 # HANDOFF — Impact Lab v15h (seamless wall cover + clear entrance)
 
 **Date:** 2026-11-10 (Asia/Calcutta)

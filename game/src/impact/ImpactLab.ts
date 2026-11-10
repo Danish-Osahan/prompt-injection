@@ -2,34 +2,47 @@
 // Panel sits on the wall beside the lift doors (baked plate, never kitchen/printer). Old word system off.
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
-import { O11_DOOR, O11_PROPS } from '../office11art';
+import { O11_DOOR } from '../office11art';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 
 /**
- * v15h layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
- * Panel sits on the wall immediately RIGHT of the steel frame — never on kitchen/printer.
+ * v15i layered lift (code-drawn steel). Geometry matches assets/fx/lift_layers/meta.json.
+ * Lift sits IN the baked back-wall recess at room scale (calendar/shelf/whiteboard).
+ * Panel on the wall immediately RIGHT of the steel frame, hand height, no green rim.
+ * Lamp sits on the original desk_podW top face. Camera is static zoom 1 (whole office).
  */
-const LIFT_OX = 30, LIFT_OY = 26, LIFT_OW = 128, LIFT_OH = 236, LIFT_FRAME = 11;
-const LIFT_LEAF_W = 66;
-/** Call panel center: frame outer-right + pad + half panel width. */
-const PANEL = {
-  x: O11_DOOR.x + LIFT_OX + LIFT_OW + LIFT_FRAME + 14 + 17, // ≈ 312
-  y: O11_DOOR.y + LIFT_OY + 100, // ≈ 188
-};
-/** Desk lamp on relocated pod desk (right of lift panel; clears entrance). */
-const LAMP = { x: 388, y: 295 };
-/** Impact-lab-only shift of desk_podW / chair_podW away from lift entrance. */
-const POD_W_SHIFT = { dx: 240, dy: 27 }; // desk 115,273 → 355,300
-const LIFT_FOCUS = { x: O11_DOOR.x + LIFT_OX + LIFT_OW / 2, y: O11_DOOR.y + LIFT_OY + LIFT_OH / 2 };
-/** Opening bounds in world space (for capture asserts). */
+/** Baked recess measured from office.jpg: doors x≈149–260, y≈81–200. */
+const LIFT_OPEN = { x: 150, y: 81, w: 110, h: 119 }; // bottom = 200
+const LIFT_FRAME = 4;
+const LIFT_FRAME_OUTER = {
+  x: LIFT_OPEN.x - LIFT_FRAME,
+  y: LIFT_OPEN.y - LIFT_FRAME,
+  w: LIFT_OPEN.w + 2 * LIFT_FRAME,
+  h: LIFT_OPEN.h + 2 * LIFT_FRAME,
+}; // 146,77,118,127 — bottom 204, wall-floor at door ≈ 202
+const LIFT_LEAF_W = 55;
+/** wall_cover.png origin (tight pad around frame). */
+const WALL_COVER_ORIG = { x: 143, y: 74 };
+const WALL_FLOOR_Y = 202;
+/** Call panel center: just right of the frame, hand height, below the sconce. */
+const PANEL = { x: 276, y: 164 };
+/** Desk lamp on original desk_podW (115,273); top face world y ≈ 273–305. */
+const LAMP = { x: 178, y: 291 };
+const LAMP_SCALE = 0.82;
+const LIFT_FOCUS = { x: LIFT_OPEN.x + LIFT_OPEN.w / 2, y: LIFT_OPEN.y + LIFT_OPEN.h / 2 };
+/** Opening + frame bounds in world space (for capture asserts). */
 export const LIFT_OPEN_BOUNDS = {
-  left: O11_DOOR.x + LIFT_OX,
-  right: O11_DOOR.x + LIFT_OX + LIFT_OW,
-  top: O11_DOOR.y + LIFT_OY,
-  bottom: O11_DOOR.y + LIFT_OY + LIFT_OH,
-  frameRight: O11_DOOR.x + LIFT_OX + LIFT_OW + LIFT_FRAME,
+  left: LIFT_OPEN.x,
+  right: LIFT_OPEN.x + LIFT_OPEN.w,
+  top: LIFT_OPEN.y,
+  bottom: LIFT_OPEN.y + LIFT_OPEN.h,
+  frameLeft: LIFT_FRAME_OUTER.x,
+  frameRight: LIFT_FRAME_OUTER.x + LIFT_FRAME_OUTER.w,
+  frameTop: LIFT_FRAME_OUTER.y,
+  frameBottom: LIFT_FRAME_OUTER.y + LIFT_FRAME_OUTER.h,
+  wallFloorY: WALL_FLOOR_Y,
 };
 
 export class ImpactLab {
@@ -70,8 +83,6 @@ export class ImpactLab {
   private openingMaskGfx?: Phaser.GameObjects.Graphics;
   private openingMask?: Phaser.Display.Masks.GeometryMask;
   private leafAnimToken = 0;
-  private podWOrig: { name: string; x: number; y: number; baseY: number; poly: number[][] }[] = [];
-  private bumpedProps: { name: string; depth: number }[] = [];
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
@@ -104,9 +115,9 @@ export class ImpactLab {
     }
 
     this.keyF = this.s.input.keyboard?.addKey('F');
-    // Slightly wider follow so lamp + lift share the frame when near
-    this.s.setupFollowCamera?.(1.85);
-    this.s.x = LAMP.x + 40; this.s.y = LAMP.y + 55; this.s.dir = 'NW';
+    // Whole office visible and crisp — no follow punch-in.
+    this.s.setupStaticCamera?.();
+    this.s.x = LAMP.x + 36; this.s.y = LAMP.y + 48; this.s.dir = 'NW';
     this.s.unstick();
 
     window.setTimeout(() => {
@@ -134,8 +145,6 @@ export class ImpactLab {
     this.leafR?.destroy(); this.leafR = undefined;
     this.liftFrame?.destroy(); this.liftFrame = undefined;
     this.liftRecess?.destroy(); this.liftRecess = undefined;
-    this.relocatePodW(false);
-    this.bumpCoverOccludedProps(false);
     this.wallPatch?.destroy(); this.wallPatch = undefined;
     this.wallCover?.destroy(); this.wallCover = undefined;
     this.floorInd?.destroy(); this.darkGap?.destroy();
@@ -182,9 +191,8 @@ export class ImpactLab {
   }
 
   private spawnProps() {
-    const ox = O11_DOOR.x, oy = O11_DOOR.y;
-    // Keep well below plantW(229) / desk_podW(346) so FG stays in front of the lift
-    const depth = oy + 40; // ≈102; above baked door plate (-999), below FG props
+    // Depth at the wall-floor line so plant/printer/desks (baseY 229+) draw in front.
+    const depth = WALL_FLOOR_Y; // 202; above baked plate (-999)
 
     // Hide baked JPG door frames — we composite layered sprites instead
     if (this.s.clar?.door) {
@@ -193,71 +201,62 @@ export class ImpactLab {
       this.s.clar.doorWant = 0;
     }
 
-    // Wall patch behind the opening (matches office wall so hole isn't room-bg junk)
-    // Full-plate wall cover: hides baked lift art in the room plate / door JPG footprint.
-    // Outside our code-drawn frame only plain dark wall should show.
+    // Tight wall cover over the baked recess only (plate-sampled, feathered).
     if (this.s.textures.exists('lift_wall_cover')) {
-      const wc = this.s.add.image(ox, oy, 'lift_wall_cover')
+      const wc = this.s.add.image(WALL_COVER_ORIG.x, WALL_COVER_ORIG.y, 'lift_wall_cover')
         .setOrigin(0, 0).setDepth(depth - 6);
       this.s.objs.push(wc);
       this.wallPatch = undefined;
       this.wallCover = wc;
     } else {
       this.wallPatch = this.s.add.rectangle(
-        ox + 98, oy + 148, 196, 296, 0x14222a, 1,
+        LIFT_FRAME_OUTER.x + LIFT_FRAME_OUTER.w / 2,
+        LIFT_FRAME_OUTER.y + LIFT_FRAME_OUTER.h / 2,
+        LIFT_FRAME_OUTER.w, LIFT_FRAME_OUTER.h, 0x161c22, 1,
       ).setDepth(depth - 6);
       this.s.objs.push(this.wallPatch);
     }
 
-    // Clear lift entrance: move west pod desk+chair right of the panel; bump
-    // overlapping FG props above the wall cover so calendar/plant/printer aren't clipped.
-    this.relocatePodW(true);
-    this.bumpCoverOccludedProps(true);
-
     // (a) recess
     if (this.s.textures.exists('lift_recess')) {
-      this.liftRecess = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_recess')
+      this.liftRecess = this.s.add.image(LIFT_OPEN.x, LIFT_OPEN.y, 'lift_recess')
         .setOrigin(0, 0).setDepth(depth - 4);
-      // recess is opening-sized; sits under cab
       this.s.objs.push(this.liftRecess);
     }
 
     // Phaser 4 WebGL: GeometryMask is Canvas-only (no-op here). Clip leaves with
     // setCrop so pocket slides never draw outside the steel opening.
-    // Cab/recess are already opening-sized — no clip needed.
 
     // (d) cab behind leaves
     if (this.s.textures.exists('lift_cab')) {
-      this.liftCab = this.s.add.image(ox + LIFT_OX, oy + LIFT_OY, 'lift_cab')
+      this.liftCab = this.s.add.image(LIFT_OPEN.x, LIFT_OPEN.y, 'lift_cab')
         .setOrigin(0, 0).setDepth(depth - 3).setAlpha(1);
       this.s.objs.push(this.liftCab);
     }
 
     // (c) door leaves — closed over cab; cropped to opening so slides vanish into pockets
-    const leafY = oy + LIFT_OY + 1;
-    const midX = ox + LIFT_OX + LIFT_OW / 2;
     if (this.s.textures.exists('lift_leaf_l')) {
-      this.leafL = this.s.add.image(ox + LIFT_OX - 1, leafY, 'lift_leaf_l')
+      this.leafL = this.s.add.image(LIFT_OPEN.x, LIFT_OPEN.y, 'lift_leaf_l')
         .setOrigin(0, 0).setDepth(depth - 1);
       this.s.objs.push(this.leafL);
     }
     if (this.s.textures.exists('lift_leaf_r')) {
-      this.leafR = this.s.add.image(midX - 1, leafY, 'lift_leaf_r')
+      this.leafR = this.s.add.image(LIFT_OPEN.x + LIFT_LEAF_W, LIFT_OPEN.y, 'lift_leaf_r')
         .setOrigin(0, 0).setDepth(depth - 1);
       this.s.objs.push(this.leafR);
     }
     this.clipLeavesToOpening();
 
-    // (b) steel frame UNMASKED on top of leaf edges (surround draws over clipped leaves)
+    // (b) steel frame UNMASKED on top of leaf edges
     if (this.s.textures.exists('lift_frame')) {
-      this.liftFrame = this.s.add.image(ox, oy, 'lift_frame')
+      this.liftFrame = this.s.add.image(LIFT_FRAME_OUTER.x, LIFT_FRAME_OUTER.y, 'lift_frame')
         .setOrigin(0, 0).setDepth(depth);
       this.s.objs.push(this.liftFrame);
     }
 
-    // Floor indicator above the doors (centered on opening)
-    const indX = ox + LIFT_OX + LIFT_OW / 2;
-    const indY = oy + LIFT_OY - LIFT_FRAME - 8;
+    // Floor indicator just above the lintel (centered on opening)
+    const indX = LIFT_OPEN.x + LIFT_OPEN.w / 2;
+    const indY = LIFT_FRAME_OUTER.y - 6;
     const indTex = this.s.textures.exists('lift_ind_off') ? 'lift_ind_off' : 'fx_lift_floor_ind_off';
     if (this.s.textures.exists(indTex) || this.s.textures.exists('lift_ind_off')) {
       this.floorInd = this.s.add.image(indX, indY, this.s.textures.exists('lift_ind_off') ? 'lift_ind_off' : indTex)
@@ -265,30 +264,27 @@ export class ImpactLab {
       this.s.objs.push(this.floorInd);
     }
 
-    // (e) call panel ON THE WALL immediately right of the frame
+    // (e) call panel ON THE WALL immediately right of the frame (small, no fat UI shadow)
     const ptex = this.s.textures.exists('lift_panel_dead') ? 'lift_panel_dead'
       : (this.s.textures.exists('fx_lift_panel_dead') ? 'fx_lift_panel_dead' : 'fx_spark_core');
-    const sh = this.s.add.ellipse(PANEL.x + 2, PANEL.y + 3, 30, 48, 0x000000, 0.3)
-      .setDepth(depth + 1);
-    this.s.objs.push(sh);
     this.panelSpr = this.s.add.image(PANEL.x, PANEL.y, ptex)
       .setDepth(depth + 2).setScale(1).setOrigin(0.5, 0.5);
     this.s.objs.push(this.panelSpr);
 
     this.liftDoorK = 0;
 
-    // Desk lamp on relocated pod desk (depth above new desk baseY)
+    // Desk lamp ON desk_podW top face (depth above desk baseY 346)
     const ltex = this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core';
     this.lampSpr = this.s.add.image(LAMP.x, LAMP.y, ltex)
-      .setDepth(400).setScale(1.15).setOrigin(0.5, 0.92);
+      .setDepth(360).setScale(LAMP_SCALE).setOrigin(0.5, 0.92);
     this.s.objs.push(this.lampSpr);
   }
 
   private setupLure() {
     this.lure = new OnboardLure(this.s, LAMP, PANEL, {
-      nearR: 120,
-      sourceGlowSize: { w: 28, h: 34 },
-      targetGlowSize: { w: 24, h: 36 },
+      nearR: 110,
+      sourceGlowSize: { w: 22, h: 28 },
+      targetGlowSize: { w: 16, h: 22 },
     });
     this.lure.sourceAct = (t) => {
       if (!this.lampOn || !this.lampSpr) return;
@@ -301,7 +297,7 @@ export class ImpactLab {
       this.buzzT += 1 / 60;
       if (this.buzzT > 0.4 && Math.random() < 0.06) {
         this.buzzT = 0;
-        this.popSpark(LAMP.x + 2, LAMP.y - 36);
+        this.popSpark(LAMP.x + 2, LAMP.y - 40);
         try { sfx('impact_whoosh'); } catch { /* */ }
       }
     };
@@ -317,40 +313,20 @@ export class ImpactLab {
     });
   }
 
+  /** Keep the whole office in frame (zoom 1). Punch-in was unreadable on a laptop. */
+  private holdStaticCam() {
+    this.framing = false;
+    this.s.setupStaticCamera?.();
+  }
+
   /** Ease camera to frame Noor + lift together (used for throw / door open). */
-  frameLift(holdMs = 0, zoom = 1.55) {
-    this.framing = true;
-    const cam = this.s.cameras.main;
-    try { cam.stopFollow(); } catch { /* */ }
-    const tx = (this.s.x + LIFT_FOCUS.x) / 2;
-    const ty = (this.s.y + LIFT_FOCUS.y) / 2 - 20;
-    this.s.tweens.add({
-      targets: cam, zoom,
-      scrollX: tx - cam.width / (2 * zoom),
-      scrollY: ty - cam.height / (2 * zoom),
-      duration: 280, ease: 'Sine.easeInOut',
-    });
-    // Also nudge via centerOn after tween for safety
-    window.setTimeout(() => {
-      try { cam.setZoom(zoom); cam.centerOn(tx, ty); } catch { /* */ }
-    }, 300);
-    if (holdMs > 0) {
-      window.setTimeout(() => { /* keep framed */ }, holdMs);
-    }
+  frameLift(_holdMs = 0, _zoom = 1) {
+    this.holdStaticCam();
   }
 
   /** Hold on the lift doors specifically (opening beat). */
-  frameDoors(zoom = 2.05) {
-    this.framing = true;
-    const cam = this.s.cameras.main;
-    try { cam.stopFollow(); } catch { /* */ }
-    const tx = LIFT_FOCUS.x, ty = LIFT_FOCUS.y;
-    this.s.tweens.add({
-      targets: cam, zoom,
-      duration: 350, ease: 'Sine.easeInOut',
-      onUpdate: () => { try { cam.centerOn(tx, ty); } catch { /* */ } },
-      onComplete: () => { try { cam.setZoom(zoom); cam.centerOn(tx, ty); } catch { /* */ } },
-    });
+  frameDoors(_zoom = 1) {
+    this.holdStaticCam();
   }
 
   onDummyHit(
@@ -446,7 +422,7 @@ export class ImpactLab {
     if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) {
       this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
     }
-    this.popSpark(LAMP.x, LAMP.y - 36);
+    this.popSpark(LAMP.x, LAMP.y - 40);
 
     const h = this.handOff();
     const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : 'fx_spark_core';
@@ -490,19 +466,8 @@ export class ImpactLab {
   }
 
   /** Frame camera on hand↔panel midpoint so the bolt path is readable. */
-  frameHandPanel(zoom = 1.85) {
-    this.framing = true;
-    const cam = this.s.cameras.main;
-    try { cam.stopFollow(); } catch { /* */ }
-    const h = this.handOff();
-    const hx = this.s.x + h.x, hy = this.s.y + h.y;
-    const tx = (hx + PANEL.x) / 2, ty = (hy + PANEL.y) / 2;
-    this.s.tweens.add({
-      targets: cam, zoom,
-      duration: 180, ease: 'Sine.easeOut',
-      onUpdate: () => { try { cam.centerOn(tx, ty); } catch { /* */ } },
-      onComplete: () => { try { cam.setZoom(zoom); cam.centerOn(tx, ty); } catch { /* */ } },
-    });
+  frameHandPanel(_zoom = 1) {
+    this.holdStaticCam();
   }
 
   /** Thick jagged bolt hand→tip; overall vector always aims at the panel (small branches only). */
@@ -621,7 +586,7 @@ export class ImpactLab {
     this.lure?.destroy(); this.lure = undefined;
     this.darkGap?.destroy(); this.darkGap = undefined;
 
-    this.frameDoors(2.1);
+    this.frameDoors(1);
 
     // Shudder the leaves, then slide them into the frame sides
     const leafL0 = this.leafL?.x ?? 0;
@@ -670,88 +635,15 @@ export class ImpactLab {
       const slide = k * (LIFT_LEAF_W - 4);
       const shudder = (i < 3) ? ((i % 2) * 2 - 1) : 0;
       if (this.leafL) {
-        this.leafL.x = O11_DOOR.x + LIFT_OX - 1 - slide + shudder;
+        this.leafL.x = LIFT_OPEN.x - slide + shudder;
       }
       if (this.leafR) {
-        this.leafR.x = O11_DOOR.x + LIFT_OX + LIFT_OW / 2 - 1 + slide - shudder;
+        this.leafR.x = LIFT_OPEN.x + LIFT_LEAF_W + slide - shudder;
       }
       this.clipLeavesToOpening();
-      this.frameDoors(2.15);
       if (k < 1) window.setTimeout(tick, 90);
     };
     tick();
-  }
-
-  /** Shift desk_podW + chair_podW (sprites + collision polys) clear of the lift mouth. */
-  private relocatePodW(on: boolean) {
-    const names = ['desk_podW', 'chair_podW'];
-    if (on) {
-      this.podWOrig = [];
-      for (const name of names) {
-        const def = O11_PROPS.find(p => p.name === name);
-        if (!def || def.x == null || def.y == null) continue;
-        this.podWOrig.push({
-          name,
-          x: def.x, y: def.y, baseY: def.baseY,
-          poly: def.poly.map(q => [...q]),
-        });
-        def.x += POD_W_SHIFT.dx;
-        def.y += POD_W_SHIFT.dy;
-        def.baseY += POD_W_SHIFT.dy;
-        def.poly = def.poly.map(([px, py]) => [px + POD_W_SHIFT.dx, py + POD_W_SHIFT.dy]);
-        // move live sprite
-        for (const o of this.s.objs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const im = o as any;
-          if (im?.texture?.key === 'o11fg_' + name) {
-            im.x = def.x; im.y = def.y; im.setDepth(def.baseY);
-          }
-        }
-      }
-    } else {
-      for (const orig of this.podWOrig) {
-        const def = O11_PROPS.find(p => p.name === orig.name);
-        if (!def) continue;
-        def.x = orig.x; def.y = orig.y; def.baseY = orig.baseY;
-        def.poly = orig.poly.map(q => [...q]);
-        for (const o of this.s.objs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const im = o as any;
-          if (im?.texture?.key === 'o11fg_' + orig.name) {
-            im.x = orig.x; im.y = orig.y; im.setDepth(orig.baseY);
-          }
-        }
-      }
-      this.podWOrig = [];
-    }
-  }
-
-  /** Ensure calendar/bookcase, plant, printer draw above wall_cover (not clipped by it). */
-  private bumpCoverOccludedProps(on: boolean) {
-    const names = ['bookcase', 'plantW', 'printer', 'kitchen'];
-    if (on) {
-      this.bumpedProps = [];
-      for (const name of names) {
-        for (const o of this.s.objs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const im = o as any;
-          if (im?.texture?.key === 'o11fg_' + name && typeof im.depth === 'number') {
-            this.bumpedProps.push({ name, depth: im.depth });
-            // Keep isometric sort-ish but always above wall_cover (~96) and frame (~102)
-            im.setDepth(Math.max(im.depth, 220));
-          }
-        }
-      }
-    } else {
-      for (const b of this.bumpedProps) {
-        for (const o of this.s.objs) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const im = o as any;
-          if (im?.texture?.key === 'o11fg_' + b.name) im.setDepth(b.depth);
-        }
-      }
-      this.bumpedProps = [];
-    }
   }
 
     /**
@@ -760,9 +652,9 @@ export class ImpactLab {
    * (pocket parts simply don't draw). WebGL-safe replacement for GeometryMask.
    */
   private clipLeavesToOpening() {
-    const openL = O11_DOOR.x + LIFT_OX;
-    const openR = openL + LIFT_OW;
-    const leafH = (this.leafL?.height || this.leafR?.height || (LIFT_OH - 2));
+    const openL = LIFT_OPEN.x;
+    const openR = openL + LIFT_OPEN.w;
+    const leafH = (this.leafL?.height || this.leafR?.height || LIFT_OPEN.h);
     const clip = (leaf: Phaser.GameObjects.Image | undefined) => {
       if (!leaf) return;
       const lx = leaf.x;
@@ -786,8 +678,8 @@ export class ImpactLab {
     const kk = Math.min(1, Math.max(0, k));
     this.liftDoorK = kk;
     const slide = kk * (LIFT_LEAF_W - 4);
-    if (this.leafL) this.leafL.x = O11_DOOR.x + LIFT_OX - 1 - slide;
-    if (this.leafR) this.leafR.x = O11_DOOR.x + LIFT_OX + LIFT_OW / 2 - 1 + slide;
+    if (this.leafL) this.leafL.x = LIFT_OPEN.x - slide;
+    if (this.leafR) this.leafR.x = LIFT_OPEN.x + LIFT_LEAF_W + slide;
     this.clipLeavesToOpening();
   }
 
@@ -804,6 +696,8 @@ export class ImpactLab {
     return {
       ...LIFT_OPEN_BOUNDS,
       panel: { ...PANEL },
+      lamp: { ...LAMP, scale: LAMP_SCALE, originY: 0.92 },
+      desk: { x: 115, y: 273, w: 100, h: 74, topH: 32 },
       doorOrigin: { x: O11_DOOR.x, y: O11_DOOR.y },
     };
   }

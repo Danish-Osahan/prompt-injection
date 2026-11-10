@@ -28,7 +28,7 @@ async function main() {
     const s = window.__game?.scene?.scenes?.find(x => x.scene.key === 'game');
     if (!s?.impactLab) return { ok: false, why: 'no lab' };
     if (!s.impactLab.on) s.impactLab.start();
-    s.setupFollowCamera?.(2.0);
+    s.setupStaticCamera?.();
     const lp = s.impactLab.lampPos;
     s.x = lp.x + 25; s.y = lp.y + 45; s.dir = 'N';
     return {
@@ -39,8 +39,11 @@ async function main() {
     };
   });
   console.log('ready', ready);
-  if (!ready.ok || ready.chain || ready.objVis || !ready.follow) {
+  if (!ready.ok || ready.chain || ready.objVis) {
     console.error('FAIL ready', ready); process.exit(1);
+  }
+  if (ready.follow || ready.zoom > 1.16) {
+    console.error('FAIL camera should be static zoom≈1', ready); process.exit(1);
   }
 
   let i = 0;

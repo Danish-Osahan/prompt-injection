@@ -44,8 +44,8 @@ async function main() {
   if (!boot.ok || !boot.lab) { console.error('FAIL boot', boot); process.exit(1); }
   if (boot.chain) { console.error('FAIL chain still present'); process.exit(1); }
   if (boot.codeOn || boot.tagsVis) { console.error('FAIL word UI', boot); process.exit(1); }
-  if (!boot.follow || boot.zoom < 1.8 || boot.vp.x !== 0 || boot.vp.y !== 0) {
-    console.error('FAIL camera not follow/full-viewport', boot); process.exit(1);
+  if (boot.follow || boot.zoom > 1.16 || boot.zoom < 0.99 || boot.vp.x !== 0 || boot.vp.y !== 0) {
+    console.error('FAIL camera not static/full-viewport zoom≈1', boot); process.exit(1);
   }
   // ENVELOP keeps logical 1280×720; canvas CSS covers the browser (no letterbox).
 
