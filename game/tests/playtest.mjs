@@ -237,6 +237,16 @@ async function desktop(browser) {
   await sleep(150); await input.stop(); s = await st(page);
   ok('desktop: dash bursts forward with i-frames', s.player.x - dx0 > 100 && dashIframes, `moved ${Math.round(s.player.x - dx0)}px, iframes during dash ${dashIframes}`);
   ok('desktop: dash cooldown ~1s', s.dashCd > 0.6 && s.dashCd <= 1.0, `cd left ${s.dashCd.toFixed(2)}`);
+  // OFFICE: tap E at the August calendar (look prompt, not the lamp/panel path)
+  await pi(page, 'teleport', 290, 200); await sleep(200);
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE');
+  s = await waitFor(page, s => !!(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), 2500);
+  ok('office: tapping E at the calendar looks and gets a line', !!(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), `explore ${JSON.stringify(s.explore)}`);
+  await pi(page, 'teleport', 140, 250); await sleep(400);
+  s = await waitFor(page, s => !!(s.explore && s.explore.printer), 2000);
+  ok('office: approaching the printer prints the denial letter', !!(s.explore && s.explore.printer), `explore ${JSON.stringify(s.explore)}`);
+
   // OFFICE: real-keyboard E at the dead lift panel, then hold E at the lamp
   // (not openLift / interact hooks — those hid the broken tap-E path).
   const panel = await page.evaluate(() => {

@@ -1,5 +1,24 @@
 # HANDOFF
 
+## 2026-11-16 — Office things to explore (look, steal, printer)
+
+Level 1 office lookables, working during the dead-lift beat (the old word-chip linger is off then). Playtest 195/195 (calendar look + printer approach, plus the real-key E path still green).
+
+Tap E at a prompt that says "E  look":
+- Dad's photo (on the mug desk; she says she means to put it back on hers): Noor + a worried Fern line.
+- The AUGUST calendar: Noor, then Fern hints that August is when the fire happened.
+- The whiteboard: code-drawn claim numbers with #4471 circled; Noor recognises his claim.
+- Kabir's headphones: a quiet muffled loop when you stand near them; optional HOLD E to peel LOUD and F-throw it at a screen for a jolt.
+- The coffee machine: Fern jokes she has opinions about temperature, not hands; optional HOLD E to peel HOT and throw it at the west plant for a steam puff.
+- The printer: walking up to it makes it print a CLAIM #4471 denial letter by itself; looking afterwards, Fern says the building is finishing her sentences.
+
+No echo twist. Lines go through the existing dialogue/reaction path. The lift lure hides while a lookable owns E so HOLD E and E look don't stack.
+
+Review stills (not in the repo): `/workspace/l1-look-calendar.png`, `/workspace/l1-look-printer.png`, `/workspace/l1-look-photo.png`, `/workspace/l1-look-board.png`.
+
+Leftovers: lost-line collectibles at 3 per room (item 6); complaint-bodied enemies (item 7). The coffee machine look is on the kitchen counter, which is tight against the calendar aisle. Headphones loop is a quiet procedural triad, not a licensed track. The denial letter is a small prop, not a UI sticker.
+
+
 ## 2026-11-16 — Freeze: her words peel off the monitor, not a floating DENIED
 
 The drifting DENIED at beat e felt like a UI sticker and didn't belong. The freeze sound bed is unchanged (boom, drone, ring, heartbeat, crackles, reverse-swell into Fern). Playtest 193/193.
