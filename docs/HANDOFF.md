@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-16 — Complaint-bodied enemies
+
+Level 1 attackers are complaints given bodies: paper and ink, never an employee.
+
+- Corridor lamp-on: sticky notes crumple into a toothy Scribble. Fern: "Complaints. People typed so many, they grew teeth." It uncrumples and drifts away; the Paper Dummy is still the fight.
+- Paper Dummy is a hanging stack of pages on a stand. It stays inert until QUICK is thrown, then one slow telegraphed swipe. Fern: "J to type. Dash through the swipe."
+- Archive: a water cooler yields WET. Thrown at a Scribble it melts (bonus damage, a droop). Fern hints once: "The cooler. Wet paper forgets how to hold a shape." DRY on the ink still cracks for x2 (existing puzzle).
+- The Draft is a fanned stack of unsent claim pages (RE: CLAIM #4471), not a grey copy of Noor. Fern's intro: "Every claim reply you rewrote and never sent."
+- Defeated enemies uncrumple and drift away as loose paper with a soft rustle.
+
+Playtest 201/201 (corridor birth, cooler WET melt, Fern cooler hint; dummy / DRY / Draft contracts kept).
+
+
 ## 2026-11-16 — Lost lines (3 per room, 18 total)
 
 Optional collectibles: three glowing torn scraps of Noor's unsent writing in each Level 1 room (18 total). They are the same `save.lines` / `unsent.txt` journal path as before, just more of them. A small `lines  n/18` counter sits in the top-right HUD corner at all times (including 0/18, and during the office dead-lift beat). Picking one up toasts `unsent.txt +1 n/18` plus the line. The Level 1 complete screen shows `Lost lines  x/18`. Saved with the game.
@@ -10,7 +23,7 @@ Lines are in Noor's voice — messages she wrote and never sent. No echo twist.
 
 Playtest 198/198 (office KeyE pickup + HUD 1/18, linger picks a visible line in every room including two pre-draft arena scraps, end screen x/18). Previous calendar/printer and real-key E path still green.
 
-Leftovers: complaint-bodied enemies (item 7).
+Leftovers: complaint-bodied enemies (item 7) — done in the next section.
 
 
 ## 2026-11-16 — Office things to explore (look, steal, printer)
@@ -29,7 +42,7 @@ No echo twist. Lines go through the existing dialogue/reaction path. The lift lu
 
 Review stills (not in the repo): `/workspace/l1-look-calendar.png`, `/workspace/l1-look-printer.png`, `/workspace/l1-look-photo.png`, `/workspace/l1-look-board.png`.
 
-Leftovers: complaint-bodied enemies (item 7). The coffee machine look is on the kitchen counter, which is tight against the calendar aisle. Headphones loop is a quiet procedural triad, not a licensed track. The denial letter is a small prop, not a UI sticker.
+Leftovers: none from this pass. The coffee machine look is on the kitchen counter, which is tight against the calendar aisle. Headphones loop is a quiet procedural triad, not a licensed track. The denial letter is a small prop, not a UI sticker.
 
 
 ## 2026-11-16 — Freeze: her words peel off the monitor, not a floating DENIED

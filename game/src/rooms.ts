@@ -116,6 +116,7 @@ export const ROOMS: Record<RoomId, RoomDef> = {
       { id: 'a_water', words: ['WATER', 'IS', 'HIGH'], slot: 2, x: 240, y: 260, sx: 268, sy: 150, kind: 'rule', cap: 'The pipe sweats into the dark. The water is {}.', code: 'water.level' },
       { id: 'a_bridge', words: ['BRIDGE', 'IS', 'UP'], slot: 2, x: 310, y: 470, sx: 430, sy: 360, kind: 'rule', cap: 'A plank bridge, folded like an argument. It is {}.', code: 'bridge.state' },
       { id: 'a_drawer', words: ['DRAWER', 'IS', 'LOW'], slot: 2, x: 210, y: 610, sx: 100, sy: 594, kind: 'rule', cap: 'A drawer of old intake forms. It is {}.', code: 'drawer.height' },
+      { id: 'a_cooler', words: ['COOLER', 'IS', 'WET'], slot: 2, x: 880, y: 280, sx: 860, sy: 220, kind: 'rule', cap: 'A water cooler, sweating through a paper cup. It is {}.', code: 'cooler.state' },
       { id: 'a_ink', words: ['INK', 'IS', 'WET'], slot: 2, x: 975, y: 240, sx: 975, sy: 160, kind: 'rule', cap: 'An ink bottle, uncorked for years. It is still {}.', code: 'ink.state' },
       { id: 'a_towel', words: ['TOWEL', 'IS', 'DRY'], slot: 2, x: 1140, y: 300, sx: 1140, sy: 248, kind: 'rule', cap: 'A towel on a rack. Somehow, it is {}.', code: 'towel.state' },
       { id: 'a_notes', words: ['NOTES', 'STICK', 'TOGETHER'], slot: 2, x: 950, y: 610, sx: 950, sy: 640, kind: 'rule', cap: 'Sticky notes in a clump. They stick {}.', code: 'notes.stick' },

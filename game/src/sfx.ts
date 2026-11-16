@@ -29,7 +29,7 @@ export function meterRms() {
   return Math.sqrt(s / buf.length);
 }
 
-type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win' | 'crackle';
+type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win' | 'crackle' | 'paper';
 type ImpactKind = 'impact_whoosh' | 'impact_clank' | 'impact_snap' | 'impact_bounce' | 'impact_padlock' | 'impact_hum' | 'impact_heavy' | 'impact_big';
 type ActKind = 'steal' | 'throw' | 'door_open' | 'door_close' | 'lift' | 'ui';
 export type SfxKind = SynthKind | ImpactKind | ActKind;
@@ -82,6 +82,7 @@ export function sfx(kind: SfxKind, volMul = 1) {
     try { sceneRef.sound.play(sample, { volume: v }); return; } catch { /* fall through */ }
   }
   if (kind === 'crackle') { playCrackle(volMul); return; }
+  if (kind === 'paper') { playPaper(volMul); return; }
   const a = ac(); if (!a) return;
   const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
   const P: Record<string, [OscillatorType, number, number, number, number]> = {
@@ -164,3 +165,23 @@ export function stopHum(fade = 0.6) {
   const later = (typeof window !== 'undefined' ? window.setTimeout : setTimeout);
   later(() => { try { osc.forEach(o => o.stop()); g.disconnect(); } catch { /* */ } }, fade * 1000 + 40);
 }
+
+function playPaper(volMul = 1) {
+  const a = ac(); if (!a) return;
+  const t0 = a.currentTime;
+  const n = Math.floor(a.sampleRate * 0.28);
+  const buf = a.createBuffer(1, n, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 1.35);
+  const src = a.createBufferSource(); src.buffer = buf;
+  const f = a.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.65;
+  const g = a.createGain();
+  const dest = outNode() || a.destination;
+  const v = Math.max(0.0001, 0.11 * master * volMul);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(v, t0 + 0.015);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.28);
+  src.connect(f); f.connect(g); g.connect(dest);
+  src.start(t0); src.stop(t0 + 0.3);
+}
+

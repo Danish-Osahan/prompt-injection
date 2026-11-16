@@ -330,6 +330,7 @@ async function desktop(browser) {
   await steal(page, 'c_switch', 'c_light');
   s = await waitFor(page, s => s.flags.lit, 4000);
   ok('corridor: take ON from the switch, throw it into the lamp', s.flags.lit && s.plates.c_note.visible, s.plates.c_light.words);
+  ok('corridor: a sticky-note Scribble is born when the hall lights', !!(s.birth && s.birth.playing) || !!(s.save.seen && s.save.seen.includes('birth')), `birth ${JSON.stringify(s.birth)} seen ${(s.save.seen || []).join(',')}`);
   await still1(page, 'corridor-lamp-on');
   await stillL1(page, 'corridor');
   await shot(page, 'desktop-08-corridor-lit');
@@ -371,6 +372,15 @@ async function desktop(browser) {
   await pi(page, 'teleport', 420, 420); await input.move(1, 0); await sleep(2400); await input.stop(); s = await st(page);
   ok('archive: Noor walks across the bridge', s.player.x > 840, `x ${Math.round(s.player.x)}`);
   await shot(page, 'desktop-11-archive-bridge');
+  const sc0 = s.enemies.find(e => e.kind === 'scribble');
+  const hp0 = sc0 ? sc0.hp : 3;
+  await pi(page, 'teleport', 880, 280); await sleep(160);
+  const si = s.enemies.findIndex(e => e.kind === 'scribble' && !e.dead);
+  await steal(page, 'a_cooler', 'en:' + si);
+  s = await waitFor(page, q => !!(q.enemies.find(e => e.kind === 'scribble') || {}).wet, 3000);
+  const sc1 = s.enemies.find(e => e.kind === 'scribble');
+  ok('archive: WET from the cooler melts the Scribble', !!(sc1 && sc1.wet && sc1.hp < hp0), `wet ${sc1 && sc1.wet} hp ${sc1 && sc1.hp}/${hp0}`);
+  ok('archive: Fern hinted once about the cooler', !!(s.save.seen && s.save.seen.includes('wetHint')), `seen ${(s.save.seen || []).join(',')}`);
   await pi(page, 'invuln', 60);
   const maxDiving = async (ms) => { let m = 0; const t0 = Date.now(); while (Date.now() - t0 < ms) { const q = await st(page); m = Math.max(m, q.enemies.filter(e => e.kind === 'note' && (e.state === 'windup' || e.state === 'dive')).length); await pi(page, 'invuln', 60); await sleep(60); } return m; };
   await pi(page, 'teleport', 1000, 520); const together = await maxDiving(3500);

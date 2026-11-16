@@ -32,7 +32,7 @@ const STICKS: Record<string, string[]> = {
   DOWN: ['a_bridge', 'a_stairs'],
   UP: ['a_bridge', 'a_stairs'],
   DRY: ['a_ink', 'a_towel', 'a_notes', 'a_water'],
-  WET: ['a_ink', 'a_towel', 'a_water'],
+  WET: ['a_ink', 'a_towel', 'a_water', 'a_cooler'],
   APART: ['a_notes'],
   TOGETHER: ['a_notes', 'a_books'],
   WEAK: ['r_guard', 'r_weak'],
@@ -241,12 +241,14 @@ export class StealPlay {
   }
 
   private canTakeLoose(id: string, word: string) {
+    if (id === 'a_cooler' && word === 'WET') return true;
     return this.links().some(l => l.src === id && l.quality === word);
   }
 
   private nearTakeable(): string | null {
     let best: string | null = null, bd = NEAR;
-    for (const l of this.links()) {
+    const srcs = [...this.links().map(l => l), { src: 'a_cooler', quality: 'WET', dst: '' }];
+    for (const l of srcs) {
       const p = this.s.plateById(l.src);
       if (!p?.visible || p.slotWord !== l.quality) continue;
       if (l.src === 'a_stairs' && !this.s.flags.drained) continue;
@@ -277,7 +279,6 @@ export class StealPlay {
     }
     cands.sort((a, b) => a.d - b.d);
     const near = cands.find(c => c.d < 280);
-    if (near) return near.id;
     const kinds = ENEMY_COUNTER[word] ?? [];
     let ed = 280, ei = -1;
     this.s.enemies.forEach((e, i) => {
@@ -286,6 +287,7 @@ export class StealPlay {
       const d = Math.hypot(e.x - this.s.x, e.y - this.s.y);
       if (d < ed) { ed = d; ei = i; }
     });
+    if (near && (ei < 0 || near.d <= ed)) return near.id;
     if (ei >= 0) return kinds.includes('draft') || word === 'WEAK' ? 'draft' : 'en:' + ei;
     // Close to Fern?
     if (this.s.room.id === 'hub' && Math.hypot(this.s.x - FERN.x, this.s.y - FERN.y) < 160) return 'fern';
@@ -337,9 +339,14 @@ export class StealPlay {
     if (dest.startsWith('en:')) {
       const e = this.s.enemies[+dest.slice(3)];
       if (e && !e.dead) {
-        if (word === 'DRY' || word === 'APART') { /* flags come from plates if we also mark them */ }
-        this.s.hurtEnemy(e, word === 'DRY' || word === 'PAPER' ? 2 : 1, 80, 0);
-        this.s.floorText(e.x, e.y - 70, word, '#78E4E8', 13, 700);
+        if (word === 'WET' && e.kind === 'scribble') {
+          e.wet = true;
+          this.s.hurtEnemy(e, 2, 80, 0);
+          this.s.floorText(e.x, e.y - 70, 'MELT', '#78E4E8', 13, 800);
+        } else {
+          this.s.hurtEnemy(e, word === 'DRY' || word === 'PAPER' ? 2 : 1, 80, 0);
+          this.s.floorText(e.x, e.y - 70, word, '#78E4E8', 13, 700);
+        }
       }
       // Spent on an enemy — lastApply stays as a snap-back to the source (undo restores it).
       this.lastApply = { from, word, onto: dest, prev: '' };

@@ -41,6 +41,8 @@ export interface Enemy {
   kind: EKind; x: number; y: number; hp: number; maxHp: number; g: Phaser.GameObjects.Container; body: Phaser.GameObjects.Graphics;
   state: string; t: number; kx: number; ky: number; tx: number; ty: number; hx: number; hy: number; dead: boolean; hitBy: number; phase: number;
   practice?: boolean;   // art-v11: the office's stuffed practice dummy (takes hits forever, never fights back)
+  wet?: boolean;        // archive Scribbles melted by WET from the cooler
+  swipeN?: number;      // paper dummy: first swipe is the slow tutorial tell
   flash?: Phaser.GameObjects.Graphics; pinT?: number; rootG?: Phaser.GameObjects.Graphics;
 }
 interface Prompt { id: string; kb: string; touch: string; text: Phaser.GameObjects.Text; done: () => boolean }
@@ -78,6 +80,7 @@ export class GameScene extends Phaser.Scene {
   subQueue: { who: string; line: string; ms: number }[] = []; subBusy = false;
   moved = 0; t = 0; transitioning = false;
   fight: DraftFight | null = null; timeScale = 1; rewriteT = 0; rewriteN = 0; stored: string | null = null; rootUsed = false;
+  birth: { playing: boolean; t: number; g: Phaser.GameObjects.Container } | null = null;
   holdT = 0; selecting = false; selectLen = 0; selectCd = 0; selectG: Phaser.GameObjects.Graphics | null = null; selectN = 0; selectHits = 0;
   dashStartAt = -9; perfectN = 0; pasteN = 0; rootN = 0; skipHold = 0; cutscene: { id: string; skip: () => void } | null = null; slowVeil: Phaser.GameObjects.Rectangle | null = null;
   seenEver: string[] = [];
@@ -424,6 +427,7 @@ export class GameScene extends Phaser.Scene {
     this.endScreen?.destroy(); this.endScreen = undefined; this.endLinesText = undefined; this.ending = false;
     this.roomCard?.destroy(); this.roomCard = undefined;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
+    this.birth = null;
   }
 
   buildRoom(id: RoomId, fromLoad = false) {
@@ -593,6 +597,7 @@ export class GameScene extends Phaser.Scene {
       const bridge = this.add.graphics().setDepth(379).setVisible(!this.art); this.objs.push(bridge); this.roomVis.bridge = bridge;
       if (!s.defeated.includes('scribble')) this.spawnEnemy('scribble', 1000, 300);
       for (let i = 0; i < 4; i++) if (!s.defeated.includes('note' + i)) this.spawnEnemy('note', 1040, 560, i);
+      this.drawWaterCooler(860, 236);
     }
     if (id === 'arena') {
       if (!this.art) { const lamp = this.add.image(640, 420, 'pool').setScale(3.2, 2.2).setTint(0xf6c684).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(lamp); }
@@ -601,7 +606,7 @@ export class GameScene extends Phaser.Scene {
       if (!s.defeated.includes('draft')) {
         this.save.checkpoint = { room: 'arena', x: this.room.spawn.x, y: this.room.spawn.y, plate: null };
         this.fight = new DraftFight(this);
-        this.startCutscene('sc4', 1500, () => { this.say('fern', "No shadow. It's a copy. Fight.", 2400); }, () => { if (this.fight) { this.fight.real.g.setAlpha(1); this.fight.real.t = 0; } });
+        this.startCutscene('sc4', 2200, () => { this.say('fern', 'Every claim reply you rewrote and never sent.', 2800); }, () => { if (this.fight) { this.fight.real.g.setAlpha(1); this.fight.real.t = 0; } });
         if (this.swapMode) {
           this.addPrompt('rewrite', 0, 0, 'HOLD E AT THE PILLAR, F AT THE DRAFT', 'HOLD E AT THE PILLAR, F AT THE DRAFT', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
           this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
@@ -657,18 +662,118 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ---------- enemies ----------
+  // ---------- enemies (complaints given bodies: paper and ink, never an employee) ----------
+  drawPaperDummy(body: Phaser.GameObjects.Graphics) {
+    // A hanging stack of pages on a stand — a training dummy, not a person.
+    body.fillStyle(0x6a5a44, 1).fillRect(-3, -78, 6, 80);
+    body.fillStyle(0x4a4030, 1).fillRect(-18, 0, 36, 6);
+    body.fillStyle(0xe8e0cc, 1).fillRoundedRect(-18, -70, 38, 52, 2);
+    body.fillStyle(0xf4efe0, 1).fillRoundedRect(-16, -72, 36, 50, 2);
+    body.lineStyle(1, 0xc8c0a8, 1).strokeRoundedRect(-16, -72, 36, 50, 2);
+    body.fillStyle(0xd8c050, 0.95).fillRect(-7, -76, 14, 7);
+    body.lineStyle(1.4, 0x3a3428, 0.7);
+    body.lineBetween(-8, -54, 8, -54);
+    body.lineBetween(-8, -44, 5, -44);
+    body.lineStyle(1.6, 0x5a5040, 0.8).strokeCircle(0, -28, 9).strokeCircle(0, -28, 4);
+  }
+  drawScribble(body: Phaser.GameObjects.Graphics) {
+    body.lineStyle(4, 0x0c0e1e, 1);
+    body.beginPath();
+    for (let i = 0; i <= 24; i++) {
+      const a = i * 0.9, r = 14 + (i % 3) * 6;
+      const px = Math.cos(a) * r, py = -22 + Math.sin(a) * r * 0.7;
+      if (i) body.lineTo(px, py); else body.moveTo(px, py);
+    }
+    body.strokePath();
+    body.lineStyle(1.5, 0x78e4e8, 0.7).strokeCircle(-6, -26, 3).strokeCircle(6, -26, 3);
+    // Tiny ink teeth — complaints that grew an edge, not a face.
+    body.fillStyle(0x0c0e1e, 1);
+    for (const x of [-7, 0, 7]) { body.fillTriangle(x - 3, -8, x + 3, -8, x, -1); }
+  }
+  drawDraft(g: Phaser.GameObjects.Container, body: Phaser.GameObjects.Graphics) {
+    // A fanned stack of unsent claim replies — not a person, not a copy of Noor.
+    body.fillStyle(0xe8e2d4, 0.96).fillRoundedRect(-28, -100, 40, 88, 2);
+    body.fillStyle(0xefe6d2, 0.96).fillRoundedRect(-10, -106, 42, 92, 2);
+    body.fillStyle(0xf7f1e4, 0.98).fillRoundedRect(-6, -102, 40, 90, 2);
+    body.lineStyle(1, 0xc8c0b0, 0.9).strokeRoundedRect(-6, -102, 40, 90, 2);
+    body.lineStyle(1, 0xb8b0a0, 0.55);
+    for (let i = 0; i < 6; i++) body.lineBetween(0, -86 + i * 10, 26, -86 + i * 10);
+    const lab = this.add.text(14, -108, 'RE: CLAIM', { fontFamily: 'IBM Plex Mono', fontSize: '10px', color: '#5a5040' }).setOrigin(0.5, 0);
+    const num = this.add.text(14, -96, '#4471', { fontFamily: 'IBM Plex Mono', fontSize: '11px', fontStyle: 'bold', color: '#3a3428' }).setOrigin(0.5, 0);
+    g.add([lab, num]);
+  }
+  /** Defeated complaints uncrumple and drift away as loose paper. */
+  paperDrift(e: Enemy) {
+    this.tweens.killTweensOf(e.g);
+    this.tweens.add({ targets: e.g, alpha: 0, duration: 180, onComplete: () => e.g.setVisible(false) });
+    try { sfx('paper'); } catch { /* */ }
+    const n = e.kind === 'draft' ? 10 : e.kind === 'note' ? 4 : 7;
+    const col = e.kind === 'note' ? 0xf2dc6a : e.kind === 'scribble' ? 0xe8eef2 : 0xf4efe0;
+    for (let i = 0; i < n; i++) {
+      const w = 10 + Math.random() * 10, h = 12 + Math.random() * 12;
+      const slip = this.add.rectangle(e.x + (Math.random() - 0.5) * 18, e.y - 20 + (Math.random() - 0.5) * 16, w, h, col, 0.96)
+        .setStrokeStyle(1, 0xc8c0a8, 0.7).setDepth(e.y + 8).setScale(0.35).setAngle((Math.random() - 0.5) * 50);
+      this.objs.push(slip);
+      this.tweens.add({
+        targets: slip,
+        alpha: { from: 1, to: 0 },
+        y: slip.y - 50 - Math.random() * 50,
+        x: slip.x + (Math.random() - 0.5) * 80,
+        angle: slip.angle + (Math.random() - 0.5) * 140,
+        scaleX: 1, scaleY: 1,
+        delay: i * 40,
+        duration: 900 + Math.random() * 400,
+        ease: 'Sine.easeOut',
+        onComplete: () => slip.destroy(),
+      });
+    }
+  }
+  /** Corridor lamp-on: sticky notes crumple into a toothy Scribble, then drift away. */
+  playScribbleBirth(x: number, y: number) {
+    if (this.birth?.playing || this.save.seen.includes('birth')) return;
+    this.save.seen.push('birth'); writeSave(this.save);
+    const g = this.add.container(x, y).setDepth(y + 10);
+    this.objs.push(g);
+    this.birth = { playing: true, t: 0, g };
+    const notes: Phaser.GameObjects.Rectangle[] = [];
+    for (let i = 0; i < 8; i++) {
+      const n = this.add.rectangle((i % 4) * 16 - 24, -20 - Math.floor(i / 4) * 18, 16, 16, 0xf2dc6a).setStrokeStyle(1, 0xd8c050).setAngle((Math.random() - 0.5) * 24);
+      g.add(n); notes.push(n);
+    }
+    try { sfx('paper'); } catch { /* */ }
+    this.tweens.add({
+      targets: notes, x: 0, y: -18, angle: 0, duration: 640, ease: 'Quad.easeIn',
+      onComplete: () => {
+        notes.forEach(n => n.setVisible(false));
+        const body = this.add.graphics();
+        this.drawScribble(body);
+        g.add(body);
+        try { sfx('tell'); } catch { /* */ }
+        this.time.delayedCall(900, () => {
+          this.paperDrift({ kind: 'scribble', x: g.x, y: g.y, hp: 0, maxHp: 0, g, body, state: 'idle', t: 0, kx: 0, ky: 0, tx: 0, ty: 0, hx: 0, hy: 0, dead: true, hitBy: -1, phase: 0 } as Enemy);
+          this.time.delayedCall(800, () => { if (this.birth) this.birth.playing = false; });
+        });
+      },
+    });
+  }
+  drawWaterCooler(x: number, y: number) {
+    const g = this.add.graphics().setDepth(y);
+    g.fillStyle(0x3a4650, 1).fillRoundedRect(x - 16, y - 52, 32, 52, 3);
+    g.fillStyle(0x9ad8f0, 0.7).fillRoundedRect(x - 10, y - 44, 20, 22, 2);
+    g.fillStyle(0xd8d0c0, 1).fillRect(x - 6, y - 18, 12, 10);
+    g.fillStyle(0xc8d8e0, 0.85).fillTriangle(x - 5, y - 8, x + 5, y - 8, x, y + 4);
+    g.lineStyle(1, 0x1a242c, 0.6).strokeRoundedRect(x - 16, y - 52, 32, 52, 3);
+    this.objs.push(g);
+  }
   spawnEnemy(kind: EKind, x: number, y: number, phase = 0) {
+
     const g = this.add.container(x, y); const body = this.add.graphics(); g.add(body);
     const sh = kind === 'draft' ? null : this.add.ellipse(0, 0, kind === 'note' ? 16 : 40, 10, 0, 0.4); if (sh) g.addAt(sh, 0);
     const hp = { dummy: 6, scribble: 3, note: 1, draft: DRAFT.hp, redline: 5, stapler: 6 }[kind];
-    if (kind === 'dummy') { body.fillStyle(0xd8d0bc, 1).fillRect(-16, -62, 32, 48).fillCircle(0, -72, 13); body.fillStyle(0x8a826e, 1).fillRect(-3, -14, 6, 14); body.lineStyle(2, 0x5a5444, 1).lineBetween(-10, -50, 10, -50).lineBetween(-10, -40, 8, -40); }
-    if (kind === 'scribble') { body.lineStyle(4, 0x0c0e1e, 1); body.beginPath(); for (let i = 0; i <= 24; i++) { const a = i * 0.9, r = 14 + (i % 3) * 6; const px = Math.cos(a) * r, py = -22 + Math.sin(a) * r * 0.7; if (i) body.lineTo(px, py); else body.moveTo(px, py); } body.strokePath(); body.lineStyle(1.5, 0x78e4e8, 0.7).strokeCircle(-6, -26, 3).strokeCircle(6, -26, 3); }
-    if (kind === 'note') { body.fillStyle(0xf2dc6a, 1).fillRect(-9, -28, 18, 18); body.fillStyle(0xd8c050, 1).fillRect(-9, -14, 18, 4); }
-    if (kind === 'draft') {
-      const sp = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).play('noor_idle_S').setTint(0x9aa0a8).setAlpha(0.85); g.add(sp);
-      body.lineStyle(1, 0xe6e6e6, 0.4); for (let i = 0; i < 8; i++) body.strokeRect(-30 + Math.random() * 50, -110 + Math.random() * 100, 10, 8);
-    }
+    if (kind === 'dummy') this.drawPaperDummy(body);
+    if (kind === 'scribble') this.drawScribble(body);
+    if (kind === 'note') { body.fillStyle(0xf2dc6a, 1).fillRect(-9, -28, 18, 18); body.fillStyle(0xd8c050, 1).fillRect(-9, -14, 18, 4); body.lineStyle(1, 0x6a5a28, 0.45).lineBetween(-6, -22, 5, -22).lineBetween(-6, -17, 3, -17); }
+    if (kind === 'draft') this.drawDraft(g, body);
     const flash = this.add.graphics().setDepth(-600); this.objs.push(flash);
     const e: Enemy = { kind, x, y, hp, maxHp: hp, g, body, state: 'idle', t: Math.random() + phase * 0.6, kx: 0, ky: 0, tx: x, ty: y, hx: x, hy: y, dead: false, hitBy: -1, phase, flash };
     this.enemies.push(e);
@@ -690,6 +795,7 @@ export class GameScene extends Phaser.Scene {
     if (e.kind === 'dummy' && !this.flags.quick) { if (!this.roomVis.dummyMsg) { this.roomVis.dummyMsg = this.floorText(e.x, e.y - 110, "IT ISN'T AWAKE.", C.dim, 16, 1600); this.time.delayedCall(1800, () => delete this.roomVis.dummyMsg); } return; }
     if (e.kind === 'draft' && this.fight) dmg = this.fight.modify(e, dmg);
     if (e.kind === 'scribble' && this.flags.dry) { dmg *= 2; this.floorText(e.x, e.y - 70, 'CRACK x2', C.ok, 13, 500); }
+    if (e.kind === 'scribble' && e.wet) { dmg *= 1.5; this.floorText(e.x, e.y - 86, 'MELT', C.cyan, 13, 500); }
     if (dmg <= 0) { this.tweens.add({ targets: e.g, alpha: 0.6, duration: 50, yoyo: true }); return; }
     sfx('hit');
     e.hp -= dmg; if (e.kind !== 'draft' && e.kind !== 'dummy') { e.kx += kx; e.ky += ky; }
@@ -701,8 +807,8 @@ export class GameScene extends Phaser.Scene {
     if (mark) { const m = this.add.text(e.x + 14, e.y - 50, '|', { fontFamily: 'JetBrains Mono', fontSize: '30px', fontStyle: 'bold', color: C.cyan }).setOrigin(0.5).setDepth(3200); this.objs.push(m); this.tweens.add({ targets: m, alpha: 0, duration: 265, yoyo: true, repeat: 2, onComplete: () => m.destroy() }); }
     if (e.hp <= 0) {
       e.dead = true; this.combat?.onKill(e, 'combo'); this.save.defeated.push(e.kind === 'note' ? 'note' + e.phase : e.kind);
-      this.tweens.killTweensOf(e.g); this.tweens.add({ targets: e.g, scaleX: 0.2, scaleY: 0.1, alpha: 0, duration: 380, onComplete: () => e.g.setVisible(false) });
-      e.flash?.clear();
+      this.tweens.killTweensOf(e.g); e.flash?.clear();
+      this.paperDrift(e);
       if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. It woke up.', 2200); }
       if (e.kind === 'draft') { this.time.delayedCall(2400, () => { this.plateById('r_line')?.setVisibleState(!this.save.lines.includes('r_line')); this.ambState(); }); this.dyn.arenaDoor = null; this.say('noor', '...So did I.', 2200); }
       writeSave(this.save);
@@ -725,21 +831,24 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'dummy') {
         if (!this.flags.quick) { e.state = 'idle'; e.g.setRotation(0); }
         else {
-          if (e.state === 'idle' && e.t <= 0) { e.state = 'windup'; e.t = 0.8; }
-          if (e.state === 'windup') { fl.fillStyle(hex(C.coral), 0.15 + 0.3 * (1 - e.t / 0.8)).fillCircle(e.x, e.y, 95); fl.lineStyle(2, hex(C.coral), 0.8).strokeCircle(e.x, e.y, 95); e.g.setRotation(-0.3 * (1 - e.t / 0.8)); if (e.t <= 0) { e.state = 'swipe'; e.t = 0.25; if (d < 95) this.hurtNoor('swipe'); } }
-          else if (e.state === 'swipe') { e.g.setRotation(0.5); if (e.t <= 0) { e.state = 'recover'; e.t = 0.9; } }
+          const wind = (e.swipeN ?? 0) === 0 ? 1.15 : 0.8;
+          if (e.state === 'idle' && e.t <= 0) { e.state = 'windup'; e.t = wind; }
+          if (e.state === 'windup') { fl.fillStyle(hex(C.coral), 0.15 + 0.3 * (1 - e.t / wind)).fillCircle(e.x, e.y, 95); fl.lineStyle(2, hex(C.coral), 0.8).strokeCircle(e.x, e.y, 95); e.g.setRotation(-0.3 * (1 - e.t / wind)); if (e.t <= 0) { e.state = 'swipe'; e.t = 0.25; e.swipeN = (e.swipeN ?? 0) + 1; if (d < 95) this.hurtNoor('swipe'); } }
+          else if (e.state === 'swipe') { e.g.setRotation(0.5); if (e.t <= 0) { e.state = 'recover'; e.t = (e.swipeN ?? 1) === 1 ? 1.25 : 0.9; } }
           else if (e.state === 'recover' || e.state === 'stun') { e.g.setRotation(0); if (e.t <= 0) { e.state = 'idle'; e.t = 1.4; } }
         }
         e.x = e.hx + Phaser.Math.Clamp(e.x - e.hx, -30, 30); e.y = e.hy + Phaser.Math.Clamp(e.y - e.hy, -30, 30);
       }
       if (e.kind === 'scribble') {
-        e.body.setAlpha(this.flags.dry ? 0.65 : 1);
-        const fast = e.hp <= e.maxHp / 2 ? 1.4 : 1; const aware = d < 420 && this.x > 820;
+        e.body.setAlpha(e.wet ? 0.55 : this.flags.dry ? 0.65 : 1);
+        if (e.wet) e.g.setScale(1.08, 0.78 + 0.04 * Math.sin(this.t * 5));
+        const fast = e.wet ? 0.7 : e.hp <= e.maxHp / 2 ? 1.4 : 1; const aware = d < 420 && this.x > 820;
         if (e.state === 'idle') { e.g.setScale(1, 1 + 0.05 * Math.sin(this.t * 6)); if (aware) { if (d > 170) { e.x += dx / d * 70 * fast * dt; e.y += dy / d * 70 * fast * dt; } else if (e.t <= 0) { e.state = 'windup'; e.t = 0.6 / fast; } } }
         else if (e.state === 'windup') { e.g.setScale(1.25, 0.6); fl.fillStyle(hex(C.coral), 0.25).fillEllipse(e.x, e.y, 60, 20); if (e.t <= 0) { e.state = 'lunge'; e.t = 0.32; e.tx = dx / d; e.ty = dy / d; } }
         else if (e.state === 'lunge') { e.g.setScale(0.8, 1.2); e.x += e.tx * 560 * fast * dt; e.y += e.ty * 560 * fast * dt; if (d < 32) { this.hurtNoor('lunge'); e.state = 'recover'; e.t = 0.6; } else if (e.t <= 0) { e.state = 'stuck'; e.t = 1.0; } }
         else if (e.state === 'stuck') { e.g.setScale(1.1, 0.9); fl.lineStyle(1, hex(C.cyan), 0.5).strokeCircle(e.x, e.y - 20, 26); if (e.t <= 0) { e.state = 'idle'; e.t = 0.5; } }
         else { e.g.setScale(1); if (e.t <= 0) { e.state = 'idle'; e.t = 0.6; } }
+        if (e.wet) e.g.setScale(1.08, 0.78 + 0.04 * Math.sin(this.t * 5));
         e.x = Phaser.Math.Clamp(e.x, 860, 1200); e.y = Phaser.Math.Clamp(e.y, 200, 670);
       }
       if (e.kind === 'note') {
@@ -914,9 +1023,18 @@ export class GameScene extends Phaser.Scene {
       if (this.darkness) this.tweens.add({ targets: this.darkness, alpha: f.lit ? 0 : 1, duration: dur });
       this.tweens.add({ targets: [this.roomVis.lamp], alpha: f.lit ? (this.art ? 1 : 0.8) : 0, duration: dur });
       if (f.lit) help('lamp');
-      if (f.lit && !was.lit && !initial) this.say('fern', 'Left you a note. Down there.', 2000);
+      if (f.lit && !was.lit && !initial) {
+        this.playScribbleBirth(560, 400);
+        this.say('fern', 'Complaints. People typed so many, they grew teeth.', 2800);
+        this.time.delayedCall(3000, () => this.say('fern', 'Left you a note. Down there.', 2000));
+      }
       f.quick = w('c_dummy') === 'QUICK';
       if (f.quick) help('dummy');
+      if (f.quick && !was.quick && !initial) {
+        const d = this.enemies.find(e => e.kind === 'dummy' && !e.dead);
+        if (d) { d.swipeN = 0; d.state = 'idle'; d.t = 0.35; }
+        this.say('fern', 'J to type. Dash through the swipe.', 2600);
+      }
     }
     if (id === 'archive') {
       f.drained = ['LOW', 'DOWN'].includes(w('a_water') ?? '');
@@ -1504,7 +1622,13 @@ export class GameScene extends Phaser.Scene {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
     }
+    if (this.birth?.playing) this.birth.t += dt;
+    if (this.room.id === 'archive' && this.x > 820 && !this.save.seen.includes('wetHint') && this.enemies.some(e => e.kind === 'scribble' && !e.dead) && !this.busy) {
+      this.save.seen.push('wetHint'); writeSave(this.save);
+      this.say('fern', 'The cooler. Wet paper forgets how to hold a shape.', 2800);
+    }
     this.updateEnemies(edt);
+
     this.fight?.update(dt, edt);
     if (this.room.exit && control && inR(this.room.exit.rect, this.x, this.y)) this.goRoom(this.room.exit.to);
     this.updateHint(dt);
@@ -1713,7 +1837,8 @@ export class GameScene extends Phaser.Scene {
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
       ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
-      enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state })),
+      enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
+      birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
       intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.[1] as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
       boss: this.fight ? { hp: this.fight.real.hp, state: this.fight.real.state, guarded: this.fight.guarded, guardT: this.fight.guardT, split: this.fight.split, fake: !!this.fight.fake, won: this.fight.won, punishCount: this.fight.punishCount, lastTell: this.fight.lastTell, tellCount: this.fight.tellCount, sign: this.plateById('r_guard')?.words.join(' '), signX: this.plateById('r_guard')?.container.x, x: this.fight.real.x, y: this.fight.real.y, pinT: this.fight.real.pinT ?? 0, balls: this.fight.balls.length, ring: !!this.fight.ring } : null, composer: this.composer ? this.composer.i : -1, paused: this.paused, save: JSON.parse(JSON.stringify(this.save)),
