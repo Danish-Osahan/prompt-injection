@@ -1,5 +1,27 @@
 # HANDOFF
 
+## 2026-11-16 — Office re-render (approved plate pass)
+
+Blender 4.2.9, Cycles, same camera (ortho 8.4, pitch 38°, yaw −30°). `P_office()` in `rooms7.py` plus a phone-height fix in `rooms8.py`, then a beauty + O11 render and `post11.py` so every `office11/fg` layer and `office_bleed.jpg` are recut from the new graded plate.
+
+What changed in the plate:
+
+- Desk items sit on their desktops at a tighter, consistent paper scale. Dez's stack is inset on the desk (no floor scatter). Kabir's headphones sit on the right of the desktop instead of hanging in the aisle. The mug and face-down photo use the mug desk's own height. The west-pod phone sits on the desktop, visible on the right, not sunk or hidden behind the chair. Noor's fern is on the desktop next to the lamp, not in the knee space.
+- The table's near-edge paper is fully on the hex table, beside the laptop (smaller sheets, less jitter). The old printer-aisle stack at z=0 (which read as floating behind desk_podW) now sits on the printer table.
+- desk_dez floor papers at ~(468, 448) were removed. They read as stray stickers with no contact. The white sheet near plantFG is the existing lost-line collectible, not that scatter.
+- Plant overlays (plantE, plantW, plantFG) use a hard index mask (no MaxFilter blur), cut from the saved `office_bleed.jpg` so opaque Δ vs the game plate is 0 and there is no soft fringe. Other furniture keeps a 1px dilate, still no blur.
+- Lift recess, window panes, and the banker-lamp / panel code positions are unchanged (LAMP_SPRITE 154,270 on desk_podW; PANEL 276,167 / PANEL_SPRITE 265,151). Door frames were re-graded against the new plate. `chair_noor` (chair_dez at 966,475) is re-injected by post11 so a regen cannot drop it.
+- Night mood kept, slightly richer: amb 40 (was 36), window emit 0.62, rain-light 0.26, main warm spot 420.
+
+post11 now grades a fresh `R7_office_clean.png` into `office.jpg` / `office_code.jpg` and rebuilds `office_bleed.jpg` with the same letterbox extend as `bleed_plates.py`.
+
+Playtest: 191/191.
+
+Review stills (not in the repo): `/workspace/l1-office-1440x800.png` (ENVELOP, 1440×800; the "THE REAL OFFICE" heading and a leftover greet portrait may be on this still — they are HUD, not plate art), 2x before/after desk crops under `/workspace/l1-props/`, opening video `/workspace/l1-opening.webm` (~52.7s, beats a–g). The 1440 still also includes rain, the green banker lamp, and chair_noor.
+
+Honest leftovers: Dez's paper stack sits flush with the front edge of the desk (on the surface, not floating). Kabir's headphones are on the desktop but still a little toward the front-right lip. The 1440 still was captured with the entry heading and greet portrait visible.
+
+
 ## 2026-11-16 — Desk props audit (2x, no new sprite moves)
 
 A 2x overlay of every `O11_PROPS` sprite against `office_bleed.jpg`: official furniture is already registered (mean Δ 0.3–0.7, best nudge for plantE is 0,0). The only sprite-layer placement fix in this pass remains `chair_noor` (`cf7d597`): Dez's chair in the aisle at (966, 475). The green banker lamp is `lift_lamp_on` at (154, 270), scale 0.92, sitting on desk_podW's top face — it is not baked into the plate, and it is not the 2D Kenney floor-lamp fallback.

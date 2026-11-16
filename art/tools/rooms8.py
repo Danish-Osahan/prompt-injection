@@ -33,9 +33,9 @@ def moth_mesh(mat):
 # ---------------- OFFICE ----------------
 def L_office():
     dh = 0.36
-    # Noor's phone, face up on the west pod: 37 unread
-    q = unproj(165, 322, 0.30); box('phone', (0.08, 0.15, 0.012), (q.x, q.y, 0.31), srgb('phoneb', (20, 22, 28), metal=0.4), rot=(0, 0, R(SCR_RZ + 20)))
-    plane('phonescr', 0.07, 0.14, img_mat('phonescr', TX8+'phone_37.png', emit=1.1), (q.x, q.y, 0.3175), rot=(0, 0, R(SCR_RZ + 20)))
+    # Noor's phone, face up on the west pod: 37 unread (sit on the desktop, not sunk into it)
+    q = unproj(186, 316, dh); box('phone', (0.08, 0.15, 0.012), (q.x, q.y, dh + 0.006), srgb('phoneb', (20, 22, 28), metal=0.4), rot=(0, 0, R(SCR_RZ + 20)))
+    plane('phonescr', 0.07, 0.14, img_mat('phonescr', TX8+'phone_37.png', emit=1.1), (q.x, q.y, dh + 0.013), rot=(0, 0, R(SCR_RZ + 20)))
     # a calendar stuck on August, between the lift and the kitchenette
     wall_tex(282, 318, 92, 138, 200, TX8+'calendar_aug.png', emit=0.12, name='calendar')
     # a sticky note on the whiteboard: CALL, then a crossed-out name

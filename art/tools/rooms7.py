@@ -103,27 +103,28 @@ def bevel_all(minp=6):
     for o in list(sc.objects):
         if o.type == 'MESH' and len(o.data.polygons) >= minp and not any(m.type == 'BEVEL' for m in o.modifiers):
             m = o.modifiers.new('bv', 'BEVEL'); m.width = 0.006; m.segments = 2; m.limit_method = 'ANGLE'
-def paper_stack(sx, sy, z, n=6, seed=1, rz=0):
+def paper_stack(sx, sy, z, n=6, seed=1, rz=0, size=(0.14, 0.18), jitter=0.5):
+    # size/jitter stay modest so stacks sit fully on desktops and the nook table (wide 0.21x0.28 sheets overhung).
     rnd = random.Random(seed); pm = srgb('pstack', (220, 216, 204), rough=0.85); out = []
     for k in range(n):
-        q = unproj(sx + rnd.uniform(-2, 2), sy + rnd.uniform(-1, 1), z)
-        out.append(box('sheet', (0.21, 0.28, 0.004), (q.x, q.y, z + 0.002 + k*0.005), pm, rot=(0, 0, R(SCR_RZ + rz + rnd.uniform(-8, 8)))))
+        q = unproj(sx + rnd.uniform(-2, 2)*jitter, sy + rnd.uniform(-1, 1)*jitter, z)
+        out.append(box('sheet', (size[0], size[1], 0.004), (q.x, q.y, z + 0.002 + k*0.005), pm, rot=(0, 0, R(SCR_RZ + rz + rnd.uniform(-8, 8)))))
     return out
 def cyl(sx, sy, z, r, h, mat, rot=(0, 0, 0)):
     q = unproj(sx, sy, z); bpy.ops.mesh.primitive_cylinder_add(vertices=18, radius=r, depth=h, location=(q.x, q.y, z + h/2), rotation=rot); o = bpy.context.object; o.data.materials.append(mat); return o
 def P_office():
-    calm_base(amb_e=36)
+    calm_base(amb_e=40)
     fm = floor_mat('ofloor', tint=(150, 160, 170), rough=0.42); wm = srgb('owall', (40, 50, 60), rough=0.9); tm = srgb('otrim', (22, 28, 36))
     floor_rect(70, 200, 1140, 480, fm)
     wall_seg(70, 1210, 200, 150, wm); wall_seg(70, 1210, 200, 8, tm, th=0.24)
     # carpet tiles: two worn runs where people actually walked
     # rain window + rain light thrown across the floor
-    on_wall(760, 1160, 72, 186, 200, img_mat('osky', TX5+'window_sky.png', emit=0.55), name='window')
+    on_wall(760, 1160, 72, 186, 200, img_mat('osky', TX5+'window_sky.png', emit=0.62), name='window')
     fr = srgb('wframe', (14, 20, 28), rough=0.5)
     for x in (760, 893, 1027, 1160): on_wall(x-3, x+3, 70, 188, 200, fr, eps=0.02, name='mullion')
     on_wall(756, 1164, 186, 192, 200, srgb('sill', (52, 62, 72)), eps=0.03, name='sill')
     # (art-v8: the rain is an ambient loop now, rooms8.py)
-    rp = unproj(930, 290); floor_decal('rainlight', TX7+'rain_light.png', rp.x, rp.y, 3.6, 1.5, rz=SCR_RZ - 14, emit=0.22)
+    rp = unproj(930, 290); floor_decal('rainlight', TX7+'rain_light.png', rp.x, rp.y, 3.6, 1.5, rz=SCR_RZ - 14, emit=0.26)
     L_at('AREA', 960, 260, 1.4, 60, (0.50, 0.66, 0.90), 2.5, aim_to=tuple(unproj(960, 420)))
     # back wall, west to east: lift, printer corner, kitchenette, bookcase, whiteboard, coat rack
     on_wall(150, 260, 80, 200, 200, srgb('lift', (58, 66, 74), rough=0.3, metal=0.7), name='lift')
@@ -141,48 +142,50 @@ def P_office():
     box('printer', (0.42, 0.34, 0.2), (pq.x, pq.y, pz + 0.1), srgb('printer', (196, 198, 196), rough=0.4), rot=(0, 0, R(SCR_RZ)))
     box('ptray', (0.36, 0.12, 0.02), (pq.x, pq.y, pz + 0.205), srgb('ptray', (60, 64, 70)), rot=(0, 0, R(SCR_RZ)))
     jam = plane('jam', 0.2, 0.16, srgb('jam', (232, 228, 218), rough=0.8), (pq.x, pq.y, pz + 0.27), rot=(R(75), 0, R(SCR_RZ)))
-    paper_stack(160, 262, 0.0, 9, seed=3)
+    # papers live on the printer table, not the floor (the old z=0 stack read as floating in the podW aisle)
+    paper_stack(126, 236, pz, 5, seed=3, size=(0.13, 0.17), jitter=0.35)
     # Dez's desk: glowing, a small plant and a pen cup, chair pushed back like he'll be right back
     global MON_TEX, MON_EMIT
     MON_TEX = TX+'monC_chat.png'; MON_EMIT = 0.9
     dz = kp('desk', 395, 420, s=0.9, val=0.42); dh = dz['size'][2]; m1 = kp('computerScreen', 380, 400, s=0.9, z=dh); screen_on(m1, TX+'monC_chat.png', 0.9)
     ch = kp('chairDesk', 410, 462, 165, s=0.85, val=0.5, sat=0.3)
     c1 = [kp('plantSmall3', 440, 410, s=0.9, z=dh), kp('computerKeyboard', 392, 418, s=0.9, z=dh), cyl(355, 418, dh, 0.03, 0.08, srgb('pencup', (60, 90, 130)))]
-    c1 += paper_stack(430, 428, dh, 4, seed=5)
+    c1 += paper_stack(412, 402, dh, 3, seed=5, size=(0.11, 0.14), jitter=0.3)
     # Kabir's desk: glowing, headphones, a sticky note on the monitor edge
     kz = kp('desk', 685, 300, s=0.9, val=0.42); m2 = kp('computerScreen', 668, 280, s=0.9, z=dh); screen_on(m2, TX+'monA_chart.png', 0.8)
     kp('chairDesk', 685, 334, 175, s=0.85, val=0.5, sat=0.3)
-    hq = unproj(725, 296, dh + 0.03); bpy.ops.mesh.primitive_torus_add(major_radius=0.07, minor_radius=0.012, location=hq, rotation=(R(90), 0, R(SCR_RZ))); hp = bpy.context.object; hp.data.materials.append(srgb('phones', (30, 30, 34), rough=0.3))
+    hq = unproj(698, 288, dh + 0.03); bpy.ops.mesh.primitive_torus_add(major_radius=0.07, minor_radius=0.012, location=hq, rotation=(R(90), 0, R(SCR_RZ))); hp = bpy.context.object; hp.data.materials.append(srgb('phones', (30, 30, 34), rough=0.3))
     sn = unproj(650, 282, dh + 0.18); stk = plane('sticky', 0.06, 0.06, srgb('stk', (240, 214, 90), rough=0.8), (sn.x, sn.y, dh + 0.18), rot=(R(90), 0, R(SCR_RZ)))
     c2 = [hp, stk, kp('computerMouse', 705, 302, s=1.0, z=dh)]
     # Noor's desk: dust grey, cleared. One thing left: her tiny potted fern, still alive under the lamp
     nz = kp('desk', 990, 490, s=0.9, val=0.30, sat=0.15); m3 = kp('computerScreen', 975, 470, s=0.9, z=dh, val=0.3, sat=0.1)
     screen_on(m3, TX+'monC_chat.png', 0.0).data.materials[0] = srgb('dead', (8, 10, 12), rough=0.3)
     lmp = kp('lampSquareTable', 1040, 478, s=0.8, z=dh); p = unproj(1040, 478); lamp_glow(p.x, p.y, 0.62, 9)
-    fern = kp('plantSmall1', 1005, 488, s=0.75, z=dh, sat=1.1)
+    fern = kp('plantSmall1', 1010, 476, s=0.75, z=dh, sat=1.1)
     L_at('SPOT', 1005, 495, 1.6, 140, (1.0, 0.72, 0.46), 0.25, spot=28, blend=0.6)
     kp('cardboardBoxClosed', 1100, 530, 20, s=1.1, val=0.5); kp('cardboardBoxOpen', 1135, 560, -10, s=0.9, val=0.45)
     # a coworker's desk with the mug (COLD SINCE AUGUST), a framed photo turned face-down
-    cz = kp('desk', 235, 590, s=0.85, val=0.42); kp('chairDesk', 235, 622, 190, s=0.8, val=0.5, sat=0.3)
-    mp = unproj(233, 568, 0.33); bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.045, depth=0.09, location=(mp.x, mp.y, 0.375))
+    cz = kp('desk', 235, 590, s=0.85, val=0.42); mh = cz['size'][2]; kp('chairDesk', 235, 622, 190, s=0.8, val=0.5, sat=0.3)
+    mp = unproj(233, 574, mh); bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.045, depth=0.09, location=(mp.x, mp.y, mh + 0.045))
     mug = bpy.context.object; mug.data.materials.append(srgb('mug', (210, 200, 186), rough=0.4))
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.028, minor_radius=0.008, location=(mp.x + 0.05, mp.y, 0.38), rotation=(R(90), 0, R(SCR_RZ))); handle = bpy.context.object; handle.data.materials.append(mug.data.materials[0])
-    phq = unproj(262, 582, dh); photo = box('photo', (0.14, 0.1, 0.012), (phq.x, phq.y, dh + 0.008), srgb('photo', (70, 50, 40), rough=0.5), rot=(0, 0, R(SCR_RZ + 12)))
+    bpy.ops.mesh.primitive_torus_add(major_radius=0.028, minor_radius=0.008, location=(mp.x + 0.05, mp.y, mh + 0.05), rotation=(R(90), 0, R(SCR_RZ))); handle = bpy.context.object; handle.data.materials.append(mug.data.materials[0])
+    phq = unproj(248, 570, mh); photo = box('photo', (0.12, 0.09, 0.012), (phq.x, phq.y, mh + 0.006), srgb('photo', (90, 70, 58), rough=0.5), rot=(0, 0, R(SCR_RZ + 12)))
     # empty pods with their chairs tucked in, keyboards squared away
     for sx, sy in ((165, 330), (1140, 350)):
         d_ = kp('desk', sx, sy, s=0.85, val=0.32, sat=0.2); kp('chairDesk', sx, sy + 32, 185, s=0.8, val=0.4, sat=0.2); kp('computerKeyboard', sx, sy - 6, s=0.9, z=d_['size'][2])
     # the meeting nook nobody books any more: round table, two chairs, a laptop left closed
     nt_ = kp('tableRound', 600, 625, s=0.9, val=0.42); kp('chair', 555, 630, 80, s=0.85, val=0.45); kp('chair', 648, 615, -100, s=0.85, val=0.45)
-    kp('laptop', 600, 620, 20, s=0.9, z=nt_['size'][2], val=0.4); paper_stack(615, 630, nt_['size'][2], 3, seed=9)
+    kp('laptop', 598, 618, 20, s=0.9, z=nt_['size'][2], val=0.4); paper_stack(608, 616, nt_['size'][2], 3, seed=9, size=(0.11, 0.14), jitter=0.25)
     # cable runs: every desk to a floor box, taped down
     met = (18, 20, 24)
     cable([(395, 430), (420, 470), (520, 500), (700, 505), (860, 515), (930, 512)]); cable([(685, 312), (700, 360), (760, 420), (900, 470)])
     cable([(235, 600), (300, 560), (420, 545), (600, 540), (900, 520)]); cable([(165, 340), (200, 300), (230, 240), (250, 202, 0.02)])
     for sx, sy in ((900, 470), (930, 512)): floor_rect(sx - 10, sy - 6, 20, 12, srgb('fbox', (60, 66, 72), metal=0.5), z=0.004, solid=0.01)
     kp('pottedPlant', 96, 215, s=1.2); kp('plantSmall2', 1180, 215, s=1.5); kp('trashcan', 470, 450, s=1.0, val=0.45)
-    paper_bits(480, 470, 22, 8, 3, seed=11); kp('lampSquareFloor', 1185, 470, s=0.9, val=0.5)
+    # desk_dez floor scatter removed — those sheets read as stray stickers with no contact
+    kp('lampSquareFloor', 1185, 470, s=0.9, val=0.5)
     fp = kp('pottedPlant', 1190, 690, s=1.8, val=0.4)
-    L_at('SPOT', 640, 430, 3.2, 380, (1.0, 0.74, 0.50), 0.8, spot=60, blend=1.0)
+    L_at('SPOT', 640, 430, 3.2, 420, (1.0, 0.74, 0.50), 0.8, spot=60, blend=1.0)
     L_at('SPOT', 395, 430, 2.8, 120, (1.0, 0.74, 0.50), 0.6, spot=50, blend=1.0); L_at('SPOT', 685, 310, 2.8, 100, (1.0, 0.74, 0.50), 0.6, spot=50, blend=1.0)
     L_at('SPOT', 620, 160, 2.6, 60, (0.9, 0.95, 1.0), 0.5, spot=45, blend=1.0, aim_to=tuple(unproj(620, 200, 0.6)))
     L_at('AREA', 395, 400, 0.9, 6, (0.45, 0.85, 0.95), 0.5); L_at('AREA', 685, 280, 0.9, 6, (0.55, 0.7, 1.0), 0.5)
