@@ -1,5 +1,16 @@
 # HANDOFF
 
+## 2026-11-16 — Freeze: her words peel off the monitor, not a floating DENIED
+
+The drifting DENIED at beat e felt like a UI sticker and didn't belong. The freeze sound bed is unchanged (boom, drone, ring, heartbeat, crackles, reverse-swell into Fern). Playtest 193/193.
+
+At the freeze, "my father", "please", "reconsider", and "Noor" lift off the desk monitor as glowing letters and hang in the air around her. She leans in, reaches, and touches "my father" — the word ripples with a cyan pulse and a short ring, a hint of the peel to come — then Fern appears as before. The claim-mail still crawls "Please reconsider." into "CLAIM DENIED." at send (beat c); only the freeze word changed.
+
+Review stills (not in the repo): `/workspace/l1-peel-start.png` (and `-crop`), `/workspace/l1-peel-hang-crop.png`, `/workspace/l1-peel-touch-crop.png`.
+
+Leftovers: office explorables (item 5); lost-line collectibles (item 6); complaint-bodied enemies (item 7). The raised-hand read is still the existing handUp pose, not a new reach sheet.
+
+
 ## 2026-11-16 — Lamp steal: light pulls from the shade into a warm orb
 
 User note on the post-`46c4e89` steal (screenshot `/workspace/u6-spark.png`): a flat white starburst sticker sat on Noor's face and did not read as a peel. Playtest 193/193.

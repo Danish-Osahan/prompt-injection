@@ -177,11 +177,12 @@ export class IntroCutscene {
       this.at(2000, () => { try { this.actor?.emote('sweat', 1100); } catch { /* */ } });
     });
 
-    // (e) World freezes mid-motion. Only Noor, and a drifting word, still move.
+    // (e) World freezes mid-motion. Words from her own message peel off the
+    // monitor and hang in the air; she reaches out and one of them ripples.
     this.at(32000, () => {
       this.beat = 'e';
       this.freezeWorld();
-      this.driftWord();
+      this.peelWords();
       try { this.actor?.act('startle'); } catch { /* */ }
       this.at(280, () => { try { this.actor?.act('chairPush'); } catch { /* */ } });
     });
@@ -415,7 +416,7 @@ export class IntroCutscene {
       if (!row.text) return;
       if (row.kind === 'static') {
         const t = s.add.text(left, y, row.text, {
-          fontFamily: UI, fontSize: '20px', color: i === 0 ? C.cyan : C.inkBright,
+          fontFamily: UI, fontSize: '22px', color: i === 0 ? C.cyan : C.inkBright,
         }).setOrigin(0, 0).setAlpha(0);
         this.monitor!.add(t);
         this.letters.push(t);
@@ -581,33 +582,87 @@ export class IntroCutscene {
     try { this.s.cameras.main.shake(120, 0.003); } catch { /* */ }
   }
 
-  private driftWord() {
+  /** At the freeze, her own words lift off the desk monitor and hang in the air. */
+  private peelWords() {
     const s = this.s;
-    const w = s.add.text(980, 250, 'DENIED', {
-      fontFamily: FONT, fontSize: '22px', fontStyle: 'bold', color: C.coral, letterSpacing: 2,
-    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7050).setScrollFactor(0).setAlpha(0);
-    try { w.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-    this.objs.push(w);
     this.drift = this.drift ?? [];
-    this.drift.push(w);
-    s.tweens.add({
-      targets: w,
-      alpha: { from: 0, to: 0.95 },
-      x: 860, y: 340,
-      scale: { from: 1, to: 1.15 },
-      duration: 2800,
-      ease: 'Sine.easeOut',
+    const origin = { x: MON.x, y: MON.y - 8 };
+    const phrases: { text: string; to: { x: number; y: number } }[] = [
+      { text: 'my father', to: { x: 920, y: 455 } },
+      { text: 'please', to: { x: 1095, y: 400 } },
+      { text: 'reconsider', to: { x: 790, y: 400 } },
+      { text: 'Noor', to: { x: 1120, y: 530 } },
+    ];
+    const words: Phaser.GameObjects.Container[] = [];
+    phrases.forEach((p, i) => {
+      const c = s.add.container(origin.x, origin.y).setDepth(7060).setAlpha(0);
+      let x = 0;
+      for (const ch of p.text) {
+        const g = s.add.text(x, 0, ch, {
+          fontFamily: FONT, fontSize: '22px', fontStyle: 'bold', color: '#e8fcfc',
+          stroke: '#041018', strokeThickness: 3,
+        }).setOrigin(0, 0.5);
+        try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+        c.add(g);
+        x += ch === ' ' ? 9 : 13;
+      }
+      for (const child of c.list) (child as Phaser.GameObjects.Text).x -= x / 2;
+      this.objs.push(c);
+      this.drift!.push(c);
+      words.push(c);
+      s.tweens.add({
+        targets: c,
+        x: p.to.x, y: p.to.y,
+        alpha: { from: 0, to: 0.96 },
+        scale: { from: 0.7, to: 1 },
+        delay: i * 110,
+        duration: 1200,
+        ease: 'Sine.easeOut',
+      });
+      this.at(60 + i * 140, () => { if (this.playing) try { deniedCrackle(); } catch { /* */ } });
     });
-    for (let i = 0; i < 10; i++) {
-      this.at(180 + i * 260, () => { if (this.playing) try { deniedCrackle(); } catch { /* */ } });
+    // She reaches for "my father"; it ripples — a hint of the peel to come.
+    this.at(1700, () => {
+      if (!this.playing) return;
+      try { this.actor?.act('leanIn'); } catch { /* */ }
+    });
+    this.at(2300, () => {
+      if (!this.playing) return;
+      try { this.actor?.act('handUp'); } catch { /* */ }
+      this.rippleWord(words[0]);
+    });
+    for (let i = 0; i < 6; i++) {
+      this.at(400 + i * 420, () => { if (this.playing) try { deniedCrackle(); } catch { /* */ } });
     }
-    // A small spark follows it off the glass.
-    const spark = s.add.rectangle(980, 250, 6, 6, 0xf08074, 0.9).setDepth(7051).setScrollFactor(0);
-    try { spark.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-    this.objs.push(spark);
-    this.drift = this.drift ?? [];
-    this.drift.push(spark);
-    s.tweens.add({ targets: spark, x: 840, y: 360, alpha: 0.4, duration: 3000, ease: 'Sine.easeOut' });
+  }
+
+  private rippleWord(c?: Phaser.GameObjects.Container) {
+    if (!c || !this.playing) return;
+    const s = this.s;
+    try { sfx('tell'); } catch { /* */ }
+    try { deniedCrackle(); } catch { /* */ }
+    try { this.actor?.emote('!', 900); } catch { /* */ }
+    s.tweens.add({ targets: c, scale: 1.28, duration: 280, yoyo: true, hold: 80, ease: 'Sine.easeOut' });
+    const ring = s.add.ellipse(c.x, c.y, 90, 36, 0x7af0ea, 0.0).setDepth(7058).setStrokeStyle(2, 0x7af0ea, 0.9);
+    try { ring.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    this.objs.push(ring);
+    this.drift!.push(ring);
+    s.tweens.add({ targets: ring, scale: 1.6, alpha: { from: 0.8, to: 0 }, duration: 520, ease: 'Quad.easeOut', onComplete: () => { try { ring.destroy(); } catch { /* */ } } });
+    c.list.forEach((child, i) => {
+      const g = child as Phaser.GameObjects.Text;
+      try { g.setColor('#7af0ea'); } catch { /* */ }
+      const x0 = g.x, y0 = g.y;
+      s.tweens.add({
+        targets: g,
+        x: x0 + (i - c.list.length / 2) * 3,
+        y: y0 - 12,
+        duration: 200,
+        delay: i * 24,
+        yoyo: true,
+        ease: 'Sine.easeInOut',
+        onComplete: () => { try { g.setColor('#e8fcfc'); g.setPosition(x0, y0); } catch { /* */ } },
+      });
+    });
   }
 
   private clearDrift() {
