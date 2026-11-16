@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 2026-11-16 — Rain clipped to the glass (fix pass)
+
+GlassRain no longer draws on the wall, the window frame, the mullions, or the office floor. Streaks and droplets are clipped with Liang-Barsky to the three pane interiors (764,78 124×108; 898,78 124×108; 1032,78 124×108). The brown circular "city lights" are gone — they read as stains, and the plate already has baked bokeh. Intro air-rain in the room was removed; during the freeze, hanging drops stay on the glass and only paper hangs in the room. DENIED is cleared before Fern appears in beat f.
+
+
 ## 2026-11-16 — Opening hook (items 6 + 7)
 
 The New-Game intro is a skippable ~52s hook, existing art plus code FX, no new AI art.

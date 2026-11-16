@@ -1,16 +1,22 @@
-// Night rain on the office window: near and far falling streaks, droplets
-// running down the glass, an occasional lightning flash, and a CC0 rain bed.
+// Night rain seen only through the office window panes: near and far streaks
+// plus droplets on the glass, an occasional lightning flash, and a CC0 rain bed.
+// Nothing is drawn on the wall, the frame, the mullions, or the room floor.
 import Phaser from 'phaser';
 import { getSfxVolume } from './sfx';
 import type { GameScene } from './game';
 
-/** Window glass in the office plate (matches amb/clarity box). */
+/** Outer window frame (reference). Rain is clipped to PANES, inset from the frame. */
 export const OFFICE_WINDOW = { x: 760, y: 72, w: 400, h: 126 };
-const MULLIONS = [760 + 133, 760 + 266];
 
-type Drop = { x: number; y: number; vy: number; len: number; a: number; ang: number };
-type Streak = { x: number; y: number; vy: number; len: number; a: number; ang: number; w: number; near: boolean };
-type Light = { x: number; y: number; r: number; a: number; col: number };
+/** Interiors of the three glass panes — inside the frame and mullions. */
+export const PANES: { x: number; y: number; w: number; h: number }[] = [
+  { x: 764, y: 78, w: 124, h: 108 },
+  { x: 898, y: 78, w: 124, h: 108 },
+  { x: 1032, y: 78, w: 124, h: 108 },
+];
+
+type Drop = { x: number; y: number; vy: number; len: number; a: number; ang: number; pane: number };
+type Streak = { x: number; y: number; vy: number; len: number; a: number; ang: number; w: number; near: boolean; pane: number };
 
 export class GlassRain {
   s: GameScene;
@@ -19,7 +25,6 @@ export class GlassRain {
   paused = false;
   drops: Drop[] = [];
   streaks: Streak[] = [];
-  lights: Light[] = [];
   t = 0;
   nextFlash = 6 + Math.random() * 8;
   flash = 0;
@@ -32,22 +37,9 @@ export class GlassRain {
     s.objs.push(this.g);
     this.roomFlash = s.add.rectangle(640, 360, 1280, 720, 0xc8dff0, 0).setDepth(430).setBlendMode(Phaser.BlendModes.ADD);
     s.objs.push(this.roomFlash);
-    const W = OFFICE_WINDOW;
-    for (let i = 0; i < 14; i++) this.drops.push(this.spawnDrop(true));
-    // Far layer: many thin streaks seen through the glass.
-    for (let i = 0; i < 42; i++) this.streaks.push(this.spawnStreak(false));
-    // Near layer: fewer, thicker, brighter streaks in front of the pane.
-    for (let i = 0; i < 16; i++) this.streaks.push(this.spawnStreak(true));
-    const cols = [0x8a6a4a, 0x6a7a8a, 0x7a5a3a, 0x4a5a6a, 0x9a7a58];
-    for (let i = 0; i < 9; i++) {
-      this.lights.push({
-        x: W.x + 20 + Math.random() * (W.w - 40),
-        y: W.y + 28 + Math.random() * (W.h - 44),
-        r: 3 + Math.random() * 5,
-        a: 0.08 + Math.random() * 0.1,
-        col: cols[i % cols.length],
-      });
-    }
+    for (let i = 0; i < 16; i++) this.drops.push(this.spawnDrop(true));
+    for (let i = 0; i < 36; i++) this.streaks.push(this.spawnStreak(false));
+    for (let i = 0; i < 14; i++) this.streaks.push(this.spawnStreak(true));
     this.startAmb();
   }
 
@@ -67,16 +59,20 @@ export class GlassRain {
   update(dt: number) {
     if (!this.paused) {
       this.t += dt;
-      const W = OFFICE_WINDOW;
       for (const d of this.drops) {
+        const P = PANES[d.pane];
         d.y += d.vy * dt;
         d.x += d.ang * d.vy * dt;
-        if (d.y - d.len > W.y + W.h - 6) Object.assign(d, this.spawnDrop(false));
+        // Keep the bead on this pane; respawn at the top when it reaches the sill.
+        if (d.x < P.x + 2 || d.x > P.x + P.w - 2) d.x = Phaser.Math.Clamp(d.x, P.x + 2, P.x + P.w - 2);
+        if (d.y > P.y + P.h - 2) Object.assign(d, this.spawnDrop(false, d.pane));
       }
       for (const s of this.streaks) {
+        const P = PANES[s.pane];
         s.y += s.vy * dt;
-        s.x += s.ang * s.vy * dt;
-        if (s.y - s.len > W.y + W.h) Object.assign(s, this.spawnStreak(s.near, true));
+        s.x += s.ang * s.vy * dt * 0.15;
+        if (s.x < P.x + 2 || s.x > P.x + P.w - 2) s.x = Phaser.Math.Clamp(s.x, P.x + 2, P.x + P.w - 2);
+        if (s.y - s.len > P.y + P.h) Object.assign(s, this.spawnStreak(s.near, true, s.pane));
       }
       if (this.flash <= 0 && this.t >= this.nextFlash) this.strike();
     }
@@ -145,84 +141,95 @@ export class GlassRain {
     } catch { /* */ }
   }
 
-  private spawnDrop(anywhere: boolean): Drop {
-    const W = OFFICE_WINDOW;
-    const pane = Math.floor(Math.random() * 3);
-    const x = W.x + 10 + pane * (W.w / 3) + Math.random() * (W.w / 3 - 20);
-    const y = anywhere ? W.y + 8 + Math.random() * (W.h - 20) : W.y + 4 + Math.random() * 8;
+  private spawnDrop(anywhere: boolean, pane = Math.floor(Math.random() * PANES.length)): Drop {
+    const P = PANES[pane];
+    const x = P.x + 4 + Math.random() * (P.w - 8);
+    const y = anywhere ? P.y + 6 + Math.random() * (P.h - 16) : P.y + 3 + Math.random() * 6;
     return {
-      x, y,
-      vy: 18 + Math.random() * 22,
-      len: 6 + Math.random() * 10,
-      a: 0.42 + Math.random() * 0.35,
-      ang: 0.14 + Math.random() * 0.12,
+      x, y, pane,
+      vy: 16 + Math.random() * 20,
+      len: 5 + Math.random() * 8,
+      a: 0.45 + Math.random() * 0.35,
+      ang: 0.12 + Math.random() * 0.1,
     };
   }
 
-  private spawnStreak(near: boolean, fromTop = false): Streak {
-    const W = OFFICE_WINDOW;
-    const pad = near ? 4 : 8;
+  private spawnStreak(near: boolean, fromTop = false, pane = Math.floor(Math.random() * PANES.length)): Streak {
+    const P = PANES[pane];
     return {
-      x: W.x + pad + Math.random() * (W.w - pad * 2),
-      y: fromTop ? W.y - Math.random() * 20 : W.y + Math.random() * W.h,
-      vy: near ? 220 + Math.random() * 90 : 140 + Math.random() * 70,
-      len: near ? 18 + Math.random() * 16 : 10 + Math.random() * 12,
-      a: near ? 0.48 + Math.random() * 0.28 : 0.22 + Math.random() * 0.16,
-      ang: 0.22 + Math.random() * 0.1,
-      w: near ? 1.5 + Math.random() * 0.6 : 0.9,
+      x: P.x + 3 + Math.random() * (P.w - 6),
+      y: fromTop ? P.y + 2 : P.y + Math.random() * P.h,
+      vy: near ? 200 + Math.random() * 80 : 130 + Math.random() * 60,
+      len: near ? 14 + Math.random() * 12 : 8 + Math.random() * 10,
+      a: near ? 0.5 + Math.random() * 0.28 : 0.24 + Math.random() * 0.16,
+      ang: 0.2 + Math.random() * 0.08,
+      w: near ? 1.4 + Math.random() * 0.5 : 0.9,
       near,
+      pane,
     };
+  }
+
+  /** Draw a line only where it crosses a pane. */
+  private lineOnGlass(g: Phaser.GameObjects.Graphics, x0: number, y0: number, x1: number, y1: number, pane: number) {
+    const P = PANES[pane];
+    const left = P.x + 0.5, right = P.x + P.w - 0.5, top = P.y + 0.5, bot = P.y + P.h - 0.5;
+    // Liang-Barsky
+    let t0 = 0, t1 = 1;
+    const dx = x1 - x0, dy = y1 - y0;
+    const clip = (p: number, q: number) => {
+      if (p === 0) return q >= 0;
+      const r = q / p;
+      if (p < 0) { if (r > t1) return false; if (r > t0) t0 = r; }
+      else { if (r < t0) return false; if (r < t1) t1 = r; }
+      return true;
+    };
+    if (!clip(-dx, x0 - left) || !clip(dx, right - x0) || !clip(-dy, y0 - top) || !clip(dy, bot - y0)) return;
+    if (t0 > t1) return;
+    g.lineBetween(x0 + dx * t0, y0 + dy * t0, x0 + dx * t1, y0 + dy * t1);
   }
 
   private draw() {
     const g = this.g;
-    const W = OFFICE_WINDOW;
     const bolt = this.flash > 0 ? Math.min(1, this.flash * 6) : 0;
     g.clear();
-    // Night veil, lifted slightly during a flash.
-    const bands = 8;
-    for (let i = 0; i < bands; i++) {
-      const a = (0.16 * (1 - i / bands) + 0.04) * (1 - bolt * 0.7);
-      g.fillStyle(0x061018, a);
-      g.fillRect(W.x, W.y + (W.h / bands) * i, W.w, W.h / bands + 1);
+    for (const P of PANES) {
+      // Night veil, only on the glass.
+      const bands = 6;
+      for (let i = 0; i < bands; i++) {
+        const a = (0.12 * (1 - i / bands) + 0.03) * (1 - bolt * 0.7);
+        g.fillStyle(0x061018, a);
+        g.fillRect(P.x, P.y + (P.h / bands) * i, P.w, P.h / bands + 1);
+      }
+      if (bolt > 0) {
+        g.fillStyle(0xd8e8f8, 0.16 + bolt * 0.4);
+        g.fillRect(P.x, P.y, P.w, P.h);
+      }
     }
-    if (bolt > 0) {
-      g.fillStyle(0xd8e8f8, 0.18 + bolt * 0.45);
-      g.fillRect(W.x, W.y, W.w, W.h);
-    }
-    for (const L of this.lights) {
-      const la = L.a * (1 + bolt * 1.6);
-      g.fillStyle(L.col, la * 0.45);
-      g.fillCircle(L.x, L.y, L.r * 2.4);
-      g.fillStyle(L.col, la);
-      g.fillCircle(L.x, L.y, L.r);
-    }
-    // Far streaks first, then near, so depth reads at a glance.
     for (const s of this.streaks) {
       if (s.near) continue;
       const dx = s.len * s.ang;
       g.lineStyle(s.w, 0xa8c0d0, s.a);
-      g.lineBetween(s.x, s.y - s.len, s.x + dx, s.y);
+      this.lineOnGlass(g, s.x, s.y - s.len, s.x + dx, s.y, s.pane);
     }
     for (const s of this.streaks) {
       if (!s.near) continue;
       const dx = s.len * s.ang;
-      g.lineStyle(s.w + 0.8, 0xc8dce8, s.a * 0.35);
-      g.lineBetween(s.x, s.y - s.len, s.x + dx, s.y);
+      g.lineStyle(s.w + 0.7, 0xc8dce8, s.a * 0.35);
+      this.lineOnGlass(g, s.x, s.y - s.len, s.x + dx, s.y, s.pane);
       g.lineStyle(s.w, 0xe8f4fc, s.a);
-      g.lineBetween(s.x, s.y - s.len, s.x + dx, s.y);
+      this.lineOnGlass(g, s.x, s.y - s.len, s.x + dx, s.y, s.pane);
     }
     for (const d of this.drops) {
+      const P = PANES[d.pane];
       const dx = d.len * d.ang;
-      g.lineStyle(1.3, 0xd0e4f0, d.a * 0.7);
-      g.lineBetween(d.x - dx, d.y - d.len, d.x, d.y);
-      g.fillStyle(0xeef6fb, d.a);
-      g.fillCircle(d.x, d.y, 1.6);
+      g.lineStyle(1.2, 0xd0e4f0, d.a * 0.7);
+      this.lineOnGlass(g, d.x - dx, d.y - d.len, d.x, d.y, d.pane);
+      // Bead only if it still sits on the pane (cool white, never a brown blob).
+      if (d.x > P.x + 1 && d.x < P.x + P.w - 1 && d.y > P.y + 1 && d.y < P.y + P.h - 1) {
+        g.fillStyle(0xeef6fb, d.a);
+        g.fillCircle(d.x, d.y, 1.35);
+      }
     }
-    g.lineStyle(3, 0x1a2228, 0.7);
-    for (const x of MULLIONS) g.lineBetween(x, W.y, x, W.y + W.h);
-    g.lineStyle(1, 0xd0e4f0, 0.22 + bolt * 0.35);
-    g.lineBetween(W.x + 2, W.y + 2, W.x + W.w - 2, W.y + 2);
     this.roomFlash.setAlpha(bolt > 0 ? 0.08 + bolt * 0.22 : 0);
   }
 }

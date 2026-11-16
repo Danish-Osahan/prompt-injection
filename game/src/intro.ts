@@ -62,7 +62,7 @@ export class IntroCutscene {
   monitor?: Phaser.GameObjects.Container;
   letters: Phaser.GameObjects.Text[] = [];
   papers: Phaser.GameObjects.Rectangle[] = [];
-  airRain: Phaser.GameObjects.Rectangle[] = [];
+  drift?: Phaser.GameObjects.GameObject[];
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -166,8 +166,10 @@ export class IntroCutscene {
     });
 
     // (f) Fern glitches in from her monitor and speaks through the dialogue UI.
+    this.at(37800, () => this.clearDrift());
     this.at(39000, () => {
       this.beat = 'f';
+      this.clearDrift();
       try { s.cameras.main.shake(200, 0.006); } catch { /* */ }
       try { sfx('impact_snap'); } catch { /* */ }
       try { s.say('fern', "That send wasn't yours.", 2800); } catch { /* */ }
@@ -449,7 +451,6 @@ export class IntroCutscene {
     });
     if (this.flicker) s.tweens.add({ targets: this.flicker, alpha: 0.42, duration: 2400, delay: 400 });
     this.spawnPapers();
-    this.spawnAirRain();
   }
 
   private spawnPapers() {
@@ -471,29 +472,11 @@ export class IntroCutscene {
     }
   }
 
-  private spawnAirRain() {
-    const s = this.s;
-    for (let i = 0; i < 18; i++) {
-      const x = 760 + Math.random() * 400;
-      const y = 80 + Math.random() * 200;
-      const r = s.add.rectangle(x, y, 1.6, 10 + Math.random() * 10, 0xd0e4f0, 0.7)
-        .setDepth(210).setRotation(0.22);
-      this.objs.push(r);
-      this.airRain.push(r);
-      s.tweens.add({
-        targets: r,
-        y: y + 160 + Math.random() * 80,
-        x: x + 40,
-        duration: 900 + Math.random() * 500,
-        repeat: -1,
-      });
-    }
-  }
 
   private freezeWorld() {
     this.pauseRain(true);
     // Noor keeps moving. Everything else holds.
-    for (const r of [...this.papers, ...this.airRain]) {
+    for (const r of this.papers) {
       this.s.tweens.killTweensOf(r);
     }
     if (this.freezeVeil) {
@@ -511,6 +494,8 @@ export class IntroCutscene {
     } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7050).setScrollFactor(0).setAlpha(0);
     try { w.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
     this.objs.push(w);
+    this.drift = this.drift ?? [];
+    this.drift.push(w);
     s.tweens.add({
       targets: w,
       alpha: { from: 0, to: 0.95 },
@@ -523,7 +508,17 @@ export class IntroCutscene {
     const spark = s.add.rectangle(980, 250, 6, 6, 0xf08074, 0.9).setDepth(7051).setScrollFactor(0);
     try { spark.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
     this.objs.push(spark);
+    this.drift = this.drift ?? [];
+    this.drift.push(spark);
     s.tweens.add({ targets: spark, x: 840, y: 360, alpha: 0.4, duration: 3000, ease: 'Sine.easeOut' });
+  }
+
+  private clearDrift() {
+    const bits = this.drift ?? [];
+    this.drift = [];
+    for (const o of bits) {
+      try { this.s.tweens.killTweensOf(o); this.s.tweens.add({ targets: o, alpha: 0, duration: 280, onComplete: () => { try { o.destroy(); } catch { /* */ } } }); } catch { /* */ }
+    }
   }
 
   private tapKeys(n: number, gap: number) {
@@ -556,7 +551,7 @@ export class IntroCutscene {
     this.objs = [];
     this.letters = [];
     this.papers = [];
-    this.airRain = [];
+    this.drift = [];
     this.lampFx = undefined;
     this.flicker = undefined;
     this.freezeVeil = undefined;
