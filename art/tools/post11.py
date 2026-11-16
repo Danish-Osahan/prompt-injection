@@ -91,11 +91,10 @@ raw_full = np.asarray(Image.open(clean_path).convert('RGB')).astype(np.float32)
 graded = grade(raw_full).astype(np.uint8)
 Image.fromarray(graded).save(ROOMS + 'office.jpg', quality=90)
 Image.fromarray(codeview(graded)).save(ROOMS + 'office_code.jpg', quality=88)
-ft, fb, fl, fr, _bg = find_frame(graded)
-bleed = extend_letterbox(graded, ft, fb, fl, fr)
-Image.fromarray(bleed).save(ROOMS + 'office_bleed.jpg', quality=90)
-print('graded office plate + bleed', 'frame', ft, fb, fl, fr, 'from', clean_path)
-# Reload the JPEGs so fg overlays match the compressed pixels the game displays.
+# The clean render fills the 1280x720 frame with real floor and walls. Do not
+# letterbox-fill: a flat pad reads as a seam. Bleed is the graded plate.
+Image.fromarray(graded).save(ROOMS + 'office_bleed.jpg', quality=90)
+print('graded office plate + bleed (no letterbox pad) from', clean_path)
 plate = np.asarray(Image.open(ROOMS + 'office_bleed.jpg').convert('RGB'))
 meta = json.load(open(RD + 'R7_office_o11.json'))['groups']
 idx = np.asarray(Image.open(glob.glob(RD + 'o11_index_*.png')[0])).astype(np.float32); idx = np.round(idx/(65535.0 if idx.max() > 255 else 255.0)*255).astype(np.int32)

@@ -115,8 +115,10 @@ def cyl(sx, sy, z, r, h, mat, rot=(0, 0, 0)):
 def P_office():
     calm_base(amb_e=40)
     fm = floor_mat('ofloor', tint=(150, 160, 170), rough=0.42); wm = srgb('owall', (40, 50, 60), rough=0.9); tm = srgb('otrim', (22, 28, 36))
-    floor_rect(70, 200, 1140, 480, fm)
-    wall_seg(70, 1210, 200, 150, wm); wall_seg(70, 1210, 200, 8, tm, th=0.24)
+    # Floor and back wall overflow the 1280x720 frame so ENVELOP sees real set, not a letterbox.
+    # Same camera; only the set is larger. Game anchors stay put.
+    floor_rect(-100, 200, 1480, 640, fm)
+    wall_seg(-100, 1380, 200, 230, wm); wall_seg(-100, 1380, 200, 8, tm, th=0.24)
     # carpet tiles: two worn runs where people actually walked
     # rain window + rain light thrown across the floor
     on_wall(760, 1160, 72, 186, 200, img_mat('osky', TX5+'window_sky.png', emit=0.62), name='window')
@@ -150,11 +152,11 @@ def P_office():
     dz = kp('desk', 395, 420, s=0.9, val=0.42); dh = dz['size'][2]; m1 = kp('computerScreen', 380, 400, s=0.9, z=dh); screen_on(m1, TX+'monC_chat.png', 0.9)
     ch = kp('chairDesk', 410, 462, 165, s=0.85, val=0.5, sat=0.3)
     c1 = [kp('plantSmall3', 440, 410, s=0.9, z=dh), kp('computerKeyboard', 392, 418, s=0.9, z=dh), cyl(355, 418, dh, 0.03, 0.08, srgb('pencup', (60, 90, 130)))]
-    c1 += paper_stack(412, 402, dh, 3, seed=5, size=(0.11, 0.14), jitter=0.3)
+    c1 += paper_stack(412, 394, dh, 3, seed=5, size=(0.11, 0.14), jitter=0.3)
     # Kabir's desk: glowing, headphones, a sticky note on the monitor edge
     kz = kp('desk', 685, 300, s=0.9, val=0.42); m2 = kp('computerScreen', 668, 280, s=0.9, z=dh); screen_on(m2, TX+'monA_chart.png', 0.8)
     kp('chairDesk', 685, 334, 175, s=0.85, val=0.5, sat=0.3)
-    hq = unproj(698, 288, dh + 0.03); bpy.ops.mesh.primitive_torus_add(major_radius=0.07, minor_radius=0.012, location=hq, rotation=(R(90), 0, R(SCR_RZ))); hp = bpy.context.object; hp.data.materials.append(srgb('phones', (30, 30, 34), rough=0.3))
+    hq = unproj(696, 280, dh + 0.03); bpy.ops.mesh.primitive_torus_add(major_radius=0.07, minor_radius=0.012, location=hq, rotation=(R(90), 0, R(SCR_RZ))); hp = bpy.context.object; hp.data.materials.append(srgb('phones', (30, 30, 34), rough=0.3))
     sn = unproj(650, 282, dh + 0.18); stk = plane('sticky', 0.06, 0.06, srgb('stk', (240, 214, 90), rough=0.8), (sn.x, sn.y, dh + 0.18), rot=(R(90), 0, R(SCR_RZ)))
     c2 = [hp, stk, kp('computerMouse', 705, 302, s=1.0, z=dh)]
     # Noor's desk: dust grey, cleared. One thing left: her tiny potted fern, still alive under the lamp

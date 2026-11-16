@@ -1,5 +1,17 @@
 # HANDOFF
 
+## 2026-11-16 — Office bleed fills the frame (no letterbox pad)
+
+`9f08152` rebuilt `office_bleed.jpg` with `extend_letterbox` (a median-color flat fill). That read as dark bands on the left, right and bottom plus a seam where the plate ended — the letterbox border the user hates.
+
+Fix: same camera (ortho 8.4, pitch 38°, yaw −30°, same centre). Only the 3D set is larger, so real floor, trim and wall fill every edge of the 1280×720 frame. `P_office()` floor is now `floor_rect(-100, 200, 1480, 640)`; the back wall and 8px skirting run `wall_seg(-100, 1380, 200, 230)` / height 8. `post11.py` writes `office_bleed.jpg` as the graded plate itself — no flat pad. Lamp, panel, window and `chair_noor` anchors are unchanged.
+
+Also nudged Dez's paper stack from (412, 402) to (412, 394) and Kabir's headphones from (698, 288) to (696, 280) so both sit clearly inward from the desk front lip.
+
+Playtest: 191/191.
+
+Review stills (not in the repo): `/workspace/l1-office-1440x800.png`, `/workspace/l1-office-1512x945.png` (HUD, heading, room card, dialogue, tags, and Noor/shadow hidden). Opening video `/workspace/l1-opening.webm` (~52.7s, beats a–g).
+
 ## 2026-11-16 — Office re-render (approved plate pass)
 
 Blender 4.2.9, Cycles, same camera (ortho 8.4, pitch 38°, yaw −30°). `P_office()` in `rooms7.py` plus a phone-height fix in `rooms8.py`, then a beauty + O11 render and `post11.py` so every `office11/fg` layer and `office_bleed.jpg` are recut from the new graded plate.
@@ -13,13 +25,13 @@ What changed in the plate:
 - Lift recess, window panes, and the banker-lamp / panel code positions are unchanged (LAMP_SPRITE 154,270 on desk_podW; PANEL 276,167 / PANEL_SPRITE 265,151). Door frames were re-graded against the new plate. `chair_noor` (chair_dez at 966,475) is re-injected by post11 so a regen cannot drop it.
 - Night mood kept, slightly richer: amb 40 (was 36), window emit 0.62, rain-light 0.26, main warm spot 420.
 
-post11 now grades a fresh `R7_office_clean.png` into `office.jpg` / `office_code.jpg` and rebuilds `office_bleed.jpg` with the same letterbox extend as `bleed_plates.py`.
+post11 grades a fresh `R7_office_clean.png` into `office.jpg` / `office_code.jpg`. The letterbox-extend bleed from this commit was a regression; the following section replaces it with a wider 3D set and a bleed that is the graded plate.
 
 Playtest: 191/191.
 
 Review stills (not in the repo): `/workspace/l1-office-1440x800.png` (ENVELOP, 1440×800; the "THE REAL OFFICE" heading and a leftover greet portrait may be on this still — they are HUD, not plate art), 2x before/after desk crops under `/workspace/l1-props/`, opening video `/workspace/l1-opening.webm` (~52.7s, beats a–g). The 1440 still also includes rain, the green banker lamp, and chair_noor.
 
-Honest leftovers: Dez's paper stack sits flush with the front edge of the desk (on the surface, not floating). Kabir's headphones are on the desktop but still a little toward the front-right lip. The 1440 still was captured with the entry heading and greet portrait visible.
+Those leftovers (flush Dez stack, Kabir headphones near the front lip, heading/portrait on the 1440 still) are addressed in the bleed-fix section above.
 
 
 ## 2026-11-16 — Desk props audit (2x, no new sprite moves)
