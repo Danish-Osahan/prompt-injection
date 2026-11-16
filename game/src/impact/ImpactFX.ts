@@ -176,7 +176,10 @@ export class ImpactFX {
     });
   }
 
+  private sparkTick?: ReturnType<typeof setTimeout>;
+
   private burstSpark(x: number, y: number, dx: number, dy: number, scale: number) {
+    if (this.sparkTick) { clearTimeout(this.sparkTick); this.sparkTick = undefined; }
     this.sparkSpr?.destroy();
     if (!this.s.textures.exists('fx_hit_spark_0')) return;
     const ang = Phaser.Math.RadToDeg(Math.atan2(dy, dx));
@@ -185,12 +188,17 @@ export class ImpactFX {
     this.sparkSpr = sp;
     let fi = 0;
     const tick = () => {
+      this.sparkTick = undefined;
+      if (!sp.active || !sp.scene) {
+        if (this.sparkSpr === sp) this.sparkSpr = undefined;
+        return;
+      }
       fi++;
       if (fi < 4 && this.s.textures.exists('fx_hit_spark_' + fi)) sp.setTexture('fx_hit_spark_' + fi);
       else { try { sp.destroy(); } catch { /* */ } if (this.sparkSpr === sp) this.sparkSpr = undefined; return; }
-      window.setTimeout(tick, 40);
+      this.sparkTick = window.setTimeout(tick, 40);
     };
-    window.setTimeout(tick, 40);
+    this.sparkTick = window.setTimeout(tick, 40);
   }
 
   private runSilhouetteFrames(t: ImpactTier, opts: ImpactOpts, dx: number, dy: number) {
