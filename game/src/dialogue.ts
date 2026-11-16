@@ -47,6 +47,7 @@ export class Dialogue {
   root?: Phaser.GameObjects.Container;
   holo?: Phaser.GameObjects.Container;
   private holoBaseY?: number;
+  private beamG?: Phaser.GameObjects.Graphics;
   source?: Source;
   timers: Phaser.Time.TimerEvent[] = [];
   private typed = '';
@@ -100,6 +101,7 @@ export class Dialogue {
       if (this.holoBaseY != null) this.holo.y = this.holoBaseY + bob;
       const flick = 0.92 + Math.sin(this.s.t * 19) * 0.05 + (Math.random() < 0.03 ? -0.08 : 0);
       this.holo.setAlpha(Math.max(0.78, Math.min(1, flick)));
+      this.drawBeam();
     }
   }
 
@@ -113,6 +115,7 @@ export class Dialogue {
     this.letterBits = [];
     this.root?.destroy(); this.root = undefined;
     this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined;
+    try { this.beamG?.destroy(); } catch { /* */ } this.beamG = undefined;
     this.arrow = undefined;
     this.source = undefined;
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
@@ -232,37 +235,24 @@ export class Dialogue {
       this.holoBaseY = src.y;
       return;
     }
-    const BODY_H = 110; // displayed plant height, in the 90–120px brief
-    const SCALE = BODY_H / 151;
+    // Sprite frame is 160×220; opaque plant is ~186px tall. Display ~110px.
+    const BODY_H = 110;
+    const SCALE = BODY_H / 186;
     const pos = this.holoPos(src, BODY_H);
     const c = s.add.container(src.x, src.y - 8).setDepth(DEPTH).setAlpha(0);
 
+    // Soft glow is a slightly larger copy of the same silhouette — never a box.
     const glow = s.add.sprite(0, 0, 'fern_plant', 'fern_plant_S_00')
-      .setOrigin(0.5, 0.92).setScale(SCALE * 1.1)
-      .setTint(0x7ee8ee).setAlpha(0.4);
+      .setOrigin(0.5, 0.93).setScale(SCALE * 1.08)
+      .setAlpha(0.32);
     try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
     try { glow.play('fern_plant_S'); } catch { /* */ }
 
     const body = s.add.sprite(0, 0, 'fern_plant', 'fern_plant_S_00')
-      .setOrigin(0.5, 0.92).setScale(SCALE)
-      .setTint(0xd8f7fb);
+      .setOrigin(0.5, 0.93).setScale(SCALE);
     try { body.play('fern_plant_S'); } catch { /* */ }
 
-    // Scanlines clipped to the plant silhouette — never a rectangular box.
-    const scan = s.add.graphics();
-    const top = -Math.round(200 * SCALE * 0.92);
-    const half = 36;
-    for (let y = top + 4; y < 10; y += 3) {
-      scan.lineStyle(1, 0x9ad8e8, 0.2);
-      scan.lineBetween(-half, y, half, y);
-    }
-    // Lines stay inside the typical silhouette width; a texture mask is not in this Phaser typings.
-
-    // Projection beam from the source (below the pot) up into Fern.
-    const beam = s.add.triangle(0, 6, -11, 46, 11, 46, 0, 0, 0x8fd0dc, 0.3);
-    try { beam.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-
-    c.add([beam, glow, body, scan]);
+    c.add([glow, body]);
     s.tweens.add({
       targets: c,
       alpha: 1,
@@ -274,17 +264,49 @@ export class Dialogue {
     });
     this.holo = c;
     this.holoBaseY = pos.y;
+    this.ensureBeam();
+    this.drawBeam();
     try { sfx('tell'); } catch { /* */ }
   }
 
-  /** Sit the pot just above the source, keep the 110px plant off the lift and the menu. */
+  private ensureBeam() {
+    if (this.beamG && this.beamG.active) return;
+    try { this.beamG?.destroy(); } catch { /* */ }
+    this.beamG = this.s.add.graphics().setDepth(DEPTH - 8);
+  }
+
+  private drawBeam() {
+    if (!this.beamG || !this.holo || !this.source) return;
+    const g = this.beamG;
+    g.clear();
+    const x0 = this.source.x, y0 = this.source.y;
+    const x1 = this.holo.x, y1 = this.holo.y - 4;
+    try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    g.fillStyle(0x8fd0dc, 0.18);
+    g.fillTriangle(x0 - 5, y0, x0 + 5, y0, x1, y1);
+    g.lineStyle(1.5, 0xb8f0f4, 0.45);
+    g.lineBetween(x0, y0, x1, y1);
+  }
+
+  /** Sit the pot in a clear patch of floor near the source — not on the shelf, calendar, or lift. */
   private holoPos(src: Source, bodyH: number) {
-    const lift = { x: 140, y: 60, w: 150, h: 155 };
-    let x = src.x + (src.x < 500 ? 62 : -62);
-    let y = src.y - 18;
-    const top = y - bodyH;
-    const hitsLift = top < lift.y + lift.h && y > lift.y && x > lift.x - 30 && x < lift.x + lift.w + 30;
-    if (hitsLift) { x = lift.x + lift.w + 48; y = Math.max(y, lift.y + 24); }
+    // Named sources get hand-placed spots in open floor.
+    if (src.id === 'lamp') return { x: 268, y: 348 };
+    if (src.id === 'mon_noor') return { x: 880, y: 430 };
+    if (src.id === 'floorlamp') return { x: 1088, y: 430 };
+    let x = src.x + (src.x < 500 ? 86 : -86);
+    let y = Math.max(src.y + 24, 330);
+    const blocked = [
+      { x: 130, y: 50, w: 180, h: 180 },   // lift
+      { x: 220, y: 60, w: 90, h: 110 },    // August calendar
+      { x: 385, y: 100, w: 130, h: 120 },  // bookcase
+      { x: 290, y: 140, w: 80, h: 90 },    // kitchen
+      { x: 60, y: 110, w: 110, h: 140 },   // printer + plantW
+      { x: 1060, y: 470, w: 160, h: 130 }, // boxes by Noor
+    ];
+    const hits = () => blocked.some(b => x > b.x - 20 && x < b.x + b.w + 20 && y - bodyH < b.y + b.h && y > b.y);
+    if (hits()) { x = src.x < 640 ? src.x + 110 : src.x - 110; y = Math.max(y, 340); }
+    if (hits()) { y = 360; }
     x = Phaser.Math.Clamp(x, 64, 1216);
     y = Phaser.Math.Clamp(y, 56 + bodyH, 640);
     return { x, y };
@@ -544,8 +566,8 @@ export class Dialogue {
 
   private makePortrait(who: SayWho) {
     if (who === 'fern' && this.s.textures.exists('fern_plant')) {
-      const spr = this.s.add.sprite(0, 6, 'fern_plant', 'fern_plant_S_00');
-      spr.setOrigin(0.5, 0.55).setScale(0.42).setTint(0xd8f7fb);
+      const spr = this.s.add.sprite(0, 4, 'fern_plant', 'fern_plant_S_00');
+      spr.setOrigin(0.5, 0.55).setScale(0.36);
       try { spr.play('fern_plant_S'); } catch { /* */ }
       return spr;
     }

@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 2026-11-16 — Fern is a crisp plant character
+
+Replaced the blurry teal hologram and its rectangular scanline box. Fern is a new crisp vector sprite (PIL, no AI): a potted fern with distinct fronds, two glowing eyes and a mouth, a cyan outline, and scanlines baked inside the silhouette only. Displayed at 110px. No heavy teal tint. A faint ADD beam runs from the source to the pot. From the lamp she now stands in the open floor at (268, 348), clear of the calendar, bookcase and lift; from Noor's monitor she stands at (880, 430), left of the desk. DENIED is already gone before beat f (see previous commit).
+
+
 ## 2026-11-16 — Rain clipped to the glass (fix pass)
 
 GlassRain no longer draws on the wall, the window frame, the mullions, or the office floor. Streaks and droplets are clipped with Liang-Barsky to the three pane interiors (764,78 124×108; 898,78 124×108; 1032,78 124×108). The brown circular "city lights" are gone — they read as stains, and the plate already has baked bokeh. Intro air-rain in the room was removed; during the freeze, hanging drops stay on the glass and only paper hangs in the room. DENIED is cleared before Fern appears in beat f.
