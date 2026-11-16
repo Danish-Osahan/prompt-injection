@@ -11,8 +11,8 @@ const FONT = 'JetBrains Mono';
 const UI = 'IBM Plex Mono';
 const DEPTH = 3600;
 const UI_DEPTH = 8200;
-const WRAP = 300;
-const LONG_LINE = 88;
+const WRAP = 380;
+const LONG_LINE = 70;
 
 export type SayWho = 'noor' | 'ai' | 'fern' | 'papa' | 'floor' | 'draft';
 
@@ -300,75 +300,121 @@ export class Dialogue {
 
   private beginBox(job: Job) {
     const s = this.s;
-    const c = s.add.container(640, 628).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0);
-    const w = 760, h = 118;
-    const bg = s.add.rectangle(0, 0, w, h, 0x061018, 0.92).setStrokeStyle(2, job.who === 'fern' ? 0xe27bd8 : job.who === 'draft' || job.who === 'ai' ? 0xf08074 : 0x78e4e8, 0.85);
+    const textW = 640;
+    const words = this.layoutWords(job.line, 0, 0, textW, false);
+    let maxW = 80, maxH = 22;
+    for (const w of words) {
+      maxW = Math.max(maxW, w.x + w.width);
+      maxH = Math.max(maxH, w.y + w.height);
+    }
+    const padL = 108, padR = 28, padT = 36, padB = 28;
+    const w = Math.max(640, Math.min(920, padL + maxW + padR));
+    const h = Math.max(112, padT + maxH + padB);
+    const y = 720 - 24 - h / 2;
+    const c = s.add.container(640, y + 18).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0);
+    const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
+    bg.setPosition(-w / 2, -h / 2);
     const portrait = this.makePortrait(job.who);
-    portrait.setPosition(-w / 2 + 58, 0);
-    const name = this.tagFor(job.who);
-    const tag = s.add.text(-w / 2 + 118, -h / 2 + 10, name, {
-      fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: this.colFor(job.who), letterSpacing: 3,
-    } as Phaser.Types.GameObjects.Text.TextStyle);
-    const words = this.layoutWords(job.line, -w / 2 + 118, -18, 560, false);
-    this.arrow = s.add.text(w / 2 - 22, h / 2 - 22, '▾', { fontFamily: FONT, fontSize: '16px', color: C.cyan }).setOrigin(0.5).setVisible(false);
+    portrait.setPosition(-w / 2 + 52, 6);
+    const tag = this.namePlate(-w / 2 + 18, -h / 2, this.tagFor(job.who), job.who, false);
+    for (const tw of words) tw.setPosition(-w / 2 + padL + tw.x, -h / 2 + padT + tw.y);
+    this.arrow = s.add.text(w / 2 - 22, h / 2 - 18, '▾', {
+      fontFamily: FONT, fontSize: '16px', color: C.cyan,
+    }).setOrigin(0.5).setVisible(false);
     c.add([bg, portrait, tag, this.arrow, ...words]);
     this.root = c;
     this.baseX = c.x;
-    s.tweens.add({ targets: c, alpha: 1, y: 618, duration: 220, ease: 'Quad.easeOut' });
+    s.tweens.add({ targets: c, alpha: 1, y, duration: 260, ease: 'Cubic.easeOut' });
     this.typewrite(job);
   }
 
   private bubbleAnchor(who: SayWho, fromSpeaker: boolean) {
     if (who === 'fern' && this.holo) {
-      const right = this.holo.x + 70 + WRAP / 2 < 1240;
-      const x = right ? this.holo.x + 70 : this.holo.x - 70;
-      const y = Phaser.Math.Clamp(this.holo.y - 56, 64, 520);
+      const right = this.holo.x + 86 + WRAP / 2 < 1240;
+      const x = right ? this.holo.x + 86 : this.holo.x - 86;
+      const y = Phaser.Math.Clamp(this.holo.y - 70, 72, 500);
       return { x, y, flip: !right };
     }
     if (who === 'noor' || fromSpeaker) {
       const x0 = this.s.noor?.x ?? this.s.x;
-      const y0 = (this.s.noor?.y ?? this.s.y) - 100;
+      const y0 = (this.s.noor?.y ?? this.s.y) - 110;
       const flip = x0 > 900;
-      return { x: Phaser.Math.Clamp(flip ? x0 - 40 : x0 + 40, 80, 1200), y: Phaser.Math.Clamp(y0, 64, 520), flip };
+      return { x: Phaser.Math.Clamp(flip ? x0 - 48 : x0 + 48, 90, 1190), y: Phaser.Math.Clamp(y0, 72, 500), flip };
     }
     return { x: 640, y: 160, flip: false };
   }
 
   private makeLineBox(x: number, y: number, job: Job, _box: boolean, flip: boolean) {
     const s = this.s;
-    const c = s.add.container(x, y).setDepth(DEPTH + 20).setAlpha(0);
-    const name = this.tagFor(job.who);
-    const tag = s.add.text(0, -22, name, {
-      fontFamily: FONT, fontSize: '11px', fontStyle: 'bold', color: this.colFor(job.who), letterSpacing: 2,
-    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(flip ? 1 : 0, 1);
-    const words = this.layoutWords(job.line, 0, 0, WRAP, flip);
-    // Measure after layout.
-    let maxW = 80, maxH = 20;
+    const words = this.layoutWords(job.line, 0, 0, WRAP, false);
+    let maxW = 80, maxH = 22;
     for (const w of words) {
-      maxW = Math.max(maxW, (flip ? -w.x : w.x) + w.width);
+      maxW = Math.max(maxW, w.x + w.width);
       maxH = Math.max(maxH, w.y + w.height);
     }
-    const padX = 12, padY = 10;
-    const bg = s.add.rectangle(flip ? -4 : -4, -4, maxW + padX * 2, maxH + padY * 2 + 16, 0x07141c, 0.9)
-      .setOrigin(flip ? 1 : 0, 0)
-      .setStrokeStyle(2, this.hexFor(job.who), 0.9);
-    bg.setPosition(flip ? 8 : -8, -18);
-    const tail = s.add.triangle(
-      flip ? 18 : -18, maxH + 10,
-      0, 0, flip ? 12 : -12, 14, flip ? -6 : 6, 0,
-      0x07141c, 0.9,
-    );
-    tag.setPosition(flip ? -10 : 10, -6);
-    this.arrow = s.add.text(flip ? -16 : maxW, maxH + 2, '▾', { fontFamily: FONT, fontSize: '13px', color: C.cyan }).setOrigin(flip ? 1 : 0, 0).setVisible(false);
+    const padX = 18, padT = 28, padB = 22;
+    const bw = maxW + padX * 2;
+    const bh = maxH + padT + padB;
+    const c = s.add.container(x, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.96);
+    const ox = flip ? -bw : 0;
+    const bg = this.cutPanel(ox, -padT, bw, bh, 0x07141c, 0.94, this.hexFor(job.who), 10);
+    const tag = this.namePlate(flip ? -14 : 14, -padT, this.tagFor(job.who), job.who, flip);
+    for (const tw of words) {
+      tw.setPosition(flip ? -padX - tw.x - tw.width : padX + tw.x, tw.y);
+    }
+    const tailX = flip ? -22 : 22;
+    const tail = s.add.triangle(tailX, bh - padT, 0, 0, flip ? 11 : -11, 13, flip ? -7 : 7, 0, 0x07141c, 0.94);
+    tail.setStrokeStyle(1.5, this.hexFor(job.who), 0.85);
+    this.arrow = s.add.text(flip ? -padX : padX + maxW, maxH + 2, '▾', {
+      fontFamily: FONT, fontSize: '14px', color: C.cyan,
+    }).setOrigin(flip ? 1 : 0, 0).setVisible(false);
     c.add([bg, tail, tag, this.arrow, ...words]);
-    s.tweens.add({ targets: c, alpha: 1, y: y - 6, duration: 200, ease: 'Quad.easeOut' });
+    s.tweens.add({ targets: c, alpha: 1, y: y - 8, scaleX: 1, scaleY: 1, duration: 240, ease: 'Cubic.easeOut' });
+    return c;
+  }
+
+  /** Terminal panel with cut corners. Origin is the top-left of the box. */
+  private cutPanel(x: number, y: number, w: number, h: number, fill: number, fa: number, stroke: number, cut: number) {
+    const g = this.s.add.graphics();
+    const c = Math.min(cut, w / 4, h / 4);
+    g.fillStyle(fill, fa);
+    g.beginPath();
+    g.moveTo(x + c, y);
+    g.lineTo(x + w - c, y);
+    g.lineTo(x + w, y + c);
+    g.lineTo(x + w, y + h - c);
+    g.lineTo(x + w - c, y + h);
+    g.lineTo(x + c, y + h);
+    g.lineTo(x, y + h - c);
+    g.lineTo(x, y + c);
+    g.closePath();
+    g.fillPath();
+    g.lineStyle(1.75, stroke, 0.92);
+    g.strokePath();
+    return g;
+  }
+
+  private namePlate(x: number, y: number, label: string, who: SayWho, flip: boolean) {
+    const t = this.s.add.text(0, 0, label, {
+      fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#04121a', letterSpacing: 2,
+    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0, 0.5);
+    const w = Math.max(64, t.width + 16), h = 20;
+    const g = this.s.add.graphics();
+    const px = flip ? x - w : x;
+    const py = y - h / 2;
+    g.fillStyle(this.hexFor(who), 1);
+    g.fillRect(px, py, w, h);
+    t.setPosition(px + 8, y);
+    t.setColor('#04121a');
+    const c = this.s.add.container(0, 0);
+    c.add([g, t]);
     return c;
   }
 
   private layoutWords(line: string, left: number, top: number, wrap: number, flip: boolean) {
     const bits: Phaser.GameObjects.Text[] = [];
     const parts = line.split(/(\s+)/);
-    let x = 0, y = 0, rowH = 22;
+    let x = 0, y = 0, rowH = 26;
     const align = flip ? 1 : 0;
     for (const part of parts) {
       if (!part) continue;
@@ -376,7 +422,7 @@ export class Dialogue {
       const key = part.toLowerCase().replace(/[^a-z]/g, '');
       const isQ = !!QUALITY_FX[key];
       const style: Phaser.Types.GameObjects.Text.TextStyle = {
-        fontFamily: UI, fontSize: '16px', fontStyle: isQ ? 'bold' : '500',
+        fontFamily: UI, fontSize: '18px', fontStyle: isQ ? 'bold' : '500',
         color: isQ ? C.cyan : C.inkBright,
       };
       const t = this.s.add.text(0, 0, raw, style).setOrigin(align, 0).setAlpha(0);

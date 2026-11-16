@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 2026-11-16 — Dialogue UI
+
+Replaced the flat pink-border rectangle. Dialogue is now a cut-corner terminal panel (dark fill, speaker-coloured stroke) with a name plate sitting on the top edge, 18px IBM Plex Mono body text, padding, and a panel sized to the full wrapped line so words are never clipped. Bubbles have a tail pointing at the speaker and a short open tween; the bottom box keeps a portrait (Noor / plant-Fern / Draft glyph) and a blinking continue arrow. Quality words still glow. Speaker colours: Fern magenta, Noor cyan, the Draft coral.
+
+
 ## 2026-11-16 — Fern hologram is the sticky-note plant
 
 Story (`docs/story/phase-1-script.md`, `phase-1-after-hours.md`): Fern is "a plant made of sticky notes on her desk," not a monitor and not the old `fern_seated` hologram-Noor. There was no full plant-character sprite, so `art/tools/build_fern_plant.py` composites her from existing art: `office_fg_plant.png` (leaves + pot) + `sticky_gm.png` ("good morning" notes) + a leaf-shaped face in the same geometric style. No AI art.
