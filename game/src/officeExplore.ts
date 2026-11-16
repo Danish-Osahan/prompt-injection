@@ -81,7 +81,7 @@ export class OfficeExplore {
     const useSpot = blocked ? undefined : spot;
     this.updatePrompt(useSpot, blocked);
     const lab = this.s.impactLab;
-    if (lab?.lure && !lab.carrying && !lab.state().draining) lab.lure.hidden = !!useSpot;
+    if (lab?.lure && !lab.carrying && !lab.state().draining) lab.lure.hidden = !!useSpot || !!this.s.nearLostLine();
     this.tickPhones(dt, Math.hypot(x - 696, y - 280) < 140);
     this.tickCarry(dt, f, useSpot, blocked);
     this.tickFlight(dt);

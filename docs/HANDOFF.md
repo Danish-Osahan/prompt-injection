@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-16 — Lost lines (3 per room, 18 total)
+
+Optional collectibles: three glowing torn scraps of Noor's unsent writing in each Level 1 room (18 total). They are the same `save.lines` / `unsent.txt` journal path as before, just more of them. A small `lines  n/18` counter sits in the top-right HUD corner at all times (including 0/18, and during the office dead-lift beat). Picking one up toasts `unsent.txt +1 n/18` plus the line. The Level 1 complete screen shows `Lost lines  x/18`. Saved with the game.
+
+The scraps are code-drawn paper (tilted cream slip + a soft pulse), so they stay visible when steal-mode hides word captions. E collects a nearby scrap even while ImpactLab is on; the lift lure hides if a scrap owns E. The arena's original after-draft line (`r_line`) still waits until the Draft falls; the other two arena lines are out on the ring.
+
+Lines are in Noor's voice — messages she wrote and never sent. No echo twist.
+
+Playtest 198/198 (office KeyE pickup + HUD 1/18, linger picks a visible line in every room including two pre-draft arena scraps, end screen x/18). Previous calendar/printer and real-key E path still green.
+
+Leftovers: complaint-bodied enemies (item 7).
+
+
 ## 2026-11-16 — Office things to explore (look, steal, printer)
 
 Level 1 office lookables, working during the dead-lift beat (the old word-chip linger is off then). Playtest 195/195 (calendar look + printer approach, plus the real-key E path still green).
@@ -16,7 +29,7 @@ No echo twist. Lines go through the existing dialogue/reaction path. The lift lu
 
 Review stills (not in the repo): `/workspace/l1-look-calendar.png`, `/workspace/l1-look-printer.png`, `/workspace/l1-look-photo.png`, `/workspace/l1-look-board.png`.
 
-Leftovers: lost-line collectibles at 3 per room (item 6); complaint-bodied enemies (item 7). The coffee machine look is on the kitchen counter, which is tight against the calendar aisle. Headphones loop is a quiet procedural triad, not a licensed track. The denial letter is a small prop, not a UI sticker.
+Leftovers: complaint-bodied enemies (item 7). The coffee machine look is on the kitchen counter, which is tight against the calendar aisle. Headphones loop is a quiet procedural triad, not a licensed track. The denial letter is a small prop, not a UI sticker.
 
 
 ## 2026-11-16 — Freeze: her words peel off the monitor, not a floating DENIED

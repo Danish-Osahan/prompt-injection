@@ -68,7 +68,8 @@ export class GameScene extends Phaser.Scene {
   prompts: Prompt[] = [];
   paused = false; pauseUi: Phaser.GameObjects.Container | null = null;
   debugOn = false; debugText!: Phaser.GameObjects.Text;
-  hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text };
+  hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text; linesHud: Phaser.GameObjects.Text };
+  linePrompt: Phaser.GameObjects.Text | null = null;
   hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
   flags = { door: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
@@ -117,6 +118,7 @@ export class GameScene extends Phaser.Scene {
   playAcc = 0;
   roomCard?: Phaser.GameObjects.Container;
   endScreen?: Phaser.GameObjects.Container;
+  endLinesText?: string;
   ending = false;
   endTimer?: Phaser.Time.TimerEvent;
   buildStamp = '';
@@ -321,7 +323,10 @@ export class GameScene extends Phaser.Scene {
     fern.add([card, fl, fernText]);
     this.debugText = this.add.text(1250, 60, '', { fontFamily: 'IBM Plex Mono', fontSize: '12px', color: C.ok, align: 'right', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 4 } }).setOrigin(1, 0).setScrollFactor(0).setDepth(D + 10);
     const skip = this.add.text(1250, 300, '', { fontFamily: 'JetBrains Mono', fontSize: '12px', color: C.dim }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(D + 4).setVisible(false);
-    this.hud = { path, title, caret, hp, hpLabel, meta, menu, hand, handText, sub, fern, fernText, skip };
+    const linesHud = this.add.text(1250, 52, '', f(13, 500, 'IBM Plex Mono')).setColor(C.lamp).setOrigin(1, 0).setScrollFactor(0).setDepth(D);
+    this.linePrompt = this.add.text(0, 0, 'E  take', { fontFamily: 'IBM Plex Mono', fontSize: '13px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.78)', padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(4000).setVisible(false);
+    this.hud = { path, title, caret, hp, hpLabel, meta, menu, hand, handText, sub, fern, fernText, skip, linesHud };
+
     void blur; void scrim; scrim.setVisible(false);
     this.words = new WordUI(this);
   }
@@ -331,7 +336,8 @@ export class GameScene extends Phaser.Scene {
     const h = this.hud;
     if (!h) return;
     if (!on) {
-      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.hand, h.sub, h.fern, h.skip, this.hudBlur]) o?.setVisible(false);
+      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.hand, h.sub, h.fern, h.skip, h.linesHud, this.hudBlur]) o?.setVisible(false);
+      this.linePrompt?.setVisible(false);
       h.hp.forEach(im => im.setVisible(false));
       // The word-system caption bar stays visible until words.update runs, but intro returns early.
       try { this.words?.bar?.setVisible(false); this.words?.heading?.setVisible(false); this.words?.pil?.setVisible(false); this.words?.chipG?.setVisible(false); } catch { /* */ }
@@ -344,7 +350,8 @@ export class GameScene extends Phaser.Scene {
     const h = this.hud;
     h.path.setText(this.room.path); h.title.setText(this.room.title);
     if (this.hudHidden) {
-      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.sub, h.fern, h.skip, this.hudBlur]) o?.setVisible(false);
+      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.sub, h.fern, h.skip, h.linesHud, this.hudBlur]) o?.setVisible(false);
+      this.linePrompt?.setVisible(false);
       h.hp.forEach(im => im.setVisible(false));
       return;
     }
@@ -354,6 +361,7 @@ export class GameScene extends Phaser.Scene {
     h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off').setVisible(true));
     h.hpLabel.setVisible(true);
     h.menu.setVisible(true);
+    h.linesHud.setVisible(true).setText(`lines  ${this.save.lines.length}/${LINES.length}`);
     const st = fernStage(this.save.fernGrowth);
     h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}${this.save.lines.length ? `   unsent ${this.save.lines.length}/${LINES.length}` : ''}`);
     if (this.hand) { h.handText.setText(this.hand.word); const w = Math.max(80, h.handText.width + 28); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setSize(w, 34); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setOrigin(0.5); (h.hand.list[2] as Phaser.GameObjects.Text).setX(-w / 2 - 8); h.hand.setSize(w, 34); }
@@ -413,7 +421,7 @@ export class GameScene extends Phaser.Scene {
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
     this.dialogue?.clear(); this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.endTimer?.remove(false); this.endTimer = undefined;
-    this.endScreen?.destroy(); this.endScreen = undefined; this.ending = false;
+    this.endScreen?.destroy(); this.endScreen = undefined; this.endLinesText = undefined; this.ending = false;
     this.roomCard?.destroy(); this.roomCard = undefined;
     this.fight = null; this.rootUsed = false; this.stored = null; this.rewriteT = 0; this.timeScale = 1; this.selecting = false; this.selectG = null; this.cutscene = null; this.slowVeil = null;
   }
@@ -1045,19 +1053,47 @@ export class GameScene extends Phaser.Scene {
     }
     writeSave(s);
   }
+  nearLostLine() {
+    let best: Plate | null = null, bd = READ_R;
+    for (const p of this.plates) {
+      if (!p.visible || p.def.kind !== 'line') continue;
+      const d = Math.hypot(p.def.x - this.x, p.def.y - this.y);
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
+  }
+  tryCollectNearLine() {
+    const p = this.nearLostLine();
+    if (!p) return false;
+    this.collectLine(p);
+    return true;
+  }
   collectLine(p: Plate) {
     const s = this.save; const L = LINES.find(l => l.id === p.def.id);
     if (!L || s.lines.includes(L.id)) return;
     s.lines.push(L.id); writeSave(s); sfx('paste');
     this.words.showLore(p, L.text);
+    if (p.scrap) this.tweens.add({ targets: p.scrap, alpha: 0, y: (p.scrap.y) - 18, duration: 520 });
     const a = this.amb.find(x => x.def.name === 'line');
     if (a) this.tweens.add({ targets: a.spr, alpha: 0, y: a.spr.y - 14, duration: 900, onComplete: () => { p.setVisibleState(false); this.ambState(); } }); else p.setVisibleState(false);
-    const card = this.add.text(640, 590, `unsent.txt  +1   ${s.lines.length}/${LINES.length}`, { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.85)', padding: { x: 10, y: 4 } }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
-    this.objs.push(card); this.tweens.add({ targets: card, alpha: 1, y: 576, duration: 260, yoyo: true, hold: 1800, onComplete: () => card.destroy() });
+    const quote = L.text.length > 48 ? L.text.slice(0, 46) + '…' : L.text;
+    const card = this.add.text(640, 590, `unsent.txt  +1   ${s.lines.length}/${LINES.length}\n“${quote}”`, { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.85)', padding: { x: 10, y: 6 }, align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
+    this.objs.push(card); this.tweens.add({ targets: card, alpha: 1, y: 566, duration: 260, yoyo: true, hold: 1800, onComplete: () => card.destroy() });
+    this.hud?.linesHud?.setText(`lines  ${s.lines.length}/${LINES.length}`);
+    this.linePrompt?.setVisible(false);
     if (s.lines.length === LINES.length) this.time.delayedCall(2600, () => this.say('fern', "That's all of it. You could send it now.", 2600));
   }
   /** per frame: ambient frame stepping, the stand-still narrator line, the hub mirror, dust motes */
   updateLinger(dt: number, active: boolean) {
+    for (const p of this.plates) {
+      if (p.def.kind !== 'line' || !p.scrap || !p.visible) continue;
+      p.scrap.setAlpha(0.72 + 0.28 * Math.sin(this.t * 3.1));
+    }
+    const near = this.hudHidden || this.busy || this.paused ? null : this.nearLostLine();
+    if (this.linePrompt) {
+      if (near) this.linePrompt.setVisible(true).setPosition(near.def.sx, near.def.sy - 18).setDepth(near.def.sy + 20);
+      else this.linePrompt.setVisible(false);
+    }
     for (const a of this.amb) {
       if (a.def.frames <= 1 || !a.spr.visible) continue;
       a.t += dt * a.speed; const n = a.def.frames; let k = Math.floor(a.t * a.def.fps) % n; if (a.dir < 0) k = n - 1 - k;
@@ -1452,7 +1488,8 @@ export class GameScene extends Phaser.Scene {
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
-      if (this.stealOn()) this.explore?.tryTap();
+      if (this.tryCollectNearLine()) { /* lost-line E wins over lookables and the lamp */ }
+      else if (this.stealOn()) this.explore?.tryTap();
       else this.interact();
     }
     this.words.update(dt, this.stealOn() ? false : f.interactHeld);
@@ -1673,12 +1710,12 @@ export class GameScene extends Phaser.Scene {
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
       glassRain: this.glassRain ? { on: true, drops: this.glassRain.drops.length, paused: this.glassRain.paused, flash: this.glassRain.flash } : null,
 
-      looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })),
+      looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
       ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state })),
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
-      intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.[1] as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
+      intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.[1] as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
       boss: this.fight ? { hp: this.fight.real.hp, state: this.fight.real.state, guarded: this.fight.guarded, guardT: this.fight.guardT, split: this.fight.split, fake: !!this.fight.fake, won: this.fight.won, punishCount: this.fight.punishCount, lastTell: this.fight.lastTell, tellCount: this.fight.tellCount, sign: this.plateById('r_guard')?.words.join(' '), signX: this.plateById('r_guard')?.container.x, x: this.fight.real.x, y: this.fight.real.y, pinT: this.fight.real.pinT ?? 0, balls: this.fight.balls.length, ring: !!this.fight.ring } : null, composer: this.composer ? this.composer.i : -1, paused: this.paused, save: JSON.parse(JSON.stringify(this.save)),
     };
   }

@@ -22,7 +22,7 @@ export interface Save {
   draftLastBarDeath: boolean;
   // art-v8 "linger" layer (optional, never on the main path)
   looked: string[];                     // story objects inspected (look + lore + toy plates), for the inspect-all unlock
-  lines: string[];                      // lost lines collected (the per-room collectible, journal "unsent.txt")
+  lines: string[];                      // lost lines collected (18 across Level 1, journal "unsent.txt")
   visits: Record<string, number>;       // room entries, for the revisit variants
   idle: string[];                       // rooms whose stand-still line has played (this visit count: room:visit)
   toys: string[];                       // toy rooms played with (room ids)

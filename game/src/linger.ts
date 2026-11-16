@@ -1,7 +1,7 @@
 // art-v8 "linger" layer (2 Nov 2026): the optional content that rewards standing still in a room.
 // Per room: story objects (kind 'look', caption + code line, some captions lie), one word-swap TOY pair (swaps only with each
-// other, harmless), one LOST LINE (collectible, journal "unsent.txt"), a stand-still narrator line (first visit / revisit),
-// and an inspect-all unlock (an extra code line + a narrator remark). Nothing here is on the main path.
+// other, harmless), three LOST LINES (collectible, journal "unsent.txt", 18 across Level 1), a stand-still narrator line
+// (first visit / revisit), and an inspect-all unlock (an extra code line + a narrator remark). Nothing here is on the main path.
 // Lines are in docs/story/phase-1-levels.md, "Linger layer".
 import type { PlateDef } from './plate';
 import type { RoomId } from './save';
@@ -23,11 +23,23 @@ const line = (id: string, sx: number, sy: number, x: number, y: number, text: st
 
 export const LINES: { id: string; room: RoomId; text: string }[] = [
   { id: 'o_line', room: 'office', text: "Kabir. I'm sorry I made it about the claim." },
+  { id: 'o_line2', room: 'office', text: 'Papa, I filed it. I promise I filed it.' },
+  { id: 'o_line3', room: 'office', text: 'If I write please again, maybe the number changes.' },
   { id: 'h_line', room: 'hub', text: "Papa asks about you like you're the weather." },
+  { id: 'h_line2', room: 'hub', text: 'I keep drafting the same apology and deleting the ending.' },
+  { id: 'h_line3', room: 'hub', text: "Tell Dez I watered the plant. I didn't." },
   { id: 'c_line', room: 'corridor', text: 'I still leave the hallway light on. Habit.' },
+  { id: 'c_line2', room: 'corridor', text: 'I walked this hall so many times I stopped seeing the doors.' },
+  { id: 'c_line3', room: 'corridor', text: "Kabir, I left your umbrella. I thought you'd come back for it." },
   { id: 'a_line', room: 'archive', text: 'I filed everything except the part where I miss you.' },
+  { id: 'a_line2', room: 'archive', text: "Some of these files have my initials in the margin. I don't remember writing them." },
+  { id: 'a_line3', room: 'archive', text: 'The water keeps the dates honest. August is still August.' },
   { id: 'r_line', room: 'arena', text: 'I wrote this nine times. This is the honest one.' },
+  { id: 'r_line2', room: 'arena', text: 'Dear claims desk — no. Too stiff. Dear anyone who still reads these.' },
+  { id: 'r_line3', room: 'arena', text: 'I almost sent this one. I watched the cursor blink instead.' },
   { id: 'm_line', room: 'message', text: "Come home for Diwali. I'll make the bad chai." },
+  { id: 'm_line2', room: 'message', text: 'I started a message to Papa three times. All of them begin with sorry.' },
+  { id: 'm_line3', room: 'message', text: "Kabir, when you get this, don't tell me it's fine." },
 ];
 const L = (id: string) => LINES.find(l => l.id === id)!.text;
 
@@ -43,6 +55,8 @@ export const LINGER: Record<RoomId, Linger> = {
       toy('o_rain', ['RAIN', 'FEELS', 'SAD'], 960, 130, 900, 232, 'Rain on the glass, taking its time. It feels {}.', 'rain.mood'),
       toy('o_lamp', ['LAMP', 'FEELS', 'HAPPY'], 1185, 440, 1150, 500, 'A floor lamp nobody switches off. It feels {}.', 'lamp.mood'),
       line('o_line', 1108, 600, 1096, 624, L('o_line')),
+      line('o_line2', 480, 650, 470, 660, L('o_line2')),
+      line('o_line3', 980, 430, 970, 450, L('o_line3')),
     ],
     idle: ['You stand still. The office does too. It\u2019s had practice.', 'The rain hasn\u2019t moved on either.'],
     all: { say: 'You\u2019ve read the whole room. One thing is missing, and it\u2019s you.', code: 'office.missing', val: '"noor"', sx: 640, sy: 150 },
@@ -58,6 +72,8 @@ export const LINGER: Record<RoomId, Linger> = {
         { cap2: 'The sticky stack on Fern\u2019s desk is one note taller.', val2: '215' }),
       look('h_plant', 100, 640, 150, 650, 'The office plant, but greener. Somebody here remembers to water it.', 'plant.thirsty', 'FALSE'),
       line('h_line', 332, 222, 340, 236, L('h_line')),
+      line('h_line2', 200, 600, 210, 610, L('h_line2')),
+      line('h_line3', 1040, 300, 1030, 320, L('h_line3')),
     ],
     idle: ['Stand still long enough and the room starts copying you. It\u2019s flattering. It isn\u2019t.', 'The clock has lost another hour. It looks relieved.'],
     all: { say: 'Everything here is a reflection. Some of it is running late.', code: 'mirror.lag', val: '0.4s', sx: 313, sy: 60 },
@@ -71,6 +87,8 @@ export const LINGER: Record<RoomId, Linger> = {
       look('c_tape', 834, 425, 834, 446, 'Tape on the floor where a desk used to be. It left in a hurry.', 'desk.owner', '"kabir"'),
       look('c_drip', 724, 300, 690, 400, 'Something upstairs is leaking, one patient drop at a time.', 'leak.source', '"floor 3"'),
       line('c_line', 236, 256, 248, 300, L('c_line')),
+      line('c_line2', 500, 420, 510, 430, L('c_line2')),
+      line('c_line3', 1080, 500, 1070, 520, L('c_line3')),
     ],
     idle: ['In the dark you can hear the building think. Mostly about you.', 'The moth has moved an inch to the left. It calls this progress.'],
     all: { say: 'You touched everything in a dark corridor. Brave, or just lonely.', code: 'corridor.length', val: '"longer than yesterday"', sx: 640, sy: 290 },
@@ -84,6 +102,8 @@ export const LINGER: Record<RoomId, Linger> = {
       look('a_boots', 900, 250, 900, 292, 'Wellies by the wall, lined up neat. Somebody planned for this.', 'boots.owner', '"dez"'),
       look('a_leak', 700, 120, 860, 220, 'A pipe over the pit, keeping time with drips.', 'pipe.fixed', 'FALSE'),
       line('a_line', 330, 640, 330, 616, L('a_line')),
+      line('a_line2', 200, 320, 200, 340, L('a_line2')),
+      line('a_line3', 1040, 500, 1030, 520, L('a_line3')),
     ],
     idle: ['Water keeps the only honest record in here. Every step, a ripple.', 'The duck has drifted. It doesn\u2019t explain itself.'],
     all: { say: 'Nothing in here was ever thrown away. That was the problem.', code: 'archive.deleted', val: '0', sx: 640, sy: 200 },
@@ -98,6 +118,8 @@ export const LINGER: Record<RoomId, Linger> = {
       toy('r_lamp', ['LIGHT', 'RUNS', 'WARM'], 640, 420, 640, 470, 'The one lamp, holding the room together. It runs {}.', 'light.temp'),
       toy('r_rim', ['RIM', 'RUNS', 'COLD'], 900, 420, 884, 420, 'A ring of light around the floor. It runs {}.', 'rim.temp'),
       line('r_line', 640, 262, 640, 282, L('r_line'), { after: 'draft', hidden: true }),
+      line('r_line2', 430, 180, 440, 200, L('r_line2')),
+      line('r_line3', 880, 200, 870, 220, L('r_line3')),
     ],
     idle: ['The arena is quiet the way a page is quiet before you ruin it.', 'The bin has one more draft in it than last time.'],
     all: { say: 'Nine drafts. You only ever sent the first one.', code: 'draft.version', val: '9', sx: 640, sy: 120 },
@@ -111,6 +133,8 @@ export const LINGER: Record<RoomId, Linger> = {
       toy('m_kabir', ['KABIR', 'IS', 'AWAY'], 500, 232, 500, 300, 'Kabir\u2019s name in the contact list. He is {}.', 'kabir.status'),
       toy('m_papa', ['PAPA', 'IS', 'TYPING'], 780, 232, 700, 300, 'Papa\u2019s name, three dots beside it. He is {}.', 'papa.status'),
       line('m_line', 548, 646, 548, 630, L('m_line')),
+      line('m_line2', 400, 450, 410, 460, L('m_line2')),
+      line('m_line3', 800, 450, 790, 460, L('m_line3')),
     ],
     idle: ['Nobody types in here. The silence has three dots in it.', 'Papa\u2019s last message is still the last message.'],
     all: { say: 'Somebody read every word in this room. The receipt says so.', code: 'kabir.read', val: 'TRUE', sx: 640, sy: 150 },

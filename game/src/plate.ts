@@ -30,16 +30,37 @@ export class Plate {
   glowT = 0;                                  // > 0 after a pulse (checkpoint / swap): caption + highlight flash
   glowCol = '#F6C684';
   alt = false;                                // revisit variant
+  scrap: Phaser.GameObjects.Container | null = null;  // lost-line paper fragment
   constructor(scene: Phaser.Scene, public def: PlateDef, public words: string[]) {
     this.container = scene.add.container(def.sx, def.sy);
+    if (def.kind === 'line') this.makeScrap(scene);
     this.setVisibleState(!def.hidden);
+  }
+  /** A small glowing torn scrap so the collectible is visible even when captions are off. */
+  private makeScrap(scene: Phaser.Scene) {
+    const c = scene.add.container(0, 0);
+    const glow = scene.add.ellipse(0, 2, 42, 26, 0xf6e6c8, 0.28).setBlendMode(Phaser.BlendModes.ADD);
+    const g = scene.add.graphics();
+    g.fillStyle(0xfff6e0, 0.95);
+    g.fillRoundedRect(-13, -8, 26, 16, 2);
+    g.lineStyle(1, 0xd8c8a0, 0.85);
+    g.strokeRoundedRect(-13, -8, 26, 16, 2);
+    g.lineStyle(1, 0x6a5a48, 0.5);
+    g.lineBetween(-8, -3, 8, -3);
+    g.lineBetween(-8, 1, 6, 1);
+    g.lineBetween(-8, 5, 4, 5);
+    g.setAngle(-16);
+    c.add([glow, g]);
+    this.container.add(c);
+    this.container.setDepth(this.def.sy + 4);
+    this.scrap = c;
   }
   get slotWord() { return this.def.slot >= 0 ? this.words[this.def.slot] : null; }
   setSlotWord(w: string) { this.words[this.def.slot] = w; }
   setOpts(o: DrawOpts) { this.opts = o; }
   bounds(pad = 24) { return new Phaser.Geom.Rectangle(this.container.x - 60 - pad, this.container.y - 30 - pad, 120 + pad * 2, 60 + pad * 2); }
   setFocus(on: boolean) { if (this.visible) this.focused = on; }
-  setVisibleState(v: boolean) { this.visible = v; if (!v) this.focused = false; }
+  setVisibleState(v: boolean) { this.visible = v; if (!v) this.focused = false; this.container.setVisible(v); this.scrap?.setVisible(v); }
   pulse(color = '#F6C684') { this.glowT = 0.7; this.glowCol = color; }
   /** caption pieces: [before, slot, after]; slot === '' when the plate has no chip */
   caption(redacted = true): { pre: string; word: string; post: string; chip: boolean; red: boolean } {

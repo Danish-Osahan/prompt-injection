@@ -3,6 +3,7 @@ import Phaser from 'phaser';
 import tokens from './tokens.json';
 import type { RoomId } from './save';
 import { writeSave } from './save';
+import { LINES } from './linger';
 import { sfx } from './sfx';
 import type { GameScene } from './game';
 
@@ -108,11 +109,15 @@ export function showEndScreen(s: GameScene) {
     fontFamily: FONT, fontSize: '52px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 8,
   } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5);
   const clock = s.add.text(640, 330, `Time  ${time}`, { fontFamily: UI, fontSize: '20px', color: C.ink }).setOrigin(0.5);
-  const thanks = s.add.text(640, 400, 'Thank you for playing.', { fontFamily: UI, fontSize: '18px', color: C.ink }).setOrigin(0.5);
-  const tbc = s.add.text(640, 432, 'To be continued.', { fontFamily: UI, fontSize: '18px', color: C.dim }).setOrigin(0.5);
+  const found = s.save.lines.length, total = LINES.length;
+  const lineText = `Lost lines  ${found}/${total}`;
+  s.endLinesText = lineText;
+  const lines = s.add.text(640, 366, lineText, { fontFamily: UI, fontSize: '18px', color: C.lamp }).setOrigin(0.5);
+  const thanks = s.add.text(640, 410, 'Thank you for playing.', { fontFamily: UI, fontSize: '18px', color: C.ink }).setOrigin(0.5);
+  const tbc = s.add.text(640, 442, 'To be continued.', { fontFamily: UI, fontSize: '18px', color: C.dim }).setOrigin(0.5);
   const btn = s.add.rectangle(640, 530, 320, 56, 0x78e4e8, 0.08).setStrokeStyle(1.5, 0x78e4e8, 0.8).setInteractive({ useHandCursor: true });
   const lab = s.add.text(640, 530, 'Back to menu', { fontFamily: FONT, fontSize: '18px', color: C.inkBright }).setOrigin(0.5);
-  c.add([dim, kicker, title, clock, thanks, tbc, btn, lab]);
+  c.add([dim, kicker, title, clock, lines, thanks, tbc, btn, lab]);
   c.setAlpha(0);
   s.endScreen = c;
   s.tweens.add({ targets: c, alpha: 1, duration: 400 });
@@ -130,7 +135,7 @@ export function backToTitle(s: GameScene) {
   try { sfx('key'); } catch { /* */ }
   s.cameras.main.fadeOut(280, 4, 8, 12);
   s.cameras.main.once('camerafadeoutcomplete', () => {
-    s.endScreen?.destroy(); s.endScreen = undefined;
+    s.endScreen?.destroy(); s.endScreen = undefined; s.endLinesText = undefined;
     s.busy = false; s.cutscene = null; s.ending = false;
     s.scene.start('title');
   });

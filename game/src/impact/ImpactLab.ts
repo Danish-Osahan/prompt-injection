@@ -443,7 +443,7 @@ export class ImpactLab {
     const nearLamp = Math.hypot(this.s.x - LAMP.x, this.s.y - LAMP.y) < 130;
     const nearPanel = Math.hypot(this.s.x - PANEL.x, this.s.y - PANEL.y) < 130;
     const held = !!(f && f.interactHeld) && !this.carrying && !this.flying && !this.done && !this.draining;
-    const claimed = !!this.s.explore?.claimingE();
+    const claimed = !!this.s.explore?.claimingE() || !!this.s.nearLostLine();
     const atPanel = nearPanel && !this.lampReady && !claimed;
     const atLamp = nearLamp && this.lampReady && this.lampOn && !claimed;
     const kind: 'panel' | 'lamp' | null = held && atPanel ? 'panel' : held && atLamp ? 'lamp' : null;

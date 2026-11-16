@@ -165,9 +165,11 @@ async function linger(browser) {
     ok(`linger ${r}: reading a story object logs it`, s.save.looked.includes(first), first);
     const unlocked = await pi(page, 'readAll'); await sleep(200);
     ok(`linger ${r}: inspect-all unlocks the room's extra code line`, unlocked === true);
-    s = await st(page); const ln = s.lineIds.find(l => l.visible);
-    if (r === 'arena') ok('linger arena: unsent line hidden until the Draft falls', s.lineIds.every(l => !l.visible));
-    else { const n = s.save.lines.length; await pi(page, 'read', ln?.id); await sleep(300); s = await st(page); ok(`linger ${r}: collectible unsent line picked up`, s.save.lines.length === n + 1, `${s.save.lines.length}/6`); }
+    s = await st(page);
+    if (r === 'arena') ok('linger arena: the after-draft line is hidden until the Draft falls', s.lineIds.filter(l => l.id === 'r_line').every(l => !l.visible), JSON.stringify(s.lineIds));
+    const ln = s.lineIds.find(l => l.visible);
+    const n = s.save.lines.length; await pi(page, 'read', ln?.id); await sleep(300); s = await st(page);
+    ok(`linger ${r}: collectible unsent line picked up`, s.save.lines.length === n + 1, `${s.save.lines.length}/18`);
     if (r === 'corridor') ok('corridor: no code-drawn cyan floor bars', s.corridorBars === false);
     // global fix: the longest caption line in every room wraps (<= 2 lines) and never clips at the screen edges
     const caps = await pi(page, 'captions'); const longest = caps.sort((a, b) => b.t.length - a.t.length)[0];
@@ -246,6 +248,14 @@ async function desktop(browser) {
   await pi(page, 'teleport', 140, 250); await sleep(400);
   s = await waitFor(page, s => !!(s.explore && s.explore.printer), 2000);
   ok('office: approaching the printer prints the denial letter', !!(s.explore && s.explore.printer), `explore ${JSON.stringify(s.explore)}`);
+
+  // OFFICE: pick up a lost line with real KeyE (works during the dead-lift beat)
+  const nLines = s.save.lines.length;
+  await pi(page, 'teleport', 1070, 610); await sleep(250);
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE');
+  s = await waitFor(page, s => !!(s.save && s.save.lines && s.save.lines.includes('o_line')), 2500);
+  ok('office: tapping E on a lost line collects it and updates the HUD', !!(s.save.lines.includes('o_line') && s.save.lines.length === nLines + 1 && String(s.linesHud || '').includes((nLines + 1) + '/18')), `lines ${JSON.stringify(s.save.lines)} hud ${s.linesHud}`);
 
   // OFFICE: real-keyboard E at the dead lift panel, then hold E at the lamp
   // (not openLift / interact hooks — those hid the broken tap-E path).
@@ -449,6 +459,7 @@ async function desktop(browser) {
 
   s = await waitFor(page, s => s.endScreen || s.cutscene === 'end', 8000);
   ok('end: Level 1 complete screen follows the message room', !!(s.endScreen || s.cutscene === 'end'), `end ${s.endScreen} cut ${s.cutscene}`);
+  ok('end: complete screen shows lost lines x/18', typeof s.endLines === 'string' && /Lost lines  \d+\/18/.test(s.endLines), `endLines ${s.endLines}`);
   await stillL1(page, 'end');
   await shot(page, 'desktop-18b-end');
   await pi(page, 'toMenu');
