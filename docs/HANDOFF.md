@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 2026-11-16 — Visible window rain
+
+GlassRain is readable at normal zoom: a far layer of thin angled streaks, a near layer of brighter longer streaks, and droplets running down the glass. An occasional lightning flash lights the window and washes the room faintly, with a short rumble and a small camera shake. Ambience is alxl's CC0 *Rain on Window Loop* (`sfx_rain.ogg`), credited in CREDITS.md. Pause still freezes streaks mid-fall for the opening. The office linger test now counts GlassRain + the saver loop (the old Blender rain sheet stays skipped).
+
+
 ## 2026-11-16 — Desk props
 
 Overlay of every `O11_PROPS` sprite against `office_bleed.jpg`: official furniture is already pixel-registered (mean Δ 1–3, ~100% similar). The one real overlap was `chair_noor`, added in the last pass with `chair_kabir.png` at (944, 433), which sat on the desktop and covered the monitor. It is now `chair_dez.png` at (966, 475), in front of the desk, with an updated footprint. Intro seat is 988, 556. No other desk needed a move. Lamp on desk_podW was already seated.

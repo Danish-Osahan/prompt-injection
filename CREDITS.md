@@ -192,3 +192,12 @@ All tracks and new one-shots below are CC0 (public domain). Zero spend. Credit i
 
 Office / intro / rooms play the calm *Insistent* loop. The Draft arena plays *The Final Battle*. Music and SFX volumes are separate sliders in Settings (`pi.settings.v1`).
 
+
+
+## Level 1 — rain ambience (2026-11-16)
+
+| Asset | Author | License | Source | Shipped as |
+|---|---|---|---|---|
+| *Rain on Window Loop* | alxl | CC0 1.0 | https://opengameart.org/content/rain-on-window-loop | `game/public/assets/sfx/sfx_rain.ogg` (transcoded from the WAV) |
+
+Available under CC0; attribution is appreciated but not necessary. Loops under the office window with the GlassRain streaks.

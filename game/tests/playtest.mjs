@@ -155,7 +155,10 @@ async function linger(browser) {
     const vis = s.amb.filter(a => a.visible && a.name !== 'line');
     const f0 = s.amb.map(a => a.frame); await sleep(700); const s2 = await st(page);
     const moved = s2.amb.filter((a, i) => a.frames > 1 && a.frame !== f0[i]).length;
-    ok(`linger ${r}: >=2 Blender ambient loops, frames advancing`, vis.length >= 2 && moved >= 1, vis.map(a => a.name + ':' + a.frames).join(' ') + ` moved ${moved}`);
+    // Office rain is GlassRain (code), not the old Blender rain sheet. Saver still loops.
+    const rainOn = r === 'office' && !!(s.glassRain && s.glassRain.on);
+    const ambOk = r === 'office' ? (rainOn && (vis.length >= 1 && moved >= 1)) : (vis.length >= 2 && moved >= 1);
+    ok(`linger ${r}: >=2 Blender ambient loops, frames advancing`, ambOk, vis.map(a => a.name + ':' + a.frames).join(' ') + ` moved ${moved}` + (rainOn ? ' glassRain' : ''));
     const first = s.looks[0];
     await pi(page, 'read', first); await sleep(350); s = await st(page);
     await shot(page, `linger-${r}-inspect`);

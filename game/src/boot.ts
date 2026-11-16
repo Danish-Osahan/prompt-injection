@@ -50,7 +50,7 @@ export class BootScene extends Phaser.Scene {
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
     const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on','wall_cover','seam','spill','lamp_on','lamp_off'];
     for (const f of LL) this.load.image('lift_' + f, `assets/fx/lift_layers/${f}.png`);
-    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui'];
+    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui', 'sfx_rain'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
     this.load.audio('music_office', 'assets/music/office.ogg');
     this.load.audio('music_tense', 'assets/music/tense.ogg');
