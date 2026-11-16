@@ -77,6 +77,13 @@ export class ImpactLab {
   private lampOn = true;
   private darkGap?: Phaser.GameObjects.Rectangle;
   private framing = false; // scripted cam during throw/open
+  private draining = false;
+  private throwQueued = false;
+  private drainT = 0;
+  private drainShook = false;
+  private drainG?: Phaser.GameObjects.Graphics;
+  private drainVeil?: Phaser.GameObjects.Ellipse;
+  private drainBloom?: Phaser.GameObjects.Ellipse;
   private leafL?: Phaser.GameObjects.Image;
   private leafR?: Phaser.GameObjects.Image;
   private liftFrame?: Phaser.GameObjects.Image;
@@ -431,11 +438,19 @@ export class ImpactLab {
       this.peelT = Math.max(0, this.peelT - dt * 2);
     }
 
+    if (this.draining) {
+      this.drainT += dt;
+      this.tickDrain();
+      if (this.drainT >= 1.08) this.finishDrain();
+    }
+
     if (this.carrying && this.heldOrb) {
       const h = this.handOff();
-      this.heldOrb.setPosition(this.s.x + h.x, this.s.y + h.y);
+      const hx = this.s.x + h.x, hy = this.s.y + h.y;
+      this.heldOrb.setPosition(hx, hy);
       const fi = Math.floor(this.s.t * 10) % 4;
       if (this.s.textures.exists('fx_spark_orb_' + fi)) this.heldOrb.setTexture('fx_spark_orb_' + fi);
+      if (this.drainBloom && this.drainBloom.active) this.drainBloom.setPosition(hx, hy);
     }
 
     if (this.carrying && this.keyF && Phaser.Input.Keyboard.JustDown(this.keyF) && !this.flying) {
@@ -489,34 +504,152 @@ export class ImpactLab {
   }
 
   takeSpark() {
-    if (!this.lampReady || !this.lampOn) return;
-    this.carrying = true;
-    this.lampOn = false;
+    if (!this.lampReady || !this.lampOn || this.draining || this.carrying) return;
+    this.draining = true;
+    this.throwQueued = false;
+    this.drainT = 0;
+    this.drainShook = false;
     this.s.hand = null;
-    this.lure?.setCarrying(true);
-    sfx('steal');
+    try { sfx('crackle'); } catch { /* */ }
+    try { sfx('impact_hum'); } catch { /* */ }
 
-    if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) {
-      this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
-    }
-    this.popSpark(LAMP.x, LAMP.y - 22);
+    const veil = this.s.add.ellipse(LAMP.x, LAMP.y, 240, 170, 0x03070c, 0).setDepth(LAMP.y + 4);
+    this.drainVeil = veil;
+    this.s.objs.push(veil);
+    this.s.tweens.add({ targets: veil, alpha: 0.55, duration: 380, ease: 'Sine.easeIn' });
 
-    const h = this.handOff();
+    this.drainG = this.s.add.graphics().setDepth(7190);
+    this.s.objs.push(this.drainG);
+
     const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : 'fx_spark_core';
-    this.heldOrb = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key)
-      .setDepth(7100).setScale(1.5).setBlendMode(Phaser.BlendModes.ADD);
-    this.s.objs.push(this.heldOrb);
+    const orb = this.s.add.sprite(LAMP.x, LAMP.y - 16, key)
+      .setDepth(7100).setScale(0.35).setAlpha(0.2).setBlendMode(Phaser.BlendModes.ADD);
+    this.heldOrb = orb;
+    this.s.objs.push(orb);
+    const bloom = this.s.add.ellipse(LAMP.x, LAMP.y - 16, 22, 22, 0xc8f4ff, 0)
+      .setDepth(7090).setBlendMode(Phaser.BlendModes.ADD);
+    this.drainBloom = bloom;
+    this.s.objs.push(bloom);
+  }
+
+  private tickDrain() {
+    const t = this.drainT;
+    const h = this.handOff();
+    const hx = this.s.x + h.x, hy = this.s.y + h.y;
+    const lx = LAMP.x, ly = LAMP.y - 16;
+
+    // Lamp stutters, then the shade drains.
+    if (this.lampSpr && t < 0.48) {
+      const on = (Math.sin(t * 90) * Math.sin(t * 17)) > 0 || Math.random() > 0.55;
+      const onK = this.s.textures.exists('lift_lamp_on') ? (on ? 'lift_lamp_on' : 'lift_lamp_off')
+        : (on ? 'fx_lamp_on' : 'fx_lamp_off');
+      if (this.s.textures.exists(onK)) this.lampSpr.setTexture(onK);
+      this.lampSpr.setAlpha(on ? 1 : 0.45);
+    } else if (this.lampSpr) {
+      const k = this.s.textures.exists('lift_lamp_off') ? 'lift_lamp_off' : 'fx_lamp_off';
+      if (this.s.textures.exists(k)) this.lampSpr.setTexture(k);
+      this.lampSpr.setAlpha(Math.max(0.25, 0.7 - (t - 0.48) * 0.7));
+    }
+
+    // Arcs crawl lamp → hand.
+    const travel = Math.max(0, Math.min(1, (t - 0.12) / 0.7));
+    const ease = 1 - Math.pow(1 - travel, 2);
+    const ox = lx + (hx - lx) * ease;
+    const oy = ly + (hy - ly) * ease;
+    if (this.heldOrb) {
+      this.heldOrb.setPosition(ox, oy);
+      this.heldOrb.setScale(0.35 + ease * 0.55);
+      this.heldOrb.setAlpha(0.25 + ease * 0.75);
+      const fi = Math.floor(this.s.t * 14) % 4;
+      if (this.s.textures.exists('fx_spark_orb_' + fi)) this.heldOrb.setTexture('fx_spark_orb_' + fi);
+    }
+    if (this.drainBloom) {
+      this.drainBloom.setPosition(ox, oy);
+      const pulse = 1 + Math.sin(t * 28) * 0.12;
+      this.drainBloom.setScale((0.8 + ease * 1.1) * pulse);
+      this.drainBloom.setAlpha(0.15 + ease * 0.45);
+    }
+    this.drawDrainArcs(lx, ly, ox, oy, travel);
+
+    if (!this.drainShook && t >= 0.72) {
+      this.drainShook = true;
+      try { this.s.cameras.main.shake(70, 0.0035); } catch { /* */ }
+      try { sfx('crackle', 0.8); } catch { /* */ }
+      try { sfx('steal'); } catch { /* */ }
+    }
+  }
+
+  private drawDrainArcs(x0: number, y0: number, x1: number, y1: number, u: number) {
+    const g = this.drainG;
+    if (!g) return;
+    g.clear();
+    if (u <= 0) return;
+    try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    const segs = 7;
+    for (let pass = 0; pass < 3; pass++) {
+      const col = pass === 0 ? 0xe8f8ff : pass === 1 ? 0x7ad8ff : 0xf6c684;
+      g.lineStyle(pass === 0 ? 2.4 : 1.2, col, 0.55 - pass * 0.12);
+      g.beginPath();
+      g.moveTo(x0, y0);
+      for (let i = 1; i <= segs; i++) {
+        const t = i / segs;
+        const jx = (Math.random() - 0.5) * (10 - pass * 2);
+        const jy = (Math.random() - 0.5) * (10 - pass * 2);
+        g.lineTo(x0 + (x1 - x0) * t + jx, y0 + (y1 - y0) * t + jy);
+      }
+      g.strokePath();
+    }
+    // Tiny ticks around the gathering orb
+    for (let i = 0; i < 4; i++) {
+      const a = this.s.t * 12 + i * Math.PI * 0.5;
+      const r = 8 + (i % 2) * 5;
+      g.lineStyle(1, 0xc8f4ff, 0.7);
+      g.lineBetween(x1, y1, x1 + Math.cos(a) * r, y1 + Math.sin(a) * r);
+    }
+  }
+
+  private finishDrain() {
+    if (!this.draining) return;
+    this.draining = false;
+    this.lampOn = false;
+    this.carrying = true;
+    this.lure?.setCarrying(true);
+    if (this.lampSpr) {
+      const k = this.s.textures.exists('lift_lamp_off') ? 'lift_lamp_off' : 'fx_lamp_off';
+      if (this.s.textures.exists(k)) this.lampSpr.setTexture(k);
+      this.lampSpr.setAlpha(1);
+    }
+    if (this.drainVeil) {
+      const v = this.drainVeil;
+      this.s.tweens.add({ targets: v, alpha: 0, duration: 280, onComplete: () => { try { v.destroy(); } catch { /* */ } } });
+      this.drainVeil = undefined;
+    }
+    if (this.drainG) { try { this.drainG.destroy(); } catch { /* */ } this.drainG = undefined; }
+    if (this.drainBloom) {
+      const b = this.drainBloom;
+      this.s.tweens.add({
+        targets: b, alpha: 0.25, scale: 1.15, duration: 240, yoyo: true, repeat: -1,
+      });
+    }
+    const h = this.handOff();
+    if (this.heldOrb) this.heldOrb.setPosition(this.s.x + h.x, this.s.y + h.y).setScale(0.9).setAlpha(1);
     try {
       this.s.noor.setTint(0xc8e8ff);
-      window.setTimeout(() => { try { this.s.noor.clearTint(); } catch { /* */ } }, 450);
+      this.s.time.delayedCall(400, () => { try { this.s.noor.clearTint(); } catch { /* */ } });
     } catch { /* */ }
     try { this.s.say('noor', 'What— what is this?', 1800); } catch { /* */ }
+    if (this.throwQueued) {
+      this.throwQueued = false;
+      this.throwBolt();
+    }
   }
 
   throwBolt() {
+    if (this.draining) { this.throwQueued = true; return; }
     this.carrying = false;
     this.s.hand = null;
     this.heldOrb?.destroy(); this.heldOrb = undefined;
+    if (this.drainBloom) { try { this.s.tweens.killTweensOf(this.drainBloom); this.drainBloom.destroy(); } catch { /* */ } this.drainBloom = undefined; }
     this.boltT = 0;
 
     // Face the panel / lift and frame hand + panel together
@@ -586,6 +719,7 @@ export class ImpactLab {
 
   private clearCarryFx() {
     this.heldOrb?.destroy(); this.heldOrb = undefined;
+    if (this.drainBloom) { try { this.s.tweens.killTweensOf(this.drainBloom); this.drainBloom.destroy(); } catch { /* */ } this.drainBloom = undefined; }
     this.bolt?.destroy(); this.bolt = undefined;
     this.boltBeam?.destroy(); this.boltBeam = undefined;
   }
