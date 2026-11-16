@@ -7,7 +7,7 @@ import { O11_PROPS, O11_DUMMY } from '../office11art';
 import { DEFAULT_TUNE, type CombatTune } from './tune';
 import { sfx } from '../sfx';
 import { logSwap } from '../save';
-import { drawForkedBolt } from '../impact/qualityShot';
+import { launchAnimatedBolt, playThrowAttack } from '../impact/qualityShot';
 
 const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
@@ -684,9 +684,10 @@ export class CombatGreybox {
     if (tgt) { const dx = tgt.x - s.x, dy = tgt.y - s.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; s.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; }
     const L = Math.min(R, tgt ? Math.hypot(tgt.x - s.x, tgt.y - s.y) + 20 : R);
     const x0 = s.x, y0 = s.y - 52;
-    if (this.usingSheets) s.noor.play(`noor_release_${s.dir}`, true);
-    else s.noor.play(`noor_type3_${s.dir}`, true);
     s.swingT = 0.45; s.beamN++; sfx('paste');
+    playThrowAttack(s, () => {
+      launchAnimatedBolt(s, { x: x0, y: y0 }, { x: x0 + v.x * L, y: y0 + v.y * L }, undefined, 240);
+    }, true);
     this.lightDip = 0.55; this.spawnFlutter(x0, y0, v, L); this.spawnScorch(x0, y0, v, L);
     const hit = s.enemies.filter(e => {
       if (e.dead) return false;
@@ -706,9 +707,6 @@ export class CombatGreybox {
       if (e.practice && s.clar) { s.markTut('o11beam'); s.clar.beamHits++; }
     }
     if (hit.length) { s.hitStopT = 0.07; s.noor.anims.pause(); s.cameras.main.shake(160, 0.01); }
-    const glow = s.add.graphics().setDepth(y0 + 3).setBlendMode(Phaser.BlendModes.ADD); s.objs.push(glow);
-    drawForkedBolt(glow, x0, y0, x0 + v.x * L, y0 + v.y * L, this.s.t, 1);
-    s.tweens.add({ targets: glow, alpha: 0, duration: 420, delay: 120, onComplete: () => glow.destroy() });
     s.slide(-v.x * 5, -v.y * 5);
     return true;
   }

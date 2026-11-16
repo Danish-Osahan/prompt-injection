@@ -9,7 +9,7 @@ import { sfx } from '../sfx';
 import { writeSave } from '../save';
 import { showControlsHint, focusGameCanvas } from '../flow';
 import type { Frame } from '../controls';
-import { drawForkedBolt } from './qualityShot';
+import { launchAnimatedBolt, playThrowAttack } from './qualityShot';
 
 /**
  * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
@@ -75,7 +75,7 @@ export class ImpactLab {
   private panelSpr?: Phaser.GameObjects.Image;
   private floorInd?: Phaser.GameObjects.Image;
   private heldOrb?: Phaser.GameObjects.Container;
-  private bolt?: Phaser.GameObjects.Sprite;
+  private bolt?: Phaser.GameObjects.Sprite | Phaser.GameObjects.Ellipse;
   private boltT = 0;
   private boltBeam?: Phaser.GameObjects.Graphics;
   private cover?: Phaser.Physics.Matter.Image;
@@ -497,29 +497,7 @@ export class ImpactLab {
       this.throwBolt();
     }
 
-    if (this.flying && this.bolt) {
-      const tx = PANEL.x, ty = PANEL.y;
-      const h = this.handOff();
-      const hx = this.s.x + h.x, hy = this.s.y + h.y;
-      // Always advance along hand→panel (not tip wander) so the vector aims at the panel
-      const dx = tx - hx, dy = ty - hy;
-      const full = Math.hypot(dx, dy) || 1;
-      // ~150ms travel
-      this.boltT = (this.boltT ?? 0) + dt;
-      const u = Math.min(1, this.boltT / 0.15);
-      this.bolt.x = hx + dx * u;
-      this.bolt.y = hy + dy * u;
-      const fi = Math.floor(this.s.t * 28) % 4;
-      if (this.s.textures.exists('fx_lightning_' + fi)) this.bolt.setTexture('fx_lightning_' + fi);
-      this.bolt.setAngle(Phaser.Math.RadToDeg(Math.atan2(dy, dx)));
-      this.bolt.setScale(1.3, 1.0);
-      this.drawBoltBeam(hx, hy, this.bolt.x, this.bolt.y);
-      if (u >= 1) {
-        this.bolt.x = tx; this.bolt.y = ty;
-        this.drawBoltBeam(hx, hy, tx, ty);
-        this.onPanelHit();
-      }
-    }
+    // Bolt travel + impact are driven by launchAnimatedBolt (see throwBolt).
 
     // Normal office: walk into the open cab to leave for the hub. Lab stays put.
     if (this.done && !this.s.labMode && !this.s.transitioning) {
@@ -818,42 +796,27 @@ export class ImpactLab {
     if (this.drainBloom) { try { this.s.tweens.killTweensOf(this.drainBloom); this.drainBloom.destroy(); } catch { /* */ } this.drainBloom = undefined; }
     this.boltT = 0;
 
-    // Face the panel / lift and frame hand + panel together
-    this.s.dir = this.s.x > PANEL.x ? 'NW' : 'W';
+    // Face the panel so the throw pose aims at the target.
+    const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+    const ang = Math.atan2(PANEL.y - this.s.y, PANEL.x - this.s.x);
+    this.s.dir = DIRS[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
     this.frameHandPanel();
 
-    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
-    window.setTimeout(() => {
-      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch {
-        try { this.s.noor.play(`noor_type3_${this.s.dir}`, true); } catch { /* */ }
-      }
-    }, 90);
-
     sfx('throw');
-    const h = this.handOff();
-    const key = this.s.textures.exists('fx_lightning_0') ? 'fx_lightning_0' : 'fx_spark_core';
-    this.bolt = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key)
-      .setDepth(7200).setScale(1.4).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.85);
-    this.s.objs.push(this.bolt);
-    this.boltBeam?.destroy();
-    this.boltBeam = this.s.add.graphics().setDepth(7190);
-    this.s.objs.push(this.boltBeam);
+    if (this.lure) this.lure.hidden = true;
     this.flying = true;
-    this.drawBoltBeam(this.s.x + h.x, this.s.y + h.y, this.s.x + h.x, this.s.y + h.y);
+    this.boltT = 0;
+    playThrowAttack(this.s, () => {
+      const h = this.handOff();
+      const from = { x: this.s.x + h.x, y: this.s.y + h.y };
+      const to = { x: PANEL.x, y: PANEL.y };
+      launchAnimatedBolt(this.s, from, to, () => this.onPanelHit(), 240);
+    }, false);
   }
 
   /** Frame camera on hand↔panel midpoint so the bolt path is readable. */
   frameHandPanel(_zoom = 1) {
     this.holdStaticCam();
-  }
-
-  /** Forked bolt hand→tip; overall vector always aims at the panel. */
-  private drawBoltBeam(x0: number, y0: number, x1: number, y1: number) {
-    const g = this.boltBeam;
-    if (!g) return;
-    g.clear();
-    g.setBlendMode(Phaser.BlendModes.ADD);
-    drawForkedBolt(g, x0, y0, x1, y1, this.s.t, 1);
   }
 
   private clearCarryFx() {
@@ -877,16 +840,10 @@ export class ImpactLab {
     const dir = { x: PANEL.x - this.s.x, y: PANEL.y - this.s.y };
     const sils: (Phaser.GameObjects.Sprite | Phaser.GameObjects.Image)[] = [];
     if (this.panelSpr) sils.push(this.panelSpr);
-    if (bolt) sils.push(bolt);
+    if (this.lure) this.lure.hidden = true;
 
-    this.impactFrame = true;
-    this.fx.fire({
-      tier: 'big', x: PANEL.x, y: PANEL.y, dir,
-      attacker: this.s.noor,
-      target: this.panelSpr,
-      silhouettes: sils,
-      onHitStopEnd: () => { this.impactFrame = false; },
-    });
+    this.impactFrame = false;
+    void dir; void sils;
     // Failsafe clear impactFrame flag
     window.setTimeout(() => { this.impactFrame = false; }, 450);
 
@@ -916,7 +873,7 @@ export class ImpactLab {
       } else if (this.floorInd && this.s.textures.exists('fx_lift_floor_ind_on')) {
         this.floorInd.setTexture('fx_lift_floor_ind_on');
       }
-      try { this.s.cameras.main.flash(160, 40, 90, 60); } catch { /* */ }
+      try { this.s.cameras.main.flash(70, 30, 70, 50); } catch { /* */ }
       sfx('impact_hum');
       this.openLift();
     }, 300);

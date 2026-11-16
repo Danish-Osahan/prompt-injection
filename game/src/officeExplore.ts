@@ -6,7 +6,7 @@ import type { Frame } from './controls';
 import { sfx, getAudioContext, outNode } from './sfx';
 import tokens from './tokens.json';
 import { InteractChip, placeChip } from './ui/InteractChip';
-import { launchShot, shotKind } from './impact/qualityShot';
+import { launchShot, shotKind, playThrowAttack } from './impact/qualityShot';
 
 const C = tokens.color;
 const UI = 'IBM Plex Mono';
@@ -128,7 +128,7 @@ export class OfficeExplore {
   }
 
   private chipOff(id: ExploreSpot['id']) {
-    if (id === 'board') return { ox: 92, oy: 24 };
+    if (id === 'board') return { ox: 36, oy: 42 };
     if (id === 'calendar') return { ox: 54, oy: 18 };
     if (id === 'photo') return { ox: 36, oy: 14 };
     if (id === 'printer') return { ox: 44, oy: 16 };
@@ -146,9 +146,9 @@ export class OfficeExplore {
     const c = placeChip(spot.x, spot.y, this.s.x, this.s.y, off.ox, off.oy);
     p.show(c.x, c.y, stealReady ? `take ${spot.steal}` : 'look', hold, 'E');
     if (g) {
-      const pulse = 0.14 + 0.08 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
-      const size = spot.id === 'board' ? [110, 44] : spot.id === 'calendar' ? [70, 36] : [48, 26];
-      g.setPosition(spot.x, spot.y).setSize(size[0], size[1]).setAlpha(pulse).setDepth(spot.y - 8);
+      const size = spot.id === 'board' ? [120, 50] : spot.id === 'calendar' ? [70, 36] : [48, 26];
+      const a = (spot.id === 'board' ? 0.22 : 0.14) + 0.1 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
+      g.setPosition(spot.x, spot.y + (spot.id === 'board' ? 8 : 0)).setSize(size[0], size[1]).setAlpha(a).setDepth(spot.y - 8);
     }
   }
 
@@ -224,10 +224,8 @@ export class OfficeExplore {
     this.flying = true;
     const from = { x: this.s.x, y: this.s.y - 28 };
     const to = word === 'LOUD' ? { x: 1140, y: 330 } : { x: 77, y: 180 };
-    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
     try { sfx('throw'); } catch { /* */ }
-    this.s.time.delayedCall(90, () => {
-      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch { /* */ }
+    playThrowAttack(this.s, () => {
       launchShot(this.s, shotKind(word), from, to, () => {
         this.flying = false;
         if (word === 'LOUD') {

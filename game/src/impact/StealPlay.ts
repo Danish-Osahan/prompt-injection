@@ -8,7 +8,7 @@ import { writeSave, logSwap } from '../save';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
-import { launchShot, shotKind } from './qualityShot';
+import { launchShot, shotKind, playThrowAttack } from './qualityShot';
 
 const OPP: Record<string, string> = {
   OPEN: 'SHUT', SHUT: 'OPEN',
@@ -209,13 +209,11 @@ export class StealPlay {
     const h = this.handOff();
     const fromP = { x: this.s.x + h.x, y: this.s.y + h.y };
     this.clearOrb();
-    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
-    this.s.time.delayedCall(90, () => {
-      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch { /* */ }
+    playThrowAttack(this.s, () => {
       launchShot(this.s, shotKind(word), fromP, { x: tx, y: ty }, () => {
         this.resolveThrow(word, from, dest, tx, ty);
-      }, 240);
-    });
+      }, 220);
+    }, false);
     return true;
   }
 

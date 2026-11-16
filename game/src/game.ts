@@ -25,7 +25,7 @@ import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
 import { InteractChip, placeChip } from './ui/InteractChip';
-import { drawForkedBolt } from './impact/qualityShot';
+import { launchAnimatedBolt, playChargeHold, playThrowAttack } from './impact/qualityShot';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -1423,33 +1423,18 @@ export class GameScene extends Phaser.Scene {
     const hit = this.enemies.filter(e => { if (e.dead) return false; const t = Phaser.Math.Clamp(((e.x - x0) * v.x + (e.y - y0) * v.y) / L, 0, 1); return Math.hypot(e.x - (x0 + v.x * L * t), e.y - (y0 + v.y * L * t)) < 40; });
     this.selectN++; this.beamN++; this.selectHits += hit.length; this.beamHits += hit.length;
     const dmg = 1 + charge + 0.5 * Math.max(0, hit.length - 1);
-    try { this.noor.play(`noor_type2_${this.dir}`, true); } catch { this.noor.play(`noor_type3_${this.dir}`, true); }
-    this.time.delayedCall(90, () => {
-      try { this.noor.play(`noor_throw_${this.dir}`, true); } catch { try { this.noor.play(`noor_type3_${this.dir}`, true); } catch { /* */ } }
-    });
-    this.swingT = 0.3; sfx('paste');
+    // Damage is immediate (playtests count beamN on release). The visual winds up, then a bolt travels.
+    this.swingT = 0.38; sfx('paste');
     for (const e of hit) this.hurtEnemy(e, dmg, v.x * 220, v.y * 220, true);
-    if (hit.length) { this.hitStopT = 0.06; this.noor.anims.pause(); this.cameras.main.shake(110, 0.005); if (this.clar && hit.some(e => e.practice)) { this.markTut('o11beam'); this.clar.beamHits++; } }
+    if (hit.length && this.clar && hit.some(e => e.practice)) { this.markTut('o11beam'); this.clar.beamHits++; }
     if (!this.save.tutorials.includes('select')) { this.save.tutorials.push('select'); }
-    // Forked bolt with afterglow + impact sparks — no straight laser, no glyph stream, no charge ring.
     const ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
-    const tipX = ox + v.x * L, tipY = oy + v.y * L;
-    const glow = this.add.graphics().setDepth(y0 + 6).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(glow);
-    const paint = () => { glow.clear(); drawForkedBolt(glow, ox, oy, tipX, tipY, this.t, 1); };
-    paint();
-    let flick = 0;
-    const ev = this.time.addEvent({ delay: 32, repeat: 10, callback: () => { flick++; if (flick < 5) paint(); else glow.setAlpha(Math.max(0, 1 - (flick - 4) / 6)); } });
-    this.time.delayedCall(380, () => { ev.remove(false); glow.destroy(); });
-    const at = hit[0] ? { x: hit[0].x, y: hit[0].y - 28 } : { x: tipX, y: tipY };
-    const sp = this.add.graphics().setDepth(8010).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(sp);
-    sp.fillStyle(0xe8ffff, 0.75).fillCircle(at.x, at.y, 6);
-    for (let i = 0; i < 8; i++) {
-      const a = (i / 8) * Math.PI * 2;
-      const sl = 9 + (i % 3) * 7;
-      sp.lineStyle(1.5, 0xb8f0ff, 0.9).lineBetween(at.x, at.y, at.x + Math.cos(a) * sl, at.y + Math.sin(a) * sl);
-    }
-    this.tweens.add({ targets: sp, alpha: 0, duration: 240, onComplete: () => sp.destroy() });
-    if (tgt) this.fragments(tgt.x, tgt.y - 50, 'rephrase', hit.length ? C.lamp : C.cyan, 8);
+    const tip = hit[0] ? { x: hit[0].x, y: hit[0].y - 28 } : { x: ox + v.x * L, y: oy + v.y * L };
+    playThrowAttack(this, () => {
+      launchAnimatedBolt(this, { x: ox, y: oy }, tip, () => {
+        if (tgt) this.fragments(tgt.x, tgt.y - 50, 'rephrase', hit.length ? C.lamp : C.cyan, 8);
+      }, 240);
+    }, true);
     void charge;
   }
   paste() {
@@ -1572,12 +1557,7 @@ export class GameScene extends Phaser.Scene {
     if (this.atkPending) {
       if (control && f.attackHeld) {
         this.atkHeldT += dt; this.selecting = this.atkHeldT > holdT;
-        if (this.selecting) {
-          const cur = this.noor.anims.currentAnim?.key ?? '';
-          if (!/^noor_(type2|throw|charge)/.test(cur)) {
-            try { this.noor.play(`noor_type2_${this.dir}`, true); } catch { /* */ }
-          }
-        }
+        if (this.selecting) playChargeHold(this);
       }
       else {
         if (control && this.atkHeldT <= holdT) this.typeAttack();
