@@ -1,5 +1,19 @@
 # HANDOFF
 
+## 2026-11-16 — Desk props audit (2x, no new sprite moves)
+
+A 2x overlay of every `O11_PROPS` sprite against `office_bleed.jpg`: official furniture is already registered (mean Δ 0.3–0.7, best nudge for plantE is 0,0). The only sprite-layer placement fix in this pass remains `chair_noor` (`cf7d597`): Dez's chair in the aisle at (966, 475). The green banker lamp is `lift_lamp_on` at (154, 270), scale 0.92, sitting on desk_podW's top face — it is not baked into the plate, and it is not the 2D Kenney floor-lamp fallback.
+
+Baked-in plate issues (a Blender re-render of the office11 plate + matching `office11/fg` sprites would be required; not started):
+
+- desk_dez floor papers at about (468, 448), south-east of the desk next to the bin — they read as dropped sheets on the floor, baked into the plate (not a floating sprite).
+- table near-edge paper, about (600, 620), may slightly overhang the hex table's front; baked into `table.png` / the plate.
+- plantE at (1167, 187) 26×35: 6.9% of opaque pixels differ from the plate (soft fringe), alignment already optimal. Same class of fringe on plantW (75, 121, 2.7%) and plantFG (1159, 548, 1.7%).
+- Official desks are also drawn as depth-sort overlays that match the plate pixel-for-pixel; they are not visually double-exposed, but a re-render would need to keep that 1:1 crop.
+
+A re-render would use `art/tools/office11.py` (Cycles, same camera) plus `post11.py` to recrop every `office11/fg` layer so they stay registered to a new `office_bleed.jpg`. That is a full office art pass, not a one-desk tweak. Not started.
+
+
 ## 2026-11-16 — Fern is a crisp plant character
 
 Replaced the blurry teal hologram and its rectangular scanline box. Fern is a new crisp vector sprite (PIL, no AI): a potted fern with distinct fronds, two glowing eyes and a mouth, a cyan outline, and scanlines baked inside the silhouette only. Displayed at 110px. No heavy teal tint. A faint ADD beam runs from the source to the pot. From the lamp she now stands in the open floor at (268, 348), clear of the calendar, bookcase and lift; from Noor's monitor she stands at (880, 430), left of the desk. DENIED is already gone before beat f (see previous commit).
