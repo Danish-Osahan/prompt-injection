@@ -48,6 +48,7 @@ export class Dialogue {
   holo?: Phaser.GameObjects.Container;
   private holoBaseY?: number;
   private beamG?: Phaser.GameObjects.Graphics;
+  private beamLife = 0;
   source?: Source;
   timers: Phaser.Time.TimerEvent[] = [];
   private typed = '';
@@ -101,7 +102,11 @@ export class Dialogue {
       if (this.holoBaseY != null) this.holo.y = this.holoBaseY + bob;
       const flick = 0.92 + Math.sin(this.s.t * 19) * 0.05 + (Math.random() < 0.03 ? -0.08 : 0);
       this.holo.setAlpha(Math.max(0.78, Math.min(1, flick)));
-      this.drawBeam();
+      if (this.beamLife > 0) {
+        this.beamLife = Math.max(0, this.beamLife - _dt);
+        this.drawBeam(this.beamLife / 0.7);
+        if (this.beamLife <= 0) { try { this.beamG?.clear(); } catch { /* */ } }
+      }
     }
   }
 
@@ -115,7 +120,7 @@ export class Dialogue {
     this.letterBits = [];
     this.root?.destroy(); this.root = undefined;
     this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined;
-    try { this.beamG?.destroy(); } catch { /* */ } this.beamG = undefined;
+    try { this.beamG?.destroy(); } catch { /* */ } this.beamG = undefined; this.beamLife = 0;
     this.arrow = undefined;
     this.source = undefined;
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
@@ -269,7 +274,8 @@ export class Dialogue {
     this.holo = c;
     this.holoBaseY = pos.y;
     this.ensureBeam();
-    this.drawBeam();
+    this.beamLife = 0.7;
+    this.drawBeam(1);
     try { sfx('tell'); } catch { /* */ }
   }
 
@@ -279,17 +285,29 @@ export class Dialogue {
     this.beamG = this.s.add.graphics().setDepth(DEPTH - 8);
   }
 
-  private drawBeam() {
+  private drawBeam(k = 1) {
     if (!this.beamG || !this.holo || !this.source) return;
     const g = this.beamG;
     g.clear();
+    const fade = Math.max(0, Math.min(1, k));
+    if (fade <= 0) return;
     const x0 = this.source.x, y0 = this.source.y;
-    const x1 = this.holo.x, y1 = this.holo.y - 4;
+    const x1 = this.holo.x, y1 = this.holo.y + 8;
     try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-    g.fillStyle(0x8fd0dc, 0.18);
-    g.fillTriangle(x0 - 5, y0, x0 + 5, y0, x1, y1);
-    g.lineStyle(1.5, 0xb8f0f4, 0.45);
-    g.lineBetween(x0, y0, x1, y1);
+    // Soft cone only — no hairline. Fades out after Fern lands.
+    const w = 18 + (1 - fade) * 10;
+    g.fillStyle(0x8fd0dc, 0.16 * fade);
+    g.fillTriangle(x0 - w, y0, x0 + w, y0, x1, y1);
+    g.fillStyle(0xb8f0f4, 0.10 * fade);
+    g.fillTriangle(x0 - w * 0.45, y0, x0 + w * 0.45, y0, x1, y1);
+    // Glitch-pixel dissolve at the source, dying with the cone.
+    const n = Math.floor(5 * fade) + 1;
+    for (let i = 0; i < n; i++) {
+      const px = x0 + (Math.random() - 0.5) * 22;
+      const py = y0 + (Math.random() - 0.5) * 14;
+      g.fillStyle(Math.random() > 0.5 ? 0xb8f0f4 : 0xe27bd8, 0.55 * fade);
+      g.fillRect(px, py, 2 + Math.random() * 5, 2);
+    }
   }
 
   /** Sit the pot in a clear patch of floor near the source — not on the shelf, calendar, or lift. */
