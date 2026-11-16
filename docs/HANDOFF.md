@@ -1,4 +1,19 @@
-# HANDOFF — Level 1 step 5: playtest, stills, Continue
+# HANDOFF
+
+## 2026-11-16 — Level 1 pass 2, item A: opening scene
+
+Rewrote the New Game intro as a ~48s skippable camera piece in the real office (Esc skips immediately; hold X also skips). Fade in from black on a procedural office hum, slow pan from the rain window across the empty night floor, then settle on Noor at her desk (feet at 995, 615 — south of desk_noor so she no longer sits through the monitor). After a hold, "11:48 PM" fades in, then her line "Rephrase. Again." appears above her (world space, after a beat — no HUD popup). Then a glitch (screen tear, stuttering lights), the world freezes mid-motion (rain and typing pause), a quiet "The office goes still." and a fade into play.
+
+HUD and HP are hidden for the whole cutscene (`setHudVisible(false)`); the old bottom skip bar and top dim band are gone. A faint "Esc to skip" sits in the corner and fades. Fern does not speak or appear here — she is not on screen, and her lamp line waits for the dialogue system (item B). After the fade, the room card and controls hint still play. Labs / `?skipIntro` / Continue are unchanged.
+
+No new shipping art. Hum is WebAudio (no sample).
+
+### Weak spots
+- Rain still uses the existing ambient sheet; it may look a bit mechanical until item D.
+- The freeze is a pause + veil, not a true mid-particle halt of every tween.
+- Opening still and video are recorded after the playtest in this pass.
+
+ — Level 1 step 5: playtest, stills, Continue
 
 **Date:** 2026-11-10 (Asia/Calcutta)
 **Focus:** A real launch-to-end playtest, and honest stills of the new shell.

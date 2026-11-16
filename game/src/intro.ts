@@ -1,17 +1,19 @@
-// Skippable New-Game intro in the real office. Existing sprites + typographic cards only.
-// Beats: 11:48 / Floor 2, Noor working, a glitch, stillness, the lamp buzzes, Fern appears.
-// Then a short fade into controllable play and a one-time controls hint.
+// Skippable New-Game opening in the real office. ~40–60s camera piece.
+// Fade from black on office hum, slow pan across the night floor to Noor at
+// her desk, then a glitch (tear, stuttering lights, freeze mid-motion).
+// Lines arrive after beats. No HUD, no letterbox bars, no off-screen speakers.
 import Phaser from 'phaser';
 import tokens from './tokens.json';
-import { sfx } from './sfx';
+import { sfx, startHum, stopHum } from './sfx';
 import type { GameScene } from './game';
 import { writeSave } from './save';
+import { showRoomCard } from './flow';
 
 const C = tokens.color;
 const FONT = 'JetBrains Mono';
 const UI = 'IBM Plex Mono';
-const DESK = { x: 1000, y: 540 };
-const FERN = { x: 250, y: 400 };
+// Feet south of desk_noor (solid ends ~y=507) so she sits in front of the desk, not through it.
+const DESK = { x: 995, y: 615 };
 const LAMP = { x: 178, y: 268 };
 
 export class IntroCutscene {
@@ -20,10 +22,12 @@ export class IntroCutscene {
   finished = false;
   objs: Phaser.GameObjects.GameObject[] = [];
   timers: Phaser.Time.TimerEvent[] = [];
-  fern?: Phaser.GameObjects.Sprite;
   lampFx?: Phaser.GameObjects.Ellipse;
-  dim?: Phaser.GameObjects.Rectangle;
-  hint?: Phaser.GameObjects.Text;
+  flicker?: Phaser.GameObjects.Rectangle;
+  freezeVeil?: Phaser.GameObjects.Rectangle;
+  skipHint?: Phaser.GameObjects.Text;
+  camTweens: Phaser.Tweens.Tween[] = [];
+  released = false;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -39,74 +43,60 @@ export class IntroCutscene {
     this.s.busy = true;
     this.s.cutscene = { id: 'intro', skip: () => this.skip() };
     this.s.introPending = true;
+    this.s.setHudVisible(false);
 
     const s = this.s;
     s.x = DESK.x; s.y = DESK.y; s.dir = 'N';
     try { s.unstick(); } catch { /* */ }
-    s.noor.setPosition(s.x, s.y);
-    try { s.shadow?.setPosition(s.x, s.y + 8); } catch { /* */ }
+    // unstick can shove her; re-seat if she drifted onto the desktop
+    if (s.y < 580) { s.x = DESK.x; s.y = DESK.y; }
+    s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
+    try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
     try { s.noor.play('noor_type1_N', true); } catch { try { s.noor.play('noor_idle_N'); } catch { /* */ } }
     s.noor.on('animationcomplete', this.onType);
 
-    this.dim = s.add.rectangle(640, 360, 1280, 720, 0x04080c, 0.22).setDepth(6200).setScrollFactor(0);
-    this.objs.push(this.dim);
-    this.lampFx = s.add.ellipse(LAMP.x, LAMP.y, 100, 80, 0xf6c684, 0).setDepth(500).setBlendMode(Phaser.BlendModes.ADD);
+    this.lampFx = s.add.ellipse(LAMP.x, LAMP.y, 110, 88, 0xf6c684, 0).setDepth(500).setBlendMode(Phaser.BlendModes.ADD);
     this.objs.push(this.lampFx);
+    this.flicker = s.add.rectangle(640, 360, 1600, 1000, 0x03070c, 0).setDepth(6100).setScrollFactor(0);
+    this.objs.push(this.flicker);
+    this.freezeVeil = s.add.rectangle(640, 360, 1600, 1000, 0x0a1420, 0).setDepth(6090).setScrollFactor(0);
+    this.objs.push(this.freezeVeil);
 
-    const skip = s.add.text(640, 692, 'Esc or hold X to skip', { fontFamily: UI, fontSize: '13px', color: C.faint }).setOrigin(0.5).setDepth(8200).setScrollFactor(0);
-    this.objs.push(skip);
-    s.hud.skip.setVisible(false);
+    this.skipHint = s.add.text(1256, 696, 'Esc to skip', {
+      fontFamily: UI, fontSize: '12px', color: C.faint,
+    }).setOrigin(1, 1).setDepth(8200).setScrollFactor(0).setAlpha(0);
+    this.objs.push(this.skipHint);
 
-    // Beat 1 — establishing card
-    const floor = this.card(640, 300, 'FLOOR 2', 18, C.cyan, 6);
-    const time = this.card(640, 348, '11:48 PM', 42, C.inkBright, 4);
-    floor.setAlpha(0); time.setAlpha(0);
-    s.tweens.add({ targets: [floor, time], alpha: 1, duration: 500 });
+    this.rigCamera();
+    try { startHum(0.05); } catch { /* */ }
 
-    this.at(1600, () => {
-      s.tweens.add({ targets: [floor, time], alpha: 0, duration: 350 });
-      s.say('noor', 'Rephrase. Again.', 1600);
-      try { sfx('key'); } catch { /* */ }
+    // Beat 1 — fade up on the window, then a slow move across the empty office.
+    this.at(2200, () => {
+      if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0.55, duration: 500 });
+    });
+    this.at(8000, () => {
+      if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0, duration: 600 });
     });
 
-    // Beat 2 — something glitches
-    this.at(3200, () => {
-      this.glitch();
-      s.say('ai', "I'LL HANDLE IT.", 1400);
+    // Beat 2 — arrive on Noor. Quiet time card, then her line, both after a hold.
+    this.at(20000, () => this.lineCard(640, 86, '11:48 PM', 28, C.inkBright, 6, 2800));
+    this.at(24200, () => this.worldLine(s.x, s.y - 108, 'Rephrase. Again.', 2600));
+    this.at(24600, () => { try { sfx('key'); } catch { /* */ } });
+
+    // Beat 3 — the glitch: tear, lights stutter, then the world freezes mid-motion.
+    this.at(28600, () => this.glitchBurst());
+    this.at(29400, () => this.stutterLights(5));
+    this.at(30800, () => this.glitchBurst());
+    this.at(31800, () => {
+      this.freezeWorld();
+      this.stutterLights(3);
     });
 
-    // Beat 3 — the office goes still
-    this.at(4800, () => {
-      s.subQueue.length = 0;
-      this.pauseRain(true);
-      s.tweens.add({ targets: this.dim, alpha: 0.55, duration: 500 });
-      try { s.noor.play('noor_idle_N'); } catch { /* */ }
-      const still = this.card(640, 200, 'The office goes still.', 20, C.ink, 0);
-      still.setAlpha(0);
-      s.tweens.add({ targets: still, alpha: 1, duration: 400 });
-      this.at(1800, () => s.tweens.add({ targets: still, alpha: 0, duration: 350 }));
-    });
+    // Beat 4 — a held silence, then one quiet line. No Fern (she isn't on screen).
+    this.at(36000, () => this.lineCard(640, 92, 'The office goes still.', 18, C.ink, 1, 3200));
 
-    // Beat 4 — the lamp starts buzzing
-    this.at(7000, () => {
-      if (this.lampFx) {
-        this.lampFx.setAlpha(0.12);
-        s.tweens.add({ targets: this.lampFx, alpha: { from: 0.08, to: 0.45 }, duration: 80, yoyo: true, repeat: -1, hold: 70, repeatDelay: 160 });
-      }
-      try { sfx('impact_hum'); } catch { /* */ }
-    });
-
-    // Beat 5 — Fern appears
-    this.at(8200, () => {
-      this.fern = s.add.sprite(FERN.x, FERN.y, 'fern_seated').setOrigin(0.5, 0.83).setScale(0.75).setAlpha(0).setDepth(FERN.y + 10);
-      try { this.fern.play('fern_seated_S'); } catch { /* */ }
-      this.objs.push(this.fern);
-      s.tweens.add({ targets: this.fern, alpha: 1, duration: 700, ease: 'Quad.easeOut' });
-      try { sfx('tell'); } catch { /* */ }
-    });
-
-    // Fade into play
-    this.at(10200, () => this.finish());
+    // Fade into play around 48s.
+    this.at(43000, () => this.finish());
   }
 
   skip() { this.finish(true); }
@@ -117,38 +107,44 @@ export class IntroCutscene {
     this.playing = false;
     for (const t of this.timers) { try { t.remove(false); } catch { /* */ } }
     this.timers = [];
+    for (const tw of this.camTweens) { try { tw.stop(); } catch { /* */ } }
+    this.camTweens = [];
     this.s.tweens.killTweensOf(this.objs);
     if (this.lampFx) this.s.tweens.killTweensOf(this.lampFx);
+    try { stopHum(skipped ? 0.25 : 0.6); } catch { /* */ }
 
     const go = () => {
+      if (this.released) return;
+      this.released = true;
       this.clear();
       this.pauseRain(false);
       const s = this.s;
+      try { s.noor.anims.resume(); } catch { /* */ }
       s.noor.off('animationcomplete', this.onType);
       s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
       try { s.unstick(); } catch { /* */ }
-      s.noor.setPosition(s.x, s.y);
-      try { s.shadow?.setPosition(s.x, s.y + 8); } catch { /* */ }
+      s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
+      try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
       try { s.noor.play('noor_idle_S'); } catch { /* */ }
+      s.setupStaticCamera();
+      s.setHudVisible(true);
       s.busy = false;
       s.cutscene = null;
       s.introPending = false;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
       writeSave(s.save);
-      s.cameras.main.fadeIn(280, 4, 8, 12);
-      s.time.delayedCall(400, () => {
-        s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 2800);
+      s.cameras.main.fadeIn(320, 4, 8, 12);
+      s.time.delayedCall(480, () => {
+        try { showRoomCard(s, 'office'); } catch { /* */ }
         this.showControls();
       });
     };
 
-    if (skipped) {
-      this.s.cameras.main.fadeOut(180, 4, 8, 12);
-      this.s.cameras.main.once('camerafadeoutcomplete', go);
-    } else {
-      this.s.cameras.main.fadeOut(280, 4, 8, 12);
-      this.s.cameras.main.once('camerafadeoutcomplete', go);
-    }
+    const cam = this.s.cameras.main;
+    try { cam.fadeOut(skipped ? 180 : 400, 4, 8, 12); } catch { /* */ }
+    cam.once('camerafadeoutcomplete', go);
+    // If fade is already at black (e.g. start failed to fade in), don't hang.
+    this.s.time.delayedCall(skipped ? 280 : 520, () => { if (this.s.introPending) go(); });
   }
 
   showControls() {
@@ -157,15 +153,15 @@ export class IntroCutscene {
     const text = s.ctl.last === 'touch'
       ? 'drag to move   ·   READ to take   ·   throw   ·   TYPE to attack   ·   DASH'
       : 'WASD move   ·   E take   ·   F throw   ·   J attack   ·   SPACE dash';
-    this.hint = s.add.text(640, 670, text, {
+    this.skipHint = undefined;
+    const hint = s.add.text(640, 670, text, {
       fontFamily: UI, fontSize: '16px', color: C.inkBright,
       backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 16, y: 8 },
     }).setOrigin(0.5).setDepth(8000).setScrollFactor(0).setAlpha(0);
-    s.objs.push(this.hint);
-    s.tweens.add({ targets: this.hint, alpha: 1, duration: 280 });
+    s.objs.push(hint);
+    s.tweens.add({ targets: hint, alpha: 1, duration: 280 });
     s.time.delayedCall(6200, () => {
-      if (!this.hint) return;
-      s.tweens.add({ targets: this.hint, alpha: 0, duration: 400, onComplete: () => { this.hint?.destroy(); this.hint = undefined; } });
+      s.tweens.add({ targets: hint, alpha: 0, duration: 400, onComplete: () => hint.destroy() });
     });
     s.save.tutorials.push('controls');
     writeSave(s.save);
@@ -176,13 +172,71 @@ export class IntroCutscene {
     if (f.pause) { this.skip(); return true; }
     if (f.skipHeld) {
       this.s.skipHold += dt;
-      this.s.hud.skip.setVisible(true).setText(this.s.ctl.last === 'touch' ? `hold here to skip ${'>'.repeat(Math.ceil(this.s.skipHold / 0.15))}` : `hold X to skip ${'>'.repeat(Math.ceil(this.s.skipHold / 0.15))}`);
+      if (this.skipHint) {
+        this.skipHint.setAlpha(0.85).setText(
+          this.s.ctl.last === 'touch'
+            ? `hold to skip ${'>'.repeat(Math.ceil(this.s.skipHold / 0.15))}`
+            : `hold X to skip ${'>'.repeat(Math.ceil(this.s.skipHold / 0.15))}`,
+        );
+      }
       if (this.s.skipHold >= 0.4) this.skip();
     } else {
       this.s.skipHold = 0;
-      this.s.hud.skip.setVisible(false);
+      if (this.skipHint && this.skipHint.alpha > 0 && !this.skipHint.text.startsWith('Esc')) {
+        this.skipHint.setText('Esc to skip');
+      }
     }
     return true;
+  }
+
+  private rigCamera() {
+    const cam = this.s.cameras.main;
+    try { cam.stopFollow(); } catch { /* */ }
+    try { cam.resetFX(); } catch { /* */ }
+    // Expanded bounds so the opening can look at the rain window without clamping.
+    cam.setViewport(0, 0, 1280, 720);
+    cam.setBounds(-280, -240, 1840, 1200);
+    cam.setZoom(1.28);
+    cam.centerOn(940, 210);
+    cam.fadeIn(1600, 4, 8, 12);
+
+    // Window → mid floor → Noor at her desk.
+    this.s.time.delayedCall(1400, () => {
+      if (!this.playing) return;
+      cam.pan(620, 360, 9000, 'Sine.easeInOut');
+      cam.zoomTo(1.14, 9000, 'Sine.easeInOut');
+    });
+    this.s.time.delayedCall(10800, () => {
+      if (!this.playing) return;
+      cam.pan(995, 520, 9000, 'Sine.easeInOut');
+      cam.zoomTo(1.32, 9000, 'Sine.easeInOut');
+    });
+  }
+
+  private lineCard(x: number, y: number, text: string, size: number, color: string, tracking: number, hold: number) {
+    const t = this.s.add.text(x, y, text, {
+      fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold', color, letterSpacing: tracking,
+    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7000).setScrollFactor(0).setAlpha(0);
+    this.objs.push(t);
+    this.s.tweens.add({ targets: t, alpha: 1, duration: 600 });
+    this.s.time.delayedCall(hold, () => {
+      if (!this.playing) return;
+      this.s.tweens.add({ targets: t, alpha: 0, duration: 450 });
+    });
+    return t;
+  }
+
+  private worldLine(x: number, y: number, text: string, hold: number) {
+    const t = this.s.add.text(x, y, text, {
+      fontFamily: UI, fontSize: '16px', color: C.inkBright,
+    }).setOrigin(0.5, 1).setDepth(7200).setAlpha(0);
+    this.objs.push(t);
+    this.s.tweens.add({ targets: t, alpha: 1, y: y - 6, duration: 500, ease: 'Quad.easeOut' });
+    this.s.time.delayedCall(hold, () => {
+      if (!this.playing) return;
+      this.s.tweens.add({ targets: t, alpha: 0, duration: 400 });
+    });
+    return t;
   }
 
   private onType = (a: Phaser.Animations.Animation) => {
@@ -192,30 +246,55 @@ export class IntroCutscene {
     }
   };
 
-  private card(x: number, y: number, text: string, size: number, color: string, tracking = 0) {
-    const t = this.s.add.text(x, y, text, {
-      fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold', color, letterSpacing: tracking,
-    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7000).setScrollFactor(0);
-    this.objs.push(t);
-    return t;
-  }
-
   private at(ms: number, fn: () => void) {
     this.timers.push(this.s.time.delayedCall(ms, () => { if (this.playing && !this.finished) fn(); }));
   }
 
-  private glitch() {
+  private glitchBurst() {
     const s = this.s;
-    try { s.cameras.main.shake(280, 0.006); } catch { /* */ }
-    try { s.cameras.main.flash(80, 180, 220, 230, false); } catch { /* */ }
+    try { s.cameras.main.shake(220, 0.005); } catch { /* */ }
+    try { s.cameras.main.flash(50, 200, 230, 236, false); } catch { /* */ }
     try { sfx('impact_snap'); } catch { /* */ }
-    for (let i = 0; i < 5; i++) {
-      const y = 80 + Math.random() * 560;
-      const h = 6 + Math.random() * 18;
-      const bar = s.add.rectangle(640 + (Math.random() - 0.5) * 80, y, 1280, h, Math.random() > 0.5 ? 0x78e4e8 : 0xf08ab0, 0.35).setDepth(7100).setScrollFactor(0);
+    for (let i = 0; i < 7; i++) {
+      const y = 40 + Math.random() * 640;
+      const h = 4 + Math.random() * 22;
+      const col = Math.random() > 0.5 ? 0x78e4e8 : 0xf08ab0;
+      const bar = s.add.rectangle(640 + (Math.random() - 0.5) * 140, y, 1280, h, col, 0.42).setDepth(7100).setScrollFactor(0);
       this.objs.push(bar);
-      s.tweens.add({ targets: bar, alpha: 0, x: bar.x + (Math.random() - 0.5) * 40, duration: 180 + i * 40, onComplete: () => bar.destroy() });
+      s.tweens.add({
+        targets: bar,
+        alpha: 0,
+        x: bar.x + (Math.random() - 0.5) * 70,
+        scaleX: 1 + Math.random() * 0.08,
+        duration: 140 + i * 30,
+        onComplete: () => bar.destroy(),
+      });
     }
+  }
+
+  private stutterLights(n: number) {
+    if (!this.flicker) return;
+    const s = this.s;
+    for (let i = 0; i < n; i++) {
+      this.at(i * 140 + (i % 2 === 0 ? 0 : 40), () => {
+        if (!this.flicker || !this.playing) return;
+        this.flicker.setAlpha(i % 2 === 0 ? 0.55 : 0.12);
+        if (this.lampFx) this.lampFx.setAlpha(i % 2 === 0 ? 0.05 : 0.4);
+      });
+    }
+    this.at(n * 140 + 80, () => {
+      if (this.flicker) this.flicker.setAlpha(0);
+    });
+    void s;
+  }
+
+  private freezeWorld() {
+    this.pauseRain(true);
+    try { this.s.noor.anims.pause(); } catch { /* */ }
+    if (this.freezeVeil) {
+      this.s.tweens.add({ targets: this.freezeVeil, alpha: 0.28, duration: 700 });
+    }
+    try { sfx('impact_hum'); } catch { /* */ }
   }
 
   private pauseRain(on: boolean) {
@@ -228,8 +307,9 @@ export class IntroCutscene {
   private clear() {
     for (const o of this.objs) { try { o.destroy(); } catch { /* */ } }
     this.objs = [];
-    this.fern = undefined;
     this.lampFx = undefined;
-    this.dim = undefined;
+    this.flicker = undefined;
+    this.freezeVeil = undefined;
+    this.skipHint = undefined;
   }
 }

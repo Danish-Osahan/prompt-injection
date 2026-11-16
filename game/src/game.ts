@@ -63,7 +63,8 @@ export class GameScene extends Phaser.Scene {
   prompts: Prompt[] = [];
   paused = false; pauseUi: Phaser.GameObjects.Container | null = null;
   debugOn = false; debugText!: Phaser.GameObjects.Text;
-  hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text };
+  hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text };
+  hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
   flags = { door: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
   roomVis: Record<string, Phaser.GameObjects.GameObject> = {};
@@ -284,7 +285,7 @@ export class GameScene extends Phaser.Scene {
     const title = this.add.text(30, 46, '', f(18, 700)).setColor(C.inkBright).setScrollFactor(0).setDepth(D);
     const caret = this.add.rectangle(0, 50, 10, 19, hex(C.cyan)).setOrigin(0, 0).setScrollFactor(0).setDepth(D);
     const hp: Phaser.GameObjects.Image[] = [];
-    this.add.text(30, 76, 'hp', f(12)).setColor(C.dim).setScrollFactor(0).setDepth(D);
+    const hpLabel = this.add.text(30, 76, 'hp', f(12)).setColor(C.dim).setScrollFactor(0).setDepth(D);
     for (let i = 0; i < MAX_HP; i++) hp.push(this.add.image(58 + i * 15, 84, 'hp_on').setScrollFactor(0).setDepth(D));
     const meta = this.add.text(30, 96, '', f(12, 400, 'IBM Plex Mono')).setColor(C.dim).setScrollFactor(0).setDepth(D);
     const menu = this.add.text(1250, 30, 'esc  menu', f(12)).setColor(C.dim).setOrigin(1, 0).setScrollFactor(0).setDepth(D).setInteractive({ useHandCursor: true });
@@ -308,18 +309,37 @@ export class GameScene extends Phaser.Scene {
     fern.add([card, fl, fernText]);
     this.debugText = this.add.text(1250, 60, '', { fontFamily: 'IBM Plex Mono', fontSize: '12px', color: C.ok, align: 'right', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 4 } }).setOrigin(1, 0).setScrollFactor(0).setDepth(D + 10);
     const skip = this.add.text(1250, 300, '', { fontFamily: 'JetBrains Mono', fontSize: '12px', color: C.dim }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(D + 4).setVisible(false);
-    this.hud = { path, title, caret, hp, meta, menu, hand, handText, sub, fern, fernText, skip };
+    this.hud = { path, title, caret, hp, hpLabel, meta, menu, hand, handText, sub, fern, fernText, skip };
     void blur; void scrim; scrim.setVisible(false);
     this.words = new WordUI(this);
+  }
+
+  setHudVisible(on: boolean) {
+    this.hudHidden = !on;
+    const h = this.hud;
+    if (!h) return;
+    if (!on) {
+      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.hand, h.sub, h.fern, h.skip, this.hudBlur]) o?.setVisible(false);
+      h.hp.forEach(im => im.setVisible(false));
+    } else {
+      this.updateHud();
+    }
   }
 
   updateHud() {
     const h = this.hud;
     h.path.setText(this.room.path); h.title.setText(this.room.title);
+    if (this.hudHidden) {
+      for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.sub, h.fern, h.skip, this.hudBlur]) o?.setVisible(false);
+      h.hp.forEach(im => im.setVisible(false));
+      return;
+    }
     const showPath = !this.clar && this.swapMode; // steal / default play uses a fading room card instead of ~/hub/
     for (const o of [h.path, h.title, h.meta]) o.setVisible(showPath); this.hudBlur?.setVisible(showPath);
     h.caret.setX(32 + h.title.width + 4).setVisible(showPath && Math.floor(this.t * 1000 / tokens.motion.caretBlinkMs) % 2 === 0);
-    h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off'));
+    h.hp.forEach((im, i) => im.setTexture(i < this.hp ? 'hp_on' : 'hp_off').setVisible(true));
+    h.hpLabel.setVisible(true);
+    h.menu.setVisible(true);
     const st = fernStage(this.save.fernGrowth);
     h.meta.setText(`fern ${this.save.fernGrowth}/10 ${st.name.toLowerCase()}   dash ${this.dashCd > 0 ? '…' : 'ready'}${this.fight ? `   root ${this.rootUsed ? 'used' : 'ready'}` : ''}${this.stored ? `   cut [${this.stored}]` : ''}${this.save.lines.length ? `   unsent ${this.save.lines.length}/${LINES.length}` : ''}`);
     if (this.hand) { h.handText.setText(this.hand.word); const w = Math.max(80, h.handText.width + 28); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setSize(w, 34); (h.hand.list[0] as Phaser.GameObjects.Rectangle).setOrigin(0.5); (h.hand.list[2] as Phaser.GameObjects.Text).setX(-w / 2 - 8); h.hand.setSize(w, 34); }
@@ -442,7 +462,8 @@ export class GameScene extends Phaser.Scene {
     this.evaluate(true);
     if (id === 'office' && this.clar && !this.swapMode && !new URLSearchParams(location.search).has('combat')) this.impactLab?.start();
     if (STEAL_ROOMS.includes(id) && !this.swapMode) { this.stealPlay = new StealPlay(this); this.stealPlay.start(); }
-    this.cameras.main.fadeIn(220, 4, 8, 12);
+    if (!this.introPending) this.cameras.main.fadeIn(220, 4, 8, 12);
+    else { try { this.cameras.main.setAlpha(1); } catch { /* */ } this.cameras.main.fadeOut(0, 4, 8, 12); }
     if (!this.introPending && !this.intro?.playing && !this.swapMode) showRoomCard(this, id);
   }
 
@@ -1293,7 +1314,12 @@ export class GameScene extends Phaser.Scene {
       if (f.pause || f.attack) { f.pause = false; backToTitle(this); }
       return;
     }
-    if (this.intro?.playing && this.intro.handleInput(f, Math.min(dms / 1000, 0.05))) { f.pause = false; return; }
+    if (this.intro?.playing && this.intro.handleInput(f, Math.min(dms / 1000, 0.05))) {
+      f.pause = false;
+      this.noor?.setPosition(this.x, this.y).setDepth(this.y + 24);
+      try { this.shadow?.setPosition(this.x, this.y + 8).setDepth(this.y - 1); } catch { /* */ }
+      return;
+    }
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
     if (this.paused) return;

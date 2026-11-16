@@ -54,3 +54,40 @@ export function sfx(kind: SfxKind) {
   g.gain.setValueAtTime(vol * master, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
 }
+
+/** Soft office drone for the opening (procedural, no sample). */
+let humOsc: OscillatorNode[] = [];
+let humGain: GainNode | null = null;
+export function startHum(vol = 0.045) {
+  stopHum();
+  const a = ac(); if (!a) return;
+  const g = a.createGain();
+  g.gain.setValueAtTime(0.0001, a.currentTime);
+  g.gain.exponentialRampToValueAtTime(Math.max(0.0001, vol * master), a.currentTime + 1.2);
+  g.connect(a.destination);
+  const mk = (freq: number, type: OscillatorType, amp: number) => {
+    const o = a.createOscillator(); o.type = type; o.frequency.value = freq;
+    const lg = a.createGain(); lg.gain.value = amp;
+    o.connect(lg); lg.connect(g); o.start();
+    humOsc.push(o);
+  };
+  mk(54, 'sine', 1);
+  mk(108, 'sine', 0.28);
+  mk(81, 'triangle', 0.08);
+  humGain = g;
+}
+export function stopHum(fade = 0.6) {
+  const a = ac();
+  const g = humGain;
+  const osc = humOsc.slice();
+  humOsc = []; humGain = null;
+  if (!g) return;
+  try {
+    const t = a ? a.currentTime : 0;
+    g.gain.cancelScheduledValues(t);
+    g.gain.setValueAtTime(Math.max(0.0001, g.gain.value), t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + fade);
+  } catch { /* */ }
+  const later = (typeof window !== 'undefined' ? window.setTimeout : setTimeout);
+  later(() => { try { osc.forEach(o => o.stop()); g.disconnect(); } catch { /* */ } }, fade * 1000 + 40);
+}
