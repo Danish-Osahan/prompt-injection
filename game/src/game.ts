@@ -330,6 +330,8 @@ export class GameScene extends Phaser.Scene {
     if (!on) {
       for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.hand, h.sub, h.fern, h.skip, this.hudBlur]) o?.setVisible(false);
       h.hp.forEach(im => im.setVisible(false));
+      // The word-system caption bar stays visible until words.update runs, but intro returns early.
+      try { this.words?.bar?.setVisible(false); this.words?.heading?.setVisible(false); this.words?.pil?.setVisible(false); this.words?.chipG?.setVisible(false); } catch { /* */ }
     } else {
       this.updateHud();
     }
@@ -455,6 +457,12 @@ export class GameScene extends Phaser.Scene {
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
     this.words.quiet = !!this.clar || ((STEAL_ROOMS.includes(id) || id === 'message') && !this.swapMode);
+    if (this.words.quiet) {
+      this.words.bar.setVisible(false);
+      this.words.heading.setVisible(false);
+      this.words.pil.setVisible(false);
+      this.words.chipG.setVisible(false);
+    }
     this.setupRoom(id);
     this.clar?.start();
     // combat greybox: office only, behind ?combat=1
