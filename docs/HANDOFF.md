@@ -1,5 +1,22 @@
 # HANDOFF
 
+## 2026-11-16 — Opening feedback on e349ca2 (freeze audio, mail overlap, portrait, blips, Fern reactions)
+
+User notes on `e349ca2`, all five in scope. Playtest 191/191.
+
+1. **Freeze sound design.** The DENIED/freeze hold is no longer silent. Procedural WebAudio in `game/src/voice.ts` (no third-party samples, credited in `CREDITS.md`): a sub-boom and tape-stop when the world freezes, a low drone, a faint high ring, a slow heartbeat, glitchy crackles while DENIED drifts, and a reverse-swell into Fern's arrival. Music still drops out. Metered at default volume: boom peak ~0.18 RMS, then a sustained bed ~0.05–0.07 with heartbeat pulses; not dead air.
+2. **Mail vs Noor's first line.** The claim-mail fades at 16.8s, before she says "No, no, no, I didn't write that" at 17.8s. Speech bubbles also get a generic placer: they stay inside the camera view (not just 0–1280) and dodge open screen-space panels. Her first bubble is fully on-screen and clear of the panel.
+3. **Fern portrait.** Atlas pivot (0.5, 0.93) was parking the pot mid-frame. The portrait now forces the visual centre of the opaque plant, scaled to fit with even padding. The name plate sits on the text column, not over the art.
+4. **Voice blips.** Noor and Fern share the SFX AudioContext. Noor is a warm lower sine+triangle with slight pitch variation and a lowpass, clearly audible (peak ~0.023 RMS while typing). Fern is a brighter bitcrushed square chirp plus noise (peak ~0.021). Default master volume is 1.
+5. **Fern reactions.** Bounce + sparkle when she's happy, frond droop when worried, shiver/glitch + "!" when alarmed, a lean toward Noor, and emotes (`!`, `?`, `…`, sparkle). Opening/meeting/room lines are classified from the text. The portrait swaps expression cheaply (wide eyes + O mouth when alarmed, lids when sad).
+
+Also fixed a playtest flake: a 3-hit spark used `window.setTimeout` to `setTexture` after the sprite had been destroyed (`Cannot read properties of undefined (reading 'sys')`).
+
+Review stills (not in the repo): `/workspace/l1-freeze.png`, `/workspace/l1-noor-first-line.png`, `/workspace/l1-fern-portrait.png`, `/workspace/l1-fern-alarmed.png`, `/workspace/l1-fern-happy.png`. Opening video `/workspace/l1-opening.webm` (~78s, through beat g). Playwright's recording has no audio; the freeze still's audible bed is noted above.
+
+Leftovers: quality-word styling still highlights "on" and "dead" in spoken Fern lines. Portrait expressions are overlays, not new art.
+
+
 ## 2026-11-16 — Opening feel pass (Noor, meeting, beam, audio, box, lamp)
 
 Playtest notes on `e075aa2`, all six in scope. Commits: `14da551` Noor acting, `40aee28` meeting, `2e8a57b` beam, `617bcca` audio, `232e1e6` dialogue box, `39259e8` lamp steal.
