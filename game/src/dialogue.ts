@@ -337,7 +337,7 @@ export class Dialogue {
   private beginBubble(job: Job, fromSpeaker: boolean) {
     const s = this.s;
     const anchor = this.bubbleAnchor(job.who, fromSpeaker);
-    const box = this.makeLineBox(anchor.x, anchor.y, job, false, anchor.flip);
+    const box = this.makeLineBox(anchor.x, anchor.y, job, false, anchor.flip, anchor.speaker);
     this.root = box;
     this.baseX = box.x;
     this.typewrite(job);
@@ -352,15 +352,15 @@ export class Dialogue {
       maxW = Math.max(maxW, w.x + w.width);
       maxH = Math.max(maxH, w.y + w.height);
     }
-    const padL = 108, padR = 28, padT = 36, padB = 28;
-    const w = Math.max(640, Math.min(920, padL + maxW + padR));
-    const h = Math.max(112, padT + maxH + padB);
-    const y = 720 - 24 - h / 2;
+    const padL = 132, padR = 32, padT = 40, padB = 30;
+    const w = Math.max(660, Math.min(940, padL + maxW + padR));
+    const h = Math.max(128, padT + maxH + padB);
+    const y = 720 - 28 - h / 2;
     const c = s.add.container(640, y + 18).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0);
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
     const portrait = this.makePortrait(job.who);
-    portrait.setPosition(-w / 2 + 52, 6);
+    portrait.setPosition(-w / 2 + 64, 8);
     const tag = this.namePlate(-w / 2 + 18, -h / 2, this.tagFor(job.who), job.who, false);
     for (const tw of words) tw.setPosition(-w / 2 + padL + tw.x, -h / 2 + padT + tw.y);
     this.arrow = s.add.text(w / 2 - 22, h / 2 - 18, '▾', {
@@ -378,18 +378,23 @@ export class Dialogue {
       const right = this.holo.x + 86 + WRAP / 2 < 1240;
       const x = right ? this.holo.x + 86 : this.holo.x - 86;
       const y = Phaser.Math.Clamp(this.holo.y - 70, 72, 500);
-      return { x, y, flip: !right };
+      return { x, y, flip: !right, speaker: { x: this.holo.x, y: this.holo.y - 20 } };
     }
     if (who === 'noor' || fromSpeaker) {
       const x0 = this.s.noor?.x ?? this.s.x;
       const y0 = (this.s.noor?.y ?? this.s.y) - 110;
       const flip = x0 > 900;
-      return { x: Phaser.Math.Clamp(flip ? x0 - 48 : x0 + 48, 90, 1190), y: Phaser.Math.Clamp(y0, 72, 500), flip };
+      return {
+        x: Phaser.Math.Clamp(flip ? x0 - 48 : x0 + 48, 90, 1190),
+        y: Phaser.Math.Clamp(y0, 72, 500),
+        flip,
+        speaker: { x: x0, y: (this.s.noor?.y ?? this.s.y) - 70 },
+      };
     }
-    return { x: 640, y: 160, flip: false };
+    return { x: 640, y: 160, flip: false, speaker: { x: 640, y: 240 } };
   }
 
-  private makeLineBox(x: number, y: number, job: Job, _box: boolean, flip: boolean) {
+  private makeLineBox(x: number, y: number, job: Job, _box: boolean, flip: boolean, speaker?: { x: number; y: number }) {
     const s = this.s;
     const words = this.layoutWords(job.line, 0, 0, WRAP, false);
     let maxW = 80, maxH = 22;
@@ -407,9 +412,7 @@ export class Dialogue {
     for (const tw of words) {
       tw.setPosition(flip ? -padX - tw.x - tw.width : padX + tw.x, tw.y);
     }
-    const tailX = flip ? -22 : 22;
-    const tail = s.add.triangle(tailX, bh - padT, 0, 0, flip ? 11 : -11, 13, flip ? -7 : 7, 0, 0x07141c, 0.94);
-    tail.setStrokeStyle(1.5, this.hexFor(job.who), 0.85);
+    const tail = this.bubbleTail(ox, -padT, bw, bh, x, y, speaker ?? { x: flip ? x + 40 : x - 40, y: y + 80 }, this.hexFor(job.who));
     this.arrow = s.add.text(flip ? -padX : padX + maxW, maxH + 2, '▾', {
       fontFamily: FONT, fontSize: '14px', color: C.cyan,
     }).setOrigin(flip ? 1 : 0, 0).setVisible(false);
@@ -418,23 +421,66 @@ export class Dialogue {
     return c;
   }
 
-  /** Terminal panel with cut corners. Origin is the top-left of the box. */
+  /** Tail sits on the box edge and points at the speaker, not straight down. */
+  private bubbleTail(ox: number, oy: number, bw: number, bh: number, cx: number, cy: number, speaker: { x: number; y: number }, col: number) {
+    const attachX = speaker.x < cx ? ox + 26 : ox + bw - 26;
+    const attachY = oy + bh;
+    const dx = speaker.x - (cx + attachX);
+    const dy = speaker.y - (cy + attachY);
+    const len = Math.hypot(dx, dy) || 1;
+    const px = (dx / len) * 16, py = (dy / len) * 16;
+    const nx = (-py / 16) * 8, ny = (px / 16) * 8;
+    const tail = this.s.add.triangle(
+      0, 0,
+      attachX - nx, attachY - ny,
+      attachX + nx, attachY + ny,
+      attachX + px, attachY + py,
+      0x07141c, 0.94,
+    );
+    tail.setStrokeStyle(1.5, col, 0.85);
+    return tail;
+  }
+
+  /** Terminal panel with cut corners, inner gradient, glow and a soft drop shadow. */
   private cutPanel(x: number, y: number, w: number, h: number, fill: number, fa: number, stroke: number, cut: number) {
     const g = this.s.add.graphics();
     const c = Math.min(cut, w / 4, h / 4);
-    g.fillStyle(fill, fa);
-    g.beginPath();
-    g.moveTo(x + c, y);
-    g.lineTo(x + w - c, y);
-    g.lineTo(x + w, y + c);
-    g.lineTo(x + w, y + h - c);
-    g.lineTo(x + w - c, y + h);
-    g.lineTo(x + c, y + h);
-    g.lineTo(x, y + h - c);
-    g.lineTo(x, y + c);
-    g.closePath();
+    const path = (ox: number, oy: number, ww: number, hh: number, cc: number) => {
+      g.beginPath();
+      g.moveTo(ox + cc, oy);
+      g.lineTo(ox + ww - cc, oy);
+      g.lineTo(ox + ww, oy + cc);
+      g.lineTo(ox + ww, oy + hh - cc);
+      g.lineTo(ox + ww - cc, oy + hh);
+      g.lineTo(ox + cc, oy + hh);
+      g.lineTo(ox, oy + hh - cc);
+      g.lineTo(ox, oy + cc);
+      g.closePath();
+    };
+    // Drop shadow
+    g.fillStyle(0x000000, 0.38);
+    path(x + 5, y + 7, w, h, c);
     g.fillPath();
+    // Body
+    g.fillStyle(fill, fa);
+    path(x, y, w, h, c);
+    g.fillPath();
+    // Inner top-to-bottom gradient (banded, no flat fill)
+    const inset = 2;
+    const bands = 7;
+    for (let i = 0; i < bands; i++) {
+      const bh = (h - inset * 2) / bands;
+      const tcol = i < 3 ? 0x123040 : 0x0a1c28;
+      const ta = i < 3 ? 0.22 - i * 0.04 : 0.05;
+      g.fillStyle(tcol, ta);
+      g.fillRect(x + inset + 2, y + inset + i * bh, w - inset * 2 - 4, bh + 1);
+    }
+    // Soft speaker-coloured glow just outside the stroke
+    g.lineStyle(5, stroke, 0.18);
+    path(x, y, w, h, c);
+    g.strokePath();
     g.lineStyle(1.75, stroke, 0.92);
+    path(x, y, w, h, c);
     g.strokePath();
     return g;
   }
@@ -443,13 +489,26 @@ export class Dialogue {
     const t = this.s.add.text(0, 0, label, {
       fontFamily: FONT, fontSize: '13px', fontStyle: 'bold', color: '#04121a', letterSpacing: 2,
     } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0, 0.5);
-    const w = Math.max(64, t.width + 16), h = 20;
+    const iconW = 16;
+    const w = Math.max(78, t.width + 22 + iconW), h = 22;
     const g = this.s.add.graphics();
     const px = flip ? x - w : x;
     const py = y - h / 2;
     g.fillStyle(this.hexFor(who), 1);
-    g.fillRect(px, py, w, h);
-    t.setPosition(px + 8, y);
+    g.fillRoundedRect(px, py, w, h, 3);
+    // Small speaker icon: fern frond or Noor head mark
+    const ix = px + 10, iy = y;
+    g.fillStyle(0x04121a, 0.9);
+    if (who === 'fern') {
+      g.fillTriangle(ix, iy + 6, ix - 5, iy - 4, ix + 5, iy - 4);
+      g.fillCircle(ix, iy - 5, 2.2);
+    } else if (who === 'noor') {
+      g.fillCircle(ix, iy - 3, 3);
+      g.fillTriangle(ix, iy - 1, ix - 5, iy + 6, ix + 5, iy + 6);
+    } else {
+      g.fillCircle(ix, iy, 3.2);
+    }
+    t.setPosition(px + 8 + iconW, y);
     t.setColor('#04121a');
     const c = this.s.add.container(0, 0);
     c.add([g, t]);
@@ -459,7 +518,7 @@ export class Dialogue {
   private layoutWords(line: string, left: number, top: number, wrap: number, flip: boolean) {
     const bits: Phaser.GameObjects.Text[] = [];
     const parts = line.split(/(\s+)/);
-    let x = 0, y = 0, rowH = 26;
+    let x = 0, y = 0, rowH = 32;
     const align = flip ? 1 : 0;
     for (const part of parts) {
       if (!part) continue;
@@ -467,7 +526,7 @@ export class Dialogue {
       const key = part.toLowerCase().replace(/[^a-z]/g, '');
       const isQ = !!QUALITY_FX[key];
       const style: Phaser.Types.GameObjects.Text.TextStyle = {
-        fontFamily: UI, fontSize: '18px', fontStyle: isQ ? 'bold' : '500',
+        fontFamily: UI, fontSize: '20px', fontStyle: isQ ? 'bold' : '500',
         color: isQ ? C.cyan : C.inkBright,
       };
       const t = this.s.add.text(0, 0, raw, style).setOrigin(align, 0).setAlpha(0);
@@ -587,23 +646,35 @@ export class Dialogue {
   }
 
   private makePortrait(who: SayWho) {
-    if (who === 'fern' && this.s.textures.exists('fern_plant')) {
-      const spr = this.s.add.sprite(0, 4, 'fern_plant', 'fern_plant_S_00');
-      spr.setOrigin(0.5, 0.55).setScale(0.36);
-      try { spr.play('fern_plant_S'); } catch { /* */ }
-      return spr;
-    }
-    if (who === 'noor' && this.s.textures.exists('noor_idle')) {
-      const spr = this.s.add.sprite(0, 8, 'noor_idle', 'noor_idle_S_00');
-      try { spr.setCrop(50, 40, 90, 80); } catch { /* */ }
-      spr.setOrigin(0.5, 0.55).setScale(1.05);
-      return spr;
-    }
-    const g = this.s.add.graphics();
+    const s = this.s;
+    const SIZE = 96;
     const col = this.hexFor(who);
-    g.fillStyle(col, 0.25).fillEllipse(0, 0, 64, 72);
-    g.lineStyle(2, col, 0.8).strokeEllipse(0, 0, 64, 72);
-    return g;
+    const c = s.add.container(0, 0);
+    const frame = s.add.graphics();
+    frame.fillStyle(0x041018, 0.92);
+    frame.fillRoundedRect(-SIZE / 2, -SIZE / 2, SIZE, SIZE, 8);
+    frame.lineStyle(2.5, col, 0.95);
+    frame.strokeRoundedRect(-SIZE / 2, -SIZE / 2, SIZE, SIZE, 8);
+    frame.lineStyle(5, col, 0.16);
+    frame.strokeRoundedRect(-SIZE / 2 - 1, -SIZE / 2 - 1, SIZE + 2, SIZE + 2, 9);
+    c.add(frame);
+    if (who === 'fern' && s.textures.exists('fern_plant')) {
+      const spr = s.add.sprite(0, 8, 'fern_plant', 'fern_plant_S_00');
+      spr.setOrigin(0.5, 0.55).setScale(SIZE / 186);
+      try { spr.play('fern_plant_S'); } catch { /* */ }
+      c.add(spr);
+    } else if (who === 'noor' && s.textures.exists('noor_idle')) {
+      const spr = s.add.sprite(0, 10, 'noor_idle', 'noor_idle_S_00');
+      try { spr.setCrop(40, 20, 110, 110); } catch { /* */ }
+      spr.setOrigin(0.5, 0.45).setScale(0.95);
+      c.add(spr);
+    } else {
+      const g = s.add.graphics();
+      g.fillStyle(col, 0.28).fillEllipse(0, 0, 70, 78);
+      g.lineStyle(2, col, 0.8).strokeEllipse(0, 0, 70, 78);
+      c.add(g);
+    }
+    return c;
   }
 
   private tagFor(who: SayWho) {
