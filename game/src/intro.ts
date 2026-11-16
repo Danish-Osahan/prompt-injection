@@ -1,10 +1,10 @@
-// Skippable New-Game opening in the real office. ~40–60s camera piece.
-// Fade from black on office hum, slow pan across the night floor to Noor at
-// her desk, then a glitch (tear, stuttering lights, freeze mid-motion).
-// Lines arrive after beats. No HUD, no letterbox bars, no off-screen speakers.
+// Skippable New-Game hook, ~50s. Cold open on Noor's claim draft, a camera
+// move through the rainy office, her words rewritten into a denial, lights
+// dying, a freeze, then Fern glitching in. Plant-Fern never types like a person.
 import Phaser from 'phaser';
 import tokens from './tokens.json';
 import { sfx, startHum, stopHum } from './sfx';
+import { playMusic } from './music';
 import type { GameScene } from './game';
 import { writeSave } from './save';
 import { showRoomCard, showControlsHint } from './flow';
@@ -13,21 +13,56 @@ const C = tokens.color;
 const FONT = 'JetBrains Mono';
 const UI = 'IBM Plex Mono';
 // Feet south of desk_noor (solid ends ~y=507) so she sits in front of the desk, not through it.
-const DESK = { x: 988, y: 556 }; // seated in the new chair_noor, just south of the desk
+const DESK = { x: 988, y: 556 }; // seated in chair_noor, just south of the desk
 const LAMP = { x: 178, y: 268 };
+const MON = { x: 989, y: 448 };
+
+const DRAFT: { kind: 'static' | 'type' | 'target'; text: string }[] = [
+  { kind: 'static', text: 'CLAIM #4471' },
+  { kind: 'static', text: 'To the claims desk,' },
+  { kind: 'static', text: '' },
+  { kind: 'type', text: 'My father lost everything in the fire.' },
+  { kind: 'type', text: 'Please reconsider.' },
+  { kind: 'type', text: 'He has been waiting since August.' },
+  { kind: 'static', text: '' },
+  { kind: 'static', text: '— Noor Sethi' },
+];
+
+const AFTER: Record<string, string> = {
+  'My father lost everything in the fire.': "I UNDERSTAND. I'LL HANDLE IT.",
+  'Please reconsider.': 'CLAIM DENIED.',
+  'He has been waiting since August.': 'LEAVE IT TO ME, NOOR.',
+};
+
+// Desks west → east, so the blackout walks toward Noor.
+const DESKS: { x: number; y: number; w: number; h: number }[] = [
+  { x: 165, y: 288, w: 160, h: 130 },
+  { x: 235, y: 548, w: 150, h: 120 },
+  { x: 395, y: 375, w: 170, h: 140 },
+  { x: 685, y: 255, w: 170, h: 130 },
+  { x: 520, y: 520, w: 200, h: 140 },
+  { x: 1140, y: 308, w: 150, h: 120 },
+  { x: 989, y: 448, w: 180, h: 150 },
+];
 
 export class IntroCutscene {
   s: GameScene;
   playing = false;
   finished = false;
+  beat: string | null = null;
   objs: Phaser.GameObjects.GameObject[] = [];
   timers: Phaser.Time.TimerEvent[] = [];
   lampFx?: Phaser.GameObjects.Ellipse;
   flicker?: Phaser.GameObjects.Rectangle;
   freezeVeil?: Phaser.GameObjects.Rectangle;
+  black?: Phaser.GameObjects.Rectangle;
   skipHint?: Phaser.GameObjects.Text;
   camTweens: Phaser.Tweens.Tween[] = [];
   released = false;
+  monitor?: Phaser.GameObjects.Container;
+  letters: Phaser.GameObjects.Text[] = [];
+  papers: Phaser.GameObjects.Rectangle[] = [];
+  airRain: Phaser.GameObjects.Rectangle[] = [];
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -40,18 +75,18 @@ export class IntroCutscene {
   start() {
     if (this.playing || this.finished) return;
     this.playing = true;
+    this.beat = 'a';
     this.s.busy = true;
     this.s.cutscene = { id: 'intro', skip: () => this.skip() };
     this.s.introPending = true;
     this.s.setHudVisible(false);
 
     const s = this.s;
-    // Sit her in the chair; skip unstick so the chair poly does not shove her into the aisle.
     s.x = DESK.x; s.y = DESK.y; s.dir = 'N';
     s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
-    try { s.noor.play('noor_type1_N', true); } catch { try { s.noor.play('noor_idle_N'); } catch { /* */ } }
-    s.noor.on('animationcomplete', this.onType);
+    // Seated and still under the black open — typing starts when the office is seen.
+    try { s.noor.play('noor_idle_N'); } catch { /* */ }
 
     this.lampFx = s.add.ellipse(LAMP.x, LAMP.y, 110, 88, 0xf6c684, 0).setDepth(500).setBlendMode(Phaser.BlendModes.ADD);
     this.objs.push(this.lampFx);
@@ -59,6 +94,8 @@ export class IntroCutscene {
     this.objs.push(this.flicker);
     this.freezeVeil = s.add.rectangle(640, 360, 1600, 1000, 0x0a1420, 0).setDepth(6090).setScrollFactor(0);
     this.objs.push(this.freezeVeil);
+    this.black = s.add.rectangle(640, 360, 1600, 1000, 0x000000, 1).setDepth(6900).setScrollFactor(0);
+    this.objs.push(this.black);
 
     this.skipHint = s.add.text(1256, 696, 'Esc to skip', {
       fontFamily: UI, fontSize: '12px', color: C.faint,
@@ -66,35 +103,80 @@ export class IntroCutscene {
     this.objs.push(this.skipHint);
 
     this.rigCamera();
-    try { startHum(0.05); } catch { /* */ }
+    try { playMusic('none'); } catch { /* */ }
 
-    // Beat 1 — fade up on the window, then a slow move across the empty office.
-    this.at(2200, () => {
-      if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0.55, duration: 500 });
+    // (a) Cold open in black: keys + rain, her claim draft on the glass.
+    this.buildMonitor(640, 332, 1);
+    this.typeDraft();
+    this.at(1600, () => { if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0.55, duration: 500 }); });
+    this.at(8000, () => { if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0, duration: 500 }); });
+
+    // (b) Pull back across the dark office; lightning lights the room.
+    this.at(7000, () => {
+      this.beat = 'b';
+      try { playMusic('office'); } catch { /* */ }
+      if (this.black) s.tweens.add({ targets: this.black, alpha: 0, duration: 1400, ease: 'Quad.easeInOut' });
+      if (this.monitor) {
+        s.tweens.add({
+          targets: this.monitor,
+          x: 980, y: 250, scale: 0.62,
+          duration: 1800, ease: 'Cubic.easeInOut',
+        });
+      }
+      try { s.noor.play('noor_type1_N', true); } catch { /* */ }
+      s.noor.on('animationcomplete', this.onType);
+      this.tapKeys(8, 180);
     });
-    this.at(8000, () => {
-      if (this.skipHint) s.tweens.add({ targets: this.skipHint, alpha: 0, duration: 600 });
+    this.at(11000, () => {
+      try { this.s.glassRain?.strike(); } catch { /* */ }
+      try { s.cameras.main.shake(180, 0.004); } catch { /* */ }
     });
 
-    // Beat 2 — arrive on Noor. Quiet time card, then her line, both after a hold.
-    this.at(20000, () => this.lineCard(640, 86, '11:48 PM', 28, C.inkBright, 6, 2800));
-    this.at(24200, () => this.worldLine(s.x, s.y - 108, 'Rephrase. Again.', 2600));
-    this.at(24600, () => { try { sfx('key'); } catch { /* */ } });
+    // (c) She hits send. Her words crawl into a corporate denial.
+    this.at(16500, () => {
+      this.beat = 'c';
+      try { s.noor.play('noor_idle_N', true); } catch { /* */ }
+      s.noor.off('animationcomplete', this.onType);
+      try { sfx('ui'); } catch { /* */ }
+      try { sfx('impact_snap'); } catch { /* */ }
+      try { s.cameras.main.shake(160, 0.005); } catch { /* */ }
+      this.rewriteDraft();
+    });
 
-    // Beat 3 — the glitch: tear, lights stutter, then the world freezes mid-motion.
-    this.at(28600, () => this.glitchBurst());
-    this.at(29400, () => this.stutterLights(5));
-    this.at(30800, () => this.glitchBurst());
-    this.at(31800, () => {
+    // (d) Lights die desk by desk toward her; monitors flicker; the lamp buzzes.
+    this.at(23000, () => {
+      this.beat = 'd';
+      this.blackoutWave();
+      try { startHum(0.08); } catch { /* */ }
+      if (this.lampFx) {
+        s.tweens.add({ targets: this.lampFx, alpha: { from: 0.15, to: 0.7 }, duration: 90, yoyo: true, repeat: 14 });
+      }
+      this.at(400, () => { try { sfx('impact_hum'); } catch { /* */ } });
+    });
+
+    // (e) World freezes mid-motion. Only Noor, and a drifting word, still move.
+    this.at(32000, () => {
+      this.beat = 'e';
       this.freezeWorld();
-      this.stutterLights(3);
+      this.driftWord();
     });
 
-    // Beat 4 — a held silence, then one quiet line. No Fern (she isn't on screen).
-    this.at(36000, () => this.lineCard(640, 92, 'The office goes still.', 18, C.ink, 1, 3200));
-
-    // Fade into play around 48s.
-    this.at(43000, () => this.finish());
+    // (f) Fern glitches in from her monitor and speaks through the dialogue UI.
+    this.at(39000, () => {
+      this.beat = 'f';
+      try { s.cameras.main.shake(200, 0.006); } catch { /* */ }
+      try { sfx('impact_snap'); } catch { /* */ }
+      try { s.say('fern', "That send wasn't yours.", 2800); } catch { /* */ }
+      if (s.dialogue) {
+        const prev = s.dialogue.onIdle;
+        s.dialogue.onIdle = () => {
+          if (s.dialogue) s.dialogue.onIdle = prev;
+          this.at(700, () => this.finish());
+        };
+      }
+    });
+    // Fallback if dialogue never idles.
+    this.at(52000, () => this.finish());
   }
 
   skip() { this.finish(true); }
@@ -103,6 +185,7 @@ export class IntroCutscene {
     if (this.finished) return;
     this.finished = true;
     this.playing = false;
+    this.beat = skipped ? 'skip' : 'g';
     for (const t of this.timers) { try { t.remove(false); } catch { /* */ } }
     this.timers = [];
     for (const tw of this.camTweens) { try { tw.stop(); } catch { /* */ } }
@@ -110,6 +193,8 @@ export class IntroCutscene {
     this.s.tweens.killTweensOf(this.objs);
     if (this.lampFx) this.s.tweens.killTweensOf(this.lampFx);
     try { stopHum(skipped ? 0.25 : 0.6); } catch { /* */ }
+    if (skipped) { try { this.s.dialogue?.clear(); } catch { /* */ } }
+    try { playMusic('office'); } catch { /* */ }
 
     const go = () => {
       if (this.released) return;
@@ -119,7 +204,6 @@ export class IntroCutscene {
       const s = this.s;
       try { s.noor.anims.resume(); } catch { /* */ }
       s.noor.off('animationcomplete', this.onType);
-      // Gameplay starts at the room spawn (walkable aisle). The opening itself kept her seated.
       s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
       s.noor.setScale(1);
       try { s.unstick(); } catch { /* */ }
@@ -134,17 +218,17 @@ export class IntroCutscene {
       s.introCardPending = true;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
       writeSave(s.save);
-      s.cameras.main.fadeIn(320, 4, 8, 12);
+      s.cameras.main.fadeIn(skipped ? 200 : 80, 4, 8, 12);
       try {
         showRoomCard(s, 'office', () => { s.introCardPending = false; s.introCardDone = true; });
       } catch { s.introCardPending = false; s.introCardDone = true; }
     };
 
     const cam = this.s.cameras.main;
-    try { cam.fadeOut(skipped ? 180 : 400, 4, 8, 12); } catch { /* */ }
+    // (g) Hard cut to the room card, then into play.
+    try { cam.fadeOut(skipped ? 160 : 80, 0, 0, 0); } catch { /* */ }
     cam.once('camerafadeoutcomplete', go);
-    // If fade is already at black (e.g. start failed to fade in), don't hang.
-    this.s.time.delayedCall(skipped ? 280 : 520, () => { if (this.s.introPending) go(); });
+    this.s.time.delayedCall(skipped ? 260 : 160, () => { if (this.s.introPending) go(); });
   }
 
   showControls() { showControlsHint(this.s); }
@@ -185,49 +269,262 @@ export class IntroCutscene {
     const cam = this.s.cameras.main;
     try { cam.stopFollow(); } catch { /* */ }
     try { cam.resetFX(); } catch { /* */ }
-    // Stay inside the 1280×720 plate — never pan/zoom into a black void.
     const Z = 1.14;
     cam.setViewport(0, 0, 1280, 720);
     cam.setBounds(0, 0, 1280, 720);
     cam.setZoom(Z);
-    // Valid center at this zoom: x 562–718, y 316–404. Start on the window, end on Noor.
+    // Valid center at this zoom: x 562–718, y 316–404. Start on the window, end toward Noor.
     cam.centerOn(708, 322);
-    cam.fadeIn(1600, 4, 8, 12);
+    // Stay black for the cold open; the office is already under the veil.
 
-    this.s.time.delayedCall(1400, () => {
+    this.s.time.delayedCall(7200, () => {
       if (!this.playing) return;
-      cam.pan(640, 360, 9000, 'Sine.easeInOut');
+      cam.pan(640, 360, 5000, 'Sine.easeInOut');
     });
-    this.s.time.delayedCall(10800, () => {
+    this.s.time.delayedCall(12800, () => {
       if (!this.playing) return;
-      cam.pan(700, 398, 9000, 'Sine.easeInOut');
+      cam.pan(700, 398, 5000, 'Sine.easeInOut');
     });
   }
 
-  private lineCard(x: number, y: number, text: string, size: number, color: string, tracking: number, hold: number) {
-    const t = this.s.add.text(x, y, text, {
-      fontFamily: FONT, fontSize: `${size}px`, fontStyle: 'bold', color, letterSpacing: tracking,
-    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7000).setScrollFactor(0).setAlpha(0);
-    this.objs.push(t);
-    this.s.tweens.add({ targets: t, alpha: 1, duration: 600 });
-    this.s.time.delayedCall(hold, () => {
-      if (!this.playing) return;
-      this.s.tweens.add({ targets: t, alpha: 0, duration: 450 });
-    });
-    return t;
+  private buildMonitor(x: number, y: number, scale: number) {
+    const s = this.s;
+    const w = 640, h = 420;
+    const c = s.add.container(x, y).setDepth(7000).setScrollFactor(0).setScale(scale).setAlpha(0);
+    const g = s.add.graphics();
+    g.fillStyle(0x07141c, 0.96);
+    g.fillRoundedRect(-w / 2, -h / 2, w, h, 8);
+    g.lineStyle(2, 0x78e4e8, 0.7);
+    g.strokeRoundedRect(-w / 2, -h / 2, w, h, 8);
+    g.fillStyle(0x0a1c24, 1);
+    g.fillRect(-w / 2 + 10, -h / 2 + 36, w - 20, h - 48);
+    const title = s.add.text(-w / 2 + 18, -h / 2 + 10, 'claim-mail  ·  #4471', {
+      fontFamily: FONT, fontSize: '13px', color: C.cyan, letterSpacing: 1,
+    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0, 0);
+    c.add([g, title]);
+    this.monitor = c;
+    this.objs.push(c);
+    s.tweens.add({ targets: c, alpha: 1, duration: 400 });
   }
 
-  private worldLine(x: number, y: number, text: string, hold: number) {
-    const t = this.s.add.text(x, y, text, {
-      fontFamily: UI, fontSize: '16px', color: C.inkBright,
-    }).setOrigin(0.5, 1).setDepth(7200).setAlpha(0);
-    this.objs.push(t);
-    this.s.tweens.add({ targets: t, alpha: 1, y: y - 6, duration: 500, ease: 'Quad.easeOut' });
-    this.s.time.delayedCall(hold, () => {
-      if (!this.playing) return;
-      this.s.tweens.add({ targets: t, alpha: 0, duration: 400 });
+  private typeDraft() {
+    const s = this.s;
+    if (!this.monitor) return;
+    const left = -300, top = -150, lh = 28;
+    let delay = 400;
+    DRAFT.forEach((row, i) => {
+      const y = top + i * lh;
+      if (!row.text) return;
+      if (row.kind === 'static') {
+        const t = s.add.text(left, y, row.text, {
+          fontFamily: UI, fontSize: '20px', color: i === 0 ? C.cyan : C.inkBright,
+        }).setOrigin(0, 0).setAlpha(0);
+        this.monitor!.add(t);
+        this.letters.push(t);
+        this.at(delay, () => { if (this.playing) t.setAlpha(1); });
+        delay += 180;
+        return;
+      }
+      const t = s.add.text(left, y, '', {
+        fontFamily: UI, fontSize: '22px', fontStyle: '500', color: C.inkBright,
+      }).setOrigin(0, 0);
+      t.setData('full', row.text);
+      t.setData('src', row.text);
+      this.monitor!.add(t);
+      this.letters.push(t);
+      const start = delay;
+      for (let k = 1; k <= row.text.length; k++) {
+        const at = start + k * 42;
+        this.at(at, () => {
+          if (!this.playing) return;
+          t.setText(row.text.slice(0, k));
+          if (k % 2 === 0) try { sfx('key'); } catch { /* */ }
+        });
+      }
+      delay = start + row.text.length * 42 + 220;
     });
-    return t;
+  }
+
+  private rewriteDraft() {
+    const s = this.s;
+    if (!this.monitor) return;
+    // Glitch the other body lines, and crawl "Please reconsider." into "CLAIM DENIED."
+    for (const t of this.letters) {
+      const src = (t.getData('src') as string) || t.text;
+      const dest = AFTER[src];
+      if (!dest) continue;
+      if (src === 'Please reconsider.') this.crawlLetters(t, dest);
+      else this.glitchLine(t, dest);
+    }
+  }
+
+  /** Quality-word style: each letter is its own glyph, they glow, then crawl into the new word. */
+  private crawlLetters(src: Phaser.GameObjects.Text, dest: string) {
+    const s = this.s;
+    const parent = this.monitor!;
+    const originX = src.x, originY = src.y;
+    const from = src.text || (src.getData('full') as string) || '';
+    src.setVisible(false);
+    const glyphs: Phaser.GameObjects.Text[] = [];
+    const gw = 14;
+    for (let i = 0; i < Math.max(from.length, dest.length); i++) {
+      const ch = from[i] ?? dest[i] ?? '';
+      const g = s.add.text(originX + i * gw, originY, ch, {
+        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.cyan,
+      }).setOrigin(0, 0);
+      parent.add(g);
+      this.letters.push(g);
+      glyphs.push(g);
+    }
+    dest.split('').forEach((ch, i) => {
+      const g = glyphs[i];
+      if (!g) return;
+      s.tweens.add({
+        targets: g,
+        x: originX + i * 16,
+        y: originY + (Math.random() - 0.5) * 6,
+        duration: 280 + i * 45,
+        ease: 'Cubic.easeInOut',
+        delay: i * 30,
+        onStart: () => { try { if (i % 2 === 0) sfx('impact_snap'); } catch { /* */ } },
+        onUpdate: () => { /* color swap mid-crawl */ },
+        onComplete: () => {
+          g.setText(ch).setColor(C.coral);
+        },
+      });
+      this.at(200 + i * 45, () => { if (this.playing) g.setColor('#F3C2A8'); });
+    });
+    // Leftover letters drop (heavy) and fade.
+    for (let i = dest.length; i < glyphs.length; i++) {
+      const g = glyphs[i];
+      s.tweens.add({
+        targets: g, y: g.y + 36, alpha: 0, duration: 500, delay: 200 + i * 30, ease: 'Quad.easeIn',
+      });
+    }
+    // Soft glow twin behind the final word.
+    this.at(200 + dest.length * 45, () => {
+      if (!this.playing) return;
+      const glow = s.add.text(originX, originY, dest, {
+        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.coral,
+      }).setOrigin(0, 0).setAlpha(0.45);
+      try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+      parent.add(glow);
+      this.letters.push(glow);
+      s.tweens.add({ targets: glow, alpha: { from: 0.15, to: 0.7 }, duration: 160, yoyo: true, repeat: 4 });
+    });
+  }
+
+  private glitchLine(t: Phaser.GameObjects.Text, dest: string) {
+    const s = this.s;
+    const scramble = '█▓▒░#@*';
+    for (let k = 0; k < 5; k++) {
+      this.at(k * 70, () => {
+        if (!this.playing) return;
+        if (k === 4) { t.setText(dest).setColor(C.coral); return; }
+        t.setText(dest.split('').map((ch, i) => (k + i) % 2 === 0 ? ch : scramble[(k + i) % scramble.length]).join(''));
+        t.setColor(k % 2 ? C.coral : C.cyan);
+      });
+    }
+  }
+
+  private blackoutWave() {
+    const s = this.s;
+    DESKS.forEach((d, i) => {
+      const veil = s.add.rectangle(d.x, d.y, d.w, d.h, 0x03070c, 0).setDepth(420);
+      this.objs.push(veil);
+      this.at(i * 380, () => {
+        if (!this.playing) return;
+        s.tweens.add({ targets: veil, alpha: 0.72, duration: 280 });
+        const flash = s.add.rectangle(d.x, d.y - 20, 46, 28, 0xc8e8f0, 0.8).setDepth(430);
+        this.objs.push(flash);
+        s.tweens.add({ targets: flash, alpha: 0, duration: 180, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
+        try { sfx('impact_clank'); } catch { /* */ }
+        try { s.cameras.main.shake(80, 0.002); } catch { /* */ }
+      });
+    });
+    if (this.flicker) s.tweens.add({ targets: this.flicker, alpha: 0.28, duration: 2400, delay: 400 });
+    this.spawnPapers();
+    this.spawnAirRain();
+  }
+
+  private spawnPapers() {
+    const s = this.s;
+    const spots = [{ x: 400, y: 200 }, { x: 640, y: 180 }, { x: 880, y: 220 }, { x: 520, y: 300 }];
+    for (const p of spots) {
+      const r = s.add.rectangle(p.x, p.y, 18 + Math.random() * 8, 14 + Math.random() * 6, 0xe8e0d4, 0.95)
+        .setDepth(430).setRotation((Math.random() - 0.5) * 0.6);
+      this.objs.push(r);
+      this.papers.push(r);
+      s.tweens.add({
+        targets: r,
+        y: p.y + 140 + Math.random() * 80,
+        x: p.x + (Math.random() - 0.5) * 50,
+        rotation: r.rotation + (Math.random() - 0.5) * 1.2,
+        duration: 2200 + Math.random() * 800,
+        ease: 'Quad.easeIn',
+      });
+    }
+  }
+
+  private spawnAirRain() {
+    const s = this.s;
+    for (let i = 0; i < 18; i++) {
+      const x = 760 + Math.random() * 400;
+      const y = 80 + Math.random() * 200;
+      const r = s.add.rectangle(x, y, 1.6, 10 + Math.random() * 10, 0xd0e4f0, 0.7)
+        .setDepth(210).setRotation(0.22);
+      this.objs.push(r);
+      this.airRain.push(r);
+      s.tweens.add({
+        targets: r,
+        y: y + 160 + Math.random() * 80,
+        x: x + 40,
+        duration: 900 + Math.random() * 500,
+        repeat: -1,
+      });
+    }
+  }
+
+  private freezeWorld() {
+    this.pauseRain(true);
+    // Noor keeps moving. Everything else holds.
+    for (const r of [...this.papers, ...this.airRain]) {
+      this.s.tweens.killTweensOf(r);
+    }
+    if (this.freezeVeil) {
+      this.s.tweens.add({ targets: this.freezeVeil, alpha: 0.22, duration: 500 });
+    }
+    try { playMusic('none'); } catch { /* */ }
+    try { sfx('impact_hum'); } catch { /* */ }
+    try { this.s.cameras.main.shake(120, 0.003); } catch { /* */ }
+  }
+
+  private driftWord() {
+    const s = this.s;
+    const w = s.add.text(980, 250, 'DENIED', {
+      fontFamily: FONT, fontSize: '22px', fontStyle: 'bold', color: C.coral, letterSpacing: 2,
+    } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(7050).setScrollFactor(0).setAlpha(0);
+    try { w.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    this.objs.push(w);
+    s.tweens.add({
+      targets: w,
+      alpha: { from: 0, to: 0.95 },
+      x: 860, y: 340,
+      scale: { from: 1, to: 1.15 },
+      duration: 2800,
+      ease: 'Sine.easeOut',
+    });
+    // A small spark follows it off the glass.
+    const spark = s.add.rectangle(980, 250, 6, 6, 0xf08074, 0.9).setDepth(7051).setScrollFactor(0);
+    try { spark.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    this.objs.push(spark);
+    s.tweens.add({ targets: spark, x: 840, y: 360, alpha: 0.4, duration: 3000, ease: 'Sine.easeOut' });
+  }
+
+  private tapKeys(n: number, gap: number) {
+    for (let i = 0; i < n; i++) {
+      this.at(i * gap, () => { if (this.playing) try { sfx('key'); } catch { /* */ } });
+    }
   }
 
   private onType = (a: Phaser.Animations.Animation) => {
@@ -241,53 +538,6 @@ export class IntroCutscene {
     this.timers.push(this.s.time.delayedCall(ms, () => { if (this.playing && !this.finished) fn(); }));
   }
 
-  private glitchBurst() {
-    const s = this.s;
-    try { s.cameras.main.shake(220, 0.005); } catch { /* */ }
-    try { s.cameras.main.flash(50, 200, 230, 236, false); } catch { /* */ }
-    try { sfx('impact_snap'); } catch { /* */ }
-    for (let i = 0; i < 7; i++) {
-      const y = 40 + Math.random() * 640;
-      const h = 4 + Math.random() * 22;
-      const col = Math.random() > 0.5 ? 0x78e4e8 : 0xf08ab0;
-      const bar = s.add.rectangle(640 + (Math.random() - 0.5) * 140, y, 1280, h, col, 0.42).setDepth(7100).setScrollFactor(0);
-      this.objs.push(bar);
-      s.tweens.add({
-        targets: bar,
-        alpha: 0,
-        x: bar.x + (Math.random() - 0.5) * 70,
-        scaleX: 1 + Math.random() * 0.08,
-        duration: 140 + i * 30,
-        onComplete: () => bar.destroy(),
-      });
-    }
-  }
-
-  private stutterLights(n: number) {
-    if (!this.flicker) return;
-    const s = this.s;
-    for (let i = 0; i < n; i++) {
-      this.at(i * 140 + (i % 2 === 0 ? 0 : 40), () => {
-        if (!this.flicker || !this.playing) return;
-        this.flicker.setAlpha(i % 2 === 0 ? 0.55 : 0.12);
-        if (this.lampFx) this.lampFx.setAlpha(i % 2 === 0 ? 0.05 : 0.4);
-      });
-    }
-    this.at(n * 140 + 80, () => {
-      if (this.flicker) this.flicker.setAlpha(0);
-    });
-    void s;
-  }
-
-  private freezeWorld() {
-    this.pauseRain(true);
-    try { this.s.noor.anims.pause(); } catch { /* */ }
-    if (this.freezeVeil) {
-      this.s.tweens.add({ targets: this.freezeVeil, alpha: 0.28, duration: 700 });
-    }
-    try { sfx('impact_hum'); } catch { /* */ }
-  }
-
   private pauseRain(on: boolean) {
     for (const a of this.s.amb ?? []) {
       if (a.def?.name !== 'rain') continue;
@@ -299,9 +549,14 @@ export class IntroCutscene {
   private clear() {
     for (const o of this.objs) { try { o.destroy(); } catch { /* */ } }
     this.objs = [];
+    this.letters = [];
+    this.papers = [];
+    this.airRain = [];
     this.lampFx = undefined;
     this.flicker = undefined;
     this.freezeVeil = undefined;
+    this.black = undefined;
     this.skipHint = undefined;
+    this.monitor = undefined;
   }
 }

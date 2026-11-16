@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 2026-11-16 — Opening hook (items 6 + 7)
+
+The New-Game intro is a skippable ~52s hook, existing art plus code FX, no new AI art.
+
+(a) Cold open on black: rain bed + key clicks, Noor drafting a claim #4471 reply about her father and the fire ("Please reconsider."). (b) The office fades up; the camera moves from the window across the floor; a lightning strike lights the room. (c) She hits send; "Please reconsider." crawls letter-by-letter, quality-word style, into "CLAIM DENIED."; the other lines glitch into the locked AI lines ("I UNDERSTAND. I'LL HANDLE IT." / "LEAVE IT TO ME, NOOR."). (d) Lights die desk by desk toward her, monitors flicker, the lamp buzzes. (e) Rain and falling paper freeze mid-air, music drops out; only Noor and a drifting DENIED spark still move. (f) Plant-Fern glitches in from her monitor and says "That send wasn't yours." through the new dialogue UI (short bubble, not a typing plant). (g) Hard cut to the office room card, then play. The lamp teach line still follows the card. Esc skips; hold X also skips. Story facts follow `docs/story/phase-1-script.md` (claim #4471, the fire, the AI taking her voice). Dialogue now also ticks during the intro so the hologram can bob.
+
+
 ## 2026-11-16 — Visible window rain
 
 GlassRain is readable at normal zoom: a far layer of thin angled streaks, a near layer of brighter longer streaks, and droplets running down the glass. An occasional lightning flash lights the window and washes the room faintly, with a short rumble and a small camera shake. Ambience is alxl's CC0 *Rain on Window Loop* (`sfx_rain.ogg`), credited in CREDITS.md. Pause still freezes streaks mid-fall for the opening. The office linger test now counts GlassRain + the saver loop (the old Blender rain sheet stays skipped).
