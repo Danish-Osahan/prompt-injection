@@ -1,5 +1,10 @@
 # HANDOFF
 
+## 2026-11-16 — Desk props
+
+Overlay of every `O11_PROPS` sprite against `office_bleed.jpg`: official furniture is already pixel-registered (mean Δ 1–3, ~100% similar). The one real overlap was `chair_noor`, added in the last pass with `chair_kabir.png` at (944, 433), which sat on the desktop and covered the monitor. It is now `chair_dez.png` at (966, 475), in front of the desk, with an updated footprint. Intro seat is 988, 556. No other desk needed a move. Lamp on desk_podW was already seated.
+
+
 ## 2026-11-16 — Dialogue UI
 
 Replaced the flat pink-border rectangle. Dialogue is now a cut-corner terminal panel (dark fill, speaker-coloured stroke) with a name plate sitting on the top edge, 18px IBM Plex Mono body text, padding, and a panel sized to the full wrapped line so words are never clipped. Bubbles have a tail pointing at the speaker and a short open tween; the bottom box keeps a portrait (Noor / plant-Fern / Draft glyph) and a blinking continue arrow. Quality words still glow. Speaker colours: Fern magenta, Noor cyan, the Draft coral.
