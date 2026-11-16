@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-16 — Opening feel pass (Noor, meeting, beam, audio, box, lamp)
+
+Playtest notes on `e075aa2`, all six in scope. Commits: `14da551` Noor acting, `40aee28` meeting, `2e8a57b` beam, `617bcca` audio, `232e1e6` dialogue box, `39259e8` lamp steal.
+
+1. **Noor acting.** During the hook she hesitates before send, leans in at the rewrite, says "No, no, no, I didn't write that" when CLAIM DENIED lands, looks around and pushes her chair back at the blackout and freeze, and startles / steps back when Fern appears. Existing look/surprise sheets plus squash, hops, emotes (`!`, `?`, sweat, `...`).
+2. **Meeting.** After Fern's "That send wasn't yours," Noor asks who she is. Fern answers in character (office plant, woke by the same rule, something wrong with the send, lift is dead). 7 lines, mix of bubbles and the bottom box, with reactions between. Camera settles, "Try the lift," then the controls hint. Echo twist unsaid. Skip still jumps to play; no second greet monologue.
+3. **Beam.** The thin cyan line is gone. A soft additive cone and a short glitch-pixel dissolve at the source fade out in 0.7s.
+4. **Audio.** Rain bed 0.42 → 0.15 (~-9 dB) and ducks to ~32% under dialogue. J swings play Kenney whoosh; hits use `sfx_hit_heavy` on the Phaser bus (the old path was a quiet WebAudio synth with no sample, inaudible under the rain). Procedural crackle for the lamp peel.
+5. **Dialogue box.** Inner gradient, drop shadow, speaker glow, name plate with colour + icon, framed ~96px portrait, slightly larger line height. Bubble tails point at the speaker.
+6. **Lamp steal.** Under 1.2s: shade flickers and drains, a dark veil around the lamp, arcs crawl to the hand with crackle, a compact orb with bloom gathers, light-tier micro-shake. `openLift` queues the throw until the drain finishes.
+
+Playtest: run after this pass. Review stills and a new opening video (includes the meeting) live under `/workspace/`.
+
 ## 2026-11-16 — Office bleed fills the frame (no letterbox pad)
 
 `9f08152` rebuilt `office_bleed.jpg` with `extend_letterbox` (a median-color flat fill). That read as dark bands on the left, right and bottom plus a seam where the plate ended — the letterbox border the user hates.
