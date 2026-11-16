@@ -29,7 +29,8 @@ export class GlassRain {
   nextFlash = 6 + Math.random() * 8;
   flash = 0;
   amb: Phaser.Sound.BaseSound | null = null;
-  ambVol = 0.42;
+  ambVol = 0.15; // ~-9 dB vs the previous 0.42 bed
+  private ducked = false;
 
   constructor(s: GameScene) {
     this.s = s;
@@ -77,6 +78,8 @@ export class GlassRain {
       if (this.flash <= 0 && this.t >= this.nextFlash) this.strike();
     }
     if (this.flash > 0) this.flash = Math.max(0, this.flash - dt);
+    const duck = !!this.s.dialogue?.busy;
+    if (duck !== this.ducked) { this.ducked = duck; this.applyAmbVol(); }
     this.draw();
   }
 
@@ -105,7 +108,7 @@ export class GlassRain {
 
   private applyAmbVol(fadeIn = false) {
     if (!this.amb) return;
-    const vol = this.paused ? 0 : this.ambVol * getSfxVolume();
+    const vol = this.paused ? 0 : this.ambVol * getSfxVolume() * (this.ducked ? 0.32 : 1);
     try {
       const snd = this.amb as unknown as { setVolume?: (v: number) => void; volume?: number };
       if (fadeIn) {

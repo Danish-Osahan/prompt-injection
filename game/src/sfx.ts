@@ -3,7 +3,7 @@ let ctx: AudioContext | null = null;
 let master = 1;
 function ac() { if (!ctx) { try { ctx = new AudioContext(); } catch { return null; } } if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return ctx; }
 
-type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win';
+type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win' | 'crackle';
 type ImpactKind = 'impact_whoosh' | 'impact_clank' | 'impact_snap' | 'impact_bounce' | 'impact_padlock' | 'impact_hum' | 'impact_heavy' | 'impact_big';
 type ActKind = 'steal' | 'throw' | 'door_open' | 'door_close' | 'lift' | 'ui';
 export type SfxKind = SynthKind | ImpactKind | ActKind;
@@ -17,6 +17,7 @@ const SAMPLE: Partial<Record<string, string>> = {
   impact_hum: 'sfx_hum',
   impact_heavy: 'sfx_hit_heavy',
   impact_big: 'sfx_metal',
+  hit: 'sfx_hit_heavy',
   steal: 'sfx_steal',
   throw: 'sfx_whoosh',
   door_open: 'sfx_door_open',
@@ -38,15 +39,27 @@ export const setSfxVolume = setMasterVolume;
 export const getSfxVolume = getMasterVolume;
 
 
-export function sfx(kind: SfxKind) {
+const SAMPLE_VOL: Partial<Record<SfxKind, number>> = {
+  hit: 0.9,
+  impact_whoosh: 0.72,
+  impact_heavy: 0.88,
+  impact_big: 0.9,
+  impact_clank: 0.7,
+  throw: 0.7,
+  steal: 0.65,
+};
+
+export function sfx(kind: SfxKind, volMul = 1) {
   const sample = (SAMPLE as Record<string, string>)[kind];
   if (sample && sceneRef?.cache?.audio?.exists(sample)) {
-    try { sceneRef.sound.play(sample, { volume: 0.55 * master }); return; } catch { /* fall through */ }
+    const v = (SAMPLE_VOL[kind] ?? 0.55) * master * volMul;
+    try { sceneRef.sound.play(sample, { volume: v }); return; } catch { /* fall through */ }
   }
+  if (kind === 'crackle') { playCrackle(volMul); return; }
   const a = ac(); if (!a) return;
   const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
   const P: Record<string, [OscillatorType, number, number, number, number]> = {
-    key: ['square', 1800, 1200, 0.03, 0.05], hit: ['triangle', 320, 120, 0.09, 0.12], block: ['square', 140, 110, 0.08, 0.06],
+    key: ['square', 1800, 1200, 0.03, 0.05], hit: ['triangle', 280, 70, 0.12, 0.28], block: ['square', 140, 110, 0.08, 0.06],
     dash: ['sawtooth', 600, 200, 0.12, 0.04], swap: ['sine', 520, 1040, 0.18, 0.08], hurt: ['sawtooth', 220, 60, 0.25, 0.1],
     ring: ['sine', 90, 260, 0.6, 0.12], tell: ['triangle', 880, 880, 0.08, 0.05], paste: ['square', 300, 900, 0.15, 0.06],
     root: ['sine', 160, 90, 0.4, 0.12], win: ['sine', 440, 880, 0.8, 0.1],
@@ -69,6 +82,24 @@ export function sfx(kind: SfxKind) {
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
   g.gain.setValueAtTime(vol * master, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
   o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+}
+
+function playCrackle(volMul = 1) {
+  const a = ac(); if (!a) return;
+  const dur = 0.2;
+  const frames = Math.floor(a.sampleRate * dur);
+  const buf = a.createBuffer(1, frames, a.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < frames; i++) {
+    const env = Math.pow(1 - i / frames, 1.35);
+    const burst = Math.random() > 0.72 ? 1 : 0.12;
+    d[i] = (Math.random() * 2 - 1) * env * burst;
+  }
+  const src = a.createBufferSource(); src.buffer = buf;
+  const bp = a.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = 1800; bp.Q.value = 0.7;
+  const g = a.createGain(); g.gain.value = 0.5 * master * volMul;
+  src.connect(bp).connect(g).connect(a.destination);
+  src.start();
 }
 
 /** Soft office drone for the opening (procedural, no sample). */

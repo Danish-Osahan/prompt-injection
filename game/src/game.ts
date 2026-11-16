@@ -1477,6 +1477,7 @@ export class GameScene extends Phaser.Scene {
     if (tg) { const dx = tg.x - this.x, dy = tg.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; if (l > 74) this.slide(v.x * Math.min(26, l - 70), v.y * Math.min(26, l - 70)); }
     if (this.combat?.usingSheets) this.noor.play(`noor_combo${hit}_${this.dir}`, true);
     else this.noor.play(`noor_type${hit}_${this.dir}`, true);
+    try { sfx('impact_whoosh', hit === 3 ? 0.95 : 0.75); } catch { /* */ }
     const a0 = Math.atan2(v.y, v.x), ox = this.x, oy = this.y;
     // damage lands on the sheet's hit_frame (type1/2 frame 2 @24 fps, type3 frame 3 @22 fps); anticipation frames read first
     const at = hit === 3 ? 120 : 70;
