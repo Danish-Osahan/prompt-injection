@@ -1,5 +1,24 @@
 # HANDOFF
 
+## 2026-11-16 — Level 1 pass 2, item B: dialogue + Fern hologram
+
+Replaced the top-right Fern sticky (and the office caption shortcut) with a real dialogue system (`game/src/dialogue.ts`, `game/src/voice.ts`).
+
+- Speaker-anchored bubbles with a name tag (NOOR / FERN / THE DRAFT).
+- Fern does not live *inside* the tiny office monitors. The nearest monitor or lamp flickers and glitches first, then a **large holographic crop of her existing `fern_seated` head** (runtime canvas, no new art) rises out of that source. The face is scaled up so it is readable above the desk at the current zoom 1 plate — never drawn at the screen's own size. She hops to the nearest source (lamp is preferred when the line mentions the lamp) to stay near Noor. In the hub she already has a body, so the bubble anchors to her sprite instead of a second projection.
+- She is visible before typewriter starts.
+- Long, floor, papa, or off-screen lines use a bottom box with a portrait, typewriter reveal, and a press-to-continue arrow (Enter or click; auto-advances after the given ms so playtests do not stall).
+- Procedural per-letter WebAudio blips: Noor soft sine, Fern glitchy square + noise, the Draft (also `ai`) low sawtooth + crackle. Pitch rises on questions. Angry / all-caps lines shake the box.
+- Stealable quality words glow; `cold` frosts, `heavy` drops with a thud, plus simple flicker/wave/dim for the other qualities in `power-rules.md`.
+- After the opening, Fern's lamp line waits until the intro has finished, then comes from the lamp.
+
+No recordings, no AI art.
+
+### Weak spots
+- Head crop is a tight rectangle from the seated sheet; some of the halo is tight at the top.
+- Hologram scanlines are a flat overlay, not a shader.
+- Noor / Draft bottom-box portraits are a crop or a procedural glyph, not a dedicated bust.
+
 ## 2026-11-16 — Level 1 pass 2, item A: opening scene
 
 Rewrote the New Game intro as a ~48s skippable camera piece in the real office (Esc skips immediately; hold X also skips). Fade in from black on a procedural office hum, slow pan from the rain window across the empty night floor, then settle on Noor at her desk (feet at 995, 615 — south of desk_noor so she no longer sits through the monitor). After a hold, "11:48 PM" fades in, then her line "Rephrase. Again." appears above her (world space, after a beat — no HUD popup). Then a glitch (screen tear, stuttering lights), the world freezes mid-motion (rain and typing pause), a quiet "The office goes still." and a fade into play.

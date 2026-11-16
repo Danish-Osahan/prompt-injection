@@ -16,6 +16,7 @@ import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab';
 import type { TitleStartData } from './title';
 import { IntroCutscene } from './intro';
+import { Dialogue, type SayWho } from './dialogue';
 import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
@@ -104,6 +105,7 @@ export class GameScene extends Phaser.Scene {
   startMode: 'new' | 'continue' | '' = '';
   introPending = false;
   intro: IntroCutscene | null = null;
+  dialogue: Dialogue | null = null;
   playAcc = 0;
   roomCard?: Phaser.GameObjects.Container;
   endScreen?: Phaser.GameObjects.Container;
@@ -155,6 +157,7 @@ export class GameScene extends Phaser.Scene {
     if (this.labMode) this.setupStaticCamera();
     else this.setupStaticCamera();
     this.intro = new IntroCutscene(this);
+    this.dialogue = new Dialogue(this);
     if (this.intro.shouldPlay()) this.intro.start();
     if (q.has('test')) this.installHooks();
   }
@@ -360,7 +363,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- dialogue ----------
-  say(who: 'noor' | 'ai' | 'fern' | 'papa' | 'floor', line: string, ms = 2200) { if (this.clar && !this.cutscene && !this.composer && !this.busy && !(this.impactLab?.stealMode)) { this.clar.say((who === 'fern' ? 'fern  ' : who === 'noor' ? 'noor  ' : '') + line, ms); return; } this.subQueue.push({ who, line, ms }); if (!this.subBusy) this.nextSub(); }
+  say(who: SayWho, line: string, ms = 2200) { this.dialogue?.enqueue(who, line, ms); }
   nextSub() {
     const n = this.subQueue.shift(); const h = this.hud;
     if (!n) { this.subBusy = false; h.sub.setVisible(false); h.fern.setVisible(false); return; }
@@ -396,7 +399,7 @@ export class GameScene extends Phaser.Scene {
     this.impactLab?.stop(); this.impactLab = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
-    this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
+    this.dialogue?.clear(); this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.endTimer?.remove(false); this.endTimer = undefined;
     this.endScreen?.destroy(); this.endScreen = undefined; this.ending = false;
     this.roomCard?.destroy(); this.roomCard = undefined;
@@ -1328,6 +1331,7 @@ export class GameScene extends Phaser.Scene {
       if (this.playAcc > 8000) { flushPlay(this); writeSave(this.save); }
     }
     this.t += dt;
+    this.dialogue?.update(dt);
     this.dashCd = Math.max(0, this.dashCd - dt); this.iframes = Math.max(0, this.iframes - dt); this.comboT -= dt; this.swingT -= dt; this.sinceDash += dt;
 
     // cutscene skip: hold X (or hold the top-right of the screen) after the first viewing

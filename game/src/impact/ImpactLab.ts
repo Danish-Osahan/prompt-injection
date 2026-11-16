@@ -131,16 +131,24 @@ export class ImpactLab {
     }
 
     if (alreadyOpen) this.restoreOpen();
-    else if (!this.s.introPending) {
-      window.setTimeout(() => {
-        try {
-          this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 2800);
-        } catch { /* */ }
-      }, 600);
-    }
+    else this.greetWhenReady();
   }
 
-  /** Resume a solved office: doors already OPEN from the save. */
+  private greeted = false;
+  private greetWhenReady() {
+    if (this.greeted || !this.on) return;
+    if (this.s.introPending || this.s.intro?.playing) {
+      this.s.time.delayedCall(400, () => this.greetWhenReady());
+      return;
+    }
+    this.greeted = true;
+    this.s.time.delayedCall(500, () => {
+      if (!this.on || this.s.intro?.playing) return;
+      try { this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 3200); } catch { /* */ }
+    });
+  }
+
+    /** Resume a solved office: doors already OPEN from the save. */
   private restoreOpen() {
     this.done = true;
     this.lampOn = false;
