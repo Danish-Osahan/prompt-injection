@@ -1454,7 +1454,7 @@ export class GameScene extends Phaser.Scene {
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);
     this.clar?.update(dt, moving || Math.hypot(mx, my) > 0.1);
     this.combat?.update(dt);
-    this.impactLab?.update(dt);
+    this.impactLab?.update(dt, f);
     this.stealPlay?.update(dt);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
@@ -1472,16 +1472,27 @@ export class GameScene extends Phaser.Scene {
   typeAttack() {
     if (this.swingT > 0) return;
     this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
-    const hit = this.combo; this.comboT = 0.5; this.swingT = hit === 3 ? 0.30 : 0.2;
+    const hit = this.combo; this.comboT = 0.55; this.swingT = hit === 3 ? 0.32 : 0.22;
     // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
     const tg = this.aimTarget(AIM_R); let v = this.dirVec();
     if (tg) { const dx = tg.x - this.x, dy = tg.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; if (l > 74) this.slide(v.x * Math.min(26, l - 70), v.y * Math.min(26, l - 70)); }
+    // Short forward lunge + squash/stretch pose per hit (heavier on the cleave).
+    const lunge = hit === 3 ? 22 : 11;
+    this.slide(v.x * lunge, v.y * lunge);
+    const sx0 = this.noor.scaleX, sy0 = this.noor.scaleY;
+    try {
+      this.noor.setScale(sx0 * (hit === 3 ? 1.05 : 1.02), sy0 * (hit === 3 ? 1.12 : 0.92));
+      this.tweens.add({ targets: this.noor, scaleX: sx0, scaleY: sy0, duration: hit === 3 ? 150 : 90, ease: 'Quad.easeOut' });
+    } catch { /* */ }
     if (this.combat?.usingSheets) this.noor.play(`noor_combo${hit}_${this.dir}`, true);
     else this.noor.play(`noor_type${hit}_${this.dir}`, true);
     try { sfx('impact_whoosh', hit === 3 ? 0.95 : 0.75); } catch { /* */ }
-    const a0 = Math.atan2(v.y, v.x), ox = this.x, oy = this.y;
-    // damage lands on the sheet's hit_frame (type1/2 frame 2 @24 fps, type3 frame 3 @22 fps); anticipation frames read first
-    const at = hit === 3 ? 120 : 70;
+    const a0 = Math.atan2(v.y, v.x);
+    // Arcs start immediately so mid-swing is visible; damage + sparks land on contact later.
+    if (hit === 1) this.fxCleave(a0, { smear: true });
+    else if (hit === 2) this.fxCleave(a0, { reverse: true });
+    else this.fxCleave(a0, { heavy: true, glyphs: true });
+    const at = hit === 3 ? 90 : 55;
     this.time.delayedCall(at, () => {
       const struck: Enemy[] = [];
       for (const e of this.enemies) {
@@ -1491,22 +1502,19 @@ export class GameScene extends Phaser.Scene {
         if (d < 92 && (da < 1.3 || d < 30)) { struck.push(e); this.hurtEnemy(e, hit === 3 ? 2 : 1, v.x * 140, v.y * 140, hit === 3); }
       }
       if (struck.some(e => e.practice) && this.clar) { this.clar.comboHits++; this.comboHits++; if (hit === 3) this.markTut('o11combo'); }
-      if (struck.length) {
-        this.combat?.onComboHit(hit);
-        const d = struck.find(e => e.practice) ?? struck[0];
-        if (d.practice && this.impactLab) {
-          // ImpactFX owns freeze / spark / tint (light) or silhouette (heavy on 3rd)
-          const spr = d.g.list.find(o => (o as Phaser.GameObjects.Image).texture) as Phaser.GameObjects.Image | undefined;
-          this.impactLab.onDummyHit(d.x, d.y - 40, hit, spr);
-        } else {
-          const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
-          this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause();
-          this.cameras.main.shake(hit === 3 ? 110 : 70, hit === 3 ? 0.006 : 0.003);
-        }
+      if (!struck.length) return;
+      // Sparks and hit-stop only on contact. Light hits: no zoom, no full-screen flash (ImpactFX light tier).
+      this.combat?.onComboHit(hit);
+      const d = struck.find(e => e.practice) ?? struck[0];
+      if (this.impactLab) {
+        const spr = d.g.list.find(o => (o as Phaser.GameObjects.Image).texture) as Phaser.GameObjects.Image | undefined;
+        this.impactLab.onDummyHit(d.x, d.y - 40, hit, spr);
+      } else {
+        const stops = this.combat?.tune.hitStop ?? [0.05, 0.06, 0.09];
+        this.hitStopT = stops[hit - 1] ?? 0.05; this.noor.anims.pause();
+        // Light hits: a tiny shake only. No zoom, no flash.
+        this.cameras.main.shake(hit === 3 ? 110 : 40, hit === 3 ? 0.006 : 0.0015);
       }
-      if (hit === 1) this.fxJab(v, struck.length > 0);
-      else if (hit === 2) this.fxSlash(a0, struck.length > 0);
-      else this.fxTypedLine(v, struck, ox, oy);
     });
   }
   /** glyph text helper (JetBrains Mono) */
@@ -1519,95 +1527,105 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: t, x: x + Math.cos(a) * r, y: y + Math.sin(a) * r * 0.7 - 8, angle: (Math.random() - 0.5) * 220, alpha: 0, duration: 300 + Math.random() * 120, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
     }
   }
-  /** hit 1, the jab: a sharp caret stab (^ turned toward the target) that flashes out and snaps back, glyph sparks at the tip */
-  fxJab(v: { x: number; y: number }, hit: boolean) {
-    const ox = this.x + v.x * 14, oy = this.y - 34 + v.y * 8, L = 104, a = Math.atan2(v.y * 0.75, v.x), ux = Math.cos(a), uy = Math.sin(a), nx = -uy, ny = ux;
-    const g = this.add.graphics().setDepth(this.y + 3).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(g);
-    const draw = (k: number, col: number, w: number) => {
-      const tx = ox + ux * L * k, ty = oy + uy * L * k;
-      g.fillStyle(col, 0.95).fillTriangle(ox + nx * w, oy + ny * w, ox - nx * w, oy - ny * w, tx, ty);
-      // the caret's two arms at the tip: ^ shape
-      g.lineStyle(4, 0xe6fcfc, 1).beginPath(); g.moveTo(tx - ux * 20 + nx * 13, ty - uy * 20 + ny * 13); g.lineTo(tx, ty); g.lineTo(tx - ux * 20 - nx * 13, ty - uy * 20 - ny * 13); g.strokePath();
-    };
-    const o = { k: 0 };
-    this.tweens.add({ targets: o, k: 1, duration: 55, ease: 'Quad.easeOut', onUpdate: () => { g.clear(); draw(o.k, hex(hit ? C.lamp : C.cyan), 9); g.lineStyle(2, 0xffffff, 0.9).lineBetween(ox, oy, ox + ux * L * o.k, oy + uy * L * o.k); },
-      onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 120, onComplete: () => g.destroy() }) });
-    const tip = { x: ox + ux * L, y: oy + uy * L };
-    const ring = this.add.circle(tip.x, tip.y, 6, 0xe6fcfc, 0.9).setDepth(this.y + 4).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(ring);
-    this.tweens.add({ targets: ring, scale: hit ? 4.2 : 2.6, alpha: 0, duration: 170, ease: 'Quad.easeOut', onComplete: () => ring.destroy() });
-    const sp = hit ? '^*;:.,' : '^.';
-    for (let i = 0; i < (hit ? 9 : 4); i++) {
-      const t = this.glyph(tip.x, tip.y, sp[i % sp.length], i % 3 === 0 ? C.inkBright : hit ? C.lamp : C.cyan, 14 + (i % 3) * 4, this.y + 4);
-      const aa = a + (Math.random() - 0.5) * 1.9, r = 30 + Math.random() * 44;
-      this.tweens.add({ targets: t, x: tip.x + Math.cos(aa) * r, y: tip.y + Math.sin(aa) * r * 0.8, angle: (Math.random() - 0.5) * 300, alpha: 0, duration: 260 + Math.random() * 140, ease: 'Quad.easeOut', onComplete: () => t.destroy() });
+  /** Three-hit melee crescent. Tips taper, bright leading edge, ~120ms fade. No arrow, no straight beam. */
+  fxCleave(a0: number, opts: { reverse?: boolean; heavy?: boolean; smear?: boolean; glyphs?: boolean }) {
+    const heavy = !!opts.heavy;
+    const back = !!opts.reverse;
+    const nx = -Math.sin(a0), ny = Math.cos(a0);
+    let ccw: number, aBase: number, span: number, R0: number, R1: number, midW: number, sx: number, sy: number, cx: number, cy: number;
+    if (heavy) {
+      // Overhead cleave: high pivot, wide downward sweep, thick blade, short lunge already applied.
+      ccw = 1; aBase = a0 - 0.2; span = 3.15; R0 = 22; R1 = 132; midW = 22;
+      sx = 1; sy = 0.92;
+      cx = this.x + Math.cos(a0) * 10; cy = this.y - 54;
+    } else if (back) {
+      // Reverse / backhand: mirrored crescent on the opposite side of the body.
+      ccw = -1; aBase = a0 + 0.55; span = 2.35; R0 = 38; R1 = 100; midW = 13;
+      sx = 1; sy = 0.74;
+      cx = this.x + nx * 16; cy = this.y - 30;
+    } else {
+      // Forehand: quick crescent out in front, with a smear trail.
+      ccw = 1; aBase = a0 - 0.35; span = 2.2; R0 = 40; R1 = 98; midW = 13;
+      sx = 1; sy = 0.70;
+      cx = this.x - nx * 14; cy = this.y - 36;
     }
-  }
-  /** hit 2, the side slash: a bright arc ribbon sweeps the swing, with the word's characters streaming along it */
-  fxSlash(a0: number, hit: boolean) {
-    const word = 'backspace'; const n = word.length; const ccw = this.dir.length === 1 ? 1 : -1;
-    const cx = this.x, cy = this.y - 32, R0 = 44, R1 = 82, span = 2.3, sx = 1, sy = 0.72;
-    const g = this.add.graphics().setDepth(this.y + 3).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(g);
-    const col = hex(hit ? C.lamp : C.cyan);
-    const ribbon = (k: number) => {
-      g.clear(); const steps = 18, end = -span / 2 + span * k, start = Math.max(-span / 2, end - 1.5);
+    const midR = (R0 + R1) / 2;
+    const g = this.add.graphics().setDepth(this.y + 6).setBlendMode(Phaser.BlendModes.ADD);
+    this.objs.push(g);
+    const smear = opts.smear ? this.add.graphics().setDepth(this.y + 5).setBlendMode(Phaser.BlendModes.ADD).setAlpha(0.55) : null;
+    if (smear) this.objs.push(smear);
+
+    const pt = (ang: number, r: number) => [cx + Math.cos(ang) * r * sx, cy + Math.sin(ang) * r * sy] as const;
+    const taper = (u: number) => Math.sin(Math.PI * Math.max(0.02, Math.min(0.98, u)));
+
+    const ribbon = (gfx: Phaser.GameObjects.Graphics, k: number, alpha: number) => {
+      gfx.clear();
+      const start = -span / 2;
+      const end = start + span * Math.max(0.02, Math.min(1, k));
+      const steps = heavy ? 26 : 18;
       for (let i = 0; i < steps; i++) {
-        const t0 = start + (end - start) * i / steps, t1 = start + (end - start) * (i + 1) / steps, f = (i + 1) / steps;
-        const A = a0 + ccw * t0, B = a0 + ccw * t1, rr0 = R0 + (R1 - R0) * 0.5 * (1 - f), w = 0.25 + 0.75 * f;
-        const p = (ang: number, r: number) => [cx + Math.cos(ang) * r * sx, cy + Math.sin(ang) * r * sy] as const;
-        const [x1, y1] = p(A, rr0), [x2, y2] = p(A, R1), [x3, y3] = p(B, R1), [x4, y4] = p(B, rr0);
-        g.fillStyle(col, 0.55 * w).fillTriangle(x1, y1, x2, y2, x3, y3).fillTriangle(x1, y1, x3, y3, x4, y4);
+        const u0 = i / steps, u1 = (i + 1) / steps;
+        const t0 = start + (end - start) * u0;
+        const t1 = start + (end - start) * u1;
+        const w0 = midW * taper((t0 - start) / span), w1 = midW * taper((t1 - start) / span);
+        const A = aBase + ccw * t0, B = aBase + ccw * t1;
+        const [ia, iay] = pt(A, midR - w0 * 0.5);
+        const [oa, oay] = pt(A, midR + w0 * 0.5);
+        const [ib, iby] = pt(B, midR - w1 * 0.5);
+        const [ob, oby] = pt(B, midR + w1 * 0.5);
+        // Soft body, then a tighter brighter core so the blade reads on a dark floor.
+        gfx.fillStyle(heavy ? 0xb8fff8 : 0x6ef0e8, 0.55 * alpha).fillTriangle(ia, iay, oa, oay, ob, oby).fillTriangle(ia, iay, ob, oby, ib, iby);
+        const [cia, ciay] = pt(A, midR - w0 * 0.18);
+        const [coa, coay] = pt(A, midR + w0 * 0.18);
+        const [cib, ciby] = pt(B, midR - w1 * 0.18);
+        const [cob, coby] = pt(B, midR + w1 * 0.18);
+        gfx.fillStyle(0xe8fffc, 0.4 * alpha).fillTriangle(cia, ciay, coa, coay, cob, coby).fillTriangle(cia, ciay, cob, coby, cib, ciby);
       }
-      const [ex, ey] = [cx + Math.cos(a0 + ccw * end) * R1 * sx, cy + Math.sin(a0 + ccw * end) * R1 * sy];
-      g.lineStyle(3, 0xffffff, 0.95).beginPath(); g.arc(cx, cy, R1, a0 + ccw * start, a0 + ccw * end, ccw < 0); g.strokePath();
-      g.fillStyle(0xffffff, 1).fillCircle(ex, ey, 4);
+      gfx.lineStyle(heavy ? 5 : 2.6, 0xffffff, 0.98 * alpha);
+      gfx.beginPath();
+      const segs = 24;
+      for (let i = 0; i <= segs; i++) {
+        const t = start + (end - start) * i / segs;
+        const w = midW * taper((t - start) / span);
+        const [x, y] = pt(aBase + ccw * t, midR + w * 0.5);
+        if (i === 0) gfx.moveTo(x, y); else gfx.lineTo(x, y);
+      }
+      gfx.strokePath();
+      const wEnd = midW * taper(Math.min(0.98, k));
+      const [ex, ey] = pt(aBase + ccw * end, midR + wEnd * 0.5);
+      gfx.fillStyle(0xffffff, 0.9 * alpha).fillCircle(ex, ey, heavy ? 4.5 : 2.6);
     };
-    g.setScale(1, 1);
+
     const o = { k: 0 };
-    this.tweens.add({ targets: o, k: 1, duration: 110, ease: 'Sine.easeOut', onUpdate: () => ribbon(o.k), onComplete: () => this.tweens.add({ targets: g, alpha: 0, duration: 150, onComplete: () => g.destroy() }) });
-    for (let i = 0; i < n; i++) {
-      const t = this.glyph(cx, cy, word[i], i === n - 1 ? C.inkBright : hit ? C.lamp : C.cyan, 19, this.y + 4).setAlpha(0);
-      const p = { u: -span / 2 - 0.3 };
-      this.tweens.add({ targets: p, u: span / 2 - (n - 1 - i) * 0.16, delay: i * 9, duration: 150, ease: 'Sine.easeOut',
-        onUpdate: () => { const ang = a0 + ccw * p.u, r = (R0 + R1) / 2 + 6; t.setPosition(cx + Math.cos(ang) * r * sx, cy + Math.sin(ang) * r * sy).setRotation(ang + Math.PI / 2).setAlpha(1); },
-        onComplete: () => this.tweens.add({ targets: t, alpha: 0, y: t.y - 8, duration: 160, onComplete: () => t.destroy() }) });
+    const sweepMs = heavy ? 110 : 75;
+    this.tweens.add({
+      targets: o, k: 1, duration: sweepMs, ease: heavy ? 'Quad.easeOut' : 'Sine.easeOut',
+      onUpdate: () => {
+        ribbon(g, o.k, 1);
+        if (smear) ribbon(smear, Math.max(0.02, o.k - 0.28), 0.55);
+      },
+      onComplete: () => {
+        const fadeTargets = smear ? [g, smear] : [g];
+        this.tweens.add({ targets: fadeTargets, alpha: 0, duration: 120, onComplete: () => { g.destroy(); smear?.destroy(); } });
+      },
+    });
+
+    // Finisher only: a short glyph burst along the arc, not a laser / typed beam.
+    if (opts.glyphs) {
+      const burst = '};>#/';
+      for (let i = 0; i < 5; i++) {
+        const u = 0.28 + i * 0.13;
+        const t = -span / 2 + span * u;
+        const [x, y] = pt(aBase + ccw * t, midR);
+        const ch = this.glyph(x, y, burst[i % burst.length], '#e8fcfc', heavy ? 16 : 13, this.y + 7).setAlpha(0);
+        this.tweens.add({
+          targets: ch, alpha: { from: 0, to: 0.95 }, delay: 24 + i * 16, duration: 50,
+          onComplete: () => this.tweens.add({ targets: ch, alpha: 0, y: ch.y - 10, duration: 140, onComplete: () => ch.destroy() }),
+        });
+      }
     }
-    if (hit) this.fragments(this.x + Math.cos(a0) * 70, this.y - 32 + Math.sin(a0) * 46, 'ksp', C.lamp, 7);
   }
-  /** hit 3, the slam: a line of typed characters writes out fast with a blinking caret head and a scanline glow,
-   *  then deletes itself backwards from the tip, spitting letter fragments (amber when it connects). */
-  fxTypedLine(v: { x: number; y: number }, struck: Enemy[], ox: number, oy: number) {
-    const words = ['rewrite();', 'undo_all;', 'git push', 'delete();', 'ctrl+z;;']; const str = words[(Math.random() * words.length) | 0];
-    const L = 124, n = str.length, step = L / n, a = Math.atan2(v.y * 0.72, v.x), ux = Math.cos(a), uy = Math.sin(a);
-    const x0 = ox + ux * 22, y0 = oy - 30 + uy * 16; const dep = oy + 3;
-    const glow = this.add.graphics().setDepth(dep - 0.5).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(glow);
-    const caret = this.add.rectangle(x0, y0, 10, 24, hex(C.inkBright), 1).setRotation(a).setDepth(dep + 0.5); this.objs.push(caret);
-    const chars: Phaser.GameObjects.Text[] = []; const amber = struck.length > 0;
-    const drawGlow = (len: number, col: number) => {
-      glow.clear(); const nx = -uy, ny = ux;
-      glow.lineStyle(26, col, 0.16).lineBetween(x0, y0, x0 + ux * len, y0 + uy * len);
-      for (let k = -2; k <= 2; k++) glow.lineStyle(1, col, 0.22).lineBetween(x0 + nx * k * 4, y0 + ny * k * 4, x0 + ux * len + nx * k * 4, y0 + uy * len + ny * k * 4);
-    };
-    let i = 0;
-    const write = this.time.addEvent({ delay: 9, repeat: n - 1, callback: () => {
-      const t = this.glyph(x0 + ux * step * (i + 0.5), y0 + uy * step * (i + 0.5), str[i], C.cyan, 20, dep).setRotation(Math.abs(a) > Math.PI / 2 ? a + Math.PI : a);
-      chars.push(t); i++; caret.setPosition(x0 + ux * step * i, y0 + uy * step * i); drawGlow(step * i, hex(C.cyan));
-      caret.setAlpha(i % 2 ? 1 : 0.35);
-      if (i === n) impact();
-    } });
-    const impact = () => {
-      const tx = x0 + ux * L, ty = y0 + uy * L;
-      if (amber) { caret.setFillStyle(hex(C.lamp)); chars.slice(-3).forEach(c => c.setColor(C.lamp)); drawGlow(L, hex(C.lamp)); }
-      this.fragments(tx, ty, str.replace(/[^a-z]/g, '') || 'xyz', amber ? C.lamp : C.cyan, amber ? 8 : 5);
-      // delete backwards from the tip
-      let k = chars.length;
-      this.time.addEvent({ delay: 14, repeat: chars.length, callback: () => {
-        k--; if (k >= 0) { const c = chars[k]; this.tweens.add({ targets: c, alpha: 0, y: c.y - 6, duration: 90, onComplete: () => c.destroy() }); caret.setPosition(x0 + ux * step * k, y0 + uy * step * k); drawGlow(step * Math.max(0, k), amber ? hex(C.lamp) : hex(C.cyan)); }
-        if (k <= 0) { caret.destroy(); glow.destroy(); }
-      } });
-    };
-    void write;
-  }
-  /** dash start: a puff of dust + a few paper scraps kicked back from the feet */
+    /** dash start: a puff of dust + a few paper scraps kicked back from the feet */
   dashKick() {
     const bx = this.x - this.dashVec.x * 10, by = this.y;
     for (let i = 0; i < 5; i++) {
@@ -1642,7 +1660,7 @@ export class GameScene extends Phaser.Scene {
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
-      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null, liftDone: !!this.impactLab?.done, doorOpen: !!this.clar?.doorOpen,
+      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null, liftDone: !!this.impactLab?.done, doorOpen: !!this.clar?.doorOpen, lab: this.impactLab ? this.impactLab.state() : null,
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
       office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, combat: this.combat ? this.combat.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),

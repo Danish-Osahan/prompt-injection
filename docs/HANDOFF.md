@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-16 — E always responds, and the J combo is three melee crescents
+
+User notes on `46c4e89` (screenshot `/workspace/u5-e-prompt.png`: a bare E over Noor at the lift). Items 1–2 only in this commit. Playtest 193/193 (two new real-keyboard tests).
+
+1. **E at the lift / lamp.** A tap used to do nothing: unlock required a silent 0.35s hold of E, the lure was a bare `fx_key_e` glyph, and there was no hold-progress feedback. The prompt now says **HOLD E** with a ring that fills while E is down. Tapping E at the dead call panel gives an immediate response: the panel fizzles, Noor says "It's dead.", and that unlocks the lamp (Fern still points at it). A short tap at the lamp that doesn't finish the hold gets a Fern hint ("Hold E. Peel the spark from the lamp."). After the intro, the canvas is focused again so the keyboard isn't left behind by the cutscene. `ImpactLab` no longer calls `ctl.read()` a second time in the same frame (that was eating edge presses). New playtest steps use `page.keyboard.down/up('KeyE')` — not the `openLift` hook — after intro skip: a tap at the panel unlocks the lamp, a hold at the lamp starts the peel.
+
+2. **J combo.** Hit 1 was a caret arrow plus a straight beam line; hit 3 was a typed-character laser. The default combo is now three melee crescents: a quick forehand slash with a smear trail, a reverse backhand crescent on the other side of the body, and a heavier, wider overhead cleave with a short forward lunge. Each blade tapers to thin tips, has a bright leading edge, and fades in ~120ms, with a pose and lunge per hit. The arrow and straight beam are gone from the combo. A short glyph burst still appears on the finisher only, not as a laser. Sparks and hit-stop fire only on contact; light hits use the ImpactFX light tier (no zoom, no full-screen flash). Hold-then-release J still fires the special typed beam, unchanged.
+
+Review stills (not in the repo): `/workspace/l1-e-prompt-2x.png`, `/workspace/l1-e-fizzle.png`, `/workspace/l1-e-hold-ring-2x.png`, `/workspace/l1-combo-hit1-2x.png`, `/workspace/l1-combo-hit2-2x.png`, `/workspace/l1-combo-hit3-2x.png`. Short video of the E path plus the combo: `/workspace/l1-e-combo.webm`. Playwright's recording has no soundtrack.
+
+Leftovers for later commits in this pass: the lamp-steal still reads as a flat white starburst (item 3); DENIED in the opening (item 4); more office explorables (item 5); lost-line collectibles (item 6); complaint-bodied enemies (item 7). Quality-word styling still highlights "dead" in "It's dead."
+
+
 ## 2026-11-16 — Opening feedback on e349ca2 (freeze audio, mail overlap, portrait, blips, Fern reactions)
 
 User notes on `e349ca2`, all five in scope. Playtest 191/191.

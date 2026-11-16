@@ -7,7 +7,8 @@ import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 import { writeSave } from '../save';
-import { showControlsHint } from '../flow';
+import { showControlsHint, focusGameCanvas } from '../flow';
+import type { Frame } from '../controls';
 
 /**
  * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
@@ -62,8 +63,12 @@ export class ImpactLab {
   hint?: Phaser.GameObjects.Text;
   private keyF?: Phaser.Input.Keyboard.Key;
   private keyI?: Phaser.Input.Keyboard.Key;
-  private peelT = 0;
+  peelT = 0;
   private peelNeed = 0.5;
+  private wasHolding = false;
+  private holdKind: 'panel' | 'lamp' | null = null;
+  private lampHinted = false;
+  private panelTried = false;
   private lampSpr?: Phaser.GameObjects.Image;
   private liftCab?: Phaser.GameObjects.Image;
   private panelSpr?: Phaser.GameObjects.Image;
@@ -99,6 +104,13 @@ export class ImpactLab {
 
   constructor(private s: GameScene) {
     this.fx = new ImpactFX(s);
+  }
+
+  state() {
+    return {
+      on: this.on, lampReady: this.lampReady, carrying: this.carrying, draining: this.draining,
+      flying: this.flying, done: this.done, peelT: this.peelT, holdKind: this.holdKind,
+    };
   }
 
   start() {
@@ -154,6 +166,7 @@ export class ImpactLab {
     this.greeted = true;
     // Meeting already happened in the hook (or was skipped). Ease into play
     // with the controls hint only — no second monologue, no jump-cut to silence.
+    try { focusGameCanvas(this.s); } catch { /* */ }
     showControlsHint(this.s);
   }
 
@@ -406,7 +419,11 @@ export class ImpactLab {
     });
   }
 
-  update(dt: number) {
+  /** Last controls frame, set by GameScene.update so we don't call read() twice. */
+  frame: Frame | null = null;
+
+  update(dt: number, frame?: Frame | null) {
+    if (frame !== undefined) this.frame = frame;
     if (!this.keyI) this.keyI = this.s.input.keyboard?.addKey('I');
     // I toggles the isolated lab only under ?impact — never strip the lift mid-play.
     if (this.s.labMode && Phaser.Input.Keyboard.JustDown(this.keyI!)) {
@@ -420,23 +437,43 @@ export class ImpactLab {
     this.lure?.update(dt);
     if (!this.framing) this.s.updateFollowCamera?.();
 
-    const f = this.s.ctl.read();
+    // Use the frame already read by GameScene.update — a second read() would
+    // clear edge presses. interactHeld still comes from k.E.isDown.
+    const f = this.frame;
     const nearLamp = Math.hypot(this.s.x - LAMP.x, this.s.y - LAMP.y) < 130;
-
     const nearPanel = Math.hypot(this.s.x - PANEL.x, this.s.y - PANEL.y) < 130;
-    if (!this.lampReady && !this.done && nearPanel && f.interactHeld) {
-      this.peelT += dt;
-      if (this.peelT >= 0.35) { this.peelT = 0; this.unlockLamp(); }
-    } else if (nearLamp && this.lampReady && f.interactHeld && !this.carrying && !this.flying && !this.done && this.lampOn) {
+    const held = !!(f && f.interactHeld) && !this.carrying && !this.flying && !this.done && !this.draining;
+    const atPanel = nearPanel && !this.lampReady;
+    const atLamp = nearLamp && this.lampReady && this.lampOn;
+    const kind: 'panel' | 'lamp' | null = held && atPanel ? 'panel' : held && atLamp ? 'lamp' : null;
+
+    if (kind && !this.wasHolding) {
+      // Immediate tap response: the dead panel fizzles and unlocks the lamp.
+      if (kind === 'panel') this.tryPanel();
+    }
+    if (kind === 'lamp') {
       this.peelT += dt;
       try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
+      this.lure?.setHold(this.peelT / this.peelNeed);
       if (this.peelT >= this.peelNeed) {
         this.peelT = 0;
+        this.lure?.setHold(0);
         this.takeSpark();
       }
+    } else if (kind === 'panel') {
+      this.peelT += dt;
+      this.lure?.setHold(Math.min(1, this.peelT / 0.2));
     } else if (!this.carrying) {
+      if (this.wasHolding && this.holdKind === 'lamp' && this.peelT > 0.04 && this.peelT < this.peelNeed && !this.lampHinted) {
+        this.lampHinted = true;
+        try { this.s.say('fern', 'Hold E. Peel the spark from the lamp.', 2200); } catch { /* */ }
+      }
       this.peelT = Math.max(0, this.peelT - dt * 2);
+      const need = this.holdKind === 'lamp' || this.lampReady ? this.peelNeed : 0.2;
+      this.lure?.setHold(this.peelT > 0.01 ? this.peelT / need : 0);
     }
+    this.wasHolding = !!kind;
+    this.holdKind = kind;
 
     if (this.draining) {
       this.drainT += dt;
@@ -495,10 +532,45 @@ export class ImpactLab {
     return { x: -16, y: -56 };
   }
 
+  /** Tap or hold at the dead call panel: she tries it, it fizzles, the lamp unlocks. */
+  tryPanel() {
+    if (this.lampReady || this.done) return;
+    this.fizzlePanel();
+    this.unlockLamp();
+  }
+
+  private fizzlePanel() {
+    const x = PANEL.x, y = PANEL.y - 8;
+    const g = this.s.add.graphics().setDepth(y + 12).setBlendMode(Phaser.BlendModes.ADD);
+    this.s.objs.push(g);
+    g.fillStyle(0x7ad4d8, 0.85).fillCircle(x, y, 5);
+    g.lineStyle(2, 0xe8fcfc, 0.85);
+    for (let i = 0; i < 7; i++) {
+      const a = (i / 7) * Math.PI * 2 + Math.random() * 0.25;
+      const r = 10 + Math.random() * 10;
+      g.lineBetween(x, y, x + Math.cos(a) * r, y + Math.sin(a) * r * 0.75);
+    }
+    this.s.tweens.add({ targets: g, alpha: 0, duration: 320, onComplete: () => g.destroy() });
+    if (this.panelSpr) {
+      const a = this.panelSpr.alpha;
+      this.s.tweens.add({
+        targets: this.panelSpr, alpha: 0.2, duration: 50, yoyo: true, repeat: 3,
+        onComplete: () => this.panelSpr?.setAlpha(a),
+      });
+    }
+    try { sfx('ui'); } catch { /* */ }
+    try { sfx('impact_snap'); } catch { /* */ }
+    if (!this.panelTried) {
+      this.panelTried = true;
+      try { this.s.say('noor', "It's dead.", 1400, { box: false }); } catch { /* */ }
+    }
+  }
+
   unlockLamp() {
     if (this.lampReady) return;
     this.lampReady = true;
     if (this.lure) this.lure.source = { x: LAMP.x, y: LAMP.y, radius: 130 };
+    this.lure?.setHold(0);
     try { sfx('tell'); } catch { /* */ }
     try { this.s.say('fern', "The lamp. That's the only thing still drawing power.", 2800); } catch { /* */ }
   }

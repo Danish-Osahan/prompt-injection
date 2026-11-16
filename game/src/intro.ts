@@ -8,7 +8,7 @@ import { startFreezeBed, stopFreezeBed, deniedCrackle, reverseSwell } from './vo
 import { playMusic } from './music';
 import type { GameScene } from './game';
 import { writeSave } from './save';
-import { showRoomCard, showControlsHint } from './flow';
+import { showRoomCard, showControlsHint, focusGameCanvas } from './flow';
 import { NoorActing } from './noorAct';
 
 const C = tokens.color;
@@ -308,6 +308,7 @@ export class IntroCutscene {
       s.busy = false;
       s.cutscene = null;
       s.introPending = false;
+      try { focusGameCanvas(s); } catch { /* */ }
       s.introCardPending = true;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
       writeSave(s.save);

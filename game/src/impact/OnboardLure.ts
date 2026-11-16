@@ -24,6 +24,9 @@ export class OnboardLure {
   onNearSource?: () => void;
   carrying = false;
   private destroyed = false;
+  private label?: Phaser.GameObjects.Text;
+  private ring?: Phaser.GameObjects.Graphics;
+  private holdP = 0;
 
   constructor(
     private s: GameScene,
@@ -62,6 +65,34 @@ export class OnboardLure {
         .setDepth(9000).setScale(0.95).setAlpha(0);
       s.objs.push(this.targetGlyph);
     }
+
+    this.label = s.add.text(source.x, source.y - 22, 'HOLD E', {
+      fontFamily: 'IBM Plex Mono', fontSize: '11px', fontStyle: '700', color: '#e8fcfc',
+      stroke: '#041018', strokeThickness: 4,
+    }).setOrigin(0.5).setDepth(9001).setAlpha(0);
+    this.ring = s.add.graphics().setDepth(9001).setAlpha(0);
+    s.objs.push(this.label, this.ring);
+  }
+
+  /** 0–1 fill around the E prompt. 0 leaves an empty ring when near. */
+  setHold(p: number) {
+    this.holdP = Math.max(0, Math.min(1, p));
+    this.drawRing();
+  }
+
+  private drawRing() {
+    const g = this.ring; if (!g || this.destroyed) return;
+    const x = this.source.x, y = (this.sourceGlyph?.y ?? this.source.y - 48);
+    const r = 20;
+    g.clear();
+    g.lineStyle(2, 0x5ee8e0, 0.4);
+    g.strokeCircle(x, y, r);
+    if (this.holdP > 0.01) {
+      g.lineStyle(3.5, 0xe8fcfc, 0.98);
+      g.beginPath();
+      g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * this.holdP, false);
+      g.strokePath();
+    }
   }
 
   setCarrying(on: boolean) {
@@ -69,6 +100,8 @@ export class OnboardLure {
     if (on) {
       this.sourceGlyph?.setAlpha(0);
       this.sourceGlow?.setAlpha(0);
+      this.label?.setAlpha(0);
+      this.ring?.setAlpha(0);
     }
   }
 
@@ -85,15 +118,22 @@ export class OnboardLure {
     const nearTgt = Math.hypot(this.s.x - this.target.x, this.s.y - this.target.y) < this.nearR + 40;
 
     if (!this.carrying) {
-      // Source invites: pulse glow always a little; stronger + glyph when near
+      // Source invites: pulse glow always a little; stronger + "HOLD E" when near
       const base = 0.18 + 0.12 * Math.sin(t * 4.2);
       this.sourceGlow?.setAlpha(nearSrc ? 0.45 + 0.2 * Math.sin(t * 6) : base);
-      this.sourceGlyph?.setAlpha(nearSrc ? 0.85 + 0.15 * Math.sin(t * 5) : 0);
+      const glyphA = nearSrc ? 0.85 + 0.15 * Math.sin(t * 5) : 0;
+      this.sourceGlyph?.setAlpha(glyphA);
       this.sourceGlyph?.setY(this.source.y - 48 - (nearSrc ? 3 * Math.sin(t * 5) : 0));
+      this.label?.setPosition(this.source.x, this.source.y - 22);
+      this.label?.setAlpha(nearSrc ? glyphA : 0);
+      this.ring?.setAlpha(nearSrc || this.holdP > 0.01 ? 1 : 0);
+      if (nearSrc || this.holdP > 0.01) this.drawRing();
       this.targetGlow?.setAlpha(0);
       this.targetGlyph?.setAlpha(0);
       if (nearSrc) this.onNearSource?.();
     } else {
+      this.label?.setAlpha(0);
+      this.ring?.setAlpha(0);
       // Target invites once carrying
       this.sourceGlow?.setAlpha(0);
       this.sourceGlyph?.setAlpha(0);
@@ -110,5 +150,7 @@ export class OnboardLure {
     this.targetGlow?.destroy();
     this.sourceGlyph?.destroy();
     this.targetGlyph?.destroy();
+    this.label?.destroy();
+    this.ring?.destroy();
   }
 }

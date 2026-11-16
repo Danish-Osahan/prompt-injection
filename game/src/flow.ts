@@ -61,7 +61,7 @@ export function showControlsHint(s: GameScene) {
   if (s.save.tutorials.includes('controls')) return;
   const text = s.ctl.last === 'touch'
     ? 'drag to move   ·   READ to take   ·   throw   ·   TYPE to attack   ·   DASH'
-    : 'WASD move   ·   E take   ·   F throw   ·   J attack   ·   SPACE dash';
+    : 'WASD move   ·   HOLD E to take   ·   F throw   ·   J attack   ·   SPACE dash';
   const hint = s.add.text(640, 670, text, {
     fontFamily: UI, fontSize: '16px', color: C.inkBright,
     backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 16, y: 8 },
@@ -73,6 +73,22 @@ export function showControlsHint(s: GameScene) {
   });
   s.save.tutorials.push('controls');
   writeSave(s.save);
+}
+
+/** Make sure the game canvas has keyboard focus after a cutscene. */
+export function focusGameCanvas(s: GameScene) {
+  try {
+    const c = s.game.canvas as HTMLCanvasElement | undefined;
+    if (c) {
+      if (!c.hasAttribute('tabindex')) c.tabIndex = 0;
+      c.focus();
+    }
+    const kb = s.input.keyboard;
+    if (kb) {
+      kb.enabled = true;
+      kb.resetKeys();
+    }
+  } catch { /* */ }
 }
 
 export function showEndScreen(s: GameScene) {

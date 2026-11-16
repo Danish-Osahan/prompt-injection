@@ -237,12 +237,34 @@ async function desktop(browser) {
   await sleep(150); await input.stop(); s = await st(page);
   ok('desktop: dash bursts forward with i-frames', s.player.x - dx0 > 100 && dashIframes, `moved ${Math.round(s.player.x - dx0)}px, iframes during dash ${dashIframes}`);
   ok('desktop: dash cooldown ~1s', s.dashCd > 0.6 && s.dashCd <= 1.0, `cd left ${s.dashCd.toFixed(2)}`);
-  // OFFICE: dead-lift beat (no READ / typist / caption chips)
+  // OFFICE: real-keyboard E at the dead lift panel, then hold E at the lamp
+  // (not openLift / interact hooks — those hid the broken tap-E path).
+  const panel = await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    return s.impactLab ? s.impactLab.panelPos : { x: 276, y: 167 };
+  });
+  await pi(page, 'teleport', panel.x - 16, panel.y + 52); await sleep(200);
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await sleep(80);
+  await page.keyboard.down('KeyE');
+  await sleep(90);
+  await page.keyboard.up('KeyE');
+  s = await waitFor(page, s => !!(s.lab && s.lab.lampReady), 2500);
+  ok('office: tapping E at the dead panel responds and unlocks the lamp', !!(s.lab && s.lab.lampReady), `lab ${JSON.stringify(s.lab)}`);
   const lamp = await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
     return s.impactLab ? s.impactLab.lampPos : { x: 178, y: 291 };
   });
   await pi(page, 'teleport', lamp.x + 36, lamp.y + 48); await sleep(200);
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await sleep(80);
+  await page.keyboard.down('KeyE');
+  await sleep(750);
+  s = await st(page);
+  const holding = !!(s.lab && (s.lab.carrying || s.lab.draining || s.lab.peelT > 0.3));
+  await page.keyboard.up('KeyE');
+  s = await waitFor(page, s => !!(s.lab && (s.lab.carrying || s.lab.draining || s.lab.done)), 4000);
+  ok('office: holding E at the lamp peels the spark', !!(s.lab && (s.lab.carrying || s.lab.draining || s.lab.done)), `held ${holding} lab ${JSON.stringify(s.lab)}`);
   const lit = await pi(page, 'openLift');
   s = await waitFor(page, s => s.liftDone, 8000);
   ok('office: lamp spark thrown into the lift panel opens the doors', !!(s.liftDone || s.doorOpen || (s.plates.o_door && s.plates.o_door.words.includes('OPEN'))), `lit ${lit} door ${s.plates.o_door && s.plates.o_door.words} done ${s.liftDone}`);
