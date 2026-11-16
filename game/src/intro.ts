@@ -218,7 +218,7 @@ export class IntroCutscene {
     const s = this.s;
     const lines: [Parameters<GameScene['say']>[0], string, number, boolean][] = [
       ['noor', 'Who— what are you?', 2200, false],
-      ['fern', 'The office plant. I was on the desk when the lights went.', 2600, false],
+      ['fern', 'The office plant. I was on the desk when the lights went.', 2600, true],
       ['noor', "That's not possible.", 1800, false],
       ['fern', 'Same rule that rewrote your send. Words catch. Things wake up.', 3200, true],
       ['noor', 'That was my voice. It was not me.', 2400, false],

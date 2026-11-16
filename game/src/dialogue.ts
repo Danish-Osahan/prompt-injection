@@ -375,7 +375,7 @@ export class Dialogue {
 
   private bubbleAnchor(who: SayWho, fromSpeaker: boolean) {
     if (who === 'fern' && this.holo) {
-      const right = this.holo.x + 86 + WRAP / 2 < 1240;
+      const right = this.holo.x + 86 + WRAP + 24 < 1260;
       const x = right ? this.holo.x + 86 : this.holo.x - 86;
       const y = Phaser.Math.Clamp(this.holo.y - 70, 72, 500);
       return { x, y, flip: !right, speaker: { x: this.holo.x, y: this.holo.y - 20 } };
@@ -405,7 +405,10 @@ export class Dialogue {
     const padX = 18, padT = 28, padB = 22;
     const bw = maxW + padX * 2;
     const bh = maxH + padT + padB;
-    const c = s.add.container(x, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.96);
+    let px = x;
+    if (!flip && x + bw > 1260) px = Math.max(80, 1260 - bw);
+    if (flip && x - bw < 20) px = Math.min(1200, 20 + bw);
+    const c = s.add.container(px, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.96);
     const ox = flip ? -bw : 0;
     const bg = this.cutPanel(ox, -padT, bw, bh, 0x07141c, 0.94, this.hexFor(job.who), 10);
     const tag = this.namePlate(flip ? -14 : 14, -padT, this.tagFor(job.who), job.who, flip);
@@ -414,7 +417,7 @@ export class Dialogue {
     for (const tw of words) {
       tw.setPosition(textLeft + tw.x, tw.y);
     }
-    const tail = this.bubbleTail(ox, -padT, bw, bh, x, y, speaker ?? { x: flip ? x + 40 : x - 40, y: y + 80 }, this.hexFor(job.who));
+    const tail = this.bubbleTail(ox, -padT, bw, bh, px, y, speaker ?? { x: flip ? px + 40 : px - 40, y: y + 80 }, this.hexFor(job.who));
     this.arrow = s.add.text(textLeft + maxW, maxH + 2, '▾', {
       fontFamily: FONT, fontSize: '14px', color: C.cyan,
     }).setOrigin(1, 0).setVisible(false);
