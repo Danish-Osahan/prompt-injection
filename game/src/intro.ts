@@ -65,6 +65,7 @@ export class IntroCutscene {
   papers: Phaser.GameObjects.Rectangle[] = [];
   drift?: Phaser.GameObjects.GameObject[];
   actor?: NoorActing;
+  meeting = false;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -200,15 +201,70 @@ export class IntroCutscene {
         const prev = s.dialogue.onIdle;
         s.dialogue.onIdle = () => {
           if (s.dialogue) s.dialogue.onIdle = prev;
-          this.at(700, () => this.finish());
+          this.at(500, () => this.startMeeting());
         };
       }
     });
-    // Fallback if dialogue never idles.
-    this.at(52000, () => this.finish());
+    // Fallback if the meeting never idles.
+    this.at(120000, () => this.finish());
   }
 
   skip() { this.finish(true); }
+
+  private startMeeting() {
+    if (!this.playing || this.finished || this.meeting) return;
+    this.meeting = true;
+    this.beat = 'meet';
+    const s = this.s;
+    const lines: [Parameters<GameScene['say']>[0], string, number, boolean][] = [
+      ['noor', 'Who— what are you?', 2200, false],
+      ['fern', 'The office plant. I was on the desk when the lights went.', 2600, false],
+      ['noor', "That's not possible.", 1800, false],
+      ['fern', 'Same rule that rewrote your send. Words catch. Things wake up.', 3200, true],
+      ['noor', 'That was my voice. It was not me.', 2400, false],
+      ['fern', 'I know. Something is wrong with the send. The lift is dead.', 3000, true],
+      ['fern', 'The lamp is still drawing power. Try the lift.', 2600, true],
+    ];
+    if (s.dialogue) {
+      const prevIdle = s.dialogue.onIdle;
+      const prevSpeak = s.dialogue.onSpeak;
+      s.dialogue.onSpeak = (who, line) => this.reactToMeeting(who, line);
+      s.dialogue.onIdle = () => {
+        if (s.dialogue) {
+          s.dialogue.onIdle = prevIdle;
+          s.dialogue.onSpeak = prevSpeak;
+        }
+        this.at(400, () => this.settleAndFinish());
+      };
+    }
+    for (const [who, line, ms, box] of lines) {
+      try { s.say(who, line, ms, { box }); } catch { /* */ }
+    }
+  }
+
+  private reactToMeeting(who: string, line: string) {
+    if (who !== 'noor') return;
+    try {
+      if (/Who/.test(line)) { this.actor?.act('handUp'); this.actor?.emote('?', 900); }
+      else if (/possible/.test(line)) { this.actor?.act('leanIn'); }
+      else if (/voice/.test(line)) { this.actor?.emote('!', 900); this.actor?.act('handUp'); }
+    } catch { /* */ }
+  }
+
+  private settleAndFinish() {
+    if (!this.playing || this.finished) return;
+    const cam = this.s.cameras.main;
+    try {
+      const tw = this.s.tweens.add({
+        targets: cam, zoom: 1, duration: 900, ease: 'Sine.easeInOut',
+        onUpdate: () => { try { cam.centerOn(640, 360); } catch { /* */ } },
+      });
+      this.camTweens.push(tw);
+    } catch { /* */ }
+    try { cam.pan(640, 360, 900, 'Sine.easeInOut'); } catch { /* */ }
+    this.at(950, () => this.finish(false));
+  }
+
 
   finish(skipped = false) {
     if (this.finished) return;
@@ -253,17 +309,21 @@ export class IntroCutscene {
       s.introCardPending = true;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
       writeSave(s.save);
-      s.cameras.main.fadeIn(skipped ? 200 : 80, 4, 8, 12);
+      if (skipped) s.cameras.main.fadeIn(200, 4, 8, 12);
       try {
         showRoomCard(s, 'office', () => { s.introCardPending = false; s.introCardDone = true; });
       } catch { s.introCardPending = false; s.introCardDone = true; }
     };
 
     const cam = this.s.cameras.main;
-    // (g) Hard cut to the room card, then into play.
-    try { cam.fadeOut(skipped ? 160 : 80, 0, 0, 0); } catch { /* */ }
-    cam.once('camerafadeoutcomplete', go);
-    this.s.time.delayedCall(skipped ? 260 : 160, () => { if (this.s.introPending) go(); });
+    // Skip still fades. A natural end eases into the room, no hard cut.
+    if (skipped) {
+      try { cam.fadeOut(160, 0, 0, 0); } catch { /* */ }
+      cam.once('camerafadeoutcomplete', go);
+      this.s.time.delayedCall(260, () => { if (this.s.introPending) go(); });
+    } else {
+      this.s.time.delayedCall(80, go);
+    }
   }
 
   showControls() { showControlsHint(this.s); }

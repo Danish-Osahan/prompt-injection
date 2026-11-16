@@ -145,13 +145,9 @@ export class ImpactLab {
       return;
     }
     this.greeted = true;
-    if (this.s.dialogue) {
-      this.s.dialogue.onIdle = () => {
-        showControlsHint(this.s);
-        if (this.s.dialogue) this.s.dialogue.onIdle = undefined;
-      };
-    }
-    try { this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 3200); } catch { /* */ }
+    // Meeting already happened in the hook (or was skipped). Ease into play
+    // with the controls hint only — no second monologue, no jump-cut to silence.
+    showControlsHint(this.s);
   }
 
     /** Resume a solved office: doors already OPEN from the save. */
