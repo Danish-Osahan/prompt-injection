@@ -18,6 +18,7 @@ import { ImpactLab } from './impact/ImpactLab';
 import type { TitleStartData } from './title';
 import { IntroCutscene } from './intro';
 import { Dialogue, type SayWho } from './dialogue';
+import { GlassRain } from './rain';
 import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
@@ -107,6 +108,7 @@ export class GameScene extends Phaser.Scene {
   introPending = false;
   intro: IntroCutscene | null = null;
   dialogue: Dialogue | null = null;
+  glassRain: GlassRain | null = null;
   playAcc = 0;
   roomCard?: Phaser.GameObjects.Container;
   endScreen?: Phaser.GameObjects.Container;
@@ -397,6 +399,7 @@ export class GameScene extends Phaser.Scene {
     for (const o of this.objs) o.destroy();
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
+    this.glassRain?.destroy(); this.glassRain = null;
     this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
     this.impactLab?.stop(); this.impactLab = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
@@ -584,6 +587,7 @@ export class GameScene extends Phaser.Scene {
         }
       } else { this.plateById('r_guard')?.setVisibleState(false); this.plateById('r_weak')?.setVisibleState(false); }
     }
+    if (id === 'office') { this.glassRain?.destroy(); this.glassRain = new GlassRain(this); }
     if (id === 'message') {
       const wall = this.add.container(640, 60).setDepth(-850).setVisible(!this.art); this.objs.push(wall);
       const shard = this.add.text(640, 520, 'FILED: \u2588\u2588/\u2588\u2588', { fontFamily: 'JetBrains Mono', fontSize: '18px', fontStyle: 'bold', color: C.lamp }).setOrigin(0.5).setDepth(2000).setAlpha(0); this.objs.push(shard);
@@ -952,6 +956,7 @@ export class GameScene extends Phaser.Scene {
   /** rendered ambient loops (Blender frames, one strip per loop) + a few code particles where light catches dust */
   buildAmbient(id: RoomId) {
     for (const d of this.office && !this.office.legacy ? [] : ROOMART[id]?.amb ?? []) {
+      if (id === 'office' && d.name === 'rain') continue; // replaced by GlassRain
       if (!this.textures.exists(d.key)) continue;
       const spr = this.add.sprite(d.x, d.y, d.key, 0).setOrigin(0).setDepth(d.baseY < 0 ? -998 : d.baseY); this.objs.push(spr);
       this.amb.push({ def: d, spr, dir: 1, speed: 1, t: Math.random() * 10, ox: d.x, oy: d.y });
@@ -1324,6 +1329,7 @@ export class GameScene extends Phaser.Scene {
       f.pause = false;
       this.noor?.setPosition(this.x, this.y).setDepth(this.y + 24);
       try { this.shadow?.setPosition(this.x, this.y + 8).setDepth(this.y - 1); } catch { /* */ }
+      this.glassRain?.update(Math.min(dms / 1000, 0.05));
       return;
     }
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
@@ -1335,6 +1341,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.t += dt;
     this.dialogue?.update(dt);
+    this.glassRain?.update(dt);
     this.dashCd = Math.max(0, this.dashCd - dt); this.iframes = Math.max(0, this.iframes - dt); this.comboT -= dt; this.swingT -= dt; this.sinceDash += dt;
 
     // cutscene skip: hold X (or hold the top-right of the screen) after the first viewing
@@ -1650,7 +1657,7 @@ export class GameScene extends Phaser.Scene {
         if (op === 'undo') return sp.undo();
         return sp.state();
       },
-      openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
+      openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { if (!this.impactLab.lampReady) this.impactLab.unlockLamp(); this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
       skipIntro: () => { if (this.intro?.playing) { this.intro.skip(); return true; } return !this.intro?.playing; },
       endScreen: () => { showEndScreen(this); return true; },
       toMenu: () => { backToTitle(this); return true; },

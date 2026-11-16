@@ -302,6 +302,7 @@ export class IntroCutscene {
       if (a.def?.name !== 'rain') continue;
       try { if (on) a.spr.anims.pause(); else a.spr.anims.resume(); } catch { /* */ }
     }
+    try { this.s.glassRain?.pause(on); } catch { /* */ }
   }
 
   private clear() {

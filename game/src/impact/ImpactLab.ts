@@ -26,9 +26,9 @@ const WALL_FLOOR_Y = 202;
 const PANEL = { x: 276, y: 167 };
 const PANEL_SPRITE = { x: 265, y: 151 };
 /** Desk lamp interact / spark point. Sprite is placed at LAMP_SPRITE with origin 0,0. */
-const LAMP = { x: 178, y: 291 };
-const LAMP_SPRITE = { x: 150, y: 256 };
-const LAMP_SCALE = 1;
+const LAMP = { x: 180, y: 300 };
+const LAMP_SPRITE = { x: 154, y: 270 };
+const LAMP_SCALE = 0.92;
 const SEAM_POS = { x: 202, y: 81 };
 const SPILL_POS = { x: 140, y: 202 };
 const IND_OFF_POS = { x: 193, y: 69 };
@@ -50,6 +50,7 @@ export const LIFT_OPEN_BOUNDS = {
 export class ImpactLab {
   on = false;
   stealMode = false;
+  lampReady = false;
   fx!: ImpactFX;
   lure?: OnboardLure;
   carrying = false;
@@ -98,6 +99,7 @@ export class ImpactLab {
     this.stealMode = true;
 
     const alreadyOpen = this.s.plateById('o_door')?.slotWord === 'OPEN';
+    this.lampReady = !!this.s.labMode || alreadyOpen;
     if (!alreadyOpen) {
       const door = this.s.plateById('o_door');
       if (door && door.slotWord !== 'SHUT') {
@@ -330,13 +332,20 @@ export class ImpactLab {
   }
 
   private setupLure() {
-    this.lure = new OnboardLure(this.s, LAMP, PANEL, {
+    const src = this.lampReady ? LAMP : PANEL;
+    this.lure = new OnboardLure(this.s, src, PANEL, {
       nearR: 110,
       sourceGlowSize: { w: 22, h: 28 },
       targetGlowSize: { w: 16, h: 22 },
     });
     this.lure.sourceAct = (t) => {
       if (!this.lampOn || !this.lampSpr) return;
+      if (!this.lampReady) {
+        // Quiet until the dead lift has been tried — a hint, not a solve.
+        const dim = 0.55 + 0.08 * Math.sin(t * 2.2);
+        this.lampSpr.setAlpha(dim);
+        return;
+      }
       const flick = Math.sin(t * 17) * Math.sin(t * 3.1);
       const on = flick > -0.5;
       const onK = this.s.textures.exists('lift_lamp_on') ? (on ? 'lift_lamp_on' : 'lift_lamp_off')
@@ -408,7 +417,11 @@ export class ImpactLab {
     const f = this.s.ctl.read();
     const nearLamp = Math.hypot(this.s.x - LAMP.x, this.s.y - LAMP.y) < 130;
 
-    if (nearLamp && f.interactHeld && !this.carrying && !this.flying && !this.done && this.lampOn) {
+    const nearPanel = Math.hypot(this.s.x - PANEL.x, this.s.y - PANEL.y) < 130;
+    if (!this.lampReady && !this.done && nearPanel && f.interactHeld) {
+      this.peelT += dt;
+      if (this.peelT >= 0.35) { this.peelT = 0; this.unlockLamp(); }
+    } else if (nearLamp && this.lampReady && f.interactHeld && !this.carrying && !this.flying && !this.done && this.lampOn) {
       this.peelT += dt;
       try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
       if (this.peelT >= this.peelNeed) {
@@ -468,7 +481,16 @@ export class ImpactLab {
     return { x: -16, y: -56 };
   }
 
+  unlockLamp() {
+    if (this.lampReady) return;
+    this.lampReady = true;
+    if (this.lure) this.lure.source = { x: LAMP.x, y: LAMP.y, radius: 130 };
+    try { sfx('tell'); } catch { /* */ }
+    try { this.s.say('fern', "The lamp. That's the only thing still drawing power.", 2800); } catch { /* */ }
+  }
+
   takeSpark() {
+    if (!this.lampReady || !this.lampOn) return;
     this.carrying = true;
     this.lampOn = false;
     this.s.hand = null;

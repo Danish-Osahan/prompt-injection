@@ -1,5 +1,11 @@
 # HANDOFF
 
+## 2026-11-16 — Level 1 pass 2, item D: office polish
+
+- **Props.** O11 furniture is already registered to the bleed plate (zero pixel offset on every desk/chair). The hanging/overlapping object Danishpreet saw is largely the banker lamp: its shade sat off the back of desk_podW like a floating green dome. Re-seated it onto the desk top (`LAMP_SPRITE` 154,270, scale 0.92; interact point 180,300). Baked desktop clutter (papers, mugs) lives in the plate itself — not re-rendered (no Blender pass; do not touch `art/out`).
+- **Rain.** Replaced the old cyan-dash amb sheet with a code-drawn glass overlay (`game/src/rain.ts`): a cool glaze over the window, faint distant streaks, condensation tracks, droplets running down the pane, mullions and a top highlight. Color is matched to the night glass, not the bright sticker rain. Pauses with the opening freeze. Cheaper than a new Blender window.
+- **Interaction.** Power rules (C1 / "no steal in the real world" until the lamp teach) mean the first peel must stay the lamp, not a pre-lamp steal. So the lamp is quiet and cannot be taken until Noor tries the dead lift panel (E). The lure starts on the panel; after inspect, Fern says "The lamp. That's the only thing still drawing power," and the lamp flickers and can be peeled as before. `openLift` (playtest) unlocks first so tests stay green. `?impact` lab still starts with the lamp ready.
+
 ## 2026-11-16 — Level 1 pass 2, item C: music and SFX
 
 Added CC0 music and a few new SFX (zero spend). Separate Music and SFX sliders in Title → Settings, persisted as `pi.settings.v1` (`music`, `sfx`; legacy `volume` still loads).
