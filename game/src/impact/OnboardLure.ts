@@ -23,6 +23,7 @@ export class OnboardLure {
   /** Optional hook when near source and not carrying. */
   onNearSource?: () => void;
   carrying = false;
+  hidden = false;
   private destroyed = false;
   private label?: Phaser.GameObjects.Text;
   private ring?: Phaser.GameObjects.Graphics;
@@ -107,6 +108,15 @@ export class OnboardLure {
 
   update(dt: number) {
     if (this.destroyed) return;
+    if (this.hidden) {
+      this.sourceGlow?.setAlpha(0);
+      this.sourceGlyph?.setAlpha(0);
+      this.targetGlow?.setAlpha(0);
+      this.targetGlyph?.setAlpha(0);
+      this.label?.setAlpha(0);
+      this.ring?.setAlpha(0);
+      return;
+    }
     const t = this.s.t;
     this.sourceAct?.(t, dt);
     this.sourceGlow?.setPosition(this.source.x, this.source.y - 22);

@@ -73,7 +73,7 @@ export class ImpactLab {
   private liftCab?: Phaser.GameObjects.Image;
   private panelSpr?: Phaser.GameObjects.Image;
   private floorInd?: Phaser.GameObjects.Image;
-  private heldOrb?: Phaser.GameObjects.Sprite;
+  private heldOrb?: Phaser.GameObjects.Container;
   private bolt?: Phaser.GameObjects.Sprite;
   private boltT = 0;
   private boltBeam?: Phaser.GameObjects.Graphics;
@@ -478,16 +478,16 @@ export class ImpactLab {
     if (this.draining) {
       this.drainT += dt;
       this.tickDrain();
-      if (this.drainT >= 1.08) this.finishDrain();
+      if (this.drainT >= ImpactLab.SPARK_DRAIN) this.finishDrain();
     }
 
     if (this.carrying && this.heldOrb) {
       const h = this.handOff();
       const hx = this.s.x + h.x, hy = this.s.y + h.y;
-      this.heldOrb.setPosition(hx, hy);
-      const fi = Math.floor(this.s.t * 10) % 4;
-      if (this.s.textures.exists('fx_spark_orb_' + fi)) this.heldOrb.setTexture('fx_spark_orb_' + fi);
-      if (this.drainBloom && this.drainBloom.active) this.drainBloom.setPosition(hx, hy);
+      this.heldOrb.setPosition(hx, hy).setDepth(this.s.y + 28);
+      const pulse = 1 + Math.sin(this.s.t * 5.2) * 0.08;
+      this.heldOrb.setScale(pulse);
+      this.tickHeldCrackle(dt, hx, hy);
     }
 
     if (this.carrying && this.keyF && Phaser.Input.Keyboard.JustDown(this.keyF) && !this.flying) {
@@ -525,11 +525,69 @@ export class ImpactLab {
     }
   }
 
+  /** Seconds for the lamp-peel stream. Keep in the 0.6–0.9s window. */
+  static readonly SPARK_DRAIN = 0.82;
+
+  /** Palm on the reaching side, mid-torso — never over the head. */
   private handOff() {
-    const d = this.s.dir;
-    if (d.includes('W')) return { x: -22, y: -52 };
-    if (d.includes('E')) return { x: 22, y: -52 };
-    return { x: -16, y: -56 };
+    const d = this.s.dir || 'S';
+    let vx = 0, vy = 0;
+    if (d.includes('E')) vx += 1;
+    if (d.includes('W')) vx -= 1;
+    if (d.includes('S')) vy += 1;
+    if (d.includes('N')) vy -= 1;
+    const l = Math.hypot(vx, vy) || 1;
+    vx /= l; vy /= l;
+    // Lateral from the torso, kept low. In this camera the head occupies the
+    // upper facing side, so a "toward the lamp" offset would sit on her face.
+    const side = vx >= 0 ? 1 : -1;
+    return { x: side * 30 + vx * 4, y: -16 + Math.max(-2, vy * 6) };
+  }
+
+  private faceLamp() {
+    const ang = Math.atan2(LAMP.y - this.s.y, LAMP.x - this.s.x);
+    const dirs = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'] as const;
+    this.s.dir = dirs[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
+  }
+
+  private makeWarmOrb(x: number, y: number) {
+    const c = this.s.add.container(x, y).setDepth(this.s.y + 28);
+    const bloom = this.s.add.ellipse(0, 0, 30, 30, 0xff8a32, 0.32).setBlendMode(Phaser.BlendModes.ADD);
+    const mid = this.s.add.ellipse(0, 0, 16, 16, 0xffc878, 0.55).setBlendMode(Phaser.BlendModes.ADD);
+    const core = this.s.add.ellipse(0, 0, 7, 7, 0xfff4c8, 0.95).setBlendMode(Phaser.BlendModes.ADD);
+    c.add([bloom, mid, core]);
+    this.s.objs.push(c, bloom, mid, core);
+    return c;
+  }
+
+  private crackleG?: Phaser.GameObjects.Graphics;
+  private crackleT = 0;
+  private streamParts: { t: number; delay: number; speed: number; wob: number; spr: Phaser.GameObjects.Arc }[] = [];
+
+  private tickHeldCrackle(dt: number, x: number, y: number) {
+    this.crackleT -= dt;
+    if (this.crackleT > 0 && this.crackleG) return;
+    this.crackleT = 0.28 + Math.random() * 0.35;
+    if (!this.crackleG) {
+      this.crackleG = this.s.add.graphics().setDepth(this.s.y + 30).setBlendMode(Phaser.BlendModes.ADD);
+      this.s.objs.push(this.crackleG);
+    }
+    const g = this.crackleG;
+    g.clear().setPosition(0, 0).setDepth(this.s.y + 30);
+    const n = 1 + (Math.random() * 2) | 0;
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const r = 8 + Math.random() * 10;
+      g.lineStyle(1.2, 0xffd090, 0.7);
+      g.beginPath();
+      g.moveTo(x, y);
+      const mx = x + Math.cos(a) * r * 0.5 + (Math.random() - 0.5) * 4;
+      const my = y + Math.sin(a) * r * 0.5 + (Math.random() - 0.5) * 4;
+      g.lineTo(mx, my);
+      g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r);
+      g.strokePath();
+    }
+    this.s.tweens.add({ targets: g, alpha: { from: 1, to: 0 }, duration: 120, onComplete: () => { if (this.crackleG === g) g.clear(); } });
   }
 
   /** Tap or hold at the dead call panel: she tries it, it fizzles, the lamp unlocks. */
@@ -585,99 +643,140 @@ export class ImpactLab {
     try { sfx('crackle'); } catch { /* */ }
     try { sfx('impact_hum'); } catch { /* */ }
 
-    const veil = this.s.add.ellipse(LAMP.x, LAMP.y, 240, 170, 0x03070c, 0).setDepth(LAMP.y + 4);
+    this.faceLamp();
+    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
+
+    const veil = this.s.add.ellipse(LAMP.x, LAMP.y, 280, 200, 0x03070c, 0).setDepth(LAMP.y + 4);
     this.drainVeil = veil;
     this.s.objs.push(veil);
-    this.s.tweens.add({ targets: veil, alpha: 0.55, duration: 380, ease: 'Sine.easeIn' });
+    this.s.tweens.add({ targets: veil, alpha: 0.62, duration: 420, ease: 'Sine.easeIn' });
 
-    this.drainG = this.s.add.graphics().setDepth(7190);
+    if (this.lure) this.lure.hidden = true;
+
+    const streamDepth = Math.max(LAMP.y, this.s.y) + 36;
+    this.drainG = this.s.add.graphics().setDepth(streamDepth).setBlendMode(Phaser.BlendModes.ADD);
     this.s.objs.push(this.drainG);
 
-    const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : 'fx_spark_core';
-    const orb = this.s.add.sprite(LAMP.x, LAMP.y - 16, key)
-      .setDepth(7100).setScale(0.35).setAlpha(0.2).setBlendMode(Phaser.BlendModes.ADD);
-    this.heldOrb = orb;
-    this.s.objs.push(orb);
-    const bloom = this.s.add.ellipse(LAMP.x, LAMP.y - 16, 22, 22, 0xc8f4ff, 0)
-      .setDepth(7090).setBlendMode(Phaser.BlendModes.ADD);
-    this.drainBloom = bloom;
-    this.s.objs.push(bloom);
+    // Warm orb stays hidden until the stream condenses at the palm — never a white star.
+    const h = this.handOff();
+    this.heldOrb = this.makeWarmOrb(this.s.x + h.x, this.s.y + h.y);
+    this.heldOrb.setAlpha(0).setScale(0.3);
+
+    this.streamParts.forEach(p => { try { p.spr.destroy(); } catch { /* */ } });
+    this.streamParts = [];
+    for (let i = 0; i < 18; i++) {
+      const spr = this.s.add.circle(LAMP.x, LAMP.y - 22, 1.8 + Math.random() * 2.2, i % 3 === 0 ? 0xfff3c8 : 0xffb060, 0)
+        .setDepth(Math.max(LAMP.y, this.s.y) + 38).setBlendMode(Phaser.BlendModes.ADD);
+      this.s.objs.push(spr);
+      this.streamParts.push({ t: 0, delay: 0.04 + i * 0.028, speed: 0.9 + Math.random() * 0.35, wob: (Math.random() - 0.5) * 10, spr });
+    }
+  }
+
+  private streamCurve() {
+    const h = this.handOff();
+    const p0 = { x: LAMP.x, y: LAMP.y - 22 };
+    const p2 = { x: this.s.x + h.x, y: this.s.y + h.y };
+    const dx = p2.x - p0.x, dy = p2.y - p0.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const nx = -dy / len, ny = dx / len;
+    // Bow the ribbon up and aside so it clearly leaves the shade and curves into the palm.
+    const p1 = { x: (p0.x + p2.x) / 2 + nx * 34, y: (p0.y + p2.y) / 2 + ny * 16 - 28 };
+    return { p0, p1, p2 };
+  }
+
+  private bez(p0: { x: number; y: number }, p1: { x: number; y: number }, p2: { x: number; y: number }, t: number) {
+    const u = 1 - t;
+    return { x: u * u * p0.x + 2 * u * t * p1.x + t * t * p2.x, y: u * u * p0.y + 2 * u * t * p1.y + t * t * p2.y };
   }
 
   private tickDrain() {
     const t = this.drainT;
+    const dur = ImpactLab.SPARK_DRAIN;
     const h = this.handOff();
     const hx = this.s.x + h.x, hy = this.s.y + h.y;
-    const lx = LAMP.x, ly = LAMP.y - 16;
+    const { p0, p1, p2 } = this.streamCurve();
 
-    // Lamp stutters, then the shade drains.
-    if (this.lampSpr && t < 0.48) {
-      const on = (Math.sin(t * 90) * Math.sin(t * 17)) > 0 || Math.random() > 0.55;
+    // Lamp flickers, then the shade goes dark as the light is pulled out.
+    if (this.lampSpr && t < 0.36) {
+      const on = (Math.sin(t * 70) * Math.sin(t * 15)) > 0.15;
       const onK = this.s.textures.exists('lift_lamp_on') ? (on ? 'lift_lamp_on' : 'lift_lamp_off')
         : (on ? 'fx_lamp_on' : 'fx_lamp_off');
       if (this.s.textures.exists(onK)) this.lampSpr.setTexture(onK);
-      this.lampSpr.setAlpha(on ? 1 : 0.45);
+      this.lampSpr.setAlpha(on ? 1 : 0.4);
     } else if (this.lampSpr) {
       const k = this.s.textures.exists('lift_lamp_off') ? 'lift_lamp_off' : 'fx_lamp_off';
       if (this.s.textures.exists(k)) this.lampSpr.setTexture(k);
-      this.lampSpr.setAlpha(Math.max(0.25, 0.7 - (t - 0.48) * 0.7));
+      this.lampSpr.setAlpha(Math.max(0.2, 0.65 - (t - 0.36) * 0.9));
     }
 
-    // Arcs crawl lamp → hand.
-    const travel = Math.max(0, Math.min(1, (t - 0.12) / 0.7));
-    const ease = 1 - Math.pow(1 - travel, 2);
-    const ox = lx + (hx - lx) * ease;
-    const oy = ly + (hy - ly) * ease;
+    const travel = Math.max(0, Math.min(1, t / (dur - 0.10)));
+    const ease = 1 - Math.pow(1 - travel, 1.6);
+    this.drainG?.setDepth(Math.max(LAMP.y, this.s.y) + 36);
+    this.drawDrainStream(p0, p1, p2, ease);
+
+    for (const p of this.streamParts) {
+      const u = (t - p.delay) * p.speed / (dur * 0.75);
+      if (u <= 0) { p.spr.setAlpha(0); continue; }
+      if (u >= 1) {
+        p.spr.setAlpha(Math.max(0, 1 - (u - 1) * 4));
+        p.spr.setPosition(p2.x, p2.y);
+        continue;
+      }
+      const pt = this.bez(p0, p1, p2, u);
+      p.spr.setPosition(pt.x + Math.sin(t * 14 + p.wob) * 2, pt.y + p.wob * (1 - u) * 0.3);
+      p.spr.setAlpha(0.55 + 0.45 * Math.sin(u * Math.PI));
+      p.spr.setScale(1.1 - u * 0.3);
+    }
+
+    // Condense at the palm in the last third — a small warm orb, not a star.
+    const condense = Math.max(0, (t - dur * 0.52) / (dur * 0.48));
     if (this.heldOrb) {
-      this.heldOrb.setPosition(ox, oy);
-      this.heldOrb.setScale(0.35 + ease * 0.55);
-      this.heldOrb.setAlpha(0.25 + ease * 0.75);
-      const fi = Math.floor(this.s.t * 14) % 4;
-      if (this.s.textures.exists('fx_spark_orb_' + fi)) this.heldOrb.setTexture('fx_spark_orb_' + fi);
+      this.heldOrb.setPosition(hx, hy).setDepth(this.s.y + 28);
+      this.heldOrb.setAlpha(Math.min(1, condense * 1.4));
+      this.heldOrb.setScale(0.35 + Math.min(1, condense) * 0.65);
     }
-    if (this.drainBloom) {
-      this.drainBloom.setPosition(ox, oy);
-      const pulse = 1 + Math.sin(t * 28) * 0.12;
-      this.drainBloom.setScale((0.8 + ease * 1.1) * pulse);
-      this.drainBloom.setAlpha(0.15 + ease * 0.45);
-    }
-    this.drawDrainArcs(lx, ly, ox, oy, travel);
 
-    if (!this.drainShook && t >= 0.72) {
+    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
+
+    if (!this.drainShook && t >= dur * 0.7) {
       this.drainShook = true;
-      try { this.s.cameras.main.shake(70, 0.0035); } catch { /* */ }
+      try { this.s.cameras.main.shake(60, 0.0025); } catch { /* */ }
       try { sfx('crackle', 0.8); } catch { /* */ }
       try { sfx('steal'); } catch { /* */ }
     }
   }
 
-  private drawDrainArcs(x0: number, y0: number, x1: number, y1: number, u: number) {
+  private drawDrainStream(
+    p0: { x: number; y: number },
+    p1: { x: number; y: number },
+    p2: { x: number; y: number },
+    u: number,
+  ) {
     const g = this.drainG;
     if (!g) return;
     g.clear();
-    if (u <= 0) return;
-    try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-    const segs = 7;
-    for (let pass = 0; pass < 3; pass++) {
-      const col = pass === 0 ? 0xe8f8ff : pass === 1 ? 0x7ad8ff : 0xf6c684;
-      g.lineStyle(pass === 0 ? 2.4 : 1.2, col, 0.55 - pass * 0.12);
-      g.beginPath();
-      g.moveTo(x0, y0);
-      for (let i = 1; i <= segs; i++) {
-        const t = i / segs;
-        const jx = (Math.random() - 0.5) * (10 - pass * 2);
-        const jy = (Math.random() - 0.5) * (10 - pass * 2);
-        g.lineTo(x0 + (x1 - x0) * t + jx, y0 + (y1 - y0) * t + jy);
+    if (u <= 0.01) return;
+    const steps = 22;
+    // Warm ribbon along the bezier, tapering toward the palm.
+    for (let pass = 0; pass < 2; pass++) {
+      const col = pass === 0 ? 0xff9a3a : 0xffe0a0;
+      const midW = pass === 0 ? 10 : 4.5;
+      for (let i = 0; i < steps; i++) {
+        const t0 = (i / steps) * u, t1 = ((i + 1) / steps) * u;
+        const a = this.bez(p0, p1, p2, t0), b = this.bez(p0, p1, p2, t1);
+        const fade = 0.7 * (1 - t0 * 0.35);
+        const w0 = midW * (1 - t0 * 0.65), w1 = midW * (1 - t1 * 0.65);
+        const dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1;
+        const nx = -dy / l, ny = dx / l;
+        g.fillStyle(col, fade);
+        g.fillTriangle(a.x + nx * w0, a.y + ny * w0, a.x - nx * w0, a.y - ny * w0, b.x + nx * w1, b.y + ny * w1);
+        g.fillTriangle(a.x - nx * w0, a.y - ny * w0, b.x + nx * w1, b.y + ny * w1, b.x - nx * w1, b.y - ny * w1);
       }
-      g.strokePath();
     }
-    // Tiny ticks around the gathering orb
-    for (let i = 0; i < 4; i++) {
-      const a = this.s.t * 12 + i * Math.PI * 0.5;
-      const r = 8 + (i % 2) * 5;
-      g.lineStyle(1, 0xc8f4ff, 0.7);
-      g.lineBetween(x1, y1, x1 + Math.cos(a) * r, y1 + Math.sin(a) * r);
-    }
+    // A brighter leading edge along the current tip.
+    const tip = this.bez(p0, p1, p2, u);
+    g.fillStyle(0xfff3c8, 0.85).fillCircle(tip.x, tip.y, 3.2);
+    g.fillStyle(0xff9a3a, 0.35).fillCircle(p0.x, p0.y, 5);
   }
 
   private finishDrain() {
@@ -685,6 +784,7 @@ export class ImpactLab {
     this.draining = false;
     this.lampOn = false;
     this.carrying = true;
+    if (this.lure) this.lure.hidden = false;
     this.lure?.setCarrying(true);
     if (this.lampSpr) {
       const k = this.s.textures.exists('lift_lamp_off') ? 'lift_lamp_off' : 'fx_lamp_off';
@@ -693,22 +793,13 @@ export class ImpactLab {
     }
     if (this.drainVeil) {
       const v = this.drainVeil;
-      this.s.tweens.add({ targets: v, alpha: 0, duration: 280, onComplete: () => { try { v.destroy(); } catch { /* */ } } });
-      this.drainVeil = undefined;
+      this.s.tweens.add({ targets: v, alpha: 0.28, duration: 360 });
     }
     if (this.drainG) { try { this.drainG.destroy(); } catch { /* */ } this.drainG = undefined; }
-    if (this.drainBloom) {
-      const b = this.drainBloom;
-      this.s.tweens.add({
-        targets: b, alpha: 0.25, scale: 1.15, duration: 240, yoyo: true, repeat: -1,
-      });
-    }
+    for (const p of this.streamParts) { try { p.spr.destroy(); } catch { /* */ } }
+    this.streamParts = [];
     const h = this.handOff();
-    if (this.heldOrb) this.heldOrb.setPosition(this.s.x + h.x, this.s.y + h.y).setScale(0.9).setAlpha(1);
-    try {
-      this.s.noor.setTint(0xc8e8ff);
-      this.s.time.delayedCall(400, () => { try { this.s.noor.clearTint(); } catch { /* */ } });
-    } catch { /* */ }
+    if (this.heldOrb) this.heldOrb.setPosition(this.s.x + h.x, this.s.y + h.y).setScale(1).setAlpha(1).setDepth(this.s.y + 28);
     try { this.s.say('noor', 'What— what is this?', 1800); } catch { /* */ }
     if (this.throwQueued) {
       this.throwQueued = false;
@@ -792,6 +883,11 @@ export class ImpactLab {
   private clearCarryFx() {
     this.heldOrb?.destroy(); this.heldOrb = undefined;
     if (this.drainBloom) { try { this.s.tweens.killTweensOf(this.drainBloom); this.drainBloom.destroy(); } catch { /* */ } this.drainBloom = undefined; }
+    this.drainG?.destroy(); this.drainG = undefined;
+    this.drainVeil?.destroy(); this.drainVeil = undefined;
+    this.crackleG?.destroy(); this.crackleG = undefined;
+    for (const p of this.streamParts) { try { p.spr.destroy(); } catch { /* */ } }
+    this.streamParts = [];
     this.bolt?.destroy(); this.bolt = undefined;
     this.boltBeam?.destroy(); this.boltBeam = undefined;
   }

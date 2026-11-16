@@ -1,5 +1,16 @@
 # HANDOFF
 
+## 2026-11-16 — Lamp steal: light pulls from the shade into a warm orb
+
+User note on the post-`46c4e89` steal (screenshot `/workspace/u6-spark.png`): a flat white starburst sticker sat on Noor's face and did not read as a peel. Playtest 193/193.
+
+Noor turns toward the lamp and reaches. Over ~0.82s the shade's light pulls out as a warm bezier ribbon and glowing particles that curve into her palm. The lamp dims and a dark veil gathers around it. The energy condenses into a small warm orb with an additive bloom and a gentle pulse, held at her hand on the side of the torso — not over her head. Occasional short crackle arcs flick off it. The old `fx_spark_orb` star frames are gone from this beat. The E lure hides while the stream is on screen so it doesn't cover the pull.
+
+Review stills (not in the repo): `/workspace/l1-steal-start-2x.png`, `/workspace/l1-steal-mid-2x.png`, `/workspace/l1-steal-held-2x.png`.
+
+Leftovers: DENIED in the opening (item 4); office explorables (item 5); lost-line collectibles (item 6); complaint-bodied enemies (item 7). The "raise her hand" read is a type pose, not a new reach sheet.
+
+
 ## 2026-11-16 — E always responds, and the J combo is three melee crescents
 
 User notes on `46c4e89` (screenshot `/workspace/u5-e-prompt.png`: a bare E over Noor at the lift). Items 1–2 only in this commit. Playtest 193/193 (two new real-keyboard tests).
