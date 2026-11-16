@@ -13,7 +13,7 @@ const C = tokens.color;
 const FONT = 'JetBrains Mono';
 const UI = 'IBM Plex Mono';
 // Feet south of desk_noor (solid ends ~y=507) so she sits in front of the desk, not through it.
-const DESK = { x: 988, y: 548 }; // seated in the new chair_noor, just south of the desk
+const DESK = { x: 988, y: 556 }; // seated in the new chair_noor, just south of the desk
 const LAMP = { x: 178, y: 268 };
 
 export class IntroCutscene {
