@@ -63,6 +63,13 @@ export class Dialogue {
   onIdle?: () => void;
   onSpeak?: (who: SayWho, line: string) => void;
   private baseX = 0;
+  private holoBaseX?: number;
+  private holoBody?: Phaser.GameObjects.Sprite;
+  private holoGlow?: Phaser.GameObjects.Sprite;
+  private portraitSpr?: Phaser.GameObjects.Sprite;
+  private portraitEyes?: Phaser.GameObjects.Graphics;
+  private fernEmotes: Phaser.GameObjects.GameObject[] = [];
+  private fernActUntil = 0;
 
   constructor(s: GameScene) {
     this.s = s;
@@ -91,23 +98,26 @@ export class Dialogue {
   }
 
   update(_dt: number) {
-    if (this.arrow && this.arrow.visible) {
-      this.arrow.setAlpha(0.45 + 0.55 * Math.sin(this.s.t * 6));
-    }
-    if (this.angry && this.root) {
-      this.root.x = this.baseX + Math.sin(this.s.t * 48) * 1.4;
-    }
-    if (this.holo && this.holo.active) {
-      const bob = Math.sin(this.s.t * 2.1) * 2.6;
-      if (this.holoBaseY != null) this.holo.y = this.holoBaseY + bob;
-      const flick = 0.92 + Math.sin(this.s.t * 19) * 0.05 + (Math.random() < 0.03 ? -0.08 : 0);
-      this.holo.setAlpha(Math.max(0.78, Math.min(1, flick)));
-      if (this.beamLife > 0) {
-        this.beamLife = Math.max(0, this.beamLife - _dt);
-        this.drawBeam(this.beamLife / 0.7);
-        if (this.beamLife <= 0) { try { this.beamG?.clear(); } catch { /* */ } }
+    try {
+      if (this.living(this.arrow) && this.arrow!.visible) {
+        this.arrow!.setAlpha(0.45 + 0.55 * Math.sin(this.s.t * 6));
       }
-    }
+      if (this.angry && this.living(this.root)) {
+        this.root!.x = this.baseX + Math.sin(this.s.t * 48) * 1.4;
+      }
+      if (this.living(this.holo)) {
+        const acting = this.s.time.now < this.fernActUntil;
+        const bob = acting ? 0 : Math.sin(this.s.t * 2.1) * 2.6;
+        if (!acting && this.holoBaseY != null) this.holo!.y = this.holoBaseY + bob;
+        const flick = 0.92 + Math.sin(this.s.t * 19) * 0.05 + (Math.random() < 0.03 ? -0.08 : 0);
+        this.holo!.setAlpha(Math.max(0.78, Math.min(1, flick)));
+        if (this.beamLife > 0) {
+          this.beamLife = Math.max(0, this.beamLife - _dt);
+          this.drawBeam(this.beamLife / 0.7);
+          if (this.beamLife <= 0) { try { this.beamG?.clear(); } catch { /* */ } }
+        }
+      }
+    } catch { /* never let a stale sprite take the page down */ }
   }
 
   clear() {
@@ -118,8 +128,11 @@ export class Dialogue {
     this.waiting = false;
     this.typed = ''; this.full = '';
     this.letterBits = [];
+    this.clearFernAct();
     this.root?.destroy(); this.root = undefined;
-    this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined;
+    this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined; this.holoBaseX = undefined;
+    this.holoBody = undefined; this.holoGlow = undefined;
+    this.portraitSpr = undefined; this.portraitEyes = undefined;
     try { this.beamG?.destroy(); } catch { /* */ } this.beamG = undefined; this.beamLife = 0;
     this.arrow = undefined;
     this.source = undefined;
@@ -212,6 +225,8 @@ export class Dialogue {
       const old = this.holo;
       this.s.tweens.add({ targets: old, alpha: 0, y: old.y + 16, duration: 180, onComplete: () => old.destroy() });
       this.holo = undefined;
+      this.holoBody = undefined;
+      this.holoGlow = undefined;
     }
     this.source = src;
     this.glitchSource(src, 420);
@@ -262,6 +277,8 @@ export class Dialogue {
     try { body.play('fern_plant_S'); } catch { /* */ }
 
     c.add([glow, body]);
+    this.holoGlow = glow;
+    this.holoBody = body;
     s.tweens.add({
       targets: c,
       alpha: 1,
@@ -272,6 +289,7 @@ export class Dialogue {
       onComplete: () => { this.holoBaseY = pos.y; },
     });
     this.holo = c;
+    this.holoBaseX = pos.x;
     this.holoBaseY = pos.y;
     this.ensureBeam();
     this.beamLife = 0.7;
@@ -340,6 +358,7 @@ export class Dialogue {
     const box = this.makeLineBox(anchor.x, anchor.y, job, false, anchor.flip, anchor.speaker);
     this.root = box;
     this.baseX = box.x;
+    if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
 
@@ -360,8 +379,10 @@ export class Dialogue {
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
     const portrait = this.makePortrait(job.who);
-    portrait.setPosition(-w / 2 + 64, 8);
-    const tag = this.namePlate(-w / 2 + 18, -h / 2, this.tagFor(job.who), job.who, false);
+    // Vertically centred in the box; 16px inset from the left. Name plate sits
+    // over the text column so it never covers the portrait art.
+    portrait.setPosition(-w / 2 + 16 + 48, 0);
+    const tag = this.namePlate(-w / 2 + padL, -h / 2, this.tagFor(job.who), job.who, false);
     for (const tw of words) tw.setPosition(-w / 2 + padL + tw.x, -h / 2 + padT + tw.y);
     this.arrow = s.add.text(w / 2 - 22, h / 2 - 18, '▾', {
       fontFamily: FONT, fontSize: '16px', color: C.cyan,
@@ -370,6 +391,7 @@ export class Dialogue {
     this.root = c;
     this.baseX = c.x;
     s.tweens.add({ targets: c, alpha: 1, y, duration: 260, ease: 'Cubic.easeOut' });
+    if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
 
@@ -405,9 +427,10 @@ export class Dialogue {
     const padX = 18, padT = 28, padB = 22;
     const bw = maxW + padX * 2;
     const bh = maxH + padT + padB;
-    let px = x;
-    if (!flip && x + bw > 1260) px = Math.max(80, 1260 - bw);
-    if (flip && x - bw < 20) px = Math.min(1200, 20 + bw);
+    const placed = this.placeBubble({ x, y, flip, speaker }, bw, bh, padT);
+    const px = placed.x;
+    y = placed.y;
+    flip = placed.flip;
     const c = s.add.container(px, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.96);
     const ox = flip ? -bw : 0;
     const bg = this.cutPanel(ox, -padT, bw, bh, 0x07141c, 0.94, this.hexFor(job.who), 10);
@@ -633,10 +656,14 @@ export class Dialogue {
     this.root = undefined;
     this.letterBits = [];
     this.arrow = undefined;
+    this.portraitSpr = undefined;
+    this.portraitEyes = undefined;
     if (root) {
+      try { this.s.tweens.killTweensOf(root); } catch { /* */ }
+      try { for (const child of root.list ?? []) this.s.tweens.killTweensOf(child); } catch { /* */ }
       this.s.tweens.add({
         targets: root, alpha: 0, duration: 180,
-        onComplete: () => root.destroy(),
+        onComplete: () => { try { root.destroy(); } catch { /* */ } },
       });
     }
     // Keep Fern's hologram up briefly between her lines; dismiss if the next job isn't hers.
@@ -644,7 +671,10 @@ export class Dialogue {
     if (!next || next.who !== 'fern') {
       const h = this.holo;
       this.holo = undefined;
+      this.holoBody = undefined;
+      this.holoGlow = undefined;
       this.source = undefined;
+      this.clearFernAct();
       if (h) this.s.tweens.add({ targets: h, alpha: 0, y: h.y + 18, duration: 280, onComplete: () => h.destroy() });
     }
     this.at(200, () => { this.busy = false; this.kick(); });
@@ -664,14 +694,30 @@ export class Dialogue {
     frame.strokeRoundedRect(-SIZE / 2 - 1, -SIZE / 2 - 1, SIZE + 2, SIZE + 2, 9);
     c.add(frame);
     if (who === 'fern' && s.textures.exists('fern_plant')) {
-      const spr = s.add.sprite(0, 8, 'fern_plant', 'fern_plant_S_00');
-      spr.setOrigin(0.5, 0.55).setScale(SIZE / 186);
+      // Opaque plant is 160×153 starting at y=56 in a 160×220 frame; visual centre ~(80, 132).
+      // Atlas pivot is (0.5, 0.93) for the floor hologram — force the visual centre here
+      // or the pot sits mid-frame with a hole under it.
+      const PAD = 8;
+      const inner = SIZE - PAD * 2;
+      const scale = Math.min(inner / 160, inner / 153);
+      const ox = 0.5, oy = 132 / 220;
+      const spr = s.add.sprite(0, 0, 'fern_plant', 'fern_plant_S_00');
+      spr.setOrigin(ox, oy).setScale(scale);
       try { spr.play('fern_plant_S'); } catch { /* */ }
+      spr.setOrigin(ox, oy);
+      spr.on('animationupdate', () => { if (spr.active && spr.scene) spr.setOrigin(ox, oy); });
+      this.portraitSpr = spr;
+      const eyes = s.add.graphics();
+      eyes.setData('faceY', (96 - 132) * scale);
+      eyes.setData('faceScale', scale);
+      this.portraitEyes = eyes;
       c.add(spr);
+      c.add(eyes);
     } else if (who === 'noor' && s.textures.exists('noor_idle')) {
       const spr = s.add.sprite(0, 10, 'noor_idle', 'noor_idle_S_00');
       try { spr.setCrop(40, 20, 110, 110); } catch { /* */ }
       spr.setOrigin(0.5, 0.45).setScale(0.95);
+      this.portraitSpr = spr;
       c.add(spr);
     } else {
       const g = s.add.graphics();
@@ -705,6 +751,286 @@ export class Dialogue {
   private voiceWho(who: SayWho): VoiceWho {
     if (who === 'ai') return 'draft';
     return who;
+  }
+
+  /** Camera-visible world rect with a small margin. */
+  private viewRect() {
+    const v = this.s.cameras.main.worldView;
+    const pad = 18;
+    return { x: v.x + pad, y: v.y + pad, w: v.width - pad * 2, h: v.height - pad * 2 };
+  }
+
+  private screenToWorldRect(p: { x: number; y: number; w: number; h: number }) {
+    const cam = this.s.cameras.main;
+    const tl = cam.getWorldPoint(p.x, p.y);
+    const br = cam.getWorldPoint(p.x + p.w, p.y + p.h);
+    const x = Math.min(tl.x, br.x), y = Math.min(tl.y, br.y);
+    return { x, y, w: Math.abs(br.x - tl.x), h: Math.abs(br.y - tl.y) };
+  }
+
+  private avoidRects() {
+    const rects: { x: number; y: number; w: number; h: number }[] = [];
+    try {
+      const panels = this.s.intro?.panelBounds?.() ?? [];
+      for (const p of panels) {
+        rects.push(p.screen ? this.screenToWorldRect(p) : p);
+      }
+    } catch { /* */ }
+    return rects;
+  }
+
+  /** Keep a bubble inside the camera view and off open panels (mail, etc.). */
+  private placeBubble(
+    pref: { x: number; y: number; flip: boolean; speaker?: { x: number; y: number } },
+    bw: number, bh: number, padT: number,
+  ) {
+    const view = this.viewRect();
+    const avoids = this.avoidRects();
+    const box = (x: number, y: number, flip: boolean) => ({
+      x: flip ? x - bw : x,
+      y: y - padT,
+      w: bw,
+      h: bh,
+    });
+    const overlaps = (a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) =>
+      a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+    const clamp = (x: number, y: number, flip: boolean) => {
+      const r = box(x, y, flip);
+      if (r.x < view.x) x += view.x - r.x;
+      if (r.x + r.w > view.x + view.w) x -= (r.x + r.w) - (view.x + view.w);
+      if (r.y < view.y) y += view.y - r.y;
+      if (r.y + r.h > view.y + view.h) y -= (r.y + r.h) - (view.y + view.h);
+      return { x, y, flip, r: box(x, y, flip) };
+    };
+    const hits = (r: { x: number; y: number; w: number; h: number }) => avoids.some(a => overlaps(r, a));
+    const inView = (r: { x: number; y: number; w: number; h: number }) =>
+      r.x >= view.x - 1 && r.y >= view.y - 1 && r.x + r.w <= view.x + view.w + 1 && r.y + r.h <= view.y + view.h + 1;
+
+    const sp = pref.speaker ?? { x: pref.x, y: pref.y + 80 };
+    const tries: { x: number; y: number; flip: boolean }[] = [
+      { x: pref.x, y: pref.y, flip: pref.flip },
+      { x: pref.x, y: pref.y, flip: !pref.flip },
+      { x: sp.x + 48, y: sp.y - 90, flip: false },
+      { x: sp.x - 48, y: sp.y - 90, flip: true },
+      { x: sp.x + 48, y: sp.y + 36, flip: false },
+      { x: sp.x - 48, y: sp.y + 36, flip: true },
+    ];
+    for (const a of avoids) {
+      tries.push({ x: a.x - 14, y: pref.y, flip: true });
+      tries.push({ x: a.x + a.w + 14, y: pref.y, flip: false });
+      tries.push({ x: pref.x, y: a.y - bh + padT - 12, flip: pref.flip });
+      tries.push({ x: pref.x, y: a.y + a.h + padT + 12, flip: pref.flip });
+    }
+    for (const t of tries) {
+      const c = clamp(t.x, t.y, t.flip);
+      if (inView(c.r) && !hits(c.r)) return { x: c.x, y: c.y, flip: c.flip };
+    }
+    // Last resort: clamp the preferred pose into the view even if a panel still clips.
+    const fallback = clamp(pref.x, pref.y, pref.flip);
+    return { x: fallback.x, y: fallback.y, flip: fallback.flip };
+  }
+
+  private moodFrom(line: string): { mood: 'happy' | 'sad' | 'worried' | 'alarmed' | 'lean' | 'neutral'; emote?: '!' | '?' | '...' | 'sparkle' } {
+    const l = line.toLowerCase();
+    if (/\?/.test(line) && /(who|what|where|why|and you)/.test(l)) return { mood: 'lean', emote: '?' };
+    if (/wasn['’]t yours|not supposed|no shadow|fight\.|split the claim|don['’]t tell|not me\b/.test(l))
+      return { mood: 'alarmed', emote: '!' };
+    if (/something is wrong|lift is dead|not here|only the owner|isn['’]t true|you keep saying|they said you wouldn/.test(l)
+        || (/\b(dead|wrong)\b/.test(l) && /lift|send|wall/.test(l)))
+      return { mood: 'worried', emote: '...' };
+    if (/office plant|you talked to me|every morning|it likes you|good\.|you found me|that['’]s all of it|for now, go through|came back|it woke up/.test(l))
+      return { mood: 'happy', emote: 'sparkle' };
+    if (/same rule|words catch|inside everything|say something|look\.|try the lift|left you a note|psst|it['’]ll help|then go down|try \w/.test(l)
+        || /\?/.test(line))
+      return { mood: 'lean', emote: /\?/.test(line) ? '?' : '...' };
+    return { mood: 'neutral' };
+  }
+
+  private reactFernLine(line: string) {
+    try {
+      const r = this.moodFrom(line);
+      this.reactFern(r.mood, r.emote);
+    } catch { /* reaction must never break dialogue */ }
+  }
+
+  private living(o?: Phaser.GameObjects.GameObject | null) {
+    return !!o && o.active && !!(o as Phaser.GameObjects.GameObject & { scene?: Phaser.Scene }).scene;
+  }
+
+  private clearFernAct() {
+    this.fernActUntil = 0;
+    for (const e of this.fernEmotes) { try { this.s.tweens.killTweensOf(e); e.destroy(); } catch { /* */ } }
+    this.fernEmotes = [];
+    if (this.living(this.holo)) { try { this.s.tweens.killTweensOf(this.holo!); } catch { /* */ } }
+    if (this.living(this.holoBody)) {
+      try { this.s.tweens.killTweensOf(this.holoBody!); } catch { /* */ }
+      try { this.holoBody!.setRotation(0).clearTint(); } catch { /* */ }
+    }
+    if (this.living(this.holoGlow)) {
+      try { this.s.tweens.killTweensOf(this.holoGlow!); } catch { /* */ }
+      try { this.holoGlow!.setRotation(0); } catch { /* */ }
+    }
+    if (this.living(this.portraitSpr)) {
+      try { this.s.tweens.killTweensOf(this.portraitSpr!); } catch { /* */ }
+      try { this.portraitSpr!.clearTint().setRotation(0); } catch { /* */ }
+    }
+    try { if (this.living(this.portraitEyes)) this.portraitEyes!.clear(); } catch { /* */ }
+  }
+
+  private drawPortraitEyes(kind: 'alarmed' | 'sad' | 'happy' | 'none') {
+    const g = this.portraitEyes;
+    if (!g) return;
+    g.clear();
+    // Baked face centre is ~(80, 96) in the 160×220 frame.
+    const fy = (g.getData('faceY') as number) ?? -18;
+    const sc = (g.getData('faceScale') as number) ?? 0.5;
+    const eyeX = 10 * sc / 0.5;
+    if (kind === 'alarmed') {
+      // Cover the baked smile/eyes with a head disc, then draw wide eyes + an O mouth.
+      g.fillStyle(0x7ed0c8, 0.95);
+      g.fillCircle(0, fy, 13 * sc / 0.5);
+      g.fillStyle(0xffffff, 0.98);
+      g.fillEllipse(-eyeX, fy - 1, 9, 11);
+      g.fillEllipse(eyeX, fy - 1, 9, 11);
+      g.fillStyle(0x1a1020, 0.95);
+      g.fillCircle(-eyeX, fy - 1, 2.8);
+      g.fillCircle(eyeX, fy - 1, 2.8);
+      g.lineStyle(1.6, 0x1a1020, 0.95);
+      g.strokeCircle(0, fy + 7, 3.2);
+    } else if (kind === 'sad') {
+      g.fillStyle(0x7ed0c8, 0.9);
+      g.fillCircle(0, fy, 13 * sc / 0.5);
+      g.fillStyle(0xffffff, 0.95);
+      g.fillEllipse(-eyeX, fy + 1, 8, 6);
+      g.fillEllipse(eyeX, fy + 1, 8, 6);
+      g.fillStyle(0x1a1020, 0.95);
+      g.fillCircle(-eyeX, fy + 2, 2.2);
+      g.fillCircle(eyeX, fy + 2, 2.2);
+      g.fillStyle(0x1a2030, 0.75);
+      g.fillEllipse(-eyeX, fy - 3, 9, 3);
+      g.fillEllipse(eyeX, fy - 3, 9, 3);
+      g.lineStyle(1.6, 0x1a1020, 0.9);
+      g.beginPath();
+      g.arc(0, fy + 9, 4, Math.PI * 1.15, Math.PI * 1.85, true);
+      g.strokePath();
+    } else if (kind === 'happy') {
+      // Keep the baked smile; just add a slight cheek glow.
+      g.fillStyle(0xe27bd8, 0.28);
+      g.fillCircle(-eyeX - 4, fy + 5, 3.2);
+      g.fillCircle(eyeX + 4, fy + 5, 3.2);
+    }
+  }
+
+  private spawnFernEmote(kind: '!' | '?' | '...' | 'sparkle') {
+    const s = this.s;
+    const hx = this.holo?.x ?? (this.s.noor?.x ?? 640) + 80;
+    const hy = (this.holo?.y ?? 400) - 100;
+    if (kind === 'sparkle') {
+      for (let i = 0; i < 5; i++) {
+        const ang = -Math.PI / 2 + (i - 2) * 0.45;
+        const x = hx + Math.cos(ang) * 8, y = hy + Math.sin(ang) * 6;
+        const st = s.add.graphics().setDepth(DEPTH + 50).setPosition(x, y);
+        st.fillStyle(0xf8f0a8, 0.95);
+        st.fillTriangle(0, -7, 4, 0, 0, 7);
+        st.fillTriangle(0, -7, -4, 0, 0, 7);
+        this.fernEmotes.push(st);
+        s.tweens.add({
+          targets: st,
+          x: x + Math.cos(ang) * 22,
+          y: y + Math.sin(ang) * 18 - 8,
+          alpha: 0,
+          scale: 1.3,
+          duration: 1100,
+          ease: 'Sine.easeOut',
+          onComplete: () => { try { st.destroy(); } catch { /* */ } },
+        });
+      }
+      return;
+    }
+    const label = kind === '...' ? '…' : kind;
+    const t = s.add.text(hx, hy, label, {
+      fontFamily: FONT, fontSize: kind === '...' ? '22px' : '28px', fontStyle: 'bold', color: '#e27bd8',
+    }).setOrigin(0.5).setDepth(DEPTH + 50).setAlpha(0);
+    this.fernEmotes.push(t);
+    s.tweens.add({
+      targets: t, alpha: 1, y: hy - 16, duration: 220, ease: 'Cubic.easeOut',
+      onComplete: () => s.tweens.add({ targets: t, alpha: 0, y: hy - 28, delay: 900, duration: 280, onComplete: () => t.destroy() }),
+    });
+  }
+
+  private reactFern(mood: 'happy' | 'sad' | 'worried' | 'alarmed' | 'lean' | 'neutral', emote?: '!' | '?' | '...' | 'sparkle') {
+    this.clearFernAct();
+    if (mood === 'neutral' && !emote) return;
+    const body = this.holoBody;
+    const glow = this.holoGlow;
+    const targets = [body, glow].filter((v): v is Phaser.GameObjects.Sprite => !!v);
+    const spr = this.portraitSpr;
+    this.fernActUntil = this.s.time.now + 1800;
+    const noorX = this.s.noor?.x ?? 0;
+    const hx = this.holo?.x ?? 0;
+    const toward = noorX <= hx ? -1 : 1;
+
+    if (mood === 'happy') {
+      if (targets.length) {
+        this.s.tweens.add({
+          targets, y: '-=14', scaleY: (body?.scaleY ?? 1) * 1.16,
+          duration: 200, yoyo: true, repeat: 3, ease: 'Sine.easeOut',
+        });
+      }
+      if (spr) {
+        this.s.tweens.add({
+          targets: spr, y: spr.y - 4, scaleY: spr.scaleY * 1.08,
+          duration: 180, yoyo: true, repeat: 2, ease: 'Sine.easeOut',
+        });
+        this.drawPortraitEyes('happy');
+      }
+    } else if (mood === 'sad' || mood === 'worried') {
+      if (targets.length) {
+        this.s.tweens.add({
+          targets, rotation: toward * 0.16, y: '+=8', scaleY: (body?.scaleY ?? 1) * 0.86,
+          duration: 340, ease: 'Sine.easeOut',
+        });
+      }
+      if (spr) {
+        spr.setTint(0xc8d4e8);
+        this.s.tweens.add({ targets: spr, y: spr.y + 5, rotation: 0.1, duration: 300, ease: 'Sine.easeOut' });
+        this.drawPortraitEyes('sad');
+      }
+    } else if (mood === 'alarmed') {
+      if (targets.length) {
+        this.s.tweens.add({ targets, x: '+=6', duration: 40, yoyo: true, repeat: 9, ease: 'Sine.easeInOut' });
+      }
+      if (this.holo) {
+        this.s.tweens.add({ targets: this.holo, alpha: { from: 1, to: 0.55 }, duration: 50, yoyo: true, repeat: 6 });
+      }
+      // Short glitch bars over the plant.
+      if (this.holo) {
+        for (let i = 0; i < 4; i++) {
+          const bar = this.s.add.rectangle(
+            this.holo.x + (Math.random() - 0.5) * 28,
+            this.holo.y - 40 + Math.random() * 50,
+            16 + Math.random() * 18, 2 + Math.random() * 2,
+            Math.random() > 0.5 ? 0x78e4e8 : 0xe27bd8, 0.8,
+          ).setDepth(DEPTH + 8);
+          this.fernEmotes.push(bar);
+          this.s.tweens.add({ targets: bar, alpha: 0, x: bar.x + (Math.random() - 0.5) * 16, duration: 160 + i * 40, onComplete: () => bar.destroy() });
+        }
+      }
+      if (spr) {
+        spr.setTint(0xffe8a0);
+        this.s.tweens.add({ targets: spr, x: spr.x + 3, duration: 40, yoyo: true, repeat: 8 });
+        this.drawPortraitEyes('alarmed');
+      }
+    } else if (mood === 'lean') {
+      if (targets.length) {
+        this.s.tweens.add({
+          targets, rotation: toward * -0.14, x: `+=${toward * 10}`,
+          duration: 280, ease: 'Sine.easeOut',
+        });
+      }
+      if (spr) this.s.tweens.add({ targets: spr, rotation: toward * -0.08, x: spr.x + toward * 3, duration: 260 });
+    }
+    if (emote) this.spawnFernEmote(emote);
   }
 
   private at(ms: number, fn: () => void) {

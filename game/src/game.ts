@@ -7,7 +7,8 @@ import { Plate } from './plate';
 import { WordUI, BAR_Y } from './words';
 import { ROOMS, type Rect, type RoomDef } from './rooms';
 import { DraftFight, DRAFT } from './boss';
-import { sfx, bindSfxScene, setSfxVolume } from './sfx';
+import { sfx, bindSfxScene, setSfxVolume, getMasterVolume, getAudioContext, meterRms } from './sfx';
+import { voiceBlip, freezeBedActive } from './voice';
 import { bindMusicScene, playMusic, setMusicVolume } from './music';
 import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
@@ -1711,6 +1712,19 @@ export class GameScene extends Phaser.Scene {
         }
         if (k === 'spawn') { c.spawnGB(a as 'scribble' | 'redline' | 'stapler', Number(b?.split(',')[0] ?? 700), Number(b?.split(',')[1] ?? 400)); return true; }
         return c.state();
+      },
+      audioPeek: () => {
+        const a = getAudioContext();
+        return {
+          state: a?.state ?? 'none',
+          master: getMasterVolume(),
+          rms: meterRms(),
+          freeze: freezeBedActive(),
+        };
+      },
+      voiceBlip: (who: 'noor' | 'fern' = 'noor', n = 6) => {
+        for (let i = 0; i < n; i++) voiceBlip(who, i);
+        return true;
       },
     };
   }
