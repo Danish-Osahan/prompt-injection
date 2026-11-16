@@ -7,6 +7,7 @@ import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
 import { writeSave } from '../save';
+import { showControlsHint } from '../flow';
 
 /**
  * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
@@ -139,15 +140,18 @@ export class ImpactLab {
   private greeted = false;
   private greetWhenReady() {
     if (this.greeted || !this.on) return;
-    if (this.s.introPending || this.s.intro?.playing) {
-      this.s.time.delayedCall(400, () => this.greetWhenReady());
+    if (this.s.introPending || this.s.intro?.playing || this.s.roomCard || this.s.introCardPending) {
+      this.s.time.delayedCall(300, () => this.greetWhenReady());
       return;
     }
     this.greeted = true;
-    this.s.time.delayedCall(500, () => {
-      if (!this.on || this.s.intro?.playing) return;
-      try { this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 3200); } catch { /* */ }
-    });
+    if (this.s.dialogue) {
+      this.s.dialogue.onIdle = () => {
+        showControlsHint(this.s);
+        if (this.s.dialogue) this.s.dialogue.onIdle = undefined;
+      };
+    }
+    try { this.s.say('fern', "That lamp's been buzzing since you sat down. The lift is dead.", 3200); } catch { /* */ }
   }
 
     /** Resume a solved office: doors already OPEN from the save. */
@@ -327,7 +331,7 @@ export class ImpactLab {
     const ltex = this.s.textures.exists('lift_lamp_on') ? 'lift_lamp_on'
       : (this.s.textures.exists('fx_lamp_on') ? 'fx_lamp_on' : 'fx_spark_core');
     this.lampSpr = this.s.add.image(LAMP_SPRITE.x, LAMP_SPRITE.y, ltex)
-      .setDepth(360).setScale(LAMP_SCALE).setOrigin(0, 0);
+      .setDepth(400).setScale(LAMP_SCALE).setOrigin(0, 0).setAlpha(1);
     this.s.objs.push(this.lampSpr);
   }
 
@@ -341,9 +345,8 @@ export class ImpactLab {
     this.lure.sourceAct = (t) => {
       if (!this.lampOn || !this.lampSpr) return;
       if (!this.lampReady) {
-        // Quiet until the dead lift has been tried — a hint, not a solve.
-        const dim = 0.55 + 0.08 * Math.sin(t * 2.2);
-        this.lampSpr.setAlpha(dim);
+        // Stay fully visible on the desk; only the flicker/sparks wait for the panel.
+        this.lampSpr.setAlpha(1);
         return;
       }
       const flick = Math.sin(t * 17) * Math.sin(t * 3.1);

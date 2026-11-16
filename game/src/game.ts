@@ -106,6 +106,8 @@ export class GameScene extends Phaser.Scene {
   fromTitle = false;
   startMode: 'new' | 'continue' | '' = '';
   introPending = false;
+  introCardDone = false;
+  introCardPending = false;
   intro: IntroCutscene | null = null;
   dialogue: Dialogue | null = null;
   glassRain: GlassRain | null = null;

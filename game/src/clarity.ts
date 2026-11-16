@@ -86,7 +86,8 @@ export class Clarity {
       const e = s.spawnEnemy('dummy', O11_DUMMY.x, O11_DUMMY.y); e.practice = true; e.body.clear();
       const im = s.add.image(0, 0, 'o11_dummy'); im.setOrigin(O11_DUMMY.ox / im.width, O11_DUMMY.oy / im.height); e.g.add(im); this.dummy = { x: O11_DUMMY.x, y: O11_DUMMY.y };
     }
-    this.headT = 0.001;
+    // Steal path uses the typographic room card; the INT. heading stacked on top of it.
+    this.headT = this.s.swapMode ? 0.001 : 0;
   }
   get doorOpen() { return this.s.plateById('o_door')?.slotWord === 'OPEN'; }
   destroy() { /* objects live in s.objs */ }

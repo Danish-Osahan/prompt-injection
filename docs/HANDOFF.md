@@ -1,5 +1,20 @@
 # HANDOFF
 
+## 2026-11-16 — Level 1 pass 2 review fixes (seven bugs)
+
+Danishpreet rejected the pass-2 stills. Lean fixes, in the order he listed. Item E still not started.
+
+1. **Opening black voids.** Camera bounds are the 1280×720 plate. Opening zoom is a modest 1.14, panning from a clamped window center (708, 322) across the floor to Noor (700, 398). Each intro frame re-clamps the center so the view never shows the empty canvas. `office_bleed.jpg` is already 1280×720 — no new plate.
+2. **Noor seated.** Added `chair_noor` (reuses `chair_kabir.png` at 944, 433, matching Kabir's desk/chair offset). During the opening she sits at 988, 548, just south of the chair, facing the desk. `unstick` is skipped so the chair poly does not shove her into the aisle. After the fade into play she still starts at the room spawn so WASD is free.
+3. **Stacked UI.** Sequence is now: typographic room card → Fern's lamp line → controls hint (`dialogue.onIdle`). Clarity's INT. heading is disabled on the steal path so it does not sit on the card. `greetWhenReady` also waits while the card (or a pending card) is up.
+4. **Fern hologram.** Tight runtime crop of `fern_seated`, drawn at ~80px tall, tinted (no additive wash). A light scanline overlay and a small glow sit behind the face. The projection rises just above/beside its source, is pushed clear of the lift recess (140,60,150×155) and the top menu, and is clamped on screen. The bubble sits beside the face, also clamped.
+5. **Bottom-box scramble.** The typewriter laid words out from the right (`flip: true`) and then shrank each word with `setText(slice)`, which reversed the visible order. The box now lays out left-to-right; unrevealed words keep their full text and stay hidden, so later words do not move.
+6. **Lamp on desk_podW.** It was dimmed to ~0.55 until the panel beat, so the green shade disappeared into the desk. Alpha stays 1 until taken; depth is 400 (above the desk). Flicker and sparks still wait for `unlockLamp`.
+7. **Rain.** Fewer, thinner, low-alpha streaks with a slight lean; a few slow droplets on the glass; a soft dark-blue gradient veil and blurred, low-alpha city-light blips. No cyan dashes.
+
+Playtest: full 191 after this pass. Stills and a new opening video recaptured to `/workspace`.
+
+
 ## 2026-11-16 — Level 1 pass 2, item D: office polish
 
 - **Props.** O11 furniture is already registered to the bleed plate (zero pixel offset on every desk/chair). The hanging/overlapping object Danishpreet saw is largely the banker lamp: its shade sat off the back of desk_podW like a floating green dome. Re-seated it onto the desk top (`LAMP_SPRITE` 154,270, scale 0.92; interact point 180,300). Baked desktop clutter (papers, mugs) lives in the plate itself — not re-rendered (no Blender pass; do not touch `art/out`).

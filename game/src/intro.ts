@@ -7,13 +7,13 @@ import tokens from './tokens.json';
 import { sfx, startHum, stopHum } from './sfx';
 import type { GameScene } from './game';
 import { writeSave } from './save';
-import { showRoomCard } from './flow';
+import { showRoomCard, showControlsHint } from './flow';
 
 const C = tokens.color;
 const FONT = 'JetBrains Mono';
 const UI = 'IBM Plex Mono';
 // Feet south of desk_noor (solid ends ~y=507) so she sits in front of the desk, not through it.
-const DESK = { x: 995, y: 615 };
+const DESK = { x: 988, y: 548 }; // seated in the new chair_noor, just south of the desk
 const LAMP = { x: 178, y: 268 };
 
 export class IntroCutscene {
@@ -46,10 +46,8 @@ export class IntroCutscene {
     this.s.setHudVisible(false);
 
     const s = this.s;
+    // Sit her in the chair; skip unstick so the chair poly does not shove her into the aisle.
     s.x = DESK.x; s.y = DESK.y; s.dir = 'N';
-    try { s.unstick(); } catch { /* */ }
-    // unstick can shove her; re-seat if she drifted onto the desktop
-    if (s.y < 580) { s.x = DESK.x; s.y = DESK.y; }
     s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
     try { s.noor.play('noor_type1_N', true); } catch { try { s.noor.play('noor_idle_N'); } catch { /* */ } }
@@ -121,7 +119,9 @@ export class IntroCutscene {
       const s = this.s;
       try { s.noor.anims.resume(); } catch { /* */ }
       s.noor.off('animationcomplete', this.onType);
+      // Gameplay starts at the room spawn (walkable aisle). The opening itself kept her seated.
       s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
+      s.noor.setScale(1);
       try { s.unstick(); } catch { /* */ }
       s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
       try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
@@ -131,13 +131,13 @@ export class IntroCutscene {
       s.busy = false;
       s.cutscene = null;
       s.introPending = false;
+      s.introCardPending = true;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
       writeSave(s.save);
       s.cameras.main.fadeIn(320, 4, 8, 12);
-      s.time.delayedCall(480, () => {
-        try { showRoomCard(s, 'office'); } catch { /* */ }
-        this.showControls();
-      });
+      try {
+        showRoomCard(s, 'office', () => { s.introCardPending = false; s.introCardDone = true; });
+      } catch { s.introCardPending = false; s.introCardDone = true; }
     };
 
     const cam = this.s.cameras.main;
@@ -147,25 +147,7 @@ export class IntroCutscene {
     this.s.time.delayedCall(skipped ? 280 : 520, () => { if (this.s.introPending) go(); });
   }
 
-  showControls() {
-    const s = this.s;
-    if (s.save.tutorials.includes('controls')) return;
-    const text = s.ctl.last === 'touch'
-      ? 'drag to move   ·   READ to take   ·   throw   ·   TYPE to attack   ·   DASH'
-      : 'WASD move   ·   E take   ·   F throw   ·   J attack   ·   SPACE dash';
-    this.skipHint = undefined;
-    const hint = s.add.text(640, 670, text, {
-      fontFamily: UI, fontSize: '16px', color: C.inkBright,
-      backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 16, y: 8 },
-    }).setOrigin(0.5).setDepth(8000).setScrollFactor(0).setAlpha(0);
-    s.objs.push(hint);
-    s.tweens.add({ targets: hint, alpha: 1, duration: 280 });
-    s.time.delayedCall(6200, () => {
-      s.tweens.add({ targets: hint, alpha: 0, duration: 400, onComplete: () => hint.destroy() });
-    });
-    s.save.tutorials.push('controls');
-    writeSave(s.save);
-  }
+  showControls() { showControlsHint(this.s); }
 
   handleInput(f: { pause: boolean; skipHeld: boolean }, dt: number): boolean {
     if (!this.playing) return false;
@@ -186,30 +168,39 @@ export class IntroCutscene {
         this.skipHint.setText('Esc to skip');
       }
     }
+    this.clampCam();
     return true;
+  }
+
+  private clampCam() {
+    const cam = this.s.cameras.main;
+    const z = Math.max(1, cam.zoom);
+    const hw = 1280 / z / 2, hh = 720 / z / 2;
+    const cx = Phaser.Math.Clamp(cam.midPoint.x, hw + 0.5, 1280 - hw - 0.5);
+    const cy = Phaser.Math.Clamp(cam.midPoint.y, hh + 0.5, 720 - hh - 0.5);
+    if (Math.abs(cx - cam.midPoint.x) > 0.4 || Math.abs(cy - cam.midPoint.y) > 0.4) cam.centerOn(cx, cy);
   }
 
   private rigCamera() {
     const cam = this.s.cameras.main;
     try { cam.stopFollow(); } catch { /* */ }
     try { cam.resetFX(); } catch { /* */ }
-    // Expanded bounds so the opening can look at the rain window without clamping.
+    // Stay inside the 1280×720 plate — never pan/zoom into a black void.
+    const Z = 1.14;
     cam.setViewport(0, 0, 1280, 720);
-    cam.setBounds(-280, -240, 1840, 1200);
-    cam.setZoom(1.28);
-    cam.centerOn(940, 210);
+    cam.setBounds(0, 0, 1280, 720);
+    cam.setZoom(Z);
+    // Valid center at this zoom: x 562–718, y 316–404. Start on the window, end on Noor.
+    cam.centerOn(708, 322);
     cam.fadeIn(1600, 4, 8, 12);
 
-    // Window → mid floor → Noor at her desk.
     this.s.time.delayedCall(1400, () => {
       if (!this.playing) return;
-      cam.pan(620, 360, 9000, 'Sine.easeInOut');
-      cam.zoomTo(1.14, 9000, 'Sine.easeInOut');
+      cam.pan(640, 360, 9000, 'Sine.easeInOut');
     });
     this.s.time.delayedCall(10800, () => {
       if (!this.playing) return;
-      cam.pan(995, 520, 9000, 'Sine.easeInOut');
-      cam.zoomTo(1.32, 9000, 'Sine.easeInOut');
+      cam.pan(700, 398, 9000, 'Sine.easeInOut');
     });
   }
 

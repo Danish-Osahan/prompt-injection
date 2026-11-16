@@ -57,6 +57,7 @@ export class Dialogue {
   private arrow?: Phaser.GameObjects.Text;
   private onKey?: (ev: KeyboardEvent) => void;
   private onClick?: () => void;
+  onIdle?: () => void;
   private baseX = 0;
 
   constructor(s: GameScene) {
@@ -123,7 +124,7 @@ export class Dialogue {
   private kick() {
     if (this.busy) return;
     const job = this.queue.shift();
-    if (!job) { this.busy = false; return; }
+    if (!job) { this.busy = false; try { this.onIdle?.(); } catch { /* */ } return; }
     if (!job.line) { this.at(job.ms, () => { this.busy = false; this.kick(); }); this.busy = true; return; }
     this.busy = true;
     this.waiting = false;
@@ -223,42 +224,47 @@ export class Dialogue {
   private spawnHolo(src: Source) {
     const s = this.s;
     if (src.kind === 'body') {
-      // Physical Fern in the hub — no projected face on top of her sprite.
       this.holo = s.add.container(src.x, src.y).setDepth(DEPTH);
       return;
     }
     ensureFernHead(s);
-    const c = s.add.container(src.x, src.y - 8).setDepth(DEPTH).setAlpha(0);
-    const glow = s.add.ellipse(0, -70, 150, 180, 0x78e4e8, 0.18).setBlendMode(Phaser.BlendModes.ADD);
+    const FACE_H = 80;
+    const pos = this.holoPos(src, FACE_H);
+    const c = s.add.container(src.x, src.y - 6).setDepth(DEPTH).setAlpha(0);
+    const glow = s.add.ellipse(0, -FACE_H * 0.45, 70, 90, 0x78e4e8, 0.12).setBlendMode(Phaser.BlendModes.ADD);
     const face = s.add.image(0, 0, 'fern_holo_head');
-    // Scale the cropped head UP so it is readable above the desk at zoom 1.
-    // Never render her at the monitor's own tiny size.
-    face.setOrigin(0.5, 1).setScale(1.55).setTint(0xb8f7ff);
-    try { face.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    face.setOrigin(0.5, 1).setScale(1);
+    // Crisp head — no additive wash that turned her into a blue blob.
+    face.setTint(0xd8f4ff);
     const scan = s.add.graphics();
-    scan.lineStyle(1, 0x78e4e8, 0.22);
-    for (let y = -150; y < 8; y += 5) scan.lineBetween(-70, y, 70, y);
-    scan.setBlendMode(Phaser.BlendModes.ADD);
-    const beam = s.add.triangle(0, 10, -10, 10, 10, 10, 0, -20, 0x78e4e8, 0.18).setBlendMode(Phaser.BlendModes.ADD);
+    scan.lineStyle(1, 0x9ad8e8, 0.28);
+    const fw = 42, fh = FACE_H;
+    for (let y = -fh + 4; y < 0; y += 4) scan.lineBetween(-fw, y, fw, y);
+    const beam = s.add.triangle(0, 4, -7, 8, 7, 8, 0, -16, 0x8fd0dc, 0.2);
     c.add([beam, glow, face, scan]);
-    // Rise out of the source to a large, readable station above the desk.
-    c.y = src.y - 8;
     s.tweens.add({
       targets: c,
-      alpha: 0.95,
-      y: src.y - 118,
-      duration: 420,
+      alpha: 1,
+      x: pos.x,
+      y: pos.y,
+      duration: 360,
       ease: 'Cubic.easeOut',
     });
-    s.tweens.add({
-      targets: face,
-      scaleX: { from: 0.55, to: 1.55 },
-      scaleY: { from: 0.35, to: 1.55 },
-      duration: 420,
-      ease: 'Back.easeOut',
-    });
     this.holo = c;
-    try { sfx('impact_hum'); } catch { /* */ }
+    try { sfx('tell'); } catch { /* */ }
+  }
+
+  /** Place a 60–90px face just above its source, never over the lift or the HUD. */
+  private holoPos(src: Source, faceH: number) {
+    const lift = { x: 140, y: 60, w: 150, h: 155 };
+    let x = src.x + (src.x < 500 ? 54 : -54);
+    let y = src.y - 16;
+    const hitsLift = (px: number, py: number) =>
+      px > lift.x && px < lift.x + lift.w && py - faceH < lift.y + lift.h && py > lift.y;
+    if (hitsLift(x, y)) { x = lift.x + lift.w + 36; y = Math.max(y, lift.y + lift.h + 8 + faceH * 0.15); }
+    x = Phaser.Math.Clamp(x, 56, 1224);
+    y = Phaser.Math.Clamp(y, 56 + faceH, 620);
+    return { x, y };
   }
 
   private beginBubble(job: Job, fromSpeaker: boolean) {
@@ -281,7 +287,7 @@ export class Dialogue {
     const tag = s.add.text(-w / 2 + 118, -h / 2 + 10, name, {
       fontFamily: FONT, fontSize: '12px', fontStyle: 'bold', color: this.colFor(job.who), letterSpacing: 3,
     } as Phaser.Types.GameObjects.Text.TextStyle);
-    const words = this.layoutWords(job.line, -w / 2 + 118, -18, 560, true);
+    const words = this.layoutWords(job.line, -w / 2 + 118, -18, 560, false);
     this.arrow = s.add.text(w / 2 - 22, h / 2 - 22, '▾', { fontFamily: FONT, fontSize: '16px', color: C.cyan }).setOrigin(0.5).setVisible(false);
     c.add([bg, portrait, tag, this.arrow, ...words]);
     this.root = c;
@@ -292,16 +298,16 @@ export class Dialogue {
 
   private bubbleAnchor(who: SayWho, fromSpeaker: boolean) {
     if (who === 'fern' && this.holo) {
-      const x = this.holo.x + 118;
-      const y = this.holo.y - 70;
-      const flip = x + WRAP / 2 > 1240;
-      return { x: flip ? this.holo.x - 118 : x, y: Math.max(70, y), flip };
+      const right = this.holo.x + 70 + WRAP / 2 < 1240;
+      const x = right ? this.holo.x + 70 : this.holo.x - 70;
+      const y = Phaser.Math.Clamp(this.holo.y - 56, 64, 520);
+      return { x, y, flip: !right };
     }
     if (who === 'noor' || fromSpeaker) {
-      const x = this.s.noor?.x ?? this.s.x;
-      const y = (this.s.noor?.y ?? this.s.y) - 118;
-      const flip = x > 900;
-      return { x: flip ? x - 40 : x + 40, y: Math.max(60, y), flip };
+      const x0 = this.s.noor?.x ?? this.s.x;
+      const y0 = (this.s.noor?.y ?? this.s.y) - 100;
+      const flip = x0 > 900;
+      return { x: Phaser.Math.Clamp(flip ? x0 - 40 : x0 + 40, 80, 1200), y: Phaser.Math.Clamp(y0, 64, 520), flip };
     }
     return { x: 640, y: 160, flip: false };
   }
@@ -390,11 +396,12 @@ export class Dialogue {
       if (all || seen + full.length <= this.typed.length) {
         t.setText(full);
         if (t.alpha < 1) { t.setAlpha(1); this.playWordFx(t); }
+        else t.setAlpha(1);
       } else if (seen < this.typed.length) {
         t.setText(full.slice(0, this.typed.length - seen));
         t.setAlpha(1);
       } else {
-        t.setText(full);
+        t.setText(full); // keep full width so later words never shuffle
         t.setAlpha(0);
       }
       seen += full.length;
@@ -517,7 +524,7 @@ export class Dialogue {
   }
 }
 
-/** Crop Fern's existing seated frame to a head texture (runtime, no new art). */
+/** Crop Fern's seated frame to a crisp ~80px-tall head (runtime, no new art). */
 function ensureFernHead(s: GameScene) {
   if (s.textures.exists('fern_holo_head')) return;
   try {
@@ -526,11 +533,17 @@ function ensureFernHead(s: GameScene) {
     const fr = tex.get('fern_seated_S_00') as Phaser.Textures.Frame;
     const cutX = (fr as unknown as { cutX?: number }).cutX ?? fr.x ?? 0;
     const cutY = (fr as unknown as { cutY?: number }).cutY ?? fr.y ?? 0;
+    // Tight face crop (not the padded 384 frame). Target height 80px.
+    const sx = 148, sy = 140, sw = 92, sh = 90;
+    const faceH = 80;
+    const dw = Math.round(sw * faceH / sh);
     const c = document.createElement('canvas');
-    c.width = 140; c.height = 145;
+    c.width = dw; c.height = faceH;
     const ctx = c.getContext('2d');
     if (!ctx) return;
-    ctx.drawImage(img, cutX + 125, cutY + 100, 140, 145, 0, 0, 140, 145);
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, cutX + sx, cutY + sy, sw, sh, 0, 0, dw, faceH);
     s.textures.addCanvas('fern_holo_head', c);
   } catch { /* */ }
 }
