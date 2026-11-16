@@ -1,5 +1,32 @@
 # HANDOFF
 
+## 2026-11-16 — Bolt, board, printer, dialogue follow, reading holds
+
+Playtest of `7acf34f`: the bolt landed light, the wind-up was easy to miss, Noor still covered the whiteboard with the E chip by the coat rack, the printer letter could pop near the lift, dialogue bubbles stayed where they first appeared, Noor's react to Fern's arrival beam felt weak, lost-line toasts vanished too fast, and the rewritten claim-mail tab in the opening cutscene dismissed before it could be read.
+
+1. **Bolt and impact.** The traveling forked bolt is thicker (core + glow + longer branches, a brighter tip) and the impact is a larger flash with longer cone streaks, a panel crack glow, a stronger camera kick and hit-stop, and a slightly hotter screen flash.
+2. **Wind-up.** A 130ms coil: squash/crouch, `charge_in` at 28fps, and a gathering hand-light that pops on throw. Held J keeps the coil and light through `charge_hold`. Total wind-up stays in the 120–160ms window; steal throws still resolve under the 450ms test wait (flight 200ms).
+3. **Whiteboard.** Look radius is 180 so she can stand below/beside the board without the headphones lookable stealing E. The E chip is pinned on the board itself (offset 18, −18), not by the coat rack or the desk. The board glow is larger and brighter.
+4. **Printer.** Auto-print radius dropped from 150 to 95, so a lift stand no longer fires the denial letter. The printer look teleport at (140, 250) still prints.
+5. **Dialogue box.** Tighter padding, a speaker-colored accent bar, an E continue hint, and a short open-scale. World bubbles re-anchor to the speaker every frame (tail included) so they travel with Noor or Fern instead of freezing at the first pose. The long bottom portrait box stays a stable screen anchor.
+6. **Fern charge / arrival.** When Fern's hologram beam rises from a lamp or monitor, Noor turns toward the source, plays a stable `noor_surprise` pose, and takes one lean-back step. No x-jitter tween.
+7. **Lost-line toast.** Hold is `max(4000ms, 60ms × characters)` with the full quote (wrapped). E / tap dismisses early. The toast points at the pause `unsent.txt` journal, which already lists every collected line in full (now word-wrapped).
+8. **Opening claim-mail.** The rewritten tab is no longer dismissed at 16.8s. After DENIED lands, it stays up for reading time (`max(4s, 60ms × rewritten characters)`) or until E / tap, with a subtle "E continue" (or "tap to continue") hint, then docks. Beat d still starts at 23s. Playtest skip-intro path is unchanged.
+
+Playtest 201/201 (calendar / printer-at-140,250 / lost-line E / lamp hold / dummy / DRY / Draft / beam-hold-release contracts kept). Board radius was then bumped 145→180 and the chip was pinned on the board (no contract change).
+
+Review stills (not in the repo):
+- bolt strip: `/workspace/l1-throw-windup-2x.png`, `/workspace/l1-throw-release-2x.png`, `/workspace/l1-throw-mid-2x.png`, `/workspace/l1-throw-impact-2x.png`, `/workspace/l1-throw-strip.png`
+- whiteboard look: `/workspace/l1-board-look-2x.png`
+- lift stand, no printer letter: `/workspace/l1-lift-no-letter-2x.png`
+- dialogue follow: `/workspace/l1-dialogue-before-2x.png`, `/workspace/l1-dialogue-after-2x.png`; polished Fern box `/workspace/l1-dialogue-fern-box-2x.png`
+- Noor during Fern's arrival: `/workspace/l1-fern-charge-2x.png`
+- lost-line toast: `/workspace/l1-line-toast-2x.png`
+- opening rewritten claim-mail with continue hint: `/workspace/l1-intro-mail-2x.png` (full frame `/workspace/l1-intro-mail.png`)
+
+Leftovers: quality-word styling can still highlight "on" and "dead" in spoken lines. Noor is a tall sprite, so even from a below-left stand she covers the lower-left of the whiteboard; the chip is on the board, but the board glow is still easy to miss on the white surface. The 130ms wind-up (hand light + squash) is short and modest from the north angle; some throw stills also show an E-take chip if the lamp lure is visible. Fern's arrival cone is a soft fill, easy to miss, and her hologram can overlap Noor if she is standing near the lamp. The surprise pose is an existing sheet, not a new shield-eyes animation. The intro mail sits in the right half of the zoomed/panned camera; the "E continue" hint is intentionally subtle.
+
+
 ## 2026-11-16 — Interact chips and shaped throws (no charge rings)
 
 User notes on `0f1d2ba`: a teal hold-ring floated over Noor's head at the whiteboard ("E look"), colliding with the #4412 / sticky-note labels; hold-J drew a fill-circle before a straight glyph beam, which still felt sloppy.

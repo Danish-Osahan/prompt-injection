@@ -212,7 +212,7 @@ export class StealPlay {
     playThrowAttack(this.s, () => {
       launchShot(this.s, shotKind(word), fromP, { x: tx, y: ty }, () => {
         this.resolveThrow(word, from, dest, tx, ty);
-      }, 220);
+      }, 200);
     }, false);
     return true;
   }

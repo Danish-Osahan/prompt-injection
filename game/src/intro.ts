@@ -67,6 +67,9 @@ export class IntroCutscene {
   drift?: Phaser.GameObjects.GameObject[];
   actor?: NoorActing;
   meeting = false;
+  private mailHold = false;
+  private mailHoldT = 0;
+  private mailHint?: Phaser.GameObjects.Text;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -155,13 +158,12 @@ export class IntroCutscene {
       this.rewriteDraft();
       try { this.actor?.act('leanIn'); } catch { /* */ }
     });
-    // Dock the claim-mail before she speaks so her bubble cannot sit under it.
-    this.at(16800, () => this.dismissMail());
-    // CLAIM DENIED lands ~1s into the crawl.
+    // CLAIM DENIED lands ~1s into the crawl. Hold the rewritten tab for reading time.
     this.at(17800, () => {
       try { this.actor?.act('handUp'); } catch { /* */ }
       try { this.actor?.emote('!', 1200); } catch { /* */ }
       try { s.say('noor', "No, no, no, I didn't write that", 2600, { box: false }); } catch { /* */ }
+      this.beginMailHold();
     });
 
     // (d) Lights die desk by desk toward her; monitors flicker; the lamp buzzes.
@@ -332,9 +334,14 @@ export class IntroCutscene {
 
   showControls() { showControlsHint(this.s); }
 
-  handleInput(f: { pause: boolean; skipHeld: boolean }, dt: number): boolean {
+  handleInput(f: { pause: boolean; skipHeld: boolean; interact?: boolean; attack?: boolean }, dt: number): boolean {
     if (!this.playing) return false;
     if (f.pause) { this.skip(); return true; }
+    if (this.mailHold) {
+      this.mailHoldT -= dt;
+      if (this.mailHint) this.mailHint.setAlpha(0.4 + 0.5 * Math.sin(this.s.t * 4.2));
+      if (f.interact || f.attack || this.mailHoldT <= 0) this.releaseMail();
+    }
     if (f.skipHeld) {
       this.s.skipHold += dt;
       if (this.skipHint) {
@@ -698,7 +705,32 @@ export class IntroCutscene {
     try { this.s.glassRain?.pause(on); } catch { /* */ }
   }
 
+  private beginMailHold() {
+    if (!this.monitor || this.mailHold) return;
+    const text = Object.values(AFTER).join(' ');
+    this.mailHold = true;
+    this.mailHoldT = Math.max(4, text.length * 0.06);
+    if (!this.mailHint) {
+      const hint = this.s.add.text(0, 196, this.s.ctl.last === 'touch' ? 'tap to continue' : 'E  continue', {
+        fontFamily: FONT, fontSize: '13px', color: '#8ad4c8',
+      }).setOrigin(0.5).setAlpha(0);
+      this.monitor.add(hint);
+      this.mailHint = hint;
+      this.s.tweens.add({ targets: hint, alpha: 0.75, duration: 280 });
+    }
+  }
+
+  private releaseMail() {
+    if (!this.mailHold) return;
+    this.mailHold = false;
+    this.mailHoldT = 0;
+    this.dismissMail();
+  }
+
   private dismissMail() {
+    this.mailHold = false;
+    this.mailHoldT = 0;
+    this.mailHint = undefined;
     if (!this.monitor) return;
     try {
       this.s.tweens.add({
@@ -731,5 +763,8 @@ export class IntroCutscene {
     this.black = undefined;
     this.skipHint = undefined;
     this.monitor = undefined;
+    this.mailHint = undefined;
+    this.mailHold = false;
+    this.mailHoldT = 0;
   }
 }

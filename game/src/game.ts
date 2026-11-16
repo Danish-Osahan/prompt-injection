@@ -74,6 +74,7 @@ export class GameScene extends Phaser.Scene {
   debugOn = false; debugText!: Phaser.GameObjects.Text;
   hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text; linesHud: Phaser.GameObjects.Text };
   linePrompt: InteractChip | null = null;
+  lineToast?: Phaser.GameObjects.Text;
   hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
   flags = { door: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
@@ -1197,12 +1198,33 @@ export class GameScene extends Phaser.Scene {
     if (p.scrap) this.tweens.add({ targets: p.scrap, alpha: 0, y: (p.scrap.y) - 18, duration: 520 });
     const a = this.amb.find(x => x.def.name === 'line');
     if (a) this.tweens.add({ targets: a.spr, alpha: 0, y: a.spr.y - 14, duration: 900, onComplete: () => { p.setVisibleState(false); this.ambState(); } }); else p.setVisibleState(false);
-    const quote = L.text.length > 48 ? L.text.slice(0, 46) + '…' : L.text;
-    const card = this.add.text(640, 590, `unsent.txt  +1   ${s.lines.length}/${LINES.length}\n“${quote}”`, { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.85)', padding: { x: 10, y: 6 }, align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
-    this.objs.push(card); this.tweens.add({ targets: card, alpha: 1, y: 566, duration: 260, yoyo: true, hold: 1800, onComplete: () => card.destroy() });
+    this.showLineToast(L.text, s.lines.length);
     this.hud?.linesHud?.setText(`lines  ${s.lines.length}/${LINES.length}`);
     this.linePrompt?.hide();
     if (s.lines.length === LINES.length) this.time.delayedCall(2600, () => this.say('fern', "That's all of it. You could send it now.", 2600));
+  }
+  showLineToast(text: string, n: number) {
+    this.dismissLineToast(true);
+    const hold = Math.max(4000, text.length * 60);
+    const body = `unsent.txt  +1   ${n}/${LINES.length}\n“${text}”\nE / tap  dismiss   ·   ESC  unsent.txt`;
+    const card = this.add.text(640, 590, body, {
+      fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp,
+      backgroundColor: 'rgba(4,12,18,0.9)', padding: { x: 14, y: 10 }, align: 'center',
+      wordWrap: { width: 560 }, lineSpacing: 4,
+    }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
+    this.lineToast = card;
+    this.objs.push(card);
+    this.tweens.add({ targets: card, alpha: 1, y: 548, duration: 260 });
+    this.time.delayedCall(hold, () => { if (this.lineToast === card) this.dismissLineToast(); });
+  }
+  dismissLineToast(instant = false): boolean {
+    const card = this.lineToast;
+    if (!card) return false;
+    this.lineToast = undefined;
+    try { this.tweens.killTweensOf(card); } catch { /* */ }
+    if (instant) { try { card.destroy(); } catch { /* */ } return true; }
+    this.tweens.add({ targets: card, alpha: 0, y: card.y + 8, duration: 200, onComplete: () => { try { card.destroy(); } catch { /* */ } } });
+    return true;
   }
   /** per frame: ambient frame stepping, the stand-still narrator line, the hub mirror, dust motes */
   updateLinger(dt: number, active: boolean) {
@@ -1480,7 +1502,7 @@ export class GameScene extends Phaser.Scene {
     T(620, 296, ['touch', '  move      drag on the left half', '  dash      DASH button', '  read      READ button', '  swap      drag the word chip onto', '            a plate (or READ at it)', '  type      TYPE button', '  backspace TYPE during a dash', '  select    hold TYPE', '  paste     TYPE after a perfect dodge', '  rewrite   READ a sign in combat', '  root      ROOT button', '  skip      hold top-right', '  menu      tap "esc menu"'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     // art-v8 journal: the lost lines, in the order of the floor
     T(120, 548, `unsent.txt  ${this.save.lines.length}/${LINES.length}`, 14, C.lamp, 700);
-    T(120, 570, LINES.map((l, i) => this.save.lines.includes(l.id) ? `  ${i + 1}  ${l.text}` : `  ${i + 1}  ${'\u2591'.repeat(18)}`).join('\n'), 13, C.ink, 400, 'IBM Plex Mono');
+    T(120, 570, LINES.map((l, i) => this.save.lines.includes(l.id) ? `  ${i + 1}  ${l.text}` : `  ${i + 1}  ${'\u2591'.repeat(18)}`).join('\n'), 13, C.ink, 400, 'IBM Plex Mono').setWordWrapWidth(980);
     T(820, 680, '"Beta, eat properly."', 13, C.faint, 400, 'IBM Plex Mono');
     this.pauseUi = c;
   }
@@ -1610,7 +1632,8 @@ export class GameScene extends Phaser.Scene {
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
-      if (this.tryCollectNearLine()) { /* lost-line E wins over lookables and the lamp */ }
+      if (this.dismissLineToast()) { /* reading-time toast ate E */ }
+      else if (this.tryCollectNearLine()) { /* lost-line E wins over lookables and the lamp */ }
       else if (this.stealOn()) this.explore?.tryTap();
       else this.interact();
     }

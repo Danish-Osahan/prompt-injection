@@ -23,7 +23,7 @@ export interface ExploreSpot {
 const SPOTS: ExploreSpot[] = [
   { id: 'photo', x: 250, y: 575, r: 70, label: 'LOOK' },
   { id: 'calendar', x: 318, y: 128, r: 100, label: 'LOOK' },
-  { id: 'board', x: 700, y: 130, r: 100, label: 'LOOK' },
+  { id: 'board', x: 700, y: 130, r: 180, label: 'LOOK' },
   { id: 'phones', x: 696, y: 280, r: 70, label: 'LOOK', steal: 'LOUD' },
   { id: 'coffee', x: 340, y: 200, r: 45, label: 'LOOK', steal: 'HOT' },
   { id: 'printer', x: 120, y: 220, r: 80, label: 'LOOK' },
@@ -71,7 +71,7 @@ export class OfficeExplore {
     const spot = this.nearest(x, y);
     const blocked = this.blockedByLab(spot);
 
-    if (!this.printerFired && Math.hypot(x - 120, y - 220) < 150) this.firePrinter();
+    if (!this.printerFired && Math.hypot(x - 120, y - 220) < 95) this.firePrinter();
 
     const useSpot = blocked ? undefined : spot;
     this.updatePrompt(useSpot, blocked);
@@ -128,7 +128,7 @@ export class OfficeExplore {
   }
 
   private chipOff(id: ExploreSpot['id']) {
-    if (id === 'board') return { ox: 36, oy: 42 };
+    if (id === 'board') return { ox: 18, oy: -18 };
     if (id === 'calendar') return { ox: 54, oy: 18 };
     if (id === 'photo') return { ox: 36, oy: 14 };
     if (id === 'printer') return { ox: 44, oy: 16 };
@@ -143,12 +143,17 @@ export class OfficeExplore {
     const stealReady = !!(spot.steal && this.looked[spot.id] && !this.carrying);
     const hold = stealReady ? Math.min(1, this.peelT / 0.4) : 0;
     const off = this.chipOff(spot.id);
-    const c = placeChip(spot.x, spot.y, this.s.x, this.s.y, off.ox, off.oy);
+    let c = { x: spot.x + off.ox, y: spot.y + off.oy };
+    if (spot.id !== 'board') c = placeChip(spot.x, spot.y, this.s.x, this.s.y, off.ox, off.oy);
+    else {
+      const hx = this.s.x, hy = this.s.y - 52;
+      if (Math.hypot(c.x - hx, c.y - hy) < 50) c = { x: spot.x - 52, y: spot.y - 14 };
+    }
     p.show(c.x, c.y, stealReady ? `take ${spot.steal}` : 'look', hold, 'E');
     if (g) {
-      const size = spot.id === 'board' ? [120, 50] : spot.id === 'calendar' ? [70, 36] : [48, 26];
-      const a = (spot.id === 'board' ? 0.22 : 0.14) + 0.1 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
-      g.setPosition(spot.x, spot.y + (spot.id === 'board' ? 8 : 0)).setSize(size[0], size[1]).setAlpha(a).setDepth(spot.y - 8);
+      const size = spot.id === 'board' ? [150, 58] : spot.id === 'calendar' ? [70, 36] : [48, 26];
+      const a = (spot.id === 'board' ? 0.38 : 0.14) + 0.14 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
+      g.setPosition(spot.x, spot.y + (spot.id === 'board' ? 4 : 0)).setSize(size[0], size[1]).setAlpha(a).setDepth(spot.y - 8);
     }
   }
 

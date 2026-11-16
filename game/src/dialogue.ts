@@ -70,6 +70,14 @@ export class Dialogue {
   private portraitEyes?: Phaser.GameObjects.Graphics;
   private fernEmotes: Phaser.GameObjects.GameObject[] = [];
   private fernActUntil = 0;
+  private followWorld = false;
+  private followWho: SayWho = 'floor';
+  private followFromSpeaker = false;
+  private followFlip = false;
+  private boxW = 0;
+  private boxH = 0;
+  private boxPadT = 22;
+  private tailGfx?: Phaser.GameObjects.Triangle;
 
   constructor(s: GameScene) {
     this.s = s;
@@ -102,6 +110,7 @@ export class Dialogue {
       if (this.living(this.arrow) && this.arrow!.visible) {
         this.arrow!.setAlpha(0.45 + 0.55 * Math.sin(this.s.t * 6));
       }
+      if (this.followWorld && this.living(this.root)) this.followBubble();
       if (this.angry && this.living(this.root)) {
         this.root!.x = this.baseX + Math.sin(this.s.t * 48) * 1.4;
       }
@@ -129,6 +138,7 @@ export class Dialogue {
     this.typed = ''; this.full = '';
     this.letterBits = [];
     this.clearFernAct();
+    this.followWorld = false; this.tailGfx = undefined;
     this.root?.destroy(); this.root = undefined;
     this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined; this.holoBaseX = undefined;
     this.holoBody = undefined; this.holoGlow = undefined;
@@ -295,6 +305,7 @@ export class Dialogue {
     this.beamLife = 0.7;
     this.drawBeam(1);
     try { sfx('tell'); } catch { /* */ }
+    this.noorReactToCharge(src);
   }
 
   private ensureBeam() {
@@ -358,6 +369,10 @@ export class Dialogue {
     const box = this.makeLineBox(anchor.x, anchor.y, job, false, anchor.flip, anchor.speaker);
     this.root = box;
     this.baseX = box.x;
+    this.followWorld = true;
+    this.followWho = job.who;
+    this.followFromSpeaker = fromSpeaker;
+    this.followFlip = anchor.flip;
     if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
@@ -371,26 +386,28 @@ export class Dialogue {
       maxW = Math.max(maxW, w.x + w.width);
       maxH = Math.max(maxH, w.y + w.height);
     }
-    const padL = 132, padR = 32, padT = 40, padB = 30;
+    const padL = 128, padR = 28, padT = 34, padB = 26;
     const w = Math.max(660, Math.min(940, padL + maxW + padR));
-    const h = Math.max(128, padT + maxH + padB);
+    const h = Math.max(120, padT + maxH + padB);
     const y = 720 - 28 - h / 2;
-    const c = s.add.container(640, y + 18).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0);
+    const c = s.add.container(640, y + 18).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
+    const accent = s.add.rectangle(-w / 2 + 3, 0, 4, h - 16, this.hexFor(job.who), 0.9);
     const portrait = this.makePortrait(job.who);
     // Vertically centred in the box; 16px inset from the left. Name plate sits
     // over the text column so it never covers the portrait art.
     portrait.setPosition(-w / 2 + 16 + 48, 0);
     const tag = this.namePlate(-w / 2 + padL, -h / 2, this.tagFor(job.who), job.who, false);
     for (const tw of words) tw.setPosition(-w / 2 + padL + tw.x, -h / 2 + padT + tw.y);
-    this.arrow = s.add.text(w / 2 - 22, h / 2 - 18, '▾', {
-      fontFamily: FONT, fontSize: '16px', color: C.cyan,
+    this.arrow = s.add.text(w / 2 - 18, h / 2 - 16, 'E', {
+      fontFamily: FONT, fontSize: '12px', color: C.cyan,
     }).setOrigin(0.5).setVisible(false);
-    c.add([bg, portrait, tag, this.arrow, ...words]);
+    c.add([bg, accent, portrait, tag, this.arrow, ...words]);
     this.root = c;
     this.baseX = c.x;
-    s.tweens.add({ targets: c, alpha: 1, y, duration: 260, ease: 'Cubic.easeOut' });
+    this.followWorld = false;
+    s.tweens.add({ targets: c, alpha: 1, y, scaleX: 1, scaleY: 1, duration: 220, ease: 'Cubic.easeOut' });
     if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
@@ -424,29 +441,82 @@ export class Dialogue {
       maxW = Math.max(maxW, w.x + w.width);
       maxH = Math.max(maxH, w.y + w.height);
     }
-    const padX = 18, padT = 28, padB = 22;
+    const padX = 14, padT = 22, padB = 16;
     const bw = maxW + padX * 2;
     const bh = maxH + padT + padB;
     const placed = this.placeBubble({ x, y, flip, speaker }, bw, bh, padT);
     const px = placed.x;
     y = placed.y;
     flip = placed.flip;
-    const c = s.add.container(px, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.96);
+    this.followFlip = flip;
+    this.boxW = bw; this.boxH = bh; this.boxPadT = padT;
+    const c = s.add.container(px, y).setDepth(DEPTH + 20).setAlpha(0).setScale(0.94);
     const ox = flip ? -bw : 0;
     const bg = this.cutPanel(ox, -padT, bw, bh, 0x07141c, 0.94, this.hexFor(job.who), 10);
-    const tag = this.namePlate(flip ? -14 : 14, -padT, this.tagFor(job.who), job.who, flip);
+    const accent = s.add.rectangle(ox + (flip ? bw - 3 : 3), -padT + bh / 2, 4, bh - 10, this.hexFor(job.who), 0.9);
+    const tag = this.namePlate(flip ? -12 : 12, -padT, this.tagFor(job.who), job.who, flip);
     // Always lay words left-to-right, even when the bubble sits to the left of the speaker.
     const textLeft = (flip ? ox + padX : padX);
     for (const tw of words) {
       tw.setPosition(textLeft + tw.x, tw.y);
     }
     const tail = this.bubbleTail(ox, -padT, bw, bh, px, y, speaker ?? { x: flip ? px + 40 : px - 40, y: y + 80 }, this.hexFor(job.who));
-    this.arrow = s.add.text(textLeft + maxW, maxH + 2, '▾', {
-      fontFamily: FONT, fontSize: '14px', color: C.cyan,
+    this.tailGfx = tail;
+    this.arrow = s.add.text(textLeft + maxW, maxH + 2, 'E', {
+      fontFamily: FONT, fontSize: '11px', color: C.cyan,
     }).setOrigin(1, 0).setVisible(false);
-    c.add([bg, tail, tag, this.arrow, ...words]);
-    s.tweens.add({ targets: c, alpha: 1, y: y - 8, scaleX: 1, scaleY: 1, duration: 240, ease: 'Cubic.easeOut' });
+    c.add([bg, tail, accent, tag, this.arrow, ...words]);
+    s.tweens.add({ targets: c, alpha: 1, scaleX: 1, scaleY: 1, duration: 180, ease: 'Cubic.easeOut' });
     return c;
+  }
+
+  private followBubble() {
+    if (!this.root) return;
+    const anchor = this.bubbleAnchor(this.followWho, this.followFromSpeaker);
+    const placed = this.placeBubble(
+      { x: anchor.x, y: anchor.y, flip: this.followFlip, speaker: anchor.speaker },
+      this.boxW, this.boxH, this.boxPadT,
+    );
+    this.root.setPosition(placed.x, placed.y);
+    this.baseX = placed.x;
+    const ox = this.followFlip ? -this.boxW : 0;
+    const speaker = anchor.speaker ?? { x: this.followFlip ? placed.x + 40 : placed.x - 40, y: placed.y + 80 };
+    const nxt = this.bubbleTail(ox, -this.boxPadT, this.boxW, this.boxH, placed.x, placed.y, speaker, this.hexFor(this.followWho));
+    if (this.tailGfx) {
+      const idx = this.root.getIndex(this.tailGfx);
+      try { this.tailGfx.destroy(); } catch { /* */ }
+      if (idx >= 0) this.root.addAt(nxt, idx);
+      else this.root.add(nxt);
+    } else this.root.add(nxt);
+    this.tailGfx = nxt;
+  }
+
+  private noorReactToCharge(src: Source) {
+    const s = this.s;
+    const n = s.noor;
+    if (!n) return;
+    const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
+    const ang = Math.atan2(src.y - s.y, src.x - s.x);
+    s.dir = DIRS[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
+    const key = `noor_surprise_${s.dir}`;
+    if (s.anims.exists(key)) n.play({ key, frameRate: 12 }, true);
+    else if (s.anims.exists(`noor_lookR_${s.dir}`)) n.play(`noor_lookR_${s.dir}`, true);
+    if (n.getData('chargeReact')) return;
+    n.setData('chargeReact', true);
+    const sx = n.scaleX, sy = n.scaleY;
+    const back = Math.sign(s.x - src.x) || 1;
+    s.x += back * 10;
+    s.y += 4;
+    n.setPosition(s.x, s.y).setDepth(s.y + 24);
+    try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
+    s.tweens.add({
+      targets: n, scaleX: sx * 0.96, scaleY: sy * 1.05, angle: -6 * back,
+      duration: 180, ease: 'Sine.easeOut',
+    });
+    s.time.delayedCall(1100, () => {
+      n.setData('chargeReact', false);
+      s.tweens.add({ targets: n, scaleX: sx, scaleY: sy, angle: 0, duration: 160, ease: 'Sine.easeOut' });
+    });
   }
 
   /** Tail sits on the box edge and points at the speaker, not straight down. */
@@ -654,6 +724,8 @@ export class Dialogue {
     this.waiting = false;
     const root = this.root;
     this.root = undefined;
+    this.followWorld = false;
+    this.tailGfx = undefined;
     this.letterBits = [];
     this.arrow = undefined;
     this.portraitSpr = undefined;

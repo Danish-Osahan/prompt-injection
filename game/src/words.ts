@@ -85,7 +85,7 @@ export class WordUI {
     return id === 'corridor' ? (f.lit ? 'lit' : 'dark') : id === 'archive' ? (f.drained ? 'L' : 'H') : id === 'hub' ? (f.door ? 'open' : 'shut') : 'base';
   }
   /** lore read / secret found: show its text as the caption for a moment */
-  showLore(p: Plate, text: string) { this.override = { id: p.def.id, text, until: this.s.t + 3.2 }; this.key = ''; }
+  showLore(p: Plate, text: string) { this.override = { id: p.def.id, text, until: this.s.t + Math.max(4, text.length * 0.06) }; this.key = ''; }
 
   // ---------------- chips (shared by caption + code lines) ----------------
   private makeChip(plate: Plate, r: Phaser.Geom.Rectangle, where: 'cap' | 'code', world: boolean, t?: Phaser.GameObjects.Text) {

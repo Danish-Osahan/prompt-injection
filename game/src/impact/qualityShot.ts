@@ -25,8 +25,59 @@ function playKey(s: GameScene, key: string, fps?: number) {
   } catch { return false; }
 }
 
-/** Idempotent: charge_in once, then a slow charge_hold loop. No UI ring. */
+function handPos(s: GameScene) {
+  const d = s.dir || 'S';
+  const x = s.x + (d.includes('E') ? 22 : d.includes('W') ? -22 : -12);
+  const y = s.y - 36;
+  return { x, y };
+}
+
+export function startWindupPose(s: GameScene) {
+  const n = s.noor;
+  if (!n || n.getData('windOn')) {
+    const orb = n?.getData('windOrb') as Phaser.GameObjects.Ellipse | undefined;
+    if (orb && orb.active) {
+      const h = handPos(s);
+      orb.setPosition(h.x, h.y).setDepth(s.y + 30);
+    }
+    return;
+  }
+  n.setData('windOn', true);
+  n.setData('windScale', { x: n.scaleX, y: n.scaleY });
+  s.tweens.add({
+    targets: n,
+    scaleX: n.scaleX * 1.12,
+    scaleY: n.scaleY * 0.86,
+    duration: 140,
+    ease: 'Sine.easeOut',
+  });
+  const h = handPos(s);
+  const orb = s.add.ellipse(h.x, h.y, 6, 6, 0xb8f0ff, 0)
+    .setDepth(s.y + 30).setBlendMode(Phaser.BlendModes.ADD);
+  s.objs.push(orb);
+  s.tweens.add({
+    targets: orb, alpha: 0.95, displayWidth: 22, displayHeight: 18,
+    duration: 140, ease: 'Sine.easeOut',
+  });
+  n.setData('windOrb', orb);
+}
+
+export function clearWindupPose(s: GameScene) {
+  const n = s.noor;
+  if (!n || !n.getData('windOn')) return;
+  n.setData('windOn', false);
+  const sc = n.getData('windScale') as { x: number; y: number } | undefined;
+  if (sc) s.tweens.add({ targets: n, scaleX: sc.x, scaleY: sc.y, duration: 90, ease: 'Sine.easeOut' });
+  const orb = n.getData('windOrb') as Phaser.GameObjects.Ellipse | undefined;
+  n.setData('windOrb', undefined);
+  if (orb?.active) {
+    s.tweens.add({ targets: orb, alpha: 0, scale: 1.8, duration: 140, onComplete: () => orb.destroy() });
+  }
+}
+
+/** Idempotent: bigger coil + hand-light, charge_in once, then a slow charge_hold loop. */
 export function playChargeHold(s: GameScene) {
+  startWindupPose(s);
   const dir = s.dir;
   const cur = s.noor.anims.currentAnim?.key ?? '';
   if (cur === `noor_charge_hold_${dir}`) return;
@@ -35,7 +86,7 @@ export function playChargeHold(s: GameScene) {
     if (!playKey(s, `noor_charge_hold_${dir}`, 10)) playKey(s, `noor_type2_${dir}`);
     return;
   }
-  if (!playKey(s, `noor_charge_in_${dir}`, 32)) playKey(s, `noor_type2_${dir}`);
+  if (!playKey(s, `noor_charge_in_${dir}`, 28)) playKey(s, `noor_type2_${dir}`);
 }
 
 /**
@@ -45,12 +96,14 @@ export function playChargeHold(s: GameScene) {
 export function playThrowAttack(s: GameScene, onRelease: () => void, alreadyWound = false) {
   const dir = s.dir;
   const startThrow = () => {
+    clearWindupPose(s);
     if (!playKey(s, `noor_throw_${dir}`, 28)) playKey(s, `noor_type3_${dir}`);
-    s.time.delayedCall(alreadyWound ? 70 : 90, () => { try { onRelease(); } catch { /* */ } });
+    s.time.delayedCall(alreadyWound ? 70 : 80, () => { try { onRelease(); } catch { /* */ } });
   };
   if (alreadyWound) { startThrow(); return; }
-  if (!playKey(s, `noor_charge_in_${dir}`, 36)) playKey(s, `noor_type2_${dir}`);
-  s.time.delayedCall(110, startThrow);
+  startWindupPose(s);
+  if (!playKey(s, `noor_charge_in_${dir}`, 28)) playKey(s, `noor_type2_${dir}`);
+  s.time.delayedCall(130, startThrow);
 }
 
 type Spine = { x: number; y: number; u: number }[];
@@ -109,12 +162,12 @@ function drawBoltFrame(
   }
   const a = fade;
   if (glow) {
-    strokePts(g, live, 9, 0x163a88, 0.16 * a);
-    strokePts(g, live, 5, 0x3a90d8, 0.28 * a);
+    strokePts(g, live, 18, 0x163a88, 0.22 * a);
+    strokePts(g, live, 12, 0x3a90d8, 0.36 * a);
   } else {
-    strokePts(g, live, 3.2, 0x8ad8ff, 0.7 * a);
-    strokePts(g, live, 1.4, 0xe8ffff, 0.95 * a);
-    strokePts(g, live, 0.7, 0xffffff, 1 * a);
+    strokePts(g, live, 6.5, 0x7ad0ff, 0.75 * a);
+    strokePts(g, live, 3.2, 0xe8ffff, 0.95 * a);
+    strokePts(g, live, 1.4, 0xffffff, 1 * a);
   }
   // Branches appear after the tip has passed, and grow out over a few frames.
   const dx = spine[spine.length - 1].x - spine[0].x, dy = spine[spine.length - 1].y - spine[0].y;
@@ -127,18 +180,18 @@ function drawBoltFrame(
     const grow = Math.min(1, (extend - bu) / 0.12);
     const src = live.reduce((best, p) => Math.abs(p.u - bu) < Math.abs(best.u - bu) ? p : best, live[0]);
     const side = b % 2 === 0 ? 1 : -1;
-    const len = (11 + (b % 3) * 4) * grow;
+    const len = (16 + (b % 3) * 6) * grow;
     const flick = 0.85 + 0.15 * Math.sin(t * 40 + b * 2);
     const bx = src.x + nx * len * side + (dx / dist) * 5 * grow;
     const by = src.y + ny * len * side + (dy / dist) * 5 * grow;
-    if (glow) g.lineStyle(3, 0x3a90d8, 0.22 * a * flick).lineBetween(src.x, src.y, bx, by);
+    if (glow) g.lineStyle(5, 0x3a90d8, 0.28 * a * flick).lineBetween(src.x, src.y, bx, by);
     else {
-      g.lineStyle(1.8, 0xb8f0ff, 0.75 * a * flick).lineBetween(src.x, src.y, bx, by);
-      g.lineStyle(0.8, 0xffffff, 0.9 * a * flick).lineBetween(src.x, src.y, bx, by);
+      g.lineStyle(3.0, 0xb8f0ff, 0.8 * a * flick).lineBetween(src.x, src.y, bx, by);
+      g.lineStyle(1.3, 0xffffff, 0.95 * a * flick).lineBetween(src.x, src.y, bx, by);
     }
   }
   const tip = live[live.length - 1];
-  if (!glow) g.fillStyle(0xffffff, 0.85 * a).fillCircle(tip.x, tip.y, 2.2);
+  if (!glow) g.fillStyle(0xffffff, 0.9 * a).fillCircle(tip.x, tip.y, 3.6);
 }
 
 export function impactBurst(s: GameScene, at: { x: number; y: number }, dir?: { x: number; y: number }) {
@@ -153,16 +206,18 @@ export function impactBurst(s: GameScene, at: { x: number; y: number }, dir?: { 
     const ang = (i - 2) * 0.22;
     const c = Math.cos(ang), sn = Math.sin(ang);
     const vx = dx * c - dy * sn, vy = dx * sn + dy * c;
-    const len = 9 + (i % 3) * 5;
-    streaks.push({ ax: at.x - vx * 2, ay: at.y - vy * 2, bx: at.x + vx * len, by: at.y + vy * len, a: 0.9 });
+    const len = 16 + (i % 3) * 8;
+    streaks.push({ ax: at.x - vx * 3, ay: at.y - vy * 3, bx: at.x + vx * len, by: at.y + vy * len, a: 0.95 });
   }
-  streaks.push({ ax: at.x, ay: at.y, bx: at.x + nx * 8, by: at.y + ny * 8, a: 0.7 });
-  streaks.push({ ax: at.x, ay: at.y, bx: at.x - nx * 7, by: at.y - ny * 7, a: 0.7 });
+  for (const side of [-1, 1, -1.4, 1.4]) {
+    streaks.push({ ax: at.x, ay: at.y, bx: at.x + nx * 14 * side, by: at.y + ny * 14 * side, a: 0.75 });
+  }
   const paint = (u: number) => {
     g.clear();
     const fade = 1 - u;
-    g.fillStyle(0xc8f4ff, 0.35 * fade).fillCircle(at.x, at.y, 7 + u * 10);
-    g.fillStyle(0xffffff, 0.5 * fade).fillCircle(at.x, at.y, 3);
+    g.fillStyle(0x7ad0ff, 0.4 * fade).fillCircle(at.x, at.y, 18 + u * 22);
+    g.fillStyle(0xe8ffff, 0.55 * fade).fillCircle(at.x, at.y, 10 + u * 10);
+    g.fillStyle(0xffffff, 0.8 * fade).fillCircle(at.x, at.y, 5);
     for (const st of streaks) {
       g.lineStyle(1.6, 0xd8f4ff, st.a * fade).lineBetween(st.ax, st.ay, st.bx, st.by);
       g.lineStyle(0.7, 0xffffff, 0.8 * fade).lineBetween(st.ax, st.ay, st.bx, st.by);
@@ -171,14 +226,14 @@ export function impactBurst(s: GameScene, at: { x: number; y: number }, dir?: { 
   paint(0);
   const tr = { u: 0 };
   s.tweens.add({
-    targets: tr, u: 1, duration: 200, ease: 'Quad.easeOut',
+    targets: tr, u: 1, duration: 280, ease: 'Quad.easeOut',
     onUpdate: () => paint(tr.u),
     onComplete: () => g.destroy(),
   });
 }
 
 /** Short shake + hit-stop. No punch-zoom (the office camera stays locked). */
-export function cameraKick(s: GameScene, ms = 90, amp = 0.004, stop = 0.07) {
+export function cameraKick(s: GameScene, ms = 140, amp = 0.008, stop = 0.12) {
   try { s.cameras.main.shake(ms, amp); } catch { /* */ }
   s.hitStopT = Math.max(s.hitStopT ?? 0, stop);
 }

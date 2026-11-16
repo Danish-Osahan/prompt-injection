@@ -858,6 +858,13 @@ export class ImpactLab {
       }
       this.popSpark(PANEL.x, PANEL.y - 8);
       this.popSpark(PANEL.x + 6, PANEL.y + 8);
+      this.popSpark(PANEL.x - 8, PANEL.y + 2);
+      const crack = this.s.add.ellipse(PANEL.x, PANEL.y, 28, 40, 0xe8ffff, 0.9)
+        .setBlendMode(Phaser.BlendModes.ADD).setDepth((PANEL.y || 0) + 24);
+      this.s.tweens.add({
+        targets: crack, alpha: 0, scaleX: 2.4, scaleY: 2.6, duration: 420,
+        ease: 'Quad.easeOut', onComplete: () => crack.destroy(),
+      });
       sfx('impact_snap');
       this.popCover();
     }, 130);
@@ -873,7 +880,7 @@ export class ImpactLab {
       } else if (this.floorInd && this.s.textures.exists('fx_lift_floor_ind_on')) {
         this.floorInd.setTexture('fx_lift_floor_ind_on');
       }
-      try { this.s.cameras.main.flash(70, 30, 70, 50); } catch { /* */ }
+      try { this.s.cameras.main.flash(110, 70, 150, 130); } catch { /* */ }
       sfx('impact_hum');
       this.openLift();
     }, 300);
