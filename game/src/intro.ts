@@ -8,6 +8,7 @@ import { playMusic } from './music';
 import type { GameScene } from './game';
 import { writeSave } from './save';
 import { showRoomCard, showControlsHint } from './flow';
+import { NoorActing } from './noorAct';
 
 const C = tokens.color;
 const FONT = 'JetBrains Mono';
@@ -63,6 +64,7 @@ export class IntroCutscene {
   letters: Phaser.GameObjects.Text[] = [];
   papers: Phaser.GameObjects.Rectangle[] = [];
   drift?: Phaser.GameObjects.GameObject[];
+  actor?: NoorActing;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -87,6 +89,8 @@ export class IntroCutscene {
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
     // Seated and still under the black open — typing starts when the office is seen.
     try { s.noor.play('noor_idle_N'); } catch { /* */ }
+    this.actor = new NoorActing(s);
+    this.actor.capture();
 
     this.lampFx = s.add.ellipse(LAMP.x, LAMP.y, 110, 88, 0xf6c684, 0).setDepth(500).setBlendMode(Phaser.BlendModes.ADD);
     this.objs.push(this.lampFx);
@@ -132,6 +136,12 @@ export class IntroCutscene {
       try { s.cameras.main.shake(180, 0.004); } catch { /* */ }
     });
 
+    // She hesitates over the send key, then commits.
+    this.at(14500, () => {
+      try { s.noor.off('animationcomplete', this.onType); } catch { /* */ }
+      try { this.actor?.act('hesitate'); } catch { /* */ }
+    });
+
     // (c) She hits send. Her words crawl into a corporate denial.
     this.at(16500, () => {
       this.beat = 'c';
@@ -141,6 +151,13 @@ export class IntroCutscene {
       try { sfx('impact_snap'); } catch { /* */ }
       try { s.cameras.main.shake(160, 0.005); } catch { /* */ }
       this.rewriteDraft();
+      try { this.actor?.act('leanIn'); } catch { /* */ }
+    });
+    // CLAIM DENIED lands ~1s into the crawl.
+    this.at(17800, () => {
+      try { this.actor?.act('handUp'); } catch { /* */ }
+      try { this.actor?.emote('!', 1200); } catch { /* */ }
+      try { s.say('noor', "No, no, no, I didn't write that", 2600, { box: false }); } catch { /* */ }
     });
     // After the crawl has landed, dock the mail so it no longer covers Fern or the desk.
     this.at(21500, () => {
@@ -156,6 +173,8 @@ export class IntroCutscene {
         s.tweens.add({ targets: this.lampFx, alpha: { from: 0.15, to: 0.7 }, duration: 90, yoyo: true, repeat: 14 });
       }
       this.at(400, () => { try { sfx('impact_hum'); } catch { /* */ } });
+      this.at(500, () => { try { this.actor?.act('lookAround'); } catch { /* */ } });
+      this.at(2000, () => { try { this.actor?.emote('sweat', 1100); } catch { /* */ } });
     });
 
     // (e) World freezes mid-motion. Only Noor, and a drifting word, still move.
@@ -163,6 +182,8 @@ export class IntroCutscene {
       this.beat = 'e';
       this.freezeWorld();
       this.driftWord();
+      try { this.actor?.act('startle'); } catch { /* */ }
+      this.at(280, () => { try { this.actor?.act('chairPush'); } catch { /* */ } });
     });
 
     // (f) Fern glitches in from her monitor and speaks through the dialogue UI.
@@ -172,6 +193,8 @@ export class IntroCutscene {
       this.clearDrift();
       try { s.cameras.main.shake(200, 0.006); } catch { /* */ }
       try { sfx('impact_snap'); } catch { /* */ }
+      try { this.actor?.act('startle'); } catch { /* */ }
+      this.at(200, () => { try { this.actor?.act('stepBack'); } catch { /* */ } });
       try { s.say('fern', "That send wasn't yours.", 2800); } catch { /* */ }
       if (s.dialogue) {
         const prev = s.dialogue.onIdle;
@@ -210,12 +233,18 @@ export class IntroCutscene {
       const s = this.s;
       try { s.noor.anims.resume(); } catch { /* */ }
       s.noor.off('animationcomplete', this.onType);
-      s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
+      try { this.actor?.clear(); } catch { /* */ }
+      if (skipped) {
+        s.x = s.room.spawn.x; s.y = s.room.spawn.y; s.dir = 'S';
+      } else {
+        s.x = s.noor.x; s.y = s.noor.y; s.dir = 'W';
+      }
       s.noor.setScale(1);
+      s.noor.setRotation(0);
       try { s.unstick(); } catch { /* */ }
       s.noor.setPosition(s.x, s.y).setDepth(s.y + 24);
       try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
-      try { s.noor.play('noor_idle_S'); } catch { /* */ }
+      try { s.noor.play(`noor_idle_${s.dir}`); } catch { /* */ }
       s.setupStaticCamera();
       s.setHudVisible(true);
       s.busy = false;
@@ -547,6 +576,8 @@ export class IntroCutscene {
   }
 
   private clear() {
+    try { this.actor?.clear(); } catch { /* */ }
+    this.actor = undefined;
     for (const o of this.objs) { try { o.destroy(); } catch { /* */ } }
     this.objs = [];
     this.letters = [];

@@ -37,7 +37,7 @@ const OFFICE_SOURCES: Source[] = [
   { id: 'mon_podE', x: 1140, y: 308, kind: 'monitor' },
 ];
 
-type Job = { who: SayWho; line: string; ms: number };
+type Job = { who: SayWho; line: string; ms: number; box?: boolean };
 
 export class Dialogue {
   s: GameScene;
@@ -60,6 +60,7 @@ export class Dialogue {
   private onKey?: (ev: KeyboardEvent) => void;
   private onClick?: () => void;
   onIdle?: () => void;
+  onSpeak?: (who: SayWho, line: string) => void;
   private baseX = 0;
 
   constructor(s: GameScene) {
@@ -72,9 +73,8 @@ export class Dialogue {
     try { s.input.on('pointerdown', this.onClick); } catch { /* */ }
   }
 
-  enqueue(who: SayWho, line: string, ms = 2200) {
-    if (!line) { this.queue.push({ who, line, ms }); if (!this.busy) this.kick(); return; }
-    this.queue.push({ who, line, ms });
+  enqueue(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean }) {
+    this.queue.push({ who, line, ms, box: opts?.box });
     if (!this.busy) this.kick();
   }
 
@@ -140,6 +140,7 @@ export class Dialogue {
     this.question = /\?\s*$/.test(job.line);
     this.angry = /!/.test(job.line) || (job.line.length > 6 && job.line.replace(/[^A-Z]/g, '').length / job.line.replace(/[^A-Za-z]/g, '').length > 0.7);
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
+    try { this.onSpeak?.(job.who, job.line); } catch { /* */ }
 
     const useBox = this.shouldBox(job);
     if (job.who === 'fern' && !useBox) {
@@ -153,7 +154,10 @@ export class Dialogue {
   }
 
   private shouldBox(job: Job) {
-    if (this.s.intro?.playing) return true;
+    if (job.box === true) return true;
+    if (job.box === false) return false;
+    // Short Noor reactions stay in a bubble even during the hook.
+    if (this.s.intro?.playing) return job.who !== 'noor';
     if (job.line.length >= LONG_LINE) return true;
     if (job.who === 'floor' || job.who === 'papa') return true;
     if (job.who === 'ai' || job.who === 'draft') {

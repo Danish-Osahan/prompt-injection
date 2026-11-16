@@ -371,7 +371,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- dialogue ----------
-  say(who: SayWho, line: string, ms = 2200) { this.dialogue?.enqueue(who, line, ms); }
+  say(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean }) { this.dialogue?.enqueue(who, line, ms, opts); }
   nextSub() {
     const n = this.subQueue.shift(); const h = this.hud;
     if (!n) { this.subBusy = false; h.sub.setVisible(false); h.fern.setVisible(false); return; }
