@@ -1,5 +1,12 @@
 # HANDOFF
 
+## 2026-11-16 — Fern hologram is the sticky-note plant
+
+Story (`docs/story/phase-1-script.md`, `phase-1-after-hours.md`): Fern is "a plant made of sticky notes on her desk," not a monitor and not the old `fern_seated` hologram-Noor. There was no full plant-character sprite, so `art/tools/build_fern_plant.py` composites her from existing art: `office_fg_plant.png` (leaves + pot) + `sticky_gm.png` ("good morning" notes) + a leaf-shaped face in the same geometric style. No AI art.
+
+The office projection now uses `fern_plant` (idle loop, ~110px tall): source flickers, the full silhouette rises from it with a soft ADD glow that follows the sprite (no rectangular box), scanlines across the plant, a projection beam, a slight float, and a flicker. She is pushed clear of the lift and the menu.
+
+
 ## 2026-11-16 — Level 1 pass 2 review fixes (seven bugs)
 
 Danishpreet rejected the pass-2 stills. Lean fixes, in the order he listed. Item E still not started.

@@ -5,7 +5,7 @@ import { OFFICE8C } from './office8art';
 import { O11_PROPS, O11_DOOR, O11_DUMMY } from './office11art';
 import { shouldSkipTitle } from './settings';
 
-export const SHEETS = ['noor_idle', 'noor_walk', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3', 'noor_lookL', 'noor_lookR', 'noor_phone', 'noor_shadow', 'noor_surprise', 'fern_seated', 'caret_idle', 'caret_move'];
+export const SHEETS = ['noor_idle', 'noor_walk', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3', 'noor_lookL', 'noor_lookR', 'noor_phone', 'noor_shadow', 'noor_surprise', 'fern_seated', 'fern_plant', 'caret_idle', 'caret_move'];
 
 export class BootScene extends Phaser.Scene {
   constructor() { super('boot'); }
@@ -65,7 +65,7 @@ export class BootScene extends Phaser.Scene {
       for (const d of dirs) {
         let frames = names.filter(n => n.split('_').slice(-2, -1)[0] === d).sort();
         if (s === 'noor_idle') frames = frames.slice(0, 1);   // art-v11: frames 1-3 sway the head (read as a tilt); idle holds frame 0 and breathes in code
-        const FPS: Record<string, number> = { noor_phone: 4, noor_shadow: 5, noor_surprise: 14, noor_attack: 22, noor_walk: 12, noor_dash: 30, noor_type1: 24, noor_type2: 24, noor_type3: 22 };
+        const FPS: Record<string, number> = { noor_phone: 4, noor_shadow: 5, noor_surprise: 14, noor_attack: 22, noor_walk: 12, noor_dash: 30, noor_type1: 24, noor_type2: 24, noor_type3: 22, fern_plant: 5 };
         const once = ['noor_phone', 'noor_shadow', 'noor_surprise', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3'].includes(s);
         this.anims.create({ key: `${s}_${d}`, frames: frames.map(f => ({ key: s, frame: f })), frameRate: FPS[s] ?? 8, repeat: once ? 0 : -1 });
       }

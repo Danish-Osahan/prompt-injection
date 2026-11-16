@@ -1,0 +1,129 @@
+{
+  "frames": {
+    "fern_plant_S_00": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.92
+      }
+    },
+    "fern_plant_S_01": {
+      "frame": {
+        "x": 140,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.92
+      }
+    },
+    "fern_plant_S_02": {
+      "frame": {
+        "x": 280,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.92
+      }
+    },
+    "fern_plant_S_03": {
+      "frame": {
+        "x": 420,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 140,
+        "h": 200
+      },
+      "sourceSize": {
+        "w": 140,
+        "h": 200
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.92
+      }
+    }
+  },
+  "meta": {
+    "app": "prompt-injection fern plant composite",
+    "version": "1.0",
+    "image": "fern_plant.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 560,
+      "h": 200
+    },
+    "scale": "1",
+    "frameSize": {
+      "w": 140,
+      "h": 200
+    },
+    "pivot_px": [
+      70,
+      184
+    ],
+    "fps": 5,
+    "animations": {
+      "fern_plant_S": [
+        "fern_plant_S_00",
+        "fern_plant_S_01",
+        "fern_plant_S_02",
+        "fern_plant_S_03"
+      ]
+    },
+    "note": "Composited from office_fg_plant.png + sticky_gm.png (existing art). Fern is a sticky-note plant: leaves, pot, face, good-morning notes. No new AI art."
+  }
+}

@@ -46,6 +46,7 @@ export class Dialogue {
   waiting = false;
   root?: Phaser.GameObjects.Container;
   holo?: Phaser.GameObjects.Container;
+  private holoBaseY?: number;
   source?: Source;
   timers: Phaser.Time.TimerEvent[] = [];
   private typed = '';
@@ -95,8 +96,10 @@ export class Dialogue {
       this.root.x = this.baseX + Math.sin(this.s.t * 48) * 1.4;
     }
     if (this.holo && this.holo.active) {
-      const flicker = 0.84 + Math.sin(this.s.t * 17) * 0.08 + (Math.random() < 0.04 ? -0.12 : 0);
-      this.holo.setAlpha(Math.max(0.55, Math.min(1, flicker)));
+      const bob = Math.sin(this.s.t * 2.1) * 2.6;
+      if (this.holoBaseY != null) this.holo.y = this.holoBaseY + bob;
+      const flick = 0.92 + Math.sin(this.s.t * 19) * 0.05 + (Math.random() < 0.03 ? -0.08 : 0);
+      this.holo.setAlpha(Math.max(0.78, Math.min(1, flick)));
     }
   }
 
@@ -109,7 +112,7 @@ export class Dialogue {
     this.typed = ''; this.full = '';
     this.letterBits = [];
     this.root?.destroy(); this.root = undefined;
-    this.holo?.destroy(); this.holo = undefined;
+    this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined;
     this.arrow = undefined;
     this.source = undefined;
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
@@ -225,45 +228,64 @@ export class Dialogue {
     const s = this.s;
     if (src.kind === 'body') {
       this.holo = s.add.container(src.x, src.y).setDepth(DEPTH);
+      this.holoBaseY = src.y;
       return;
     }
-    ensureFernHead(s);
-    const FACE_H = 80;
-    const pos = this.holoPos(src, FACE_H);
-    const c = s.add.container(src.x, src.y - 6).setDepth(DEPTH).setAlpha(0);
-    const glow = s.add.ellipse(0, -FACE_H * 0.45, 70, 90, 0x78e4e8, 0.12).setBlendMode(Phaser.BlendModes.ADD);
-    const face = s.add.image(0, 0, 'fern_holo_head');
-    face.setOrigin(0.5, 1).setScale(1);
-    // Crisp head — no additive wash that turned her into a blue blob.
-    face.setTint(0xd8f4ff);
+    const BODY_H = 110; // displayed plant height, in the 90–120px brief
+    const SCALE = BODY_H / 151;
+    const pos = this.holoPos(src, BODY_H);
+    const c = s.add.container(src.x, src.y - 8).setDepth(DEPTH).setAlpha(0);
+
+    const glow = s.add.sprite(0, 0, 'fern_plant', 'fern_plant_S_00')
+      .setOrigin(0.5, 0.92).setScale(SCALE * 1.1)
+      .setTint(0x7ee8ee).setAlpha(0.4);
+    try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    try { glow.play('fern_plant_S'); } catch { /* */ }
+
+    const body = s.add.sprite(0, 0, 'fern_plant', 'fern_plant_S_00')
+      .setOrigin(0.5, 0.92).setScale(SCALE)
+      .setTint(0xd8f7fb);
+    try { body.play('fern_plant_S'); } catch { /* */ }
+
+    // Scanlines clipped to the plant silhouette — never a rectangular box.
     const scan = s.add.graphics();
-    scan.lineStyle(1, 0x9ad8e8, 0.28);
-    const fw = 42, fh = FACE_H;
-    for (let y = -fh + 4; y < 0; y += 4) scan.lineBetween(-fw, y, fw, y);
-    const beam = s.add.triangle(0, 4, -7, 8, 7, 8, 0, -16, 0x8fd0dc, 0.2);
-    c.add([beam, glow, face, scan]);
+    const top = -Math.round(200 * SCALE * 0.92);
+    const half = 36;
+    for (let y = top + 4; y < 10; y += 3) {
+      scan.lineStyle(1, 0x9ad8e8, 0.2);
+      scan.lineBetween(-half, y, half, y);
+    }
+    // Lines stay inside the typical silhouette width; a texture mask is not in this Phaser typings.
+
+    // Projection beam from the source (below the pot) up into Fern.
+    const beam = s.add.triangle(0, 6, -11, 46, 11, 46, 0, 0, 0x8fd0dc, 0.3);
+    try { beam.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+
+    c.add([beam, glow, body, scan]);
     s.tweens.add({
       targets: c,
       alpha: 1,
       x: pos.x,
       y: pos.y,
-      duration: 360,
+      duration: 420,
       ease: 'Cubic.easeOut',
+      onComplete: () => { this.holoBaseY = pos.y; },
     });
     this.holo = c;
+    this.holoBaseY = pos.y;
     try { sfx('tell'); } catch { /* */ }
   }
 
-  /** Place a 60–90px face just above its source, never over the lift or the HUD. */
-  private holoPos(src: Source, faceH: number) {
+  /** Sit the pot just above the source, keep the 110px plant off the lift and the menu. */
+  private holoPos(src: Source, bodyH: number) {
     const lift = { x: 140, y: 60, w: 150, h: 155 };
-    let x = src.x + (src.x < 500 ? 54 : -54);
-    let y = src.y - 16;
-    const hitsLift = (px: number, py: number) =>
-      px > lift.x && px < lift.x + lift.w && py - faceH < lift.y + lift.h && py > lift.y;
-    if (hitsLift(x, y)) { x = lift.x + lift.w + 36; y = Math.max(y, lift.y + lift.h + 8 + faceH * 0.15); }
-    x = Phaser.Math.Clamp(x, 56, 1224);
-    y = Phaser.Math.Clamp(y, 56 + faceH, 620);
+    let x = src.x + (src.x < 500 ? 62 : -62);
+    let y = src.y - 18;
+    const top = y - bodyH;
+    const hitsLift = top < lift.y + lift.h && y > lift.y && x > lift.x - 30 && x < lift.x + lift.w + 30;
+    if (hitsLift) { x = lift.x + lift.w + 48; y = Math.max(y, lift.y + 24); }
+    x = Phaser.Math.Clamp(x, 64, 1216);
+    y = Phaser.Math.Clamp(y, 56 + bodyH, 640);
     return { x, y };
   }
 
@@ -474,11 +496,10 @@ export class Dialogue {
   }
 
   private makePortrait(who: SayWho) {
-    if (who === 'fern') {
-      ensureFernHead(this.s);
-      const spr = this.s.add.image(0, 10, 'fern_holo_head');
-      spr.setOrigin(0.5, 0.6).setScale(0.72).setTint(0xb8f7ff);
-      try { spr.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+    if (who === 'fern' && this.s.textures.exists('fern_plant')) {
+      const spr = this.s.add.sprite(0, 6, 'fern_plant', 'fern_plant_S_00');
+      spr.setOrigin(0.5, 0.55).setScale(0.42).setTint(0xd8f7fb);
+      try { spr.play('fern_plant_S'); } catch { /* */ }
       return spr;
     }
     if (who === 'noor' && this.s.textures.exists('noor_idle')) {
@@ -524,26 +545,3 @@ export class Dialogue {
   }
 }
 
-/** Crop Fern's seated frame to a crisp ~80px-tall head (runtime, no new art). */
-function ensureFernHead(s: GameScene) {
-  if (s.textures.exists('fern_holo_head')) return;
-  try {
-    const tex = s.textures.get('fern_seated');
-    const img = tex.getSourceImage() as HTMLImageElement | HTMLCanvasElement;
-    const fr = tex.get('fern_seated_S_00') as Phaser.Textures.Frame;
-    const cutX = (fr as unknown as { cutX?: number }).cutX ?? fr.x ?? 0;
-    const cutY = (fr as unknown as { cutY?: number }).cutY ?? fr.y ?? 0;
-    // Tight face crop (not the padded 384 frame). Target height 80px.
-    const sx = 148, sy = 140, sw = 92, sh = 90;
-    const faceH = 80;
-    const dw = Math.round(sw * faceH / sh);
-    const c = document.createElement('canvas');
-    c.width = dw; c.height = faceH;
-    const ctx = c.getContext('2d');
-    if (!ctx) return;
-    ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
-    ctx.drawImage(img, cutX + sx, cutY + sy, sw, sh, 0, 0, dw, faceH);
-    s.textures.addCanvas('fern_holo_head', c);
-  } catch { /* */ }
-}
