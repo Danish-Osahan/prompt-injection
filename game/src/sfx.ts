@@ -2,6 +2,32 @@
 let ctx: AudioContext | null = null;
 let master = 1;
 function ac() { if (!ctx) { try { ctx = new AudioContext(); } catch { return null; } } if (ctx.state === 'suspended') ctx.resume().catch(() => {}); return ctx; }
+export function getAudioContext() { return ac(); }
+
+let bus: GainNode | null = null;
+let meter: AnalyserNode | null = null;
+/** Shared output so voice/freeze audio can be metered and stay on one bus. */
+export function outNode() {
+  const a = ac(); if (!a) return null;
+  if (!bus || bus.context !== a) {
+    bus = a.createGain();
+    bus.gain.value = 1;
+    bus.connect(a.destination);
+    meter = a.createAnalyser();
+    meter.fftSize = 2048;
+    meter.smoothingTimeConstant = 0.2;
+    bus.connect(meter);
+  }
+  return bus;
+}
+export function meterRms() {
+  if (!meter) return 0;
+  const buf = new Uint8Array(meter.fftSize);
+  meter.getByteTimeDomainData(buf);
+  let s = 0;
+  for (const v of buf) { const x = (v - 128) / 128; s += x * x; }
+  return Math.sqrt(s / buf.length);
+}
 
 type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win' | 'crackle';
 type ImpactKind = 'impact_whoosh' | 'impact_clank' | 'impact_snap' | 'impact_bounce' | 'impact_padlock' | 'impact_hum' | 'impact_heavy' | 'impact_big';

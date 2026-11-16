@@ -4,6 +4,7 @@
 import Phaser from 'phaser';
 import tokens from './tokens.json';
 import { sfx, startHum, stopHum } from './sfx';
+import { startFreezeBed, stopFreezeBed, deniedCrackle, reverseSwell } from './voice';
 import { playMusic } from './music';
 import type { GameScene } from './game';
 import { writeSave } from './save';
@@ -154,15 +155,13 @@ export class IntroCutscene {
       this.rewriteDraft();
       try { this.actor?.act('leanIn'); } catch { /* */ }
     });
+    // Dock the claim-mail before she speaks so her bubble cannot sit under it.
+    this.at(16800, () => this.dismissMail());
     // CLAIM DENIED lands ~1s into the crawl.
     this.at(17800, () => {
       try { this.actor?.act('handUp'); } catch { /* */ }
       try { this.actor?.emote('!', 1200); } catch { /* */ }
       try { s.say('noor', "No, no, no, I didn't write that", 2600, { box: false }); } catch { /* */ }
-    });
-    // After the crawl has landed, dock the mail so it no longer covers Fern or the desk.
-    this.at(21500, () => {
-      if (this.monitor) s.tweens.add({ targets: this.monitor, alpha: 0, scale: 0.4, duration: 600, ease: 'Cubic.easeIn' });
     });
 
     // (d) Lights die desk by desk toward her; monitors flicker; the lamp buzzes.
@@ -188,8 +187,10 @@ export class IntroCutscene {
     });
 
     // (f) Fern glitches in from her monitor and speaks through the dialogue UI.
+    this.at(37500, () => { try { reverseSwell(1.4); } catch { /* */ } });
     this.at(37800, () => this.clearDrift());
     this.at(39000, () => {
+      try { stopFreezeBed(0.55); } catch { /* */ }
       this.beat = 'f';
       this.clearDrift();
       try { s.cameras.main.shake(200, 0.006); } catch { /* */ }
@@ -278,6 +279,7 @@ export class IntroCutscene {
     this.s.tweens.killTweensOf(this.objs);
     if (this.lampFx) this.s.tweens.killTweensOf(this.lampFx);
     try { stopHum(skipped ? 0.25 : 0.6); } catch { /* */ }
+    try { stopFreezeBed(skipped ? 0.2 : 0.5); } catch { /* */ }
     if (skipped) { try { this.s.dialogue?.clear(); } catch { /* */ } }
     try { playMusic('office'); } catch { /* */ }
 
@@ -564,6 +566,8 @@ export class IntroCutscene {
 
   private freezeWorld() {
     this.pauseRain(true);
+    try { stopHum(0.2); } catch { /* */ }
+    try { startFreezeBed(); } catch { /* */ }
     // Noor keeps moving. Everything else holds.
     for (const r of this.papers) {
       this.s.tweens.killTweensOf(r);
@@ -593,6 +597,9 @@ export class IntroCutscene {
       duration: 2800,
       ease: 'Sine.easeOut',
     });
+    for (let i = 0; i < 10; i++) {
+      this.at(180 + i * 260, () => { if (this.playing) try { deniedCrackle(); } catch { /* */ } });
+    }
     // A small spark follows it off the glass.
     const spark = s.add.rectangle(980, 250, 6, 6, 0xf08074, 0.9).setDepth(7051).setScrollFactor(0);
     try { spark.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
@@ -635,8 +642,27 @@ export class IntroCutscene {
     try { this.s.glassRain?.pause(on); } catch { /* */ }
   }
 
+  private dismissMail() {
+    if (!this.monitor) return;
+    try {
+      this.s.tweens.add({
+        targets: this.monitor, alpha: 0, scale: 0.42, y: this.monitor.y - 16,
+        duration: 480, ease: 'Cubic.easeIn',
+      });
+    } catch { /* */ }
+  }
+
+  /** Screen-space panels the dialogue system should not cover. */
+  panelBounds(): { x: number; y: number; w: number; h: number; screen: boolean }[] {
+    const m = this.monitor;
+    if (!m || !m.active || !m.scene || !m.visible || (m.alpha ?? 0) < 0.12) return [];
+    const w = 640 * (m.scaleX ?? 1), h = 420 * (m.scaleY ?? 1);
+    return [{ x: m.x - w / 2, y: m.y - h / 2, w, h, screen: true }];
+  }
+
   private clear() {
     try { this.actor?.clear(); } catch { /* */ }
+    try { stopFreezeBed(0.2); } catch { /* */ }
     this.actor = undefined;
     for (const o of this.objs) { try { o.destroy(); } catch { /* */ } }
     this.objs = [];

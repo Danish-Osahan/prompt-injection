@@ -43,3 +43,7 @@ Original procedural PIL under `public/assets/fx/` (CC0, no third-party images):
 - `spark_orb_0..3.png` — held electric quality
 - `lightning_0..3.png` — jagged branching bolt projectile
 - `spark_pop.png`, `lift_floor_ind_off/on.png`, `key_e.png`, `key_f.png` — sparks, floor indicator, UI key glyphs
+
+## Procedural audio (2026-11-16)
+No new third-party samples. The opening freeze bed (sub-boom, tape-stop, drone, ring, heartbeat, DENIED crackles, reverse swell) and the Noor/Fern voice blips are original WebAudio in `src/voice.ts`. Credit is listed in `../CREDITS.md`.
+

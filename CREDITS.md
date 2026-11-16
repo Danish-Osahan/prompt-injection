@@ -201,3 +201,11 @@ Office / intro / rooms play the calm *Insistent* loop. The Draft arena plays *Th
 | *Rain on Window Loop* | alxl | CC0 1.0 | https://opengameart.org/content/rain-on-window-loop | `game/public/assets/sfx/sfx_rain.ogg` (transcoded from the WAV) |
 
 Available under CC0; attribution is appreciated but not necessary. Loops under the office window with the GlassRain streaks.
+
+## Procedural audio (opening freeze bed + voice blips) — 2026-11-16
+
+Original WebAudio, no third-party samples:
+
+- Freeze bed in `game/src/voice.ts`: sub-boom, tape-stop (falling lowpass noise), low eerie drone, faint high ringing tone, slow heartbeat, glitchy digital crackles on the drifting DENIED word, and a reverse-noise swell into Fern's arrival. All synthesized at runtime.
+- Voice blips in the same file: Noor is a warm lower sine+triangle with slight pitch variation and a lowpass; Fern is a brighter bitcrushed square chirp plus a short noise burst. They share the game's AudioContext (`game/src/sfx.ts`).
+
