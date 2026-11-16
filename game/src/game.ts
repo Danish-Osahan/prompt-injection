@@ -24,6 +24,8 @@ import { GlassRain } from './rain';
 import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
+import { InteractChip, placeChip } from './ui/InteractChip';
+import { drawForkedBolt } from './impact/qualityShot';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -33,7 +35,7 @@ const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const MAX_HP = 4;
 const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
 const READ_R = 90, FOCUS_R = 120;
-const HOLD_T = 0.22, CHARGE_T = 0.5, AIM_R = 150, BEAM_R = 560;
+const HOLD_T = 0.22, AIM_R = 150, BEAM_R = 560;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 type EKind = 'dummy' | 'scribble' | 'note' | 'draft' | 'redline' | 'stapler';
@@ -71,7 +73,7 @@ export class GameScene extends Phaser.Scene {
   paused = false; pauseUi: Phaser.GameObjects.Container | null = null;
   debugOn = false; debugText!: Phaser.GameObjects.Text;
   hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text; linesHud: Phaser.GameObjects.Text };
-  linePrompt: Phaser.GameObjects.Text | null = null;
+  linePrompt: InteractChip | null = null;
   hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
   flags = { door: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
@@ -327,7 +329,8 @@ export class GameScene extends Phaser.Scene {
     this.debugText = this.add.text(1250, 60, '', { fontFamily: 'IBM Plex Mono', fontSize: '12px', color: C.ok, align: 'right', backgroundColor: 'rgba(0,0,0,0.6)', padding: { x: 6, y: 4 } }).setOrigin(1, 0).setScrollFactor(0).setDepth(D + 10);
     const skip = this.add.text(1250, 300, '', { fontFamily: 'JetBrains Mono', fontSize: '12px', color: C.dim }).setOrigin(1, 0.5).setScrollFactor(0).setDepth(D + 4).setVisible(false);
     const linesHud = this.add.text(1250, 52, '', f(13, 500, 'IBM Plex Mono')).setColor(C.lamp).setOrigin(1, 0).setScrollFactor(0).setDepth(D);
-    this.linePrompt = this.add.text(0, 0, 'E  take', { fontFamily: 'IBM Plex Mono', fontSize: '13px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.78)', padding: { x: 6, y: 3 } }).setOrigin(0.5, 1).setDepth(4000).setVisible(false);
+    this.linePrompt = new InteractChip(this, 4000);
+    this.linePrompt.hide();
     this.hud = { path, title, caret, hp, hpLabel, meta, menu, hand, handText, sub, fern, fernText, skip, linesHud };
 
     void blur; void scrim; scrim.setVisible(false);
@@ -340,7 +343,7 @@ export class GameScene extends Phaser.Scene {
     if (!h) return;
     if (!on) {
       for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.hand, h.sub, h.fern, h.skip, h.linesHud, this.hudBlur]) o?.setVisible(false);
-      this.linePrompt?.setVisible(false);
+      this.linePrompt?.hide();
       h.hp.forEach(im => im.setVisible(false));
       // The word-system caption bar stays visible until words.update runs, but intro returns early.
       try { this.words?.bar?.setVisible(false); this.words?.heading?.setVisible(false); this.words?.pil?.setVisible(false); this.words?.chipG?.setVisible(false); } catch { /* */ }
@@ -354,7 +357,7 @@ export class GameScene extends Phaser.Scene {
     h.path.setText(this.room.path); h.title.setText(this.room.title);
     if (this.hudHidden) {
       for (const o of [h.path, h.title, h.caret, h.hpLabel, h.meta, h.menu, h.sub, h.fern, h.skip, h.linesHud, this.hudBlur]) o?.setVisible(false);
-      this.linePrompt?.setVisible(false);
+      this.linePrompt?.hide();
       h.hp.forEach(im => im.setVisible(false));
       return;
     }
@@ -1198,7 +1201,7 @@ export class GameScene extends Phaser.Scene {
     const card = this.add.text(640, 590, `unsent.txt  +1   ${s.lines.length}/${LINES.length}\n“${quote}”`, { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp, backgroundColor: 'rgba(4,12,18,0.85)', padding: { x: 10, y: 6 }, align: 'center' }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
     this.objs.push(card); this.tweens.add({ targets: card, alpha: 1, y: 566, duration: 260, yoyo: true, hold: 1800, onComplete: () => card.destroy() });
     this.hud?.linesHud?.setText(`lines  ${s.lines.length}/${LINES.length}`);
-    this.linePrompt?.setVisible(false);
+    this.linePrompt?.hide();
     if (s.lines.length === LINES.length) this.time.delayedCall(2600, () => this.say('fern', "That's all of it. You could send it now.", 2600));
   }
   /** per frame: ambient frame stepping, the stand-still narrator line, the hub mirror, dust motes */
@@ -1209,8 +1212,10 @@ export class GameScene extends Phaser.Scene {
     }
     const near = this.hudHidden || this.busy || this.paused ? null : this.nearLostLine();
     if (this.linePrompt) {
-      if (near) this.linePrompt.setVisible(true).setPosition(near.def.sx, near.def.sy - 18).setDepth(near.def.sy + 20);
-      else this.linePrompt.setVisible(false);
+      if (near) {
+        const c = placeChip(near.def.sx, near.def.sy, this.x, this.y, 28, 8);
+        this.linePrompt.show(c.x, c.y, 'take', 0, 'E');
+      } else this.linePrompt.hide();
     }
     for (const a of this.amb) {
       if (a.def.frames <= 1 || !a.spr.visible) continue;
@@ -1406,12 +1411,8 @@ export class GameScene extends Phaser.Scene {
       for (const [sx, sy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) { const x = e.x + sx * b, y = cy + sy * h; g.lineBetween(x, y, x - sx * L, y).lineBetween(x, y, x, y - sy * L); }
       g.setDepth(e.y + 5);
     }
-    if (charging) {
-      const u = Math.min(1, (this.atkHeldT - holdAim) / (this.combat ? holdAim : CHARGE_T)), r = 40;
-      cg.lineStyle(3, hex(C.cyan), 0.25).strokeCircle(this.x, this.y - 64, r);
-      cg.lineStyle(4, hex(u >= 1 ? C.inkBright : C.cyan), 1); cg.beginPath(); cg.arc(this.x, this.y - 64, r, -Math.PI / 2, -Math.PI / 2 + u * Math.PI * 2); cg.strokePath();
-      cg.setDepth(this.y + 4);
-    }
+    // No charge ring. Wind-up is Noor's pose (played in the attack-hold path).
+    void charging; void cg;
   }
   /** HOLD then RELEASE: the typed beam. Auto-aims at the nearest enemy in range; hits everything along the line. */
   fireBeam(charge: number) {
@@ -1422,19 +1423,34 @@ export class GameScene extends Phaser.Scene {
     const hit = this.enemies.filter(e => { if (e.dead) return false; const t = Phaser.Math.Clamp(((e.x - x0) * v.x + (e.y - y0) * v.y) / L, 0, 1); return Math.hypot(e.x - (x0 + v.x * L * t), e.y - (y0 + v.y * L * t)) < 40; });
     this.selectN++; this.beamN++; this.selectHits += hit.length; this.beamHits += hit.length;
     const dmg = 1 + charge + 0.5 * Math.max(0, hit.length - 1);
-    this.noor.play(`noor_type3_${this.dir}`, true); this.swingT = 0.3; sfx('paste');
+    try { this.noor.play(`noor_type2_${this.dir}`, true); } catch { this.noor.play(`noor_type3_${this.dir}`, true); }
+    this.time.delayedCall(90, () => {
+      try { this.noor.play(`noor_throw_${this.dir}`, true); } catch { try { this.noor.play(`noor_type3_${this.dir}`, true); } catch { /* */ } }
+    });
+    this.swingT = 0.3; sfx('paste');
     for (const e of hit) this.hurtEnemy(e, dmg, v.x * 220, v.y * 220, true);
     if (hit.length) { this.hitStopT = 0.06; this.noor.anims.pause(); this.cameras.main.shake(110, 0.005); if (this.clar && hit.some(e => e.practice)) { this.markTut('o11beam'); this.clar.beamHits++; } }
     if (!this.save.tutorials.includes('select')) { this.save.tutorials.push('select'); }
-    // the visual: a stream of typed glyphs racing out, then deleting back
-    const str = 'rephrase(this) '.repeat(4), step = 15, n = Math.max(4, Math.floor(L / step)), ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
-    const rot = Math.atan2(v.y, v.x), flip = Math.abs(rot) > Math.PI / 2 ? rot + Math.PI : rot;
-    const glow = this.add.graphics().setDepth(y0 + 3).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(glow);
-    glow.lineStyle(28, hex(C.cyan), 0.14 + 0.1 * charge).lineBetween(ox, oy, ox + v.x * L, oy + v.y * L).lineStyle(2, hex(C.inkBright), 0.6).lineBetween(ox, oy, ox + v.x * L, oy + v.y * L);
-    const ch: Phaser.GameObjects.Text[] = [];
-    for (let i = 0; i < n; i++) { const t = this.glyph(ox + v.x * step * (i + 0.5), oy + v.y * step * (i + 0.5) + Math.sin(i * 0.9) * 3, str[i % str.length], i > n - 4 && hit.length ? C.lamp : C.cyan, 19, y0 + 4).setRotation(flip).setAlpha(0); ch.push(t); this.tweens.add({ targets: t, alpha: 1, delay: i * 6, duration: 40 }); }
-    this.time.delayedCall(n * 6 + 160, () => { ch.forEach((t, i) => this.tweens.add({ targets: t, alpha: 0, y: t.y - 6, delay: (n - i) * 5, duration: 90, onComplete: () => t.destroy() })); this.tweens.add({ targets: glow, alpha: 0, duration: 260, delay: 80, onComplete: () => glow.destroy() }); });
+    // Forked bolt with afterglow + impact sparks — no straight laser, no glyph stream, no charge ring.
+    const ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
+    const tipX = ox + v.x * L, tipY = oy + v.y * L;
+    const glow = this.add.graphics().setDepth(y0 + 6).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(glow);
+    const paint = () => { glow.clear(); drawForkedBolt(glow, ox, oy, tipX, tipY, this.t, 1); };
+    paint();
+    let flick = 0;
+    const ev = this.time.addEvent({ delay: 32, repeat: 10, callback: () => { flick++; if (flick < 5) paint(); else glow.setAlpha(Math.max(0, 1 - (flick - 4) / 6)); } });
+    this.time.delayedCall(380, () => { ev.remove(false); glow.destroy(); });
+    const at = hit[0] ? { x: hit[0].x, y: hit[0].y - 28 } : { x: tipX, y: tipY };
+    const sp = this.add.graphics().setDepth(8010).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(sp);
+    sp.fillStyle(0xe8ffff, 0.75).fillCircle(at.x, at.y, 6);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2;
+      const sl = 9 + (i % 3) * 7;
+      sp.lineStyle(1.5, 0xb8f0ff, 0.9).lineBetween(at.x, at.y, at.x + Math.cos(a) * sl, at.y + Math.sin(a) * sl);
+    }
+    this.tweens.add({ targets: sp, alpha: 0, duration: 240, onComplete: () => sp.destroy() });
     if (tgt) this.fragments(tgt.x, tgt.y - 50, 'rephrase', hit.length ? C.lamp : C.cyan, 8);
+    void charge;
   }
   paste() {
     const src = this.stored!; this.stored = null; this.pasteN++; sfx('paste');
@@ -1554,7 +1570,15 @@ export class GameScene extends Phaser.Scene {
       else { this.atkPending = true; this.atkHeldT = 0; }
     }
     if (this.atkPending) {
-      if (control && f.attackHeld) { this.atkHeldT += dt; this.selecting = this.atkHeldT > holdT; }
+      if (control && f.attackHeld) {
+        this.atkHeldT += dt; this.selecting = this.atkHeldT > holdT;
+        if (this.selecting) {
+          const cur = this.noor.anims.currentAnim?.key ?? '';
+          if (!/^noor_(type2|throw|charge)/.test(cur)) {
+            try { this.noor.play(`noor_type2_${this.dir}`, true); } catch { /* */ }
+          }
+        }
+      }
       else {
         if (control && this.atkHeldT <= holdT) this.typeAttack();
         else if (control && this.atkHeldT >= holdT) this.fireBeam(Math.min(1, (this.atkHeldT - holdT) / Math.max(0.01, holdT)));

@@ -7,6 +7,7 @@ import { O11_PROPS, O11_DUMMY } from '../office11art';
 import { DEFAULT_TUNE, type CombatTune } from './tune';
 import { sfx } from '../sfx';
 import { logSwap } from '../save';
+import { drawForkedBolt } from '../impact/qualityShot';
 
 const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
@@ -706,8 +707,7 @@ export class CombatGreybox {
     }
     if (hit.length) { s.hitStopT = 0.07; s.noor.anims.pause(); s.cameras.main.shake(160, 0.01); }
     const glow = s.add.graphics().setDepth(y0 + 3).setBlendMode(Phaser.BlendModes.ADD); s.objs.push(glow);
-    glow.lineStyle(22, hex(C.cyan), 0.2).lineBetween(x0, y0, x0 + v.x * L, y0 + v.y * L);
-    glow.lineStyle(6, 0xffffff, 0.85).lineBetween(x0, y0, x0 + v.x * L, y0 + v.y * L);
+    drawForkedBolt(glow, x0, y0, x0 + v.x * L, y0 + v.y * L, this.s.t, 1);
     s.tweens.add({ targets: glow, alpha: 0, duration: 420, delay: 120, onComplete: () => glow.destroy() });
     s.slide(-v.x * 5, -v.y * 5);
     return true;

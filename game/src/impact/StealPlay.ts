@@ -8,6 +8,7 @@ import { writeSave, logSwap } from '../save';
 import { ImpactFX } from './ImpactFX';
 import { OnboardLure } from './OnboardLure';
 import { sfx } from '../sfx';
+import { launchShot, shotKind } from './qualityShot';
 
 const OPP: Record<string, string> = {
   OPEN: 'SHUT', SHUT: 'OPEN',
@@ -149,12 +150,19 @@ export class StealPlay {
     const near = this.nearTakeable();
     if (near && f.interactHeld && !this.held) {
       this.peelT += dt;
+      this.lure?.setVerb('take');
+      this.lure?.setHold(this.peelT / this.peelNeed);
       try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
       if (this.peelT >= this.peelNeed) { this.peelT = 0; this.take(near); }
     } else if (!this.held && near && f.interactHeld && this.lastApply?.onto === near) {
       this.peelT += dt;
+      this.lure?.setVerb('take');
+      this.lure?.setHold(this.peelT / this.peelNeed);
       if (this.peelT >= this.peelNeed) { this.peelT = 0; this.undo(); }
-    } else this.peelT = Math.max(0, this.peelT - dt * 2);
+    } else {
+      this.peelT = Math.max(0, this.peelT - dt * 2);
+      this.lure?.setHold(near && !this.held ? this.peelT / this.peelNeed : 0);
+    }
   }
 
   take(id?: string): boolean {
@@ -198,13 +206,16 @@ export class StealPlay {
     }
     this.flying = true;
     sfx('throw');
-    const orb = this.orb as Phaser.GameObjects.Image | undefined;
-    if (orb) {
-      this.s.tweens.add({
-        targets: orb, x: tx, y: ty, duration: 160, ease: 'Quad.easeOut',
-        onComplete: () => this.resolveThrow(word, from, dest, tx, ty),
-      });
-    } else this.resolveThrow(word, from, dest, tx, ty);
+    const h = this.handOff();
+    const fromP = { x: this.s.x + h.x, y: this.s.y + h.y };
+    this.clearOrb();
+    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
+    this.s.time.delayedCall(90, () => {
+      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch { /* */ }
+      launchShot(this.s, shotKind(word), fromP, { x: tx, y: ty }, () => {
+        this.resolveThrow(word, from, dest, tx, ty);
+      }, 240);
+    });
     return true;
   }
 
@@ -410,14 +421,10 @@ export class StealPlay {
   private spawnOrb() {
     this.clearOrb();
     const h = this.handOff();
-    const key = this.s.textures.exists('fx_spark_orb_0') ? 'fx_spark_orb_0' : (this.s.textures.exists('fx_spark_core') ? 'fx_spark_core' : '');
-    if (key) {
-      const im = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key).setDepth(7100).setScale(1.2).setBlendMode(Phaser.BlendModes.ADD);
-      this.s.objs.push(im); this.orb = im;
-    } else {
-      const g = this.s.add.ellipse(this.s.x + h.x, this.s.y + h.y, 18, 18, 0x7ec8e3, 0.9).setDepth(7100).setBlendMode(Phaser.BlendModes.ADD);
-      this.s.objs.push(g); this.orb = g;
-    }
+    // Small code-drawn core in the palm — not the spark-orb starburst.
+    const g = this.s.add.ellipse(this.s.x + h.x, this.s.y + h.y, 14, 10, 0x7ec8e3, 0.85)
+      .setDepth(this.s.y + 28).setBlendMode(Phaser.BlendModes.ADD);
+    this.s.objs.push(g); this.orb = g;
   }
 
   private clearOrb() { try { this.orb?.destroy(); } catch { /* */ } this.orb = undefined; }

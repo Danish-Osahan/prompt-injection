@@ -9,6 +9,7 @@ import { sfx } from '../sfx';
 import { writeSave } from '../save';
 import { showControlsHint, focusGameCanvas } from '../flow';
 import type { Frame } from '../controls';
+import { drawForkedBolt } from './qualityShot';
 
 /**
  * v15j layered lift + banker desk lamp, rendered in Blender 4.2.9 LTS at the office plate
@@ -434,6 +435,7 @@ export class ImpactLab {
 
     this.suppressWordUi(true);
     this.impactFrame = !!this.fx.silActive;
+    this.lure?.setVerb(this.lampReady ? 'take' : 'try');
     this.lure?.update(dt);
     if (!this.framing) this.s.updateFollowCamera?.();
 
@@ -455,6 +457,7 @@ export class ImpactLab {
     if (kind === 'lamp') {
       this.peelT += dt;
       try { this.s.noor.play(`noor_type1_${this.s.dir}`, true); } catch { /* */ }
+      this.lure?.setVerb(this.lampReady ? 'take' : 'try');
       this.lure?.setHold(this.peelT / this.peelNeed);
       if (this.peelT >= this.peelNeed) {
         this.peelT = 0;
@@ -462,16 +465,15 @@ export class ImpactLab {
         this.takeSpark();
       }
     } else if (kind === 'panel') {
-      this.peelT += dt;
-      this.lure?.setHold(Math.min(1, this.peelT / 0.2));
+      this.peelT = 0;
+      this.lure?.setHold(0);
     } else if (!this.carrying) {
       if (this.wasHolding && this.holdKind === 'lamp' && this.peelT > 0.04 && this.peelT < this.peelNeed && !this.lampHinted) {
         this.lampHinted = true;
         try { this.s.say('fern', 'Hold E. Peel the spark from the lamp.', 2200); } catch { /* */ }
       }
       this.peelT = Math.max(0, this.peelT - dt * 2);
-      const need = this.holdKind === 'lamp' || this.lampReady ? this.peelNeed : 0.2;
-      this.lure?.setHold(this.peelT > 0.01 ? this.peelT / need : 0);
+      this.lure?.setHold(this.lampReady && this.peelT > 0.01 ? this.peelT / this.peelNeed : 0);
     }
     this.wasHolding = !!kind;
     this.holdKind = kind;
@@ -845,40 +847,13 @@ export class ImpactLab {
     this.holdStaticCam();
   }
 
-  /** Thick jagged bolt hand→tip; overall vector always aims at the panel (small branches only). */
+  /** Forked bolt hand→tip; overall vector always aims at the panel. */
   private drawBoltBeam(x0: number, y0: number, x1: number, y1: number) {
     const g = this.boltBeam;
     if (!g) return;
     g.clear();
-    const dx = x1 - x0, dy = y1 - y0;
-    const dist = Math.hypot(dx, dy) || 1;
-    const nx = -dy / dist, ny = dx / dist;
-    const segs = Math.max(5, Math.floor(dist / 16));
-    const pts: { x: number; y: number }[] = [];
-    for (let i = 0; i <= segs; i++) {
-      const t = i / segs;
-      // Small jagged offset perpendicular to hand→panel (≤4px) — never leaves the corridor
-      const jag = (i === 0 || i === segs) ? 0 : Math.sin(t * 21 + this.s.t * 55) * 3.5 + Math.sin(t * 47) * 1.5;
-      pts.push({ x: x0 + dx * t + nx * jag, y: y0 + dy * t + ny * jag });
-    }
-    for (const [w, col, a] of [[8, 0x2880ff, 0.35], [5, 0x70d0ff, 0.7], [2.5, 0xe8ffff, 1], [1.2, 0xffffff, 1]] as const) {
-      g.lineStyle(w, col, a);
-      g.beginPath();
-      g.moveTo(pts[0].x, pts[0].y);
-      for (let i = 1; i < pts.length; i++) g.lineTo(pts[i].x, pts[i].y);
-      g.strokePath();
-    }
-    // Short side branches (do not redefine the main vector)
-    for (let i = 2; i < pts.length - 1; i += 3) {
-      const p = pts[i];
-      const side = (i % 2 === 0 ? 1 : -1);
-      const bx = p.x + nx * 8 * side;
-      const by = p.y + ny * 8 * side;
-      g.lineStyle(2.5, 0xb8f0ff, 0.8);
-      g.lineBetween(p.x, p.y, bx, by);
-      g.lineStyle(1.2, 0xffffff, 1);
-      g.lineBetween(p.x, p.y, bx, by);
-    }
+    g.setBlendMode(Phaser.BlendModes.ADD);
+    drawForkedBolt(g, x0, y0, x1, y1, this.s.t, 1);
   }
 
   private clearCarryFx() {

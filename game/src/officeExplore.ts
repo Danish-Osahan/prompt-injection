@@ -5,6 +5,8 @@ import type { GameScene } from './game';
 import type { Frame } from './controls';
 import { sfx, getAudioContext, outNode } from './sfx';
 import tokens from './tokens.json';
+import { InteractChip, placeChip } from './ui/InteractChip';
+import { launchShot, shotKind } from './impact/qualityShot';
 
 const C = tokens.color;
 const UI = 'IBM Plex Mono';
@@ -31,16 +33,12 @@ export class OfficeExplore {
   looked: Record<string, boolean> = {};
   printerFired = false;
   carrying: 'LOUD' | 'HOT' | null = null;
-  private prompt?: Phaser.GameObjects.Text;
-  private promptRing?: Phaser.GameObjects.Graphics;
+  private prompt?: InteractChip;
+  private glow?: Phaser.GameObjects.Ellipse;
   private boardGfx?: Phaser.GameObjects.Container;
   private letter?: Phaser.GameObjects.Container;
   private handChip?: Phaser.GameObjects.Text;
-  private flying?: Phaser.GameObjects.Text;
-  private flyT = 0;
-  private flyFrom = { x: 0, y: 0 };
-  private flyTo = { x: 0, y: 0 };
-  private flyWord: 'LOUD' | 'HOT' | null = null;
+  private flying = false;
   private nearPhones = false;
   private phonesGain?: GainNode;
   private phonesOsc: OscillatorNode[] = [];
@@ -51,12 +49,9 @@ export class OfficeExplore {
 
   constructor(private s: GameScene) {
     this.drawBoardMarks();
-    this.prompt = s.add.text(0, 0, 'E  look', {
-      fontFamily: UI, fontSize: '12px', fontStyle: '700', color: '#e8fcfc',
-      stroke: '#041018', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(9002).setAlpha(0);
-    this.promptRing = s.add.graphics().setDepth(9002).setAlpha(0);
-    s.objs.push(this.prompt, this.promptRing);
+    this.prompt = new InteractChip(s, 9002);
+    this.glow = s.add.ellipse(0, 0, 52, 28, 0x5ee8e0, 0).setDepth(200).setBlendMode(Phaser.BlendModes.ADD);
+    s.objs.push(this.glow);
     this.keyF = s.input.keyboard?.addKey('F');
   }
 
@@ -100,9 +95,9 @@ export class OfficeExplore {
   destroy() {
     this.destroyed = true;
     this.stopPhones();
-    this.prompt?.destroy(); this.promptRing?.destroy();
+    this.prompt?.destroy(); this.glow?.destroy();
     this.boardGfx?.destroy(); this.letter?.destroy();
-    this.handChip?.destroy(); this.flying?.destroy();
+    this.handChip?.destroy();
   }
 
   /** Panel/lamp win only when they are as close or closer than the lookable. */
@@ -132,21 +127,28 @@ export class OfficeExplore {
     return best;
   }
 
+  private chipOff(id: ExploreSpot['id']) {
+    if (id === 'board') return { ox: 92, oy: 24 };
+    if (id === 'calendar') return { ox: 54, oy: 18 };
+    if (id === 'photo') return { ox: 36, oy: 14 };
+    if (id === 'printer') return { ox: 44, oy: 16 };
+    if (id === 'phones') return { ox: 40, oy: 12 };
+    return { ox: 34, oy: 16 };
+  }
+
   private updatePrompt(spot: ExploreSpot | undefined, blocked: boolean) {
-    const p = this.prompt, g = this.promptRing;
-    if (!p || !g) return;
-    if (!spot || blocked) { p.setAlpha(0); g.setAlpha(0); return; }
+    const p = this.prompt, g = this.glow;
+    if (!p) return;
+    if (!spot || blocked) { p.hide(); g?.setAlpha(0); return; }
     const stealReady = !!(spot.steal && this.looked[spot.id] && !this.carrying);
-    p.setText(stealReady ? `HOLD E  take ${spot.steal}` : 'E  look');
-    p.setPosition(spot.x, spot.y - 42).setAlpha(0.9 + 0.1 * Math.sin(this.s.t * 5));
-    g.clear().setAlpha(1);
-    g.lineStyle(2, 0x5ee8e0, 0.45);
-    g.strokeCircle(spot.x, spot.y - 56, 16);
-    if (stealReady && this.peelT > 0) {
-      g.lineStyle(3, 0xe8fcfc, 0.95);
-      g.beginPath();
-      g.arc(spot.x, spot.y - 56, 16, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, this.peelT / 0.4), false);
-      g.strokePath();
+    const hold = stealReady ? Math.min(1, this.peelT / 0.4) : 0;
+    const off = this.chipOff(spot.id);
+    const c = placeChip(spot.x, spot.y, this.s.x, this.s.y, off.ox, off.oy);
+    p.show(c.x, c.y, stealReady ? `take ${spot.steal}` : 'look', hold, 'E');
+    if (g) {
+      const pulse = 0.14 + 0.08 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
+      const size = spot.id === 'board' ? [110, 44] : spot.id === 'calendar' ? [70, 36] : [48, 26];
+      g.setPosition(spot.x, spot.y).setSize(size[0], size[1]).setAlpha(pulse).setDepth(spot.y - 8);
     }
   }
 
@@ -219,42 +221,26 @@ export class OfficeExplore {
     const word = this.carrying;
     this.carrying = null;
     this.handChip?.setVisible(false);
+    this.flying = true;
     const from = { x: this.s.x, y: this.s.y - 28 };
     const to = word === 'LOUD' ? { x: 1140, y: 330 } : { x: 77, y: 180 };
-    // LOUD at the east pod monitor; HOT at the west plant.
-    this.flyFrom = from; this.flyTo = to; this.flyT = 0; this.flyWord = word;
-    this.flying = this.s.add.text(from.x, from.y, word, {
-      fontFamily: 'JetBrains Mono', fontSize: '18px', fontStyle: 'bold', color: C.lamp,
-      stroke: '#041018', strokeThickness: 4,
-    }).setOrigin(0.5).setDepth(8000);
-    this.s.objs.push(this.flying);
+    try { this.s.noor.play(`noor_type2_${this.s.dir}`, true); } catch { /* */ }
     try { sfx('throw'); } catch { /* */ }
+    this.s.time.delayedCall(90, () => {
+      try { this.s.noor.play(`noor_throw_${this.s.dir}`, true); } catch { /* */ }
+      launchShot(this.s, shotKind(word), from, to, () => {
+        this.flying = false;
+        if (word === 'LOUD') {
+          try { this.s.cameras.main.shake(140, 0.008); } catch { /* */ }
+          try { this.s.say('fern', "That's one way to get a screen's attention.", 2400); } catch { /* */ }
+        } else {
+          try { this.s.say('fern', "Careful. Hot and leaves are a love story with an ending.", 2600); } catch { /* */ }
+        }
+      }, 260);
+    });
   }
 
-  private tickFlight(dt: number) {
-    if (!this.flying || !this.flyWord) return;
-    this.flyT += dt;
-    const u = Math.min(1, this.flyT / 0.28);
-    const x = this.flyFrom.x + (this.flyTo.x - this.flyFrom.x) * u;
-    const y = this.flyFrom.y + (this.flyTo.y - this.flyFrom.y) * u - Math.sin(u * Math.PI) * 30;
-    this.flying.setPosition(x, y);
-    if (u < 1) return;
-    const word = this.flyWord;
-    this.flying.destroy(); this.flying = undefined; this.flyWord = null;
-    try { sfx('impact_snap'); } catch { /* */ }
-    if (word === 'LOUD') {
-      try { this.s.cameras.main.shake(140, 0.008); } catch { /* */ }
-      const pulse = this.s.add.ellipse(this.flyTo.x, this.flyTo.y, 20, 14, 0x7ad4d8, 0.5).setDepth(6000).setBlendMode(Phaser.BlendModes.ADD);
-      this.s.objs.push(pulse);
-      this.s.tweens.add({ targets: pulse, scale: 6, alpha: 0, duration: 420, onComplete: () => pulse.destroy() });
-      try { this.s.say('fern', "That's one way to get a screen's attention.", 2400); } catch { /* */ }
-    } else {
-      const steam = this.s.add.ellipse(this.flyTo.x, this.flyTo.y - 10, 16, 22, 0xffe0b0, 0.5).setDepth(6000).setBlendMode(Phaser.BlendModes.ADD);
-      this.s.objs.push(steam);
-      this.s.tweens.add({ targets: steam, y: steam.y - 28, alpha: 0, scale: 1.8, duration: 600, onComplete: () => steam.destroy() });
-      try { this.s.say('fern', "Careful. Hot and leaves are a love story with an ending.", 2600); } catch { /* */ }
-    }
-  }
+  private tickFlight(_dt: number) { /* shots tween themselves */ }
 
   private firePrinter() {
     if (this.printerFired) return;

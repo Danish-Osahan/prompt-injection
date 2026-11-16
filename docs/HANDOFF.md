@@ -1,5 +1,17 @@
 # HANDOFF
 
+## 2026-11-16 — Interact chips and shaped throws (no charge rings)
+
+User notes on `0f1d2ba`: a teal hold-ring floated over Noor's head at the whiteboard ("E look"), colliding with the #4412 / sticky-note labels; hold-J drew a fill-circle before a straight glyph beam, which still felt sloppy.
+
+1. **Interact prompts.** The floating hold-ring is gone. Prompts are a small key-cap "E" (or "F") chip plus a verb, placed beside the object and nudged off Noor's head if they would overlap. A soft additive ellipse marks the interactable itself. Look stays a tap (`E look`). Real holds (lamp peel, quality take, optional LOUD/HOT after a look) fill the key-cap and intensify the object glow — no ring. The lift panel stays a tap (`E try`). Lost-line scraps use the same chip (`E take`). The lamp/lift lure uses the same chip instead of `fx_key_e` plus a ring.
+
+2. **Throws and the hold-J attack.** There is no charge circle. While J is held past the combo threshold, Noor plays a short type/throw wind-up pose; on release the shot is a forked lightning bolt with afterglow and impact sparks, not a straight laser or a stream of glyphs. Damage still applies immediately so the existing hold-then-release tests stay valid. Stolen-quality throws (F) launch as a shaped projectile after an 80–120ms pose: SPARK is a jagged forked bolt, HOT a heat-shimmer wave, LOUD an expanding sound-ripple cone, WET a splash arc, other words a compact dart. The held steal orb is a small code-drawn ellipse, not the spark-orb starburst.
+
+Playtest 201/201 (existing E / explore / lost-line / beam-hold-release / dummy / DRY / Draft contracts kept).
+
+Review stills (not in the repo): `/workspace/l1-prompt-board-2x.png`, `/workspace/l1-prompt-lift-2x.png`, `/workspace/l1-throw-mid-2x.png`, `/workspace/l1-throw-impact-2x.png`.
+
 ## 2026-11-16 — Complaint-bodied enemies
 
 Level 1 attackers are complaints given bodies: paper and ink, never an employee.
