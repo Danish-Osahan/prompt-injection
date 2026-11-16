@@ -150,6 +150,7 @@ export class Dialogue {
   }
 
   private shouldBox(job: Job) {
+    if (this.s.intro?.playing) return true;
     if (job.line.length >= LONG_LINE) return true;
     if (job.who === 'floor' || job.who === 'papa') return true;
     if (job.who === 'ai' || job.who === 'draft') {

@@ -142,6 +142,10 @@ export class IntroCutscene {
       try { s.cameras.main.shake(160, 0.005); } catch { /* */ }
       this.rewriteDraft();
     });
+    // After the crawl has landed, dock the mail so it no longer covers Fern or the desk.
+    this.at(21500, () => {
+      if (this.monitor) s.tweens.add({ targets: this.monitor, alpha: 0, scale: 0.4, duration: 600, ease: 'Cubic.easeIn' });
+    });
 
     // (d) Lights die desk by desk toward her; monitors flicker; the lamp buzzes.
     this.at(23000, () => {
@@ -365,52 +369,53 @@ export class IntroCutscene {
     const originX = src.x, originY = src.y;
     const from = src.text || (src.getData('full') as string) || '';
     src.setVisible(false);
+    const gw = 13;
     const glyphs: Phaser.GameObjects.Text[] = [];
-    const gw = 14;
-    for (let i = 0; i < Math.max(from.length, dest.length); i++) {
-      const ch = from[i] ?? dest[i] ?? '';
-      const g = s.add.text(originX + i * gw, originY, ch, {
+    for (let i = 0; i < from.length; i++) {
+      const g = s.add.text(originX + i * gw, originY, from[i], {
         fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.cyan,
       }).setOrigin(0, 0);
       parent.add(g);
       this.letters.push(g);
       glyphs.push(g);
     }
+    const destW = 16;
     dest.split('').forEach((ch, i) => {
       const g = glyphs[i];
       if (!g) return;
       s.tweens.add({
         targets: g,
-        x: originX + i * 16,
-        y: originY + (Math.random() - 0.5) * 6,
-        duration: 280 + i * 45,
+        x: originX + i * destW,
+        y: originY,
+        duration: 360 + i * 40,
         ease: 'Cubic.easeInOut',
-        delay: i * 30,
-        onStart: () => { try { if (i % 2 === 0) sfx('impact_snap'); } catch { /* */ } },
-        onUpdate: () => { /* color swap mid-crawl */ },
-        onComplete: () => {
-          g.setText(ch).setColor(C.coral);
-        },
+        delay: i * 28,
+        onStart: () => { try { if (i % 3 === 0) sfx('impact_snap'); } catch { /* */ } },
       });
-      this.at(200 + i * 45, () => { if (this.playing) g.setColor('#F3C2A8'); });
+      this.at(180 + i * 40, () => { if (this.playing) g.setColor('#F3C2A8'); });
+      this.at(360 + i * 40, () => { if (this.playing) g.setText(ch).setColor(C.coral); });
     });
-    // Leftover letters drop (heavy) and fade.
     for (let i = dest.length; i < glyphs.length; i++) {
       const g = glyphs[i];
       s.tweens.add({
-        targets: g, y: g.y + 36, alpha: 0, duration: 500, delay: 200 + i * 30, ease: 'Quad.easeIn',
+        targets: g, y: g.y + 40, alpha: 0, duration: 420, delay: 160 + i * 24, ease: 'Quad.easeIn',
       });
     }
-    // Soft glow twin behind the final word.
-    this.at(200 + dest.length * 45, () => {
-      if (!this.playing) return;
+    const land = 420 + dest.length * 40;
+    this.at(land, () => {
+      if (!this.playing || !this.monitor) return;
+      for (const g of glyphs) { try { g.destroy(); } catch { /* */ } }
+      const clean = s.add.text(originX, originY, dest, {
+        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.coral, letterSpacing: 2,
+      } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0, 0);
       const glow = s.add.text(originX, originY, dest, {
-        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.coral,
-      }).setOrigin(0, 0).setAlpha(0.45);
+        fontFamily: FONT, fontSize: '24px', fontStyle: 'bold', color: C.coral, letterSpacing: 2,
+      } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0, 0).setAlpha(0.5);
       try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
-      parent.add(glow);
-      this.letters.push(glow);
-      s.tweens.add({ targets: glow, alpha: { from: 0.15, to: 0.7 }, duration: 160, yoyo: true, repeat: 4 });
+      this.monitor.add(glow);
+      this.monitor.add(clean);
+      this.letters.push(glow, clean);
+      s.tweens.add({ targets: glow, alpha: { from: 0.2, to: 0.8 }, duration: 180, yoyo: true, repeat: 3 });
     });
   }
 
@@ -434,7 +439,7 @@ export class IntroCutscene {
       this.objs.push(veil);
       this.at(i * 380, () => {
         if (!this.playing) return;
-        s.tweens.add({ targets: veil, alpha: 0.72, duration: 280 });
+        s.tweens.add({ targets: veil, alpha: 0.88, duration: 280 });
         const flash = s.add.rectangle(d.x, d.y - 20, 46, 28, 0xc8e8f0, 0.8).setDepth(430);
         this.objs.push(flash);
         s.tweens.add({ targets: flash, alpha: 0, duration: 180, yoyo: true, repeat: 2, onComplete: () => flash.destroy() });
@@ -442,7 +447,7 @@ export class IntroCutscene {
         try { s.cameras.main.shake(80, 0.002); } catch { /* */ }
       });
     });
-    if (this.flicker) s.tweens.add({ targets: this.flicker, alpha: 0.28, duration: 2400, delay: 400 });
+    if (this.flicker) s.tweens.add({ targets: this.flicker, alpha: 0.42, duration: 2400, delay: 400 });
     this.spawnPapers();
     this.spawnAirRain();
   }
