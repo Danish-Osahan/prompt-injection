@@ -409,13 +409,15 @@ export class Dialogue {
     const ox = flip ? -bw : 0;
     const bg = this.cutPanel(ox, -padT, bw, bh, 0x07141c, 0.94, this.hexFor(job.who), 10);
     const tag = this.namePlate(flip ? -14 : 14, -padT, this.tagFor(job.who), job.who, flip);
+    // Always lay words left-to-right, even when the bubble sits to the left of the speaker.
+    const textLeft = (flip ? ox + padX : padX);
     for (const tw of words) {
-      tw.setPosition(flip ? -padX - tw.x - tw.width : padX + tw.x, tw.y);
+      tw.setPosition(textLeft + tw.x, tw.y);
     }
     const tail = this.bubbleTail(ox, -padT, bw, bh, x, y, speaker ?? { x: flip ? x + 40 : x - 40, y: y + 80 }, this.hexFor(job.who));
-    this.arrow = s.add.text(flip ? -padX : padX + maxW, maxH + 2, '▾', {
+    this.arrow = s.add.text(textLeft + maxW, maxH + 2, '▾', {
       fontFamily: FONT, fontSize: '14px', color: C.cyan,
-    }).setOrigin(flip ? 1 : 0, 0).setVisible(false);
+    }).setOrigin(1, 0).setVisible(false);
     c.add([bg, tail, tag, this.arrow, ...words]);
     s.tweens.add({ targets: c, alpha: 1, y: y - 8, scaleX: 1, scaleY: 1, duration: 240, ease: 'Cubic.easeOut' });
     return c;
