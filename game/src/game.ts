@@ -7,7 +7,8 @@ import { Plate } from './plate';
 import { WordUI, BAR_Y } from './words';
 import { ROOMS, type Rect, type RoomDef } from './rooms';
 import { DraftFight, DRAFT } from './boss';
-import { sfx, setMasterVolume, bindSfxScene } from './sfx';
+import { sfx, bindSfxScene, setSfxVolume } from './sfx';
+import { bindMusicScene, playMusic, setMusicVolume } from './music';
 import { ROOMART, type AmbLayer } from './roomart';
 import { LINGER, LINES } from './linger';
 import { Office9, ViewMap } from './office9';
@@ -124,7 +125,7 @@ export class GameScene extends Phaser.Scene {
     const q = new URLSearchParams(location.search);
     this.labMode = q.has('impact');
     this.swapMode = q.has('swap') || q.has('v9');
-    setMasterVolume(loadSettings().volume);
+    const _st = loadSettings(); setSfxVolume(_st.sfx); setMusicVolume(_st.music);
     this.introPending = this.startMode === 'new' && !this.labMode && !this.swapMode && !q.has('combat') && !q.has('skipIntro');
 
     // Impact Lab: fresh isolated in-memory save. Do NOT wipe or write the player's localStorage.
@@ -145,6 +146,7 @@ export class GameScene extends Phaser.Scene {
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
     bindSfxScene(this);
+    bindMusicScene(this);
     this.makeTextures();
     this.buildHud();
     // Debug overlay ONLY from ?debug in the URL (no keyboard toggle, nothing persisted)
@@ -468,6 +470,7 @@ export class GameScene extends Phaser.Scene {
     if (!this.introPending) this.cameras.main.fadeIn(220, 4, 8, 12);
     else { try { this.cameras.main.setAlpha(1); } catch { /* */ } this.cameras.main.fadeOut(0, 4, 8, 12); }
     if (!this.introPending && !this.intro?.playing && !this.swapMode) showRoomCard(this, id);
+    playMusic(id === 'arena' ? 'tense' : 'office');
   }
 
   drawFloor(r: RoomDef) {

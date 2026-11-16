@@ -2,23 +2,32 @@
 const KEY = 'pi.settings.v1';
 
 export interface Settings {
-  volume: number; // 0..1
+  /** @deprecated kept so older saves still load; prefer sfx + music. */
+  volume?: number;
+  sfx: number;   // 0..1
+  music: number; // 0..1
 }
+
+function clamp(v: number) { return Math.max(0, Math.min(1, v)); }
 
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const s = JSON.parse(raw);
-      const v = typeof s?.volume === 'number' ? s.volume : 1;
-      return { volume: Math.max(0, Math.min(1, v)) };
+      const legacy = typeof s?.volume === 'number' ? s.volume : 1;
+      const sfx = typeof s?.sfx === 'number' ? s.sfx : legacy;
+      const music = typeof s?.music === 'number' ? s.music : legacy;
+      return { sfx: clamp(sfx), music: clamp(music), volume: clamp(legacy) };
     }
   } catch { /* private mode */ }
-  return { volume: 1 };
+  return { sfx: 1, music: 0.85, volume: 1 };
 }
 
 export function writeSettings(s: Settings) {
-  try { localStorage.setItem(KEY, JSON.stringify({ volume: s.volume })); } catch { /* */ }
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ sfx: s.sfx, music: s.music, volume: s.sfx }));
+  } catch { /* */ }
 }
 
 export function shouldSkipTitle() {

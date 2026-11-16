@@ -473,7 +473,7 @@ export class ImpactLab {
     this.lampOn = false;
     this.s.hand = null;
     this.lure?.setCarrying(true);
-    sfx('swap');
+    sfx('steal');
 
     if (this.lampSpr && this.s.textures.exists('fx_lamp_off')) {
       this.lampSpr.setTexture('fx_lamp_off').setAlpha(1);
@@ -509,7 +509,7 @@ export class ImpactLab {
       }
     }, 90);
 
-    sfx('impact_whoosh');
+    sfx('throw');
     const h = this.handOff();
     const key = this.s.textures.exists('fx_lightning_0') ? 'fx_lightning_0' : 'fx_spark_core';
     this.bolt = this.s.add.sprite(this.s.x + h.x, this.s.y + h.y, key)
@@ -673,7 +673,7 @@ export class ImpactLab {
         }
         this.s.extraWalk.lift = { x: 155, y: 150, w: 100, h: 60 };
         try { writeSave(this.s.save); } catch { /* */ }
-        sfx('impact_hum');
+        sfx('lift');
         this.animateLeavesOpen();
         this.speakDiscovery();
       }, 220);

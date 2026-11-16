@@ -178,3 +178,17 @@ inpainted / edge-extended versions of the original Blender plates, same
 method as the office plate. `corridor_dark_bleed.jpg` also has a midtone
 lift so the unlit corridor is readable. See `game/tools/bleed_plates.py`.
 
+## Level 1 pass 2C — music and SFX (2026-11-16)
+
+All tracks and new one-shots below are CC0 (public domain). Zero spend. Credit is not required; given anyway.
+
+| Asset | Author | License | Source | Shipped as |
+|---|---|---|---|---|
+| *Insistent* (background loop) | yd | CC0 1.0 | https://opengameart.org/content/insistent-background-loop | `game/public/assets/music/office.ogg` |
+| *The Final Battle* | skrjablin | CC0 1.0 | https://opengameart.org/content/the-final-battle | `game/public/assets/music/tense.ogg` |
+| `door_open.ogg`, `door_close_01.ogg`, `paper_01.ogg`, `switch_01.ogg` from *100 CC0 SFX* | rubberduck | CC0 1.0 | https://opengameart.org/content/100-cc0-sfx | `game/public/assets/sfx/sfx_door_open.ogg`, `sfx_door_close.ogg`, `sfx_steal.ogg`, `sfx_ui.ogg` |
+| *old elevator door* | sinny | CC0 1.0 | https://opengameart.org/content/old-elevator-door | `game/public/assets/sfx/sfx_lift.ogg` (transcoded to ogg) |
+| Interface Sounds (whoosh / clank / snap / bounce / padlock / hum, already shipped) | Kenney | CC0 1.0 | already logged above | throw falls back to `sfx_whoosh` |
+
+Office / intro / rooms play the calm *Insistent* loop. The Draft arena plays *The Final Battle*. Music and SFX volumes are separate sliders in Settings (`pi.settings.v1`).
+

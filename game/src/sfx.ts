@@ -5,9 +5,10 @@ function ac() { if (!ctx) { try { ctx = new AudioContext(); } catch { return nul
 
 type SynthKind = 'key' | 'hit' | 'block' | 'dash' | 'swap' | 'hurt' | 'ring' | 'tell' | 'paste' | 'root' | 'win';
 type ImpactKind = 'impact_whoosh' | 'impact_clank' | 'impact_snap' | 'impact_bounce' | 'impact_padlock' | 'impact_hum' | 'impact_heavy' | 'impact_big';
-export type SfxKind = SynthKind | ImpactKind;
+type ActKind = 'steal' | 'throw' | 'door_open' | 'door_close' | 'lift' | 'ui';
+export type SfxKind = SynthKind | ImpactKind | ActKind;
 
-const SAMPLE: Partial<Record<ImpactKind, string>> = {
+const SAMPLE: Partial<Record<string, string>> = {
   impact_whoosh: 'sfx_whoosh',
   impact_clank: 'sfx_clank',
   impact_snap: 'sfx_snap',
@@ -16,6 +17,12 @@ const SAMPLE: Partial<Record<ImpactKind, string>> = {
   impact_hum: 'sfx_hum',
   impact_heavy: 'sfx_hit_heavy',
   impact_big: 'sfx_metal',
+  steal: 'sfx_steal',
+  throw: 'sfx_whoosh',
+  door_open: 'sfx_door_open',
+  door_close: 'sfx_door_close',
+  lift: 'sfx_lift',
+  ui: 'sfx_ui',
 };
 
 /** Optional: scene caches Phaser sound instances after boot. */
@@ -24,8 +31,11 @@ export function bindSfxScene(s: typeof sceneRef extends null ? never : NonNullab
 export function setMasterVolume(v: number) {
   master = Math.max(0, Math.min(1, v));
   try { if (sceneRef && 'volume' in sceneRef.sound) (sceneRef.sound as { volume: number }).volume = master; } catch { /* */ }
+  try { if (humGain) humGain.gain.value = Math.max(0.0001, 0.045 * master); } catch { /* */ }
 }
 export function getMasterVolume() { return master; }
+export const setSfxVolume = setMasterVolume;
+export const getSfxVolume = getMasterVolume;
 
 
 export function sfx(kind: SfxKind) {
@@ -48,6 +58,12 @@ export function sfx(kind: SfxKind) {
     impact_hum: ['sine', 90, 140, 0.5, 0.08],
     impact_heavy: ['sawtooth', 240, 60, 0.2, 0.14],
     impact_big: ['sawtooth', 180, 40, 0.28, 0.16],
+    steal: ['triangle', 900, 400, 0.12, 0.08],
+    throw: ['sawtooth', 700, 180, 0.16, 0.07],
+    door_open: ['triangle', 200, 90, 0.22, 0.1],
+    door_close: ['triangle', 140, 70, 0.18, 0.1],
+    lift: ['sine', 120, 80, 0.5, 0.08],
+    ui: ['square', 1400, 900, 0.04, 0.04],
   };
   const [type, f0, f1, dur, vol] = P[kind] ?? P.hit;
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);

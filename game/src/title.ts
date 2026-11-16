@@ -4,7 +4,8 @@ import Phaser from 'phaser';
 import tokens from './tokens.json';
 import { hasSave, wipeSave } from './save';
 import { loadSettings, writeSettings, shouldSkipTitle } from './settings';
-import { bindSfxScene, sfx, setMasterVolume, getMasterVolume } from './sfx';
+import { bindSfxScene, sfx, setSfxVolume } from './sfx';
+import { bindMusicScene, playMusic, setMusicVolume } from './music';
 
 const C = tokens.color;
 const FONT = 'JetBrains Mono';
@@ -18,6 +19,8 @@ export class TitleScene extends Phaser.Scene {
   pane: Pane = 'splash';
   cursor = 0;
   volume = 1;
+  sfxVol = 1;
+  musicVol = 0.85;
   items: Item[] = [];
   ui: Phaser.GameObjects.GameObject[] = [];
   hint?: Phaser.GameObjects.Text;
@@ -30,9 +33,14 @@ export class TitleScene extends Phaser.Scene {
 
   create() {
     bindSfxScene(this);
+    bindMusicScene(this);
     const st = loadSettings();
-    this.volume = st.volume;
-    setMasterVolume(this.volume);
+    this.sfxVol = st.sfx;
+    this.musicVol = st.music;
+    this.volume = st.sfx;
+    setSfxVolume(this.sfxVol);
+    setMusicVolume(this.musicVol);
+    playMusic('office');
 
     // Full-bleed office plate, dimmed.
     const bg = this.add.image(0, 0, 'bg_office_base').setOrigin(0).setDepth(0);
@@ -105,7 +113,8 @@ export class TitleScene extends Phaser.Scene {
     this.pane = 'settings';
     this.clearUi();
     this.items = [
-      { id: 'vol', label: () => `Volume    ${Math.round(this.volume * 100)}%`, run: () => this.nudgeVolume(0.1) },
+      { id: 'music', label: () => `Music     ${Math.round(this.musicVol * 100)}%`, run: () => this.nudge('music', 0.1) },
+      { id: 'sfx', label: () => `SFX       ${Math.round(this.sfxVol * 100)}%`, run: () => this.nudge('sfx', 0.1) },
       { id: 'full', label: () => `Fullscreen    ${this.scale.isFullscreen ? 'ON' : 'OFF'}`, run: () => this.toggleFull() },
       { id: 'back', label: () => 'Back', run: () => this.showMenu() },
     ];
@@ -113,7 +122,7 @@ export class TitleScene extends Phaser.Scene {
     const h = this.add.text(640, 200, 'SETTINGS', { fontFamily: FONT, fontSize: '28px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 4 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(10);
     this.ui.push(h);
     this.drawItems(300);
-    const note = this.add.text(640, 620, 'Left / Right to adjust volume', { fontFamily: UI, fontSize: '14px', color: C.faint }).setOrigin(0.5).setDepth(10);
+    const note = this.add.text(640, 620, 'Left / Right to adjust the selected slider', { fontFamily: UI, fontSize: '14px', color: C.faint }).setOrigin(0.5).setDepth(10);
     this.ui.push(note);
   }
 
@@ -125,6 +134,7 @@ export class TitleScene extends Phaser.Scene {
     const h = this.add.text(640, 140, 'CREDITS', { fontFamily: FONT, fontSize: '28px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 4 } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5).setDepth(10);
     const body = [
       'Kenney  —  furniture, Mini Characters, Interface Sounds  (CC0)',
+      'yd, skrjablin, rubberduck, sinny  —  music and SFX  (CC0, OpenGameArt)',
       'Quaternius  —  character bases  (CC0)',
       'IBM Plex Mono, JetBrains Mono  (SIL OFL)',
       'Office plates, lift and desk lamp  —  original Blender / paint',
@@ -174,11 +184,15 @@ export class TitleScene extends Phaser.Scene {
     it.run();
   }
 
-  nudgeVolume(dir: number) {
-    this.volume = Math.max(0, Math.min(1, Math.round((this.volume + dir) * 10) / 10));
-    setMasterVolume(this.volume);
-    writeSettings({ volume: this.volume });
-    sfx('tell');
+  persist() {
+    writeSettings({ sfx: this.sfxVol, music: this.musicVol, volume: this.sfxVol });
+  }
+  nudge(which: 'music' | 'sfx', dir: number) {
+    const step = (v: number) => Math.max(0, Math.min(1, Math.round((v + dir) * 10) / 10));
+    if (which === 'music') { this.musicVol = step(this.musicVol); setMusicVolume(this.musicVol); }
+    else { this.sfxVol = step(this.sfxVol); this.volume = this.sfxVol; setSfxVolume(this.sfxVol); }
+    this.persist();
+    sfx('ui');
     this.refresh();
   }
 
@@ -213,9 +227,12 @@ export class TitleScene extends Phaser.Scene {
     if (Phaser.Input.Keyboard.JustDown(k.down) || Phaser.Input.Keyboard.JustDown(k.s)) this.moveCursor(1);
     if (Phaser.Input.Keyboard.JustDown(k.enter) || Phaser.Input.Keyboard.JustDown(k.space)) this.activate();
     if (Phaser.Input.Keyboard.JustDown(k.esc) && this.pane !== 'menu') this.showMenu();
-    if (this.pane === 'settings' && this.items[this.cursor]?.id === 'vol') {
-      if (Phaser.Input.Keyboard.JustDown(k.left)) this.nudgeVolume(-0.1);
-      if (Phaser.Input.Keyboard.JustDown(k.right)) this.nudgeVolume(0.1);
+    if (this.pane === 'settings') {
+      const id = this.items[this.cursor]?.id;
+      if (id === 'music' || id === 'sfx') {
+        if (Phaser.Input.Keyboard.JustDown(k.left)) this.nudge(id, -0.1);
+        if (Phaser.Input.Keyboard.JustDown(k.right)) this.nudge(id, 0.1);
+      }
     }
   }
 
@@ -236,16 +253,20 @@ export class TitleScene extends Phaser.Scene {
       pane: () => this.pane,
       cursor: () => this.items[this.cursor]?.id ?? null,
       hasContinue: () => hasSave(),
-      volume: () => this.volume,
+      volume: () => this.sfxVol,
+      music: () => this.musicVol,
+      sfx: () => this.sfxVol,
       fullscreen: () => this.scale.isFullscreen,
       newGame: () => this.startGame('new'),
       continueGame: () => this.startGame('continue'),
       openSettings: () => { if (this.pane === 'splash') this.showMenu(); this.showSettings(); return true; },
       openCredits: () => { if (this.pane === 'splash') this.showMenu(); this.showCredits(); return true; },
-      setVolume: (v: number) => { this.volume = Math.max(0, Math.min(1, v)); setMasterVolume(this.volume); writeSettings({ volume: this.volume }); this.refresh(); return this.volume; },
+      setVolume: (v: number) => { this.sfxVol = this.musicVol = this.volume = Math.max(0, Math.min(1, v)); setSfxVolume(this.sfxVol); setMusicVolume(this.musicVol); this.persist(); this.refresh(); return this.volume; },
+      setSfxVolume: (v: number) => { this.nudge('sfx', Math.max(0, Math.min(1, v)) - this.sfxVol); return this.sfxVol; },
+      setMusicVolume: (v: number) => { this.nudge('music', Math.max(0, Math.min(1, v)) - this.musicVol); return this.musicVol; },
       toggleFullscreen: () => { this.toggleFull(); return true; },
       skipSplash: () => { if (this.pane === 'splash') this.showMenu(); return this.pane; },
-      state: () => ({ screen: this.pane === 'splash' ? 'boot' : 'title', pane: this.pane, cursor: this.items[this.cursor]?.id ?? null, hasContinue: hasSave(), volume: this.volume, fullscreen: this.scale.isFullscreen }),
+      state: () => ({ screen: this.pane === 'splash' ? 'boot' : 'title', pane: this.pane, cursor: this.items[this.cursor]?.id ?? null, hasContinue: hasSave(), volume: this.sfxVol, sfx: this.sfxVol, music: this.musicVol, fullscreen: this.scale.isFullscreen }),
     };
   }
 }

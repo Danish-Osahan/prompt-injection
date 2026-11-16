@@ -1,5 +1,19 @@
 # HANDOFF
 
+## 2026-11-16 — Level 1 pass 2, item C: music and SFX
+
+Added CC0 music and a few new SFX (zero spend). Separate Music and SFX sliders in Title → Settings, persisted as `pi.settings.v1` (`music`, `sfx`; legacy `volume` still loads).
+
+- Calm loop (*Insistent* by yd, CC0) for the title, intro, and rooms.
+- Tense loop (*The Final Battle* by skrjablin, CC0) in the Draft arena.
+- New one-shots: steal (paper), throw (existing Kenney whoosh), door open/close (rubberduck), lift (sinny old elevator door), UI click (switch). All CC0; logged in CREDITS.md with URLs.
+- Existing Kenney Interface Sounds stay in use as fallbacks.
+
+### Weak spots
+- Crossfade is a hard stop/start, not a long overlap fade.
+- No dedicated door hook on every room transition — the lift uses the elevator sample when it opens; other doors can use `door_open` / `door_close` as they get wired.
+- *The Final Battle* is more orchestral-epic than "office horror"; it does the job as a tense fight loop.
+
 ## 2026-11-16 — Level 1 pass 2, item B: dialogue + Fern hologram
 
 Replaced the top-right Fern sticky (and the office caption shortcut) with a real dialogue system (`game/src/dialogue.ts`, `game/src/voice.ts`).

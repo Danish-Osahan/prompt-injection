@@ -175,7 +175,7 @@ export class StealPlay {
     this.s.hand = null;
     this.lure?.setCarrying(true);
     this.spawnOrb();
-    sfx('swap');
+    sfx('steal');
     this.s.evaluate(false);
     return true;
   }
@@ -197,6 +197,7 @@ export class StealPlay {
       if (p) { tx = p.def.sx; ty = p.def.sy; }
     }
     this.flying = true;
+    sfx('throw');
     const orb = this.orb as Phaser.GameObjects.Image | undefined;
     if (orb) {
       this.s.tweens.add({
