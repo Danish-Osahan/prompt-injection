@@ -18,12 +18,15 @@ export interface ExploreSpot {
   r: number;
   label: string;
   steal?: 'LOUD' | 'HOT';
+  /** Visual anchor for chip/glow when the stand point is away from the prop. */
+  artX?: number;
+  artY?: number;
 }
 
 const SPOTS: ExploreSpot[] = [
   { id: 'photo', x: 250, y: 575, r: 70, label: 'LOOK' },
   { id: 'calendar', x: 318, y: 128, r: 100, label: 'LOOK' },
-  { id: 'board', x: 700, y: 130, r: 180, label: 'LOOK' },
+  { id: 'board', x: 580, y: 360, r: 85, label: 'LOOK', artX: 632, artY: 128 },
   { id: 'phones', x: 696, y: 280, r: 70, label: 'LOOK', steal: 'LOUD' },
   { id: 'coffee', x: 340, y: 200, r: 45, label: 'LOOK', steal: 'HOT' },
   { id: 'printer', x: 120, y: 220, r: 80, label: 'LOOK' },
@@ -35,6 +38,7 @@ export class OfficeExplore {
   carrying: 'LOUD' | 'HOT' | null = null;
   private prompt?: InteractChip;
   private glow?: Phaser.GameObjects.Ellipse;
+  private glowLine?: Phaser.GameObjects.Graphics;
   private boardGfx?: Phaser.GameObjects.Container;
   private letter?: Phaser.GameObjects.Container;
   private handChip?: Phaser.GameObjects.Text;
@@ -51,7 +55,8 @@ export class OfficeExplore {
     this.drawBoardMarks();
     this.prompt = new InteractChip(s, 9002);
     this.glow = s.add.ellipse(0, 0, 52, 28, 0x5ee8e0, 0).setDepth(200).setBlendMode(Phaser.BlendModes.ADD);
-    s.objs.push(this.glow);
+    this.glowLine = s.add.graphics().setDepth(176);
+    s.objs.push(this.glow, this.glowLine);
     this.keyF = s.input.keyboard?.addKey('F');
   }
 
@@ -95,7 +100,7 @@ export class OfficeExplore {
   destroy() {
     this.destroyed = true;
     this.stopPhones();
-    this.prompt?.destroy(); this.glow?.destroy();
+    this.prompt?.destroy(); this.glow?.destroy(); this.glowLine?.destroy();
     this.boardGfx?.destroy(); this.letter?.destroy();
     this.handChip?.destroy();
   }
@@ -139,22 +144,38 @@ export class OfficeExplore {
   private updatePrompt(spot: ExploreSpot | undefined, blocked: boolean) {
     const p = this.prompt, g = this.glow;
     if (!p) return;
-    if (!spot || blocked) { p.hide(); g?.setAlpha(0); return; }
+    if (!spot || blocked) { p.hide(); g?.setAlpha(0); this.glowLine?.clear(); return; }
     const stealReady = !!(spot.steal && this.looked[spot.id] && !this.carrying);
     const hold = stealReady ? Math.min(1, this.peelT / 0.4) : 0;
+    const ax = spot.artX ?? spot.x, ay = spot.artY ?? spot.y;
     const off = this.chipOff(spot.id);
-    let c = { x: spot.x + off.ox, y: spot.y + off.oy };
-    if (spot.id !== 'board') c = placeChip(spot.x, spot.y, this.s.x, this.s.y, off.ox, off.oy);
-    else {
-      const hx = this.s.x, hy = this.s.y - 52;
-      if (Math.hypot(c.x - hx, c.y - hy) < 50) c = { x: spot.x - 52, y: spot.y - 14 };
-    }
+    let c = { x: ax + off.ox, y: ay + off.oy };
+    if (spot.id !== 'board') c = placeChip(ax, ay, this.s.x, this.s.y, off.ox, off.oy);
     p.show(c.x, c.y, stealReady ? `take ${spot.steal}` : 'look', hold, 'E');
-    if (g) {
-      const size = spot.id === 'board' ? [150, 58] : spot.id === 'calendar' ? [70, 36] : [48, 26];
-      const a = (spot.id === 'board' ? 0.38 : 0.14) + 0.14 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
-      g.setPosition(spot.x, spot.y + (spot.id === 'board' ? 4 : 0)).setSize(size[0], size[1]).setAlpha(a).setDepth(spot.y - 8);
+    this.drawSpotGlow(spot, ax, ay, hold);
+  }
+
+  private drawSpotGlow(spot: ExploreSpot, ax: number, ay: number, hold: number) {
+    const g = this.glow, line = this.glowLine;
+    if (spot.id === 'board') {
+      g?.setAlpha(0);
+      if (!line) return;
+      const pulse = 0.55 + 0.35 * Math.sin(this.s.t * 4.2) + 0.2 * hold;
+      const w = 168, h = 92;
+      line.clear();
+      try { line.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+      line.setPosition(0, 0).setDepth(176);
+      line.lineStyle(8, 0x5ee8e0, 0.18 * pulse);
+      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 6);
+      line.lineStyle(2.6, 0x9af0e0, 0.95 * pulse);
+      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 6);
+      return;
     }
+    line?.clear();
+    if (!g) return;
+    const size = spot.id === 'calendar' ? [70, 36] : [48, 26];
+    const a = 0.14 + 0.14 * Math.sin(this.s.t * 4.5) + 0.28 * hold;
+    g.setPosition(ax, ay).setSize(size[0], size[1]).setAlpha(a).setDepth(ay - 8);
   }
 
   private look(spot: ExploreSpot) {

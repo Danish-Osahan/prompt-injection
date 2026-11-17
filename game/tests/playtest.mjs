@@ -38,7 +38,8 @@ async function steal(page, from, to) {
   const took = await pi(page, 'steal', 'take', from);
   await sleep(180);
   const threw = await pi(page, 'steal', 'throw', to);
-  await sleep(450);
+  // Wind-up (~220ms) + release (~80ms) + flight (~200ms) must finish before we assert.
+  await sleep(700);
   return { took, threw };
 }
 

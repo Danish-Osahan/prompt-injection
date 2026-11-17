@@ -25,54 +25,114 @@ function playKey(s: GameScene, key: string, fps?: number) {
   } catch { return false; }
 }
 
-function handPos(s: GameScene) {
+export const WIND_MS = 220;
+
+function handPos(s: GameScene, back = false) {
   const d = s.dir || 'S';
-  const x = s.x + (d.includes('E') ? 22 : d.includes('W') ? -22 : -12);
-  const y = s.y - 36;
-  return { x, y };
+  const side = d.includes('E') ? 1 : d.includes('W') ? -1 : (d.includes('N') ? -1 : 1);
+  const x = s.x + (back ? -side * 38 : side * 22);
+  const y = s.y - (back ? 16 : 36);
+  return { x, y, side };
+}
+
+function placeWindFx(s: GameScene) {
+  const n = s.noor;
+  if (!n) return;
+  const h = handPos(s, true);
+  const orb = n.getData('windOrb') as Phaser.GameObjects.Ellipse | undefined;
+  if (orb?.active) orb.setPosition(h.x, h.y).setDepth(s.y + 32);
+  const glow = n.getData('windGlow') as Phaser.GameObjects.Ellipse | undefined;
+  if (glow?.active) glow.setPosition(h.x, h.y).setDepth(s.y + 31);
+  const arm = n.getData('windArm') as Phaser.GameObjects.Graphics | undefined;
+  if (arm?.active) {
+    arm.setPosition(s.x, s.y).setDepth(s.y + 18);
+    drawWindArm(arm, h.side);
+  }
+  const dust = n.getData('windDust') as Phaser.GameObjects.Ellipse | undefined;
+  if (dust?.active) dust.setPosition(s.x, s.y + 8).setDepth(s.y - 2);
+}
+
+function drawWindArm(g: Phaser.GameObjects.Graphics, side: number) {
+  g.clear();
+  const sx = -side;
+  // Jacket sleeve pulled back — a rounded mass, not a chevron.
+  g.fillStyle(0xb07a28, 1);
+  g.fillEllipse(sx * 16, -36, 20, 16);
+  g.fillStyle(0xd4a24a, 1);
+  g.fillEllipse(sx * 22, -28, 20, 16);
+  g.fillEllipse(sx * 28, -18, 16, 13);
+  // Forearm + fist drawn back
+  g.fillStyle(0x8a4a2e, 1);
+  g.fillEllipse(sx * 34, -10, 14, 11);
+  g.fillStyle(0xae6840, 1);
+  g.fillEllipse(sx * 40, -4, 13, 11);
+  g.lineStyle(1.2, 0x2a1810, 0.5);
+  g.strokeEllipse(sx * 40, -4, 13, 11);
 }
 
 export function startWindupPose(s: GameScene) {
   const n = s.noor;
-  if (!n || n.getData('windOn')) {
-    const orb = n?.getData('windOrb') as Phaser.GameObjects.Ellipse | undefined;
-    if (orb && orb.active) {
-      const h = handPos(s);
-      orb.setPosition(h.x, h.y).setDepth(s.y + 30);
-    }
-    return;
-  }
+  if (!n) return;
+  if (n.getData('windOn')) { placeWindFx(s); return; }
   n.setData('windOn', true);
-  n.setData('windScale', { x: n.scaleX, y: n.scaleY });
+  n.setData('windScale', { x: n.scaleX, y: n.scaleY, angle: n.angle ?? 0 });
+  const h = handPos(s, true);
+  // Top-down read: squash, yaw into the coil, slight twist.
   s.tweens.add({
     targets: n,
-    scaleX: n.scaleX * 1.12,
-    scaleY: n.scaleY * 0.86,
-    duration: 140,
+    scaleX: (n.scaleX || 1) * 1.2,
+    scaleY: (n.scaleY || 1) * 0.8,
+    angle: -16 * h.side,
+    duration: WIND_MS,
     ease: 'Sine.easeOut',
   });
-  const h = handPos(s);
-  const orb = s.add.ellipse(h.x, h.y, 6, 6, 0xb8f0ff, 0)
-    .setDepth(s.y + 30).setBlendMode(Phaser.BlendModes.ADD);
-  s.objs.push(orb);
+  const arm = s.add.graphics().setPosition(s.x, s.y).setDepth(s.y + 18).setAlpha(0);
+  drawWindArm(arm, h.side);
+  s.objs.push(arm);
+  s.tweens.add({ targets: arm, alpha: 1, duration: 80 });
+  n.setData('windArm', arm);
+
+  const glow = s.add.ellipse(h.x, h.y, 22, 18, 0x5ec8ff, 0)
+    .setDepth(s.y + 40).setBlendMode(Phaser.BlendModes.ADD);
+  const orb = s.add.ellipse(h.x, h.y, 10, 10, 0xe8ffff, 0)
+    .setDepth(s.y + 41).setBlendMode(Phaser.BlendModes.ADD);
+  s.objs.push(glow, orb);
   s.tweens.add({
-    targets: orb, alpha: 0.95, displayWidth: 22, displayHeight: 18,
-    duration: 140, ease: 'Sine.easeOut',
+    targets: glow, alpha: 0.9, displayWidth: 56, displayHeight: 44,
+    duration: WIND_MS, ease: 'Sine.easeOut',
   });
+  s.tweens.add({
+    targets: orb, alpha: 1, displayWidth: 26, displayHeight: 22,
+    duration: WIND_MS, ease: 'Sine.easeOut',
+  });
+  n.setData('windGlow', glow);
   n.setData('windOrb', orb);
+
+  const dust = s.add.ellipse(s.x, s.y + 8, 22, 10, 0xd8c8a0, 0.0)
+    .setDepth(s.y - 2).setStrokeStyle(2, 0xe8d8b0, 0.8);
+  s.objs.push(dust);
+  s.tweens.add({
+    targets: dust, alpha: { from: 0.8, to: 0 }, displayWidth: 84, displayHeight: 26,
+    duration: WIND_MS + 40, ease: 'Quad.easeOut', onComplete: () => { try { dust.destroy(); } catch { /* */ } },
+  });
+  n.setData('windDust', dust);
 }
 
 export function clearWindupPose(s: GameScene) {
   const n = s.noor;
   if (!n || !n.getData('windOn')) return;
   n.setData('windOn', false);
-  const sc = n.getData('windScale') as { x: number; y: number } | undefined;
-  if (sc) s.tweens.add({ targets: n, scaleX: sc.x, scaleY: sc.y, duration: 90, ease: 'Sine.easeOut' });
-  const orb = n.getData('windOrb') as Phaser.GameObjects.Ellipse | undefined;
-  n.setData('windOrb', undefined);
-  if (orb?.active) {
-    s.tweens.add({ targets: orb, alpha: 0, scale: 1.8, duration: 140, onComplete: () => orb.destroy() });
-  }
+  const sc = n.getData('windScale') as { x: number; y: number; angle: number } | undefined;
+  if (sc) s.tweens.add({ targets: n, scaleX: sc.x, scaleY: sc.y, angle: sc.angle ?? 0, duration: 90, ease: 'Sine.easeOut' });
+  const kill = (key: string, fade = true) => {
+    const o = n.getData(key) as Phaser.GameObjects.GameObject | undefined;
+    n.setData(key, undefined);
+    if (!o) return;
+    if (fade && 'setAlpha' in o) {
+      s.tweens.add({ targets: o, alpha: 0, duration: 120, onComplete: () => { try { o.destroy(); } catch { /* */ } } });
+    } else { try { o.destroy(); } catch { /* */ } }
+  };
+  kill('windOrb'); kill('windGlow'); kill('windArm'); kill('windDust', false);
 }
 
 /** Idempotent: bigger coil + hand-light, charge_in once, then a slow charge_hold loop. */
@@ -86,12 +146,13 @@ export function playChargeHold(s: GameScene) {
     if (!playKey(s, `noor_charge_hold_${dir}`, 10)) playKey(s, `noor_type2_${dir}`);
     return;
   }
-  if (!playKey(s, `noor_charge_in_${dir}`, 28)) playKey(s, `noor_type2_${dir}`);
+  if (!playKey(s, `noor_charge_in_${dir}`, 18)) playKey(s, `noor_type2_${dir}`);
 }
 
 /**
- * Wind-up then throw. onRelease fires at the throw's smear frame (~90ms into the throw).
+ * Wind-up then throw. onRelease fires at the throw's smear frame (~80ms into the throw).
  * If alreadyWound (hold-J), skip charge_in and go straight to the throw.
+ * Wind-up is WIND_MS (220) so the coil reads from the top-down camera.
  */
 export function playThrowAttack(s: GameScene, onRelease: () => void, alreadyWound = false) {
   const dir = s.dir;
@@ -102,8 +163,8 @@ export function playThrowAttack(s: GameScene, onRelease: () => void, alreadyWoun
   };
   if (alreadyWound) { startThrow(); return; }
   startWindupPose(s);
-  if (!playKey(s, `noor_charge_in_${dir}`, 28)) playKey(s, `noor_type2_${dir}`);
-  s.time.delayedCall(130, startThrow);
+  if (!playKey(s, `noor_charge_in_${dir}`, 18)) playKey(s, `noor_type2_${dir}`);
+  s.time.delayedCall(WIND_MS, startThrow);
 }
 
 type Spine = { x: number; y: number; u: number }[];
@@ -402,6 +463,11 @@ function burst(s: GameScene, kind: ShotKind, at: { x: number; y: number }) {
 
 try {
   if (typeof window !== 'undefined' && /[?&](?:test=1|impact)\b/.test(window.location.search)) {
-    (window as unknown as { __launchBolt: typeof launchAnimatedBolt }).__launchBolt = launchAnimatedBolt;
+    const w = window as unknown as {
+      __launchBolt: typeof launchAnimatedBolt;
+      __startWindup: typeof startWindupPose;
+    };
+    w.__launchBolt = launchAnimatedBolt;
+    w.__startWindup = startWindupPose;
   }
 } catch { /* */ }

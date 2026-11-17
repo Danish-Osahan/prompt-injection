@@ -16,12 +16,17 @@ const LONG_LINE = 70;
 
 export type SayWho = 'noor' | 'ai' | 'fern' | 'papa' | 'floor' | 'draft';
 
+/** Only stealable quality tokens, excluding common English words (on, off, up, down, still). */
 const QUALITY_FX: Record<string, 'frost' | 'heavy' | 'glow' | 'wave' | 'flicker' | 'dim'> = {
-  cold: 'frost', heavy: 'heavy', light: 'glow', spark: 'flicker',
-  wet: 'wave', water: 'wave', lit: 'flicker', on: 'flicker',
-  dead: 'dim', off: 'dim', still: 'dim', weak: 'dim',
-  open: 'glow', shut: 'dim', dry: 'glow', glass: 'glow',
-  paper: 'glow', slow: 'dim', quick: 'flicker', buzz: 'flicker', buzzing: 'flicker',
+  wet: 'wave', dry: 'glow',
+  quick: 'flicker',
+  low: 'dim', high: 'glow',
+  apart: 'glow', together: 'glow',
+  weak: 'dim', torn: 'dim',
+  paper: 'glow', slow: 'dim', glass: 'glow',
+  loud: 'flicker', hot: 'glow',
+  open: 'glow', shut: 'dim',
+  spark: 'flicker',
 };
 
 type Source = { id: string; x: number; y: number; kind: 'monitor' | 'lamp' | 'body' };
@@ -78,6 +83,8 @@ export class Dialogue {
   private boxH = 0;
   private boxPadT = 22;
   private tailGfx?: Phaser.GameObjects.Triangle;
+  private boxReveal = false;
+  private shieldArm?: Phaser.GameObjects.Graphics;
 
   constructor(s: GameScene) {
     this.s = s;
@@ -107,6 +114,8 @@ export class Dialogue {
 
   update(_dt: number) {
     try {
+      if (!this.busy && this.queue.length && !this.mailBlocking()) this.kick();
+      this.placeShieldArm();
       if (this.living(this.arrow) && this.arrow!.visible) {
         this.arrow!.setAlpha(0.45 + 0.55 * Math.sin(this.s.t * 6));
       }
@@ -138,7 +147,8 @@ export class Dialogue {
     this.typed = ''; this.full = '';
     this.letterBits = [];
     this.clearFernAct();
-    this.followWorld = false; this.tailGfx = undefined;
+    this.followWorld = false; this.tailGfx = undefined; this.boxReveal = false;
+    this.clearShield();
     this.root?.destroy(); this.root = undefined;
     this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined; this.holoBaseX = undefined;
     this.holoBody = undefined; this.holoGlow = undefined;
@@ -155,11 +165,16 @@ export class Dialogue {
     if (this.onClick) try { this.s.input.off('pointerdown', this.onClick); } catch { /* */ }
   }
 
+  private mailBlocking() {
+    try { return !!this.s.intro?.mailOpen?.(); } catch { return false; }
+  }
+
   private kick() {
     if (this.busy) return;
+    if (this.mailBlocking()) return;
     const job = this.queue.shift();
     if (!job) { this.busy = false; try { this.onIdle?.(); } catch { /* */ } return; }
-    if (!job.line) { this.at(job.ms, () => { this.busy = false; this.kick(); }); this.busy = true; return; }
+    if (!job.line || !job.line.trim()) { this.at(job.ms, () => { this.busy = false; this.kick(); }); this.busy = true; return; }
     this.busy = true;
     this.waiting = false;
     this.who = job.who;
@@ -360,6 +375,17 @@ export class Dialogue {
     if (hits()) { y = 360; }
     x = Phaser.Math.Clamp(x, 64, 1216);
     y = Phaser.Math.Clamp(y, 56 + bodyH, 640);
+    // Never land on Noor — push the hologram away if she's near the source.
+    const nx = this.s.x ?? 640, ny = this.s.y ?? 360;
+    const minD = 110;
+    let dx = x - nx, dy = y - ny;
+    const d = Math.hypot(dx, dy);
+    if (d < minD) {
+      const ux = d < 4 ? (x >= nx ? 1 : -1) : dx / d;
+      const uy = d < 4 ? 0.2 : dy / d;
+      x = Phaser.Math.Clamp(nx + ux * minD, 64, 1216);
+      y = Phaser.Math.Clamp(ny + uy * minD, 56 + bodyH, 640);
+    }
     return { x, y };
   }
 
@@ -373,6 +399,8 @@ export class Dialogue {
     this.followWho = job.who;
     this.followFromSpeaker = fromSpeaker;
     this.followFlip = anchor.flip;
+    this.boxReveal = false;
+    box.setAlpha(0);
     if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
@@ -407,7 +435,10 @@ export class Dialogue {
     this.root = c;
     this.baseX = c.x;
     this.followWorld = false;
-    s.tweens.add({ targets: c, alpha: 1, y, scaleX: 1, scaleY: 1, duration: 220, ease: 'Cubic.easeOut' });
+    this.boxReveal = false;
+    c.setAlpha(0);
+    // Slide to the settled y, but stay hidden until the first character lands.
+    s.tweens.add({ targets: c, y, scaleX: 1, scaleY: 1, duration: 220, ease: 'Cubic.easeOut' });
     if (job.who === 'fern') this.reactFernLine(job.line);
     this.typewrite(job);
   }
@@ -466,7 +497,7 @@ export class Dialogue {
       fontFamily: FONT, fontSize: '11px', color: C.cyan,
     }).setOrigin(1, 0).setVisible(false);
     c.add([bg, tail, accent, tag, this.arrow, ...words]);
-    s.tweens.add({ targets: c, alpha: 1, scaleX: 1, scaleY: 1, duration: 180, ease: 'Cubic.easeOut' });
+    s.tweens.add({ targets: c, scaleX: 1, scaleY: 1, duration: 180, ease: 'Cubic.easeOut' });
     return c;
   }
 
@@ -498,25 +529,81 @@ export class Dialogue {
     const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
     const ang = Math.atan2(src.y - s.y, src.x - s.x);
     s.dir = DIRS[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
-    const key = `noor_surprise_${s.dir}`;
-    if (s.anims.exists(key)) n.play({ key, frameRate: 12 }, true);
-    else if (s.anims.exists(`noor_lookR_${s.dir}`)) n.play(`noor_lookR_${s.dir}`, true);
-    if (n.getData('chargeReact')) return;
+    // Body stays in a stable idle/look so the composited shield-arm reads as the new pose.
+    const look = `noor_lookR_${s.dir}`;
+    if (s.anims.exists(look)) n.play(look, true);
+    else if (s.anims.exists(`noor_idle_${s.dir}`)) n.play(`noor_idle_${s.dir}`, true);
+    if (n.getData('chargeReact')) { this.placeShieldArm(); return; }
     n.setData('chargeReact', true);
     const sx = n.scaleX, sy = n.scaleY;
     const back = Math.sign(s.x - src.x) || 1;
-    s.x += back * 10;
-    s.y += 4;
+    n.setData('shieldBack', back);
+    // Step clearly off the hologram's landing spot.
+    s.x += back * 22;
+    s.y += 8;
     n.setPosition(s.x, s.y).setDepth(s.y + 24);
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
     s.tweens.add({
-      targets: n, scaleX: sx * 0.96, scaleY: sy * 1.05, angle: -6 * back,
+      targets: n, scaleX: sx * 0.94, scaleY: sy * 1.06, angle: -12 * back,
       duration: 180, ease: 'Sine.easeOut',
     });
-    s.time.delayedCall(1100, () => {
+    this.spawnShieldArm(back);
+    s.time.delayedCall(1400, () => {
       n.setData('chargeReact', false);
       s.tweens.add({ targets: n, scaleX: sx, scaleY: sy, angle: 0, duration: 160, ease: 'Sine.easeOut' });
+      this.clearShield();
     });
+  }
+
+  private spawnShieldArm(back: number) {
+    this.clearShield(false);
+    const g = this.s.add.graphics().setDepth((this.s.y ?? 0) + 28).setAlpha(0);
+    this.shieldArm = g;
+    this.s.objs.push(g);
+    this.drawShieldArm(g, back);
+    this.placeShieldArm();
+    this.s.tweens.add({ targets: g, alpha: 1, duration: 120 });
+  }
+
+  private drawShieldArm(g: Phaser.GameObjects.Graphics, back: number) {
+    g.clear();
+    const sx = back;
+    // Jacket sleeve from the shoulder, rising and crossing the face.
+    g.fillStyle(0xb07a28, 1);
+    g.fillEllipse(sx * 18, -36, 16, 14);
+    g.fillStyle(0xd4a24a, 1);
+    g.fillEllipse(sx * 14, -52, 16, 14);
+    g.fillEllipse(sx * 6, -62, 15, 12);
+    // Forearm + palm across the eyes / glasses.
+    g.fillStyle(0x8a4a2e, 1);
+    g.fillEllipse(sx * 2, -66, 14, 10);
+    g.fillStyle(0xae6840, 1);
+    g.fillEllipse(-sx * 2, -62, 20, 13);
+    g.fillEllipse(-sx * 10, -64, 8, 6);
+    g.fillEllipse(-sx * 8, -70, 7, 5);
+    g.fillEllipse(-sx * 4, -72, 7, 5);
+    g.lineStyle(1.2, 0x2a1810, 0.55);
+    g.strokeEllipse(-sx * 2, -62, 20, 13);
+  }
+
+  private placeShieldArm() {
+    const g = this.shieldArm;
+    const n = this.s.noor;
+    if (!g?.active || !n) return;
+    if (!n.getData('chargeReact')) { this.clearShield(); return; }
+    const back = (n.getData('shieldBack') as number) || 1;
+    g.setPosition(n.x, n.y).setDepth(n.y + 28);
+    this.drawShieldArm(g, back);
+  }
+
+  private clearShield(resetFlag = true) {
+    const g = this.shieldArm;
+    this.shieldArm = undefined;
+    if (resetFlag) this.s.noor?.setData('chargeReact', false);
+    if (g) {
+      try { this.s.tweens.killTweensOf(g); } catch { /* */ }
+      try { g.destroy(); } catch { /* */ }
+    }
   }
 
   /** Tail sits on the box edge and points at the speaker, not straight down. */
@@ -659,7 +746,14 @@ export class Dialogue {
     tick();
   }
 
+  private revealBox() {
+    if (this.boxReveal || !this.root) return;
+    this.boxReveal = true;
+    this.s.tweens.add({ targets: this.root, alpha: 1, duration: 160, ease: 'Cubic.easeOut' });
+  }
+
   private refreshBits(all: boolean) {
+    if (this.typed.length > 0) this.revealBox();
     let seen = 0;
     for (const t of this.letterBits) {
       const full = (t.getData('full') as string) ?? t.text;

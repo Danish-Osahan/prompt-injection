@@ -70,6 +70,7 @@ export class IntroCutscene {
   private mailHold = false;
   private mailHoldT = 0;
   private mailHint?: Phaser.GameObjects.Text;
+  private mailGone = false;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -82,6 +83,7 @@ export class IntroCutscene {
   start() {
     if (this.playing || this.finished) return;
     this.playing = true;
+    this.mailGone = false;
     this.beat = 'a';
     this.s.busy = true;
     this.s.cutscene = { id: 'intro', skip: () => this.skip() };
@@ -333,6 +335,13 @@ export class IntroCutscene {
   }
 
   showControls() { showControlsHint(this.s); }
+
+  /** True while the claim-mail tab is still on screen (blocks dialogue boxes). */
+  mailOpen() {
+    if (this.mailGone || this.finished) return false;
+    const m = this.monitor;
+    return !!m && m.active && !!m.visible && (m.alpha ?? 0) > 0.12;
+  }
 
   handleInput(f: { pause: boolean; skipHeld: boolean; interact?: boolean; attack?: boolean }, dt: number): boolean {
     if (!this.playing) return false;
@@ -731,6 +740,7 @@ export class IntroCutscene {
     this.mailHold = false;
     this.mailHoldT = 0;
     this.mailHint = undefined;
+    this.mailGone = true;
     if (!this.monitor) return;
     try {
       this.s.tweens.add({
@@ -766,5 +776,6 @@ export class IntroCutscene {
     this.mailHint = undefined;
     this.mailHold = false;
     this.mailHoldT = 0;
+    this.mailGone = true;
   }
 }

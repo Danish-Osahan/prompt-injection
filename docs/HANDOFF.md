@@ -1,5 +1,29 @@
 # HANDOFF
 
+## 2026-11-17 — Wind-up, mail box, board stand, shield pose, quality words
+
+Playtest of `e9966f9`: the throw wind-up still felt short from the top-down camera; an empty NOOR box sat under the opening claim-mail; Noor covered the whiteboard's lower-left and the glow vanished on the white surface; Fern's arrival used the old surprise pose and could land on Noor; "on", "dead", and "still" still glowed in spoken lines.
+
+1. **Wind-up.** The coil is 220ms (`WIND_MS`). From above: a visible body lean/turn and squash, a composited jacket arm drawn back, a growing hand-light, and a brief dust ring at the feet. `charge_in` plays at 18fps over that window. Hold-J still throws immediately on release (tests unchanged). The steal helper wait is 700ms so 220+80+200 finishes first. Playtest 201/201.
+
+2. **Opening mail vs dialogue.** Dialogue boxes with no visible text stay hidden until the first character lands. While the claim-mail tab is on screen (`intro.mailOpen()`), queued lines are held and no box is shown. Noor's "I didn't write that" plays after the tab dismisses.
+
+3. **Whiteboard.** The look stand is (580, 360), r=85 — clearly below and left of Kabir's desk, not in the wall slot that covered the board. Chip and a pulsing cyan edge glow stay on the board art (~632, 128). No fill glow on the white surface.
+
+4. **Fern arrival.** Noor leans back and a composited shield-arm (jacket sleeve + palm) rises across her face. The hologram is pushed at least 110px from her, and she takes a 22px step back, so the pot does not sit on her.
+
+5. **Quality words.** Spoken-line glow is only for stealable quality tokens (`wet`, `dry`, `quick`, `open`, `shut`, `paper`, `glass`, …). Common English words are out, including `on`, `off`, `up`, `down`, `still`, and non-stealables like `dead`, `water`, `buzzing`.
+
+Review stills (not in the repo):
+- wind-up: `/workspace/l1-throw-windup-2x.png`
+- intro mail, no empty box: `/workspace/l1-intro-mail-2x.png` (full `/workspace/l1-intro-mail.png`)
+- whiteboard look: `/workspace/l1-board-look-2x.png`
+- Noor shield + Fern: `/workspace/l1-fern-charge-2x.png`
+- Fern line with no false glow: `/workspace/l1-fern-nonglow-2x.png`
+
+Leftovers: the wind-up arm and shield-arm are code-drawn in her jacket/skin colors, simpler than the sprite sheet; from this camera the shield hand sits on/beside the head more than a perfect "palms over the eyes." The gathering light can blend into the sleeve in stills. The board edge glow is a little loose around the painted rectangle. "open"/"shut" and other distinctive stealable tokens can still glow in speech.
+
+
 ## 2026-11-16 — Bolt, board, printer, dialogue follow, reading holds
 
 Playtest of `7acf34f`: the bolt landed light, the wind-up was easy to miss, Noor still covered the whiteboard with the E chip by the coat rack, the printer letter could pop near the lift, dialogue bubbles stayed where they first appeared, Noor's react to Fern's arrival beam felt weak, lost-line toasts vanished too fast, and the rewritten claim-mail tab in the opening cutscene dismissed before it could be read.
