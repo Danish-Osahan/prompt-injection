@@ -123,6 +123,10 @@ export class OfficeExplore {
     return false;
   }
 
+  nearInteract() {
+    return !!this.nearest(this.s.x, this.s.y);
+  }
+
   private nearest(x: number, y: number) {
     let best: ExploreSpot | undefined, bd = 9999;
     for (const s of SPOTS) {

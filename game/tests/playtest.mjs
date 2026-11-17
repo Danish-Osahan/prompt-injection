@@ -240,6 +240,33 @@ async function desktop(browser) {
   await sleep(150); await input.stop(); s = await st(page);
   ok('desktop: dash bursts forward with i-frames', s.player.x - dx0 > 100 && dashIframes, `moved ${Math.round(s.player.x - dx0)}px, iframes during dash ${dashIframes}`);
   ok('desktop: dash cooldown ~1s', s.dashCd > 0.6 && s.dashCd <= 1.0, `cd left ${s.dashCd.toFixed(2)}`);
+
+  // After Fern's arrival dialogue, any held shield/look/surprise must release to idle/walk.
+  await pi(page, 'teleport', 1008, 592); await sleep(200);
+  await page.evaluate(() => {
+    const sc = window.__game.scene.getScene('game');
+    sc.say('fern', "That send wasn't yours.", 1400, { box: true });
+  });
+  s = await waitFor(page, stt => stt.talking, 4000);
+  ok('office: Fern arrival dialogue starts', !!s.talking, `talking ${s.talking} anim wait`);
+  s = await waitFor(page, stt => !stt.talking && stt.state === 'play', 8000);
+  await sleep(80);
+  let anim = await pi(page, 'noorAnim');
+  ok('office: after Fern arrival dialogue, Noor is idle with no input', /^noor_idle_/.test(anim.key), `anim ${anim && anim.key}`);
+  await input.move(1, 0);
+  const walked = await page.evaluate(async () => {
+    const t0 = performance.now();
+    while (performance.now() - t0 < 120) {
+      const a = window.__pi.noorAnim();
+      if (/^noor_walk_/.test(a.key)) return { ok: true, ms: performance.now() - t0, key: a.key };
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    const a = window.__pi.noorAnim();
+    return { ok: false, ms: 120, key: a.key };
+  });
+  await input.stop();
+  ok('office: after Fern arrival, a direction plays walk within ~100ms', walked.ok && walked.ms <= 110, `anim ${walked.key} in ${Math.round(walked.ms)}ms`);
+
   // OFFICE: tap E at the August calendar (look prompt, not the lamp/panel path)
   await pi(page, 'teleport', 290, 200); await sleep(200);
   try { await page.mouse.click(640, 360); } catch { /* */ }

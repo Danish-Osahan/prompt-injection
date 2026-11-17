@@ -60,7 +60,7 @@ export class GameScene extends Phaser.Scene {
   shadow!: Phaser.GameObjects.Ellipse;
   caret!: Phaser.GameObjects.Sprite;
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
-  dashT = 0; dashCd = 0; dashVec = { x: 0, y: 1 }; iframes = 0; sinceDash = 9;
+  dashT = 0; dashCd = 0; dashVec = { x: 0, y: 1 }; iframes = 0; sinceDash = 9; didDash = false; didAttack = false; hintThrowArmed = false;
   combo = 0; comboT = 0; swingT = 0; hitStopT = 0; trailT = 0; bsT = 0; bsHit = new Set<Enemy>();
   hand: { word: string; from: string } | null = null;
   dyn: Record<string, Rect | null> = {};
@@ -74,7 +74,7 @@ export class GameScene extends Phaser.Scene {
   debugOn = false; debugText!: Phaser.GameObjects.Text;
   hud!: { path: Phaser.GameObjects.Text; title: Phaser.GameObjects.Text; caret: Phaser.GameObjects.Rectangle; hp: Phaser.GameObjects.Image[]; hpLabel: Phaser.GameObjects.Text; meta: Phaser.GameObjects.Text; menu: Phaser.GameObjects.Text; hand: Phaser.GameObjects.Container; handText: Phaser.GameObjects.Text; sub: Phaser.GameObjects.Text; fern: Phaser.GameObjects.Container; fernText: Phaser.GameObjects.Text; skip: Phaser.GameObjects.Text; linesHud: Phaser.GameObjects.Text };
   linePrompt: InteractChip | null = null;
-  lineToast?: Phaser.GameObjects.Text;
+  lineToast?: Phaser.GameObjects.Container;
   hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
   flags = { door: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
@@ -542,8 +542,6 @@ export class GameScene extends Phaser.Scene {
       if (this.clar) { /* clarity: the heading shows once, no camera move, no floor prompts */ }
       else if (this.office) this.office.cam.establish(s.seen.includes('sc1') ? 'FLOOR 2  \u00b7  STILL 11:48 PM' : '11:48 PM');
       else if (!s.seen.includes('sc1')) { this.floorText(640, 140, '11:48 PM', C.inkBright, 30, 1300); }
-      if (!this.clar) this.addPrompt('move', 160, 520, 'WASD TO WALK', 'DRAG TO WALK', () => this.moved > 80);
-      if (!this.clar) this.addPrompt('read', 232, 700, 'E TO READ', 'TAP READ', () => s.lore.length > 0, () => Math.hypot(this.x - 232, this.y - 640) < 220);
     }
     if (id === 'hub') {
       const fern = this.add.sprite(1005, 545, 'fern_seated').setOrigin(0.5, 0.83).setScale(0.75).play('fern_seated_S').setDepth(560); this.objs.push(fern);
@@ -563,7 +561,6 @@ export class GameScene extends Phaser.Scene {
       }
       if (this.art && this.fgImgs.door_panel) this.roomVis.doorPanel = this.fgImgs.door_panel;
       else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
-      this.addPrompt('dash', 640, 342, 'SPACE TO DASH', 'TAP DASH', () => this.y < 240, () => this.y < 400);
       // steal path: no word-swap / caption prompts (lure shows E / F)
       if (!s.seen.includes('sc3')) {
         s.seen.push('sc3'); writeSave(s);
@@ -588,7 +585,6 @@ export class GameScene extends Phaser.Scene {
       // steal path: no READ / code-vision prompt
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
       this.spawnEnemy('dummy', 1110, 500);
-      this.addPrompt('attack', 1090, 640, 'CLICK OR J TO TYPE', 'TAP TYPE', () => this.enemies.some(e => e.kind === 'dummy' && e.hp < e.maxHp) || s.defeated.includes('dummy'), () => this.flags.quick);
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
     if (id === 'archive') {
@@ -645,25 +641,64 @@ export class GameScene extends Phaser.Scene {
       };
       run();
     }
+    this.installContextHints();
   }
 
   // ---------- tutorial floor prompts ----------
   addPrompt(id: string, x: number, y: number, kb: string, touch: string, done: () => boolean, when: () => boolean = () => true) {
-    if (this.save.tutorials.includes(id)) return;
+    if (this.save.tutorials.includes(id) || this.prompts.some(p => p.id === id)) return;
     void x; void y;
-    const text = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.cyan, backgroundColor: 'rgba(4,12,18,0.8)', padding: { x: 8, y: 4 } }).setOrigin(0.5, 0).setDepth(4100).setAlpha(0); this.objs.push(text);
+    const text = this.add.text(0, 0, '', { fontFamily: 'IBM Plex Mono', fontSize: '13px', color: C.inkBright, backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 7, y: 3 } }).setOrigin(0.5, 0).setDepth(4100).setAlpha(0); this.objs.push(text);
     const p: Prompt & { when: () => boolean } = { id, kb, touch, text, done, when };
     this.prompts.push(p); this.refreshPrompts();
   }
   refreshPrompts() { for (const p of this.prompts) p.text.setText(this.ctl.last === 'touch' ? p.touch : p.kb); }
   updatePrompts() {
-    let shown = false; // one HUD hint at a time, above Noor
+    let shown = false; // one HUD hint at a time, near Noor
     for (const p of [...this.prompts] as (Prompt & { when: () => boolean })[]) {
       if (p.done()) {
         this.save.tutorials.push(p.id); writeSave(this.save); this.prompts.splice(this.prompts.indexOf(p), 1);
         this.tweens.add({ targets: p.text, alpha: 0, duration: 400, onComplete: () => p.text.destroy() });
       } else { const show = p.when() && !this.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > 680 ? this.y - 190 : this.y + 46)).setAlpha(show ? 0.9 * (1 - this.words.codeA) : 0); }
     }
+  }
+  /** Progressive, one-at-a-time control hints. Move at start; the rest only when first needed. */
+  installContextHints() {
+    if (this.room?.id === 'office') {
+      this.addPrompt('move', 0, 0, 'WASD  move', 'drag  to move', () => this.moved > 80);
+    }
+    this.addPrompt('throw', 0, 0, 'F  throw', 'TAP  throw', () => this.hintThrowDone(), () => this.holdingQuality());
+    this.addPrompt('attack', 0, 0, 'J  attack', 'TAP  attack',
+      () => this.didAttack,
+      () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
+    this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
+      () => this.didDash || (this.room?.id === 'hub' && this.y < 240),
+      () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 400 && this.y > 230));
+    this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract());
+  }
+  nearHintInteract() {
+    if (this.nearLostLine()) return true;
+    try { if (this.explore?.nearInteract?.()) return true; } catch { /* */ }
+    try { if (this.clar?.near) return true; } catch { /* */ }
+    const lab = this.impactLab;
+    if (lab && !lab.done) {
+      if (!lab.lampReady && Math.hypot(this.x - lab.panelPos.x, this.y - lab.panelPos.y) < 130) return true;
+      if (lab.lampReady && lab.lampAlive && !lab.carrying && Math.hypot(this.x - lab.lampPos.x, this.y - lab.lampPos.y) < 130) return true;
+    }
+    return false;
+  }
+  hintInteractDone() {
+    const looked = this.explore ? this.explore.state().looked.length : 0;
+    return this.save.looked.length > 0 || this.save.lines.length > 0 || this.save.lore.length > 0 || looked > 0
+      || !!(this.impactLab && (this.impactLab.lampReady || this.impactLab.done));
+  }
+  holdingQuality() {
+    return !!(this.explore?.carrying || this.hand || this.stealPlay?.held
+      || (this.impactLab && this.impactLab.carrying));
+  }
+  hintThrowDone() {
+    if (this.holdingQuality()) this.hintThrowArmed = true;
+    return this.hintThrowArmed && !this.holdingQuality();
   }
 
   // ---------- enemies (complaints given bodies: paper and ink, never an employee) ----------
@@ -1184,6 +1219,17 @@ export class GameScene extends Phaser.Scene {
     }
     return best;
   }
+  releaseHeldPose(playIdle = true) {
+    const n = this.noor;
+    if (!n) return;
+    n.setData('chargeReact', false);
+    n.setData('poseLock', false);
+    if (!playIdle) return;
+    const cur = n.anims.currentAnim?.key ?? '';
+    if (/shield|surprise|look|phone|shadow/.test(cur)) {
+      try { n.play(`noor_idle_${this.dir}`, true); } catch { /* */ }
+    }
+  }
   tryCollectNearLine() {
     const p = this.nearLostLine();
     if (!p) return false;
@@ -1194,7 +1240,6 @@ export class GameScene extends Phaser.Scene {
     const s = this.save; const L = LINES.find(l => l.id === p.def.id);
     if (!L || s.lines.includes(L.id)) return;
     s.lines.push(L.id); writeSave(s); sfx('paste');
-    this.words.showLore(p, L.text);
     if (p.scrap) this.tweens.add({ targets: p.scrap, alpha: 0, y: (p.scrap.y) - 18, duration: 520 });
     const a = this.amb.find(x => x.def.name === 'line');
     if (a) this.tweens.add({ targets: a.spr, alpha: 0, y: a.spr.y - 14, duration: 900, onComplete: () => { p.setVisibleState(false); this.ambState(); } }); else p.setVisibleState(false);
@@ -1206,15 +1251,41 @@ export class GameScene extends Phaser.Scene {
   showLineToast(text: string, n: number) {
     this.dismissLineToast(true);
     const hold = Math.max(4000, text.length * 60);
-    const body = `unsent.txt  +1   ${n}/${LINES.length}\n“${text}”\nE / tap  dismiss   ·   ESC  unsent.txt`;
-    const card = this.add.text(640, 590, body, {
-      fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.lamp,
-      backgroundColor: 'rgba(4,12,18,0.9)', padding: { x: 14, y: 10 }, align: 'center',
-      wordWrap: { width: 560 }, lineSpacing: 4,
-    }).setOrigin(0.5).setScrollFactor(0).setDepth(4300).setAlpha(0);
+    const quote = this.add.text(0, 0, `“${text}”`, {
+      fontFamily: 'IBM Plex Mono', fontSize: '18px', color: '#2c261c',
+      align: 'center', wordWrap: { width: 460 }, lineSpacing: 6,
+    }).setOrigin(0.5);
+    const qh = Math.min(220, quote.height);
+    const W = 500, H = Math.max(132, qh + 62);
+    quote.setY(2);
+    const card = this.add.container(640, 356).setScrollFactor(0).setDepth(4300).setAlpha(0).setScale(0.97);
+    const paper = this.add.graphics();
+    paper.fillStyle(0x0a1218, 0.28);
+    paper.fillRoundedRect(-W / 2 + 5, -H / 2 + 7, W, H, 5);
+    paper.fillStyle(0xf3ead4, 0.98);
+    paper.fillRoundedRect(-W / 2, -H / 2, W, H, 5);
+    paper.lineStyle(1.25, 0xc4b496, 0.95);
+    paper.strokeRoundedRect(-W / 2, -H / 2, W, H, 5);
+    paper.fillStyle(0xe8dcc4, 1);
+    paper.fillRect(-W / 2 + 1, -H / 2 + 1, W - 2, 9);
+    // slight torn nick on the top edge
+    paper.fillStyle(0x0a1218, 0);
+    paper.fillStyle(0x0d1820, 0);
+    paper.fillStyle(0x1a2430, 1);
+    // punch a couple of tiny bites out of the top to suggest a torn edge (paper color over shadow)
+    paper.fillStyle(0xf3ead4, 1);
+    paper.fillTriangle(-W / 2 + 36, -H / 2 - 1, -W / 2 + 52, -H / 2 - 1, -W / 2 + 44, -H / 2 + 8);
+    paper.fillTriangle(W / 2 - 70, -H / 2 - 1, W / 2 - 52, -H / 2 - 1, W / 2 - 61, -H / 2 + 7);
+    const count = this.add.text(W / 2 - 14, -H / 2 + 12, `${n}/${LINES.length}`, {
+      fontFamily: 'IBM Plex Mono', fontSize: '11px', color: '#8a7a62',
+    }).setOrigin(1, 0);
+    const hint = this.add.text(0, H / 2 - 14, 'E', {
+      fontFamily: 'JetBrains Mono', fontSize: '11px', color: '#8a7a62',
+    }).setOrigin(0.5, 1);
+    card.add([paper, quote, count, hint]);
     this.lineToast = card;
     this.objs.push(card);
-    this.tweens.add({ targets: card, alpha: 1, y: 548, duration: 260 });
+    this.tweens.add({ targets: card, alpha: 1, y: 340, scaleX: 1, scaleY: 1, duration: 280, ease: 'Cubic.easeOut' });
     this.time.delayedCall(hold, () => { if (this.lineToast === card) this.dismissLineToast(); });
   }
   dismissLineToast(instant = false): boolean {
@@ -1232,7 +1303,7 @@ export class GameScene extends Phaser.Scene {
       if (p.def.kind !== 'line' || !p.scrap || !p.visible) continue;
       p.scrap.setAlpha(0.72 + 0.28 * Math.sin(this.t * 3.1));
     }
-    const near = this.hudHidden || this.busy || this.paused ? null : this.nearLostLine();
+    const near = this.hudHidden || this.busy || this.paused || this.lineToast ? null : this.nearLostLine();
     if (this.linePrompt) {
       if (near) {
         const c = placeChip(near.def.sx, near.def.sy, this.x, this.y, 28, 8);
@@ -1566,7 +1637,7 @@ export class GameScene extends Phaser.Scene {
       this.dir = DIRS[(Math.round(Math.atan2(this.dashVec.y, this.dashVec.x) / (Math.PI / 4)) + 8) % 8];
       this.noor.play(`noor_dash_${this.dir}`, true); this.dashKick(); this.trailT = 0;
     }
-    if (control && f.dash && this.dashT === DASH_T) { this.dashStartAt = this.t; sfx('dash'); }
+    if (control && f.dash && this.dashT === DASH_T) { this.dashStartAt = this.t; this.didDash = true; sfx('dash'); }
     // art-v11 attack input (global): TAP = the 3-hit combo, HOLD then RELEASE = the typed beam. Both auto-aim.
     // combat greybox: longer hold for short-range beam; attack while carrying a word = throw.
     const holdT = this.combat ? this.combat.tune.holdBeam : HOLD_T;
@@ -1605,17 +1676,28 @@ export class GameScene extends Phaser.Scene {
     // facing + animation
     if (Math.hypot(mx, my) > 0.1 && this.swingT <= 0) this.dir = DIRS[(Math.round(Math.atan2(my, mx) / (Math.PI / 4)) + 8) % 8];
     const moving = Math.hypot(this.x - ox, this.y - oy) > 0.5;
+    const steering = Math.hypot(mx, my) > 0.1;
     const cur = this.noor.anims.currentAnim?.key ?? '';
-    const held = /^noor_(attack|dash|type|combo|peel|throw|release|charge|windup|shield)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look|shield)/.test(cur));   // art-v9 reactions hold while still
-    if (!held || !this.noor.anims.isPlaying) {
-      let want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`;
+    const winding = !!this.noor.getData('windOn');
+    // Combat loops hold only while they are still playing. Reaction poses
+    // (shield / surprise / look) hold while still AND locked; movement always wins.
+    // Wind-up keeps its last frame only while the throw wind-up is actually on.
+    const combatHold = /^noor_(attack|dash|type|combo|peel|throw|release|charge)/.test(cur) && this.noor.anims.isPlaying;
+    const windHold = winding && /windup/.test(cur) && !steering;
+    const reactKey = /^noor_(phone|shadow|surprise|look|shield)/.test(cur);
+    const locked = !!this.noor.getData('poseLock') || !!this.noor.getData('chargeReact');
+    const reactHold = reactKey && !steering && (locked || this.noor.anims.isPlaying);
+    const held = combatHold || windHold || reactHold;
+    if (steering && reactKey) this.releaseHeldPose(false);
+    if (!held) {
+      let want = `noor_${(moving || steering) && this.dashT <= 0 ? 'walk' : 'idle'}_${this.dir}`;
       const fi = this.noor.anims.currentFrame?.index ?? 1, nf = this.noor.anims.currentAnim?.frames.length ?? 1;
       // art-v10: stopping finishes the step to the next planted-feet frame (0 or n/2) instead of popping to idle mid-stride
-      if (!moving && cur.startsWith('noor_walk_') && !held) {
+      if (!moving && !steering && cur.startsWith('noor_walk_') && !held) {
         this.stopT += dt; const planted = fi === 1 || fi === 1 + Math.floor(nf / 2);
         if (!planted && this.stopT < 0.22) want = cur;
       } else this.stopT = 0;
-      if (cur !== want && !(held && /look|shield|windup/.test(cur))) {
+      if (cur !== want) {
         // a change of facing mid-walk keeps the stride phase (no restart, no foot pop)
         if (cur.startsWith('noor_walk_') && want.startsWith('noor_walk_')) this.noor.play({ key: want, startFrame: fi - 1 }, false);
         else this.noor.play(want, true);
@@ -1667,6 +1749,7 @@ export class GameScene extends Phaser.Scene {
 
   typeAttack() {
     if (this.swingT > 0) return;
+    this.didAttack = true;
     this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
     const hit = this.combo; this.comboT = 0.55; this.swingT = hit === 3 ? 0.32 : 0.22;
     // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
@@ -1852,7 +1935,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- test hooks (only with ?test) ----------
   getTestState() {
     return {
-      screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp,
+      screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp, talking: !!this.dialogue?.busy,
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),

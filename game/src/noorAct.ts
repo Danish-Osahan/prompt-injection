@@ -30,6 +30,7 @@ export class NoorActing {
     for (const o of this.marks) { try { o.destroy(); } catch { /* */ } }
     this.marks = [];
     this.looking = false;
+    try { this.s.noor?.setData('poseLock', false); } catch { /* */ }
     try { this.s.tweens.killTweensOf(this.s.noor); } catch { /* */ }
     if (this.chair) try { this.s.tweens.killTweensOf(this.chair); } catch { /* */ }
   }
@@ -39,7 +40,12 @@ export class NoorActing {
     try { this.s.tweens.killTweensOf(n); } catch { /* */ }
     n.setScale(this.base.sx || 1, this.base.sy || 1);
     n.setRotation(0);
+    n.setData('poseLock', false);
     try { n.play(`noor_idle_${idle}`, true); } catch { /* */ }
+  }
+
+  private lockPose() {
+    this.s.noor?.setData('poseLock', true);
   }
 
   emote(kind: EmoteKind, ms = 1100) {
@@ -108,6 +114,7 @@ export class NoorActing {
 
   private startle() {
     const s = this.s, n = s.noor;
+    this.lockPose();
     try { n.play('noor_surprise_S', true); } catch {
       try { n.play('noor_surprise_N', true); } catch { /* */ }
     }
@@ -127,12 +134,14 @@ export class NoorActing {
     if (this.looking) return;
     this.looking = true;
     const s = this.s, n = s.noor;
+    this.lockPose();
     const play = (key: string) => { try { n.play(key, true); } catch { /* */ } };
     play('noor_lookL_S');
     s.time.delayedCall(420, () => { if (n.active) play('noor_lookR_S'); });
     s.time.delayedCall(900, () => { if (n.active) play('noor_lookL_N'); });
     s.time.delayedCall(1300, () => {
       this.looking = false;
+      n.setData('poseLock', false);
       if (n.active) play('noor_idle_N');
     });
     this.emote('?', 900);
@@ -154,6 +163,7 @@ export class NoorActing {
 
   private handUp() {
     const s = this.s, n = s.noor;
+    this.lockPose();
     try { n.play('noor_surprise_N', true); } catch {
       try { n.play('noor_phone_N', true); } catch { /* */ }
     }

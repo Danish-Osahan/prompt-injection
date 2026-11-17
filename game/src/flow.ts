@@ -57,23 +57,10 @@ export function showRoomCard(s: GameScene, id: RoomId, onDone?: () => void) {
   });
 }
 
-/** One-time controls hint along the bottom. Call after any opening dialogue has finished. */
+/** Kept as a hook after opening dialogue; the full controls bar is gone.
+ *  Contextual move / E / F / J / dash hints are installed per room. */
 export function showControlsHint(s: GameScene) {
-  if (s.save.tutorials.includes('controls')) return;
-  const text = s.ctl.last === 'touch'
-    ? 'drag to move   ·   READ to take   ·   throw   ·   TYPE to attack   ·   DASH'
-    : 'WASD move   ·   HOLD E to take   ·   F throw   ·   J attack   ·   SPACE dash';
-  const hint = s.add.text(640, 670, text, {
-    fontFamily: UI, fontSize: '16px', color: C.inkBright,
-    backgroundColor: 'rgba(4,12,18,0.72)', padding: { x: 16, y: 8 },
-  }).setOrigin(0.5).setDepth(8000).setScrollFactor(0).setAlpha(0);
-  s.objs.push(hint);
-  s.tweens.add({ targets: hint, alpha: 1, duration: 280 });
-  s.time.delayedCall(6200, () => {
-    s.tweens.add({ targets: hint, alpha: 0, duration: 400, onComplete: () => hint.destroy() });
-  });
-  s.save.tutorials.push('controls');
-  writeSave(s.save);
+  try { s.installContextHints(); } catch { /* */ }
 }
 
 /** Make sure the game canvas has keyboard focus after a cutscene. */

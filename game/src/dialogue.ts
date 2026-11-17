@@ -171,7 +171,7 @@ export class Dialogue {
     if (this.busy) return;
     if (this.mailBlocking()) return;
     const job = this.queue.shift();
-    if (!job) { this.busy = false; try { this.onIdle?.(); } catch { /* */ } return; }
+    if (!job) { this.busy = false; try { this.s.releaseHeldPose?.(true); } catch { /* */ } try { this.onIdle?.(); } catch { /* */ } return; }
     if (!job.line || !job.line.trim()) { this.at(job.ms, () => { this.busy = false; this.kick(); }); this.busy = true; return; }
     this.busy = true;
     this.waiting = false;
@@ -423,8 +423,10 @@ export class Dialogue {
     const padL = 128, padR = 28, padT = 34, padB = 26;
     const w = Math.max(660, Math.min(940, padL + maxW + padR));
     const h = Math.max(120, padT + maxH + padB);
-    const y = 720 - 28 - h / 2;
-    const c = s.add.container(640, y + 18).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
+    const top = this.speakerLow(job.who);
+    const y = top ? 28 + h / 2 : 720 - 28 - h / 2;
+    const from = top ? y - 18 : y + 18;
+    const c = s.add.container(640, from).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
     const accent = s.add.rectangle(-w / 2 + 3, 0, 4, h - 16, this.hexFor(job.who), 0.9);
@@ -547,6 +549,7 @@ export class Dialogue {
     if (s.anims.exists(shield)) n.play(shield, true);
     else if (s.anims.exists(`noor_lookR_${s.dir}`)) n.play(`noor_lookR_${s.dir}`, true);
     else if (s.anims.exists(`noor_idle_${s.dir}`)) n.play(`noor_idle_${s.dir}`, true);
+    n.setData('poseLock', true);
     if (n.getData('chargeReact')) return;
     n.setData('chargeReact', true);
     // Step away from the pot so her raised forearm stays clear.
@@ -569,7 +572,7 @@ export class Dialogue {
   }
 
   private clearShield(_resetFlag = true) {
-    this.s.noor?.setData('chargeReact', false);
+    try { this.s.releaseHeldPose?.(true); } catch { this.s.noor?.setData('chargeReact', false); this.s.noor?.setData('poseLock', false); }
   }
 
   /** Tail sits on the box edge and points at the speaker, not straight down. */
@@ -886,6 +889,22 @@ export class Dialogue {
   }
 
   /** Camera-visible world rect with a small margin. */
+  private speakerWorld(who: SayWho) {
+    if (who === 'fern' && this.holo) return { x: this.holo.x, y: this.holo.y };
+    if (who === 'noor') return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };
+    const src = who === 'fern' ? this.fernSource() : null;
+    return src ? { x: src.x, y: src.y } : null;
+  }
+
+  /** True when the speaker sits in the lower half of the camera, so a bottom box would cover them. */
+  private speakerLow(who: SayWho) {
+    const p = this.speakerWorld(who);
+    if (!p) return false;
+    const cam = this.s.cameras.main;
+    const y = (p.y - cam.worldView.y) * cam.zoom;
+    return y > 360;
+  }
+
   private viewRect() {
     const v = this.s.cameras.main.worldView;
     const pad = 18;
@@ -918,6 +937,10 @@ export class Dialogue {
   ) {
     const view = this.viewRect();
     const avoids = this.avoidRects();
+    if (pref.speaker) {
+      // Keep the bubble off the speaker's body (pot / Noor).
+      avoids.push({ x: pref.speaker.x - 70, y: pref.speaker.y - 20, w: 140, h: 150 });
+    }
     const box = (x: number, y: number, flip: boolean) => ({
       x: flip ? x - bw : x,
       y: y - padT,
@@ -939,14 +962,19 @@ export class Dialogue {
       r.x >= view.x - 1 && r.y >= view.y - 1 && r.x + r.w <= view.x + view.w + 1 && r.y + r.h <= view.y + view.h + 1;
 
     const sp = pref.speaker ?? { x: pref.x, y: pref.y + 80 };
-    const tries: { x: number; y: number; flip: boolean }[] = [
-      { x: pref.x, y: pref.y, flip: pref.flip },
-      { x: pref.x, y: pref.y, flip: !pref.flip },
+    const low = sp.y > view.y + view.h * 0.48;
+    const above = [
       { x: sp.x + 48, y: sp.y - 90, flip: false },
       { x: sp.x - 48, y: sp.y - 90, flip: true },
+      { x: pref.x, y: Math.max(view.y + padT + 8, sp.y - bh - 16), flip: pref.flip },
+    ];
+    const below = [
       { x: sp.x + 48, y: sp.y + 36, flip: false },
       { x: sp.x - 48, y: sp.y + 36, flip: true },
     ];
+    const tries: { x: number; y: number; flip: boolean }[] = low
+      ? [...above, { x: pref.x, y: pref.y, flip: pref.flip }, { x: pref.x, y: pref.y, flip: !pref.flip }, ...below]
+      : [{ x: pref.x, y: pref.y, flip: pref.flip }, { x: pref.x, y: pref.y, flip: !pref.flip }, ...above, ...below];
     for (const a of avoids) {
       tries.push({ x: a.x - 14, y: pref.y, flip: true });
       tries.push({ x: a.x + a.w + 14, y: pref.y, flip: false });

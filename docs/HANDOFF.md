@@ -1,5 +1,30 @@
 # HANDOFF
 
+## 2026-11-17 — Stuck pose, progressive hints, note card, uncovered Fern box
+
+Danishpreet played `4241ffd`: after some dialogue (especially Fern's arrival) Noor stayed locked in an up-facing / shield pose until a dash; the opening controls bar taught attack/throw/dash too early; the lost-line pickup was cluttered; Fern's first box covered her pot when she landed low.
+
+1. **Pose release.** The locomotion hold treated `noor_shield_*` like a combat loop and refused to leave `look` / `shield` / `windup` even after the anim ended, so only a dash (which forces its own sheet) reset her. Movement input now always overrides reaction poses (shield, surprise, look, phone, shadow). Combat loops still hold only while they are playing. Wind-up keeps its last frame only while `windOn` is set. `releaseHeldPose()` plays current-dir idle and is called when dialogue goes idle, when the 1.4s shield timer ends, and from intro `NoorActing` clear/reset. New playtest: after Fern arrival dialogue, Noor is idle with no input, and a direction plays walk within ~100ms.
+
+2. **Progressive hints.** The always-on bottom bar (`WASD move · HOLD E · F throw · J attack · SPACE dash`) is gone. At start only a small `WASD  move` pill sits near Noor and fades after she walks. `E  look`, `F  throw`, `J  attack`, and `SPACE  dash` appear once, when first needed (near an interactable, holding a quality, an attackable enemy, first enemy or the hub gap), persist in `save.tutorials`, and fade after use. J waits until the dummy is awake (`flags.quick`) or a live non-dummy enemy is present, so it does not teach a swing at a dummy that still says "IT ISN'T AWAKE."
+
+3. **Note card.** Lost-line pickup is a single paper card: the quote in IBM Plex Mono, a tiny `n/18`, and a faint `E` to close. No `unsent.txt` label, journal pointer, or stacked caption lore. Gentle rise/fade in and out. The floor `E take` chip hides while the card is up.
+
+4. **Uncovered speaker.** Long portrait boxes flip to the top of the screen when the speaker is in the lower half of the camera. World bubbles treat the speaker's body as an avoid rect and prefer a seat above them when they are low. Fern's first arrival line now sits at the top (box centre y ≈ 88) with the pot fully visible below.
+
+5. **Playtest.** 204/204 (201 previous plus Fern-arrival idle and walk-within-~100ms). Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms contracts kept.
+
+Review stills (not in the repo):
+- walk after Fern dialogue: `/workspace/l1-walk-after-fern-2x.png` (full `/workspace/l1-walk-after-fern.png`)
+- start, move hint only: `/workspace/l1-hint-move-2x.png` (full `/workspace/l1-hint-move.png`)
+- first E hint: `/workspace/l1-hint-e-2x.png` (full `/workspace/l1-hint-e.png`)
+- first attack hint at the woken dummy: `/workspace/l1-hint-attack-2x.png` (full `/workspace/l1-hint-attack.png`)
+- new note card: `/workspace/l1-note-card-2x.png` (full `/workspace/l1-note-card.png`)
+- Fern arrival, box uncovered: `/workspace/l1-fern-box-2x.png`, pot crop `/workspace/l1-fern-box-pot-2x.png`, box crop `/workspace/l1-fern-box-ui-2x.png` (full `/workspace/l1-fern-box.png`)
+
+Leftovers: the first E hint sits next to the existing explore chip, so "E look" appears twice. The note card's torn nicks are very subtle, and a short last word ("claim.") can sit alone on the second line; the close `E` is quite faint. The J hint shares the frame with the dummy's `E take` chip. When Noor is very low, Fern still stands more beside than below her (3/4 SW/SE). Stealable tokens such as "open"/"shut" can still glow in speech. Click-to-attack in the office will mark the J hint as seen before the first enemy.
+
+
 ## 2026-11-17 — Arrival facing, quieter wind-up glow, board chip
 
 Leftovers from `5137b16`: at Fern's arrival Noor faced NW, so the shield was mostly the back of her head; the drawn-back hand glow bloomed; the E chip covered the #4412 sticky; the last-frame-hold change had not been re-tested.
