@@ -208,9 +208,19 @@ PLAN = {
           F(c=.24, lean=2, tw=-4, ar=D(.25, .2, -.92), step=5),
           F(c=.18, lean=0, tw=0, ar=D(.22, .28, -.95), step=4)],
 
+ # shield-eyes trials (will keep the 2 that read as a forearm across the eyes + lean-back)
+ 'shield': [
+          F(c=.2, lean=-16, tw=12, hd=-4, ar=D(.7, -.4, .35), al=D(.2, .45, -.4), sr=1.06, wide=8, dz=-.015),
+          F(c=.26, lean=-24, tw=18, hd=-2, ar=D(1.0, -.6, .55), al=D(.2, .55, -.25), sr=1.12, wide=11, dz=-.022)],
+ # throw wind-up: coil, arm drawn back with a glowing hand, then the official release flick.
+ 'windup': [
+          F(c=.22, tw=24, lean=-4, ar=D(-.5, .5, -.25), al=D(.45, .3, -.85), wide=10, dz=-.008),
+          F(c=.38, lean=-16, tw=42, ar=D(-.85, .22, .75), al=D(.95, 0, .05), glow=.9, sr=1.12, wide=14, dz=-.025, ev='coil'),
+          F(c=.35, lean=14, tw=-12, ar=D(1, .05, .25), al=D(-.3, .4, -.8), glow=.45, wide=12, dz=-.02, ev='release', step=8)],
+
 }
 LOOPS = {'charge_hold', 'carry'}
-BEAM = {'charge_in', 'charge_hold', 'release'}
+BEAM = {'charge_in', 'charge_hold', 'release', 'windup'}
 STEAL = {'pull', 'pull_side', 'hurl', 'carry'}
 CHEAT = json.loads(os.environ.get('CHEAT', '{"S": 40, "N": 35, "SE": 15, "SW": 15}'))  # steal/beam: show the arms
 # follow-through: hair + coat hem run on a damped spring driven by how fast the torso turns / pitches, and keep moving after she stops

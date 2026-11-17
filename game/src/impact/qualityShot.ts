@@ -1,5 +1,5 @@
 // Shaped quality shots and the hold-J / F-throw bolt.
-// Pose: charge_in → throw (release around frame 3) → throw follow-through.
+// Pose: noor_windup (220ms) → throw from the release frame → throw follow-through.
 // Bolt: a crafted zigzag that grows, jitters, and branches over frames, then a tight afterglow.
 import Phaser from 'phaser';
 import type { GameScene } from '../game';
@@ -16,19 +16,41 @@ export function shotKind(word: string): ShotKind {
   return 'dart';
 }
 
-function playKey(s: GameScene, key: string, fps?: number) {
+function playKey(s: GameScene, key: string, fps?: number, startFrame?: number) {
   if (!s.anims.exists(key)) return false;
   try {
-    if (fps) s.noor.play({ key, frameRate: fps }, true);
-    else s.noor.play(key, true);
+    const cfg: Phaser.Types.Animations.PlayAnimationConfig = { key };
+    if (fps) cfg.frameRate = fps;
+    if (startFrame != null) cfg.startFrame = startFrame;
+    s.noor.play(cfg, true);
     return true;
   } catch { return false; }
 }
 
 export const WIND_MS = 220;
 
+// Right-hand offset from the feet pivot (96, 160) on the noor_windup sheet, per facing, frames 0-2.
+const WIND_HAND: Record<string, [number, number][]> = {
+  S: [[-52.5, -4.3], [-65.6, -32.8], [19.6, -0.6]],
+  SE: [[-48.9, 6.7], [-65.3, -18.6], [33.7, -6.4]],
+  E: [[-32.9, 20.2], [-50.3, 0.5], [46.8, -19.7]],
+  NE: [[5.7, 27.2], [-4.8, 14.5], [42.7, -42.5]],
+  N: [[52.4, -2.9], [64.5, -16.3], [-15.7, -56.5]],
+  NW: [[52.2, -8.5], [66.3, -23.4], [-23.4, -54.4]],
+  W: [[32.9, -30.2], [50.3, -53.1], [-46.8, -36.5]],
+  SW: [[-19.0, -35.1], [-12.6, -66.5], [-35.2, -7.3]],
+};
+
 function handPos(s: GameScene, back = false) {
   const d = s.dir || 'S';
+  const n = s.noor;
+  const onWind = !!n?.anims.currentAnim?.key?.includes('windup');
+  const fi = onWind ? (n!.anims.currentFrame?.index ?? 1) : 1;
+  const frames = WIND_HAND[d];
+  if (frames) {
+    const [hx, hy] = frames[Math.min(Math.max(fi, 0), frames.length - 1)];
+    return { x: s.x + hx, y: s.y + hy, side: hx >= 0 ? 1 : -1 };
+  }
   const side = d.includes('E') ? 1 : d.includes('W') ? -1 : (d.includes('N') ? -1 : 1);
   const x = s.x + (back ? -side * 38 : side * 22);
   const y = s.y - (back ? 16 : 36);
@@ -43,31 +65,12 @@ function placeWindFx(s: GameScene) {
   if (orb?.active) orb.setPosition(h.x, h.y).setDepth(s.y + 32);
   const glow = n.getData('windGlow') as Phaser.GameObjects.Ellipse | undefined;
   if (glow?.active) glow.setPosition(h.x, h.y).setDepth(s.y + 31);
-  const arm = n.getData('windArm') as Phaser.GameObjects.Graphics | undefined;
-  if (arm?.active) {
-    arm.setPosition(s.x, s.y).setDepth(s.y + 18);
-    drawWindArm(arm, h.side);
-  }
   const dust = n.getData('windDust') as Phaser.GameObjects.Ellipse | undefined;
   if (dust?.active) dust.setPosition(s.x, s.y + 8).setDepth(s.y - 2);
 }
 
-function drawWindArm(g: Phaser.GameObjects.Graphics, side: number) {
-  g.clear();
-  const sx = -side;
-  // Jacket sleeve pulled back — a rounded mass, not a chevron.
-  g.fillStyle(0xb07a28, 1);
-  g.fillEllipse(sx * 16, -36, 20, 16);
-  g.fillStyle(0xd4a24a, 1);
-  g.fillEllipse(sx * 22, -28, 20, 16);
-  g.fillEllipse(sx * 28, -18, 16, 13);
-  // Forearm + fist drawn back
-  g.fillStyle(0x8a4a2e, 1);
-  g.fillEllipse(sx * 34, -10, 14, 11);
-  g.fillStyle(0xae6840, 1);
-  g.fillEllipse(sx * 40, -4, 13, 11);
-  g.lineStyle(1.2, 0x2a1810, 0.5);
-  g.strokeEllipse(sx * 40, -4, 13, 11);
+export function tickWindupFx(s: GameScene) {
+  if (s.noor?.getData('windOn')) placeWindFx(s);
 }
 
 export function startWindupPose(s: GameScene) {
@@ -75,34 +78,19 @@ export function startWindupPose(s: GameScene) {
   if (!n) return;
   if (n.getData('windOn')) { placeWindFx(s); return; }
   n.setData('windOn', true);
-  n.setData('windScale', { x: n.scaleX, y: n.scaleY, angle: n.angle ?? 0 });
   const h = handPos(s, true);
-  // Top-down read: squash, yaw into the coil, slight twist.
-  s.tweens.add({
-    targets: n,
-    scaleX: (n.scaleX || 1) * 1.2,
-    scaleY: (n.scaleY || 1) * 0.8,
-    angle: -16 * h.side,
-    duration: WIND_MS,
-    ease: 'Sine.easeOut',
-  });
-  const arm = s.add.graphics().setPosition(s.x, s.y).setDepth(s.y + 18).setAlpha(0);
-  drawWindArm(arm, h.side);
-  s.objs.push(arm);
-  s.tweens.add({ targets: arm, alpha: 1, duration: 80 });
-  n.setData('windArm', arm);
-
+  // Dust ring + gathering hand light sit on top of the rendered wind-up frames.
   const glow = s.add.ellipse(h.x, h.y, 22, 18, 0x5ec8ff, 0)
     .setDepth(s.y + 40).setBlendMode(Phaser.BlendModes.ADD);
   const orb = s.add.ellipse(h.x, h.y, 10, 10, 0xe8ffff, 0)
     .setDepth(s.y + 41).setBlendMode(Phaser.BlendModes.ADD);
   s.objs.push(glow, orb);
   s.tweens.add({
-    targets: glow, alpha: 0.9, displayWidth: 56, displayHeight: 44,
+    targets: glow, alpha: 0.85, displayWidth: 52, displayHeight: 42,
     duration: WIND_MS, ease: 'Sine.easeOut',
   });
   s.tweens.add({
-    targets: orb, alpha: 1, displayWidth: 26, displayHeight: 22,
+    targets: orb, alpha: 0.95, displayWidth: 24, displayHeight: 20,
     duration: WIND_MS, ease: 'Sine.easeOut',
   });
   n.setData('windGlow', glow);
@@ -122,8 +110,6 @@ export function clearWindupPose(s: GameScene) {
   const n = s.noor;
   if (!n || !n.getData('windOn')) return;
   n.setData('windOn', false);
-  const sc = n.getData('windScale') as { x: number; y: number; angle: number } | undefined;
-  if (sc) s.tweens.add({ targets: n, scaleX: sc.x, scaleY: sc.y, angle: sc.angle ?? 0, duration: 90, ease: 'Sine.easeOut' });
   const kill = (key: string, fade = true) => {
     const o = n.getData(key) as Phaser.GameObjects.GameObject | undefined;
     n.setData(key, undefined);
@@ -132,7 +118,7 @@ export function clearWindupPose(s: GameScene) {
       s.tweens.add({ targets: o, alpha: 0, duration: 120, onComplete: () => { try { o.destroy(); } catch { /* */ } } });
     } else { try { o.destroy(); } catch { /* */ } }
   };
-  kill('windOrb'); kill('windGlow'); kill('windArm'); kill('windDust', false);
+  kill('windOrb'); kill('windGlow'); kill('windDust', false);
 }
 
 /** Idempotent: bigger coil + hand-light, charge_in once, then a slow charge_hold loop. */
@@ -150,20 +136,29 @@ export function playChargeHold(s: GameScene) {
 }
 
 /**
- * Wind-up then throw. onRelease fires at the throw's smear frame (~80ms into the throw).
- * If alreadyWound (hold-J), skip charge_in and go straight to the throw.
- * Wind-up is WIND_MS (220) so the coil reads from the top-down camera.
+ * Wind-up then throw. onRelease fires as the bolt leaves the hand.
+ * If alreadyWound (hold-J), skip the wind-up sheet and go straight to the throw.
+ * Wind-up is WIND_MS (220): noor_windup (coil, drawn-back glowing hand, release) plus dust/light FX.
  */
 export function playThrowAttack(s: GameScene, onRelease: () => void, alreadyWound = false) {
   const dir = s.dir;
   const startThrow = () => {
     clearWindupPose(s);
-    if (!playKey(s, `noor_throw_${dir}`, 28)) playKey(s, `noor_type3_${dir}`);
-    s.time.delayedCall(alreadyWound ? 70 : 80, () => { try { onRelease(); } catch { /* */ } });
+    if (alreadyWound) {
+      if (!playKey(s, `noor_throw_${dir}`, 28)) playKey(s, `noor_type3_${dir}`);
+      s.time.delayedCall(70, () => { try { onRelease(); } catch { /* */ } });
+      return;
+    }
+    // Wind-up already played the release flick; start the throw sheet on its official release frame.
+    if (!playKey(s, `noor_throw_${dir}`, 28, 4)) playKey(s, `noor_type3_${dir}`);
+    s.time.delayedCall(40, () => { try { onRelease(); } catch { /* */ } });
   };
   if (alreadyWound) { startThrow(); return; }
   startWindupPose(s);
-  if (!playKey(s, `noor_charge_in_${dir}`, 18)) playKey(s, `noor_type2_${dir}`);
+  const fps = (1000 * 3) / WIND_MS;
+  if (!playKey(s, `noor_windup_${dir}`, fps)) {
+    if (!playKey(s, `noor_charge_in_${dir}`, 18)) playKey(s, `noor_type2_${dir}`);
+  }
   s.time.delayedCall(WIND_MS, startThrow);
 }
 

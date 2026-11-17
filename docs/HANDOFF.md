@@ -1,5 +1,26 @@
 # HANDOFF
 
+## 2026-11-17 — Rendered shield and wind-up sheets, tight board outline
+
+Leftovers from `2f99a3b`: the shield pose still read as a head-turn with a code-drawn arm; the throw wind-up arm was orange blobs; the whiteboard cyan outline sat loose around the painted board.
+
+Blender 4.2.9 LTS was already on the box (`/workspace/tools/blender-4.2.9-linux-x64/blender`). New frames went through the existing procedural rig (`art/tools/noor12.py` + `pack13.py`), same 38° ortho camera and lighting as her sheet, 24 samples, all 8 facings. Packed atlases landed only in `game/public/assets/sprites12/` (no writes to dirty `art/out` or `art/render/sprites12`).
+
+1. **Shield-eyes.** `noor_shield` (2 frames: raise, hold). Lean back, forearm raised across the eyes. No CHEAT yaw, so the front view is a bar across the face rather than a turned head. Fern's arrival plays this sheet (typically `noor_shield_NW`) and drops the composited sleeve. The 22px step-back and 110px hologram gap are unchanged.
+
+2. **Wind-up.** `noor_windup` (3 frames in 220ms: coil, arm drawn back with a glowing hand, release flick). N/S keep CHEAT yaw so the arm reads. The code-drawn sleeve is gone. The dust ring and additive hand light stay as FX on top of the rendered hand, using the packed hand offsets. After the release frame, the throw sheet starts at its official release frame so the coil is not played twice. Hold-J still throws immediately.
+
+3. **Whiteboard.** The cyan rounded stroke is fitted to the painted board (center 620, 139, 154×61, corner 3). The soft halo is tighter too. The E chip stays on the board.
+
+Playtest 201/201 (dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms contracts kept).
+
+Review stills (not in the repo):
+- shield + Fern: `/workspace/l1-fern-charge-2x.png` (full `/workspace/l1-fern-charge.png`)
+- wind-up coil / drawn-back / release: `/workspace/l1-throw-windup-coil-2x.png`, `/workspace/l1-throw-windup-2x.png`, `/workspace/l1-throw-windup-release-2x.png`, strip `/workspace/l1-throw-windup-strip-2x.png`
+- whiteboard outline: `/workspace/l1-board-look-2x.png`, tight crop `/workspace/l1-board-outline-2x.png` (full `/workspace/l1-board-look.png`)
+
+Leftovers: at Fern's arrival facing (NW) you mostly see the back and side of her head, so "forearm across the eyes" is clearer on S/W than on NW; Fern's fronds can still overlap the raised arm a little. The drawn-back hand (baked orb plus the additive light) is bright and can bloom. The coil frame is a milder twist; the readable beat is the drawn-back pose. The board's 5px soft halo still blooms a couple of pixels past the painted edge, and the E chip covers part of the #4412 sticky. Stealable tokens such as "open"/"shut" can still glow in speech.
+
 ## 2026-11-17 — Wind-up, mail box, board stand, shield pose, quality words
 
 Playtest of `e9966f9`: the throw wind-up still felt short from the top-down camera; an empty NOOR box sat under the opening claim-mail; Noor covered the whiteboard's lower-left and the glow vanished on the white surface; Fern's arrival used the old surprise pose and could land on Noor; "on", "dead", and "still" still glowed in spoken lines.

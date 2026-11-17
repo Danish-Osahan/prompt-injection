@@ -84,8 +84,6 @@ export class Dialogue {
   private boxPadT = 22;
   private tailGfx?: Phaser.GameObjects.Triangle;
   private boxReveal = false;
-  private shieldArm?: Phaser.GameObjects.Graphics;
-
   constructor(s: GameScene) {
     this.s = s;
     this.onKey = (ev: KeyboardEvent) => {
@@ -529,81 +527,32 @@ export class Dialogue {
     const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
     const ang = Math.atan2(src.y - s.y, src.x - s.x);
     s.dir = DIRS[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
-    // Body stays in a stable idle/look so the composited shield-arm reads as the new pose.
-    const look = `noor_lookR_${s.dir}`;
-    if (s.anims.exists(look)) n.play(look, true);
+    const shield = `noor_shield_${s.dir}`;
+    if (s.anims.exists(shield)) n.play(shield, true);
+    else if (s.anims.exists(`noor_lookR_${s.dir}`)) n.play(`noor_lookR_${s.dir}`, true);
     else if (s.anims.exists(`noor_idle_${s.dir}`)) n.play(`noor_idle_${s.dir}`, true);
-    if (n.getData('chargeReact')) { this.placeShieldArm(); return; }
+    if (n.getData('chargeReact')) return;
     n.setData('chargeReact', true);
-    const sx = n.scaleX, sy = n.scaleY;
     const back = Math.sign(s.x - src.x) || 1;
-    n.setData('shieldBack', back);
     // Step clearly off the hologram's landing spot.
     s.x += back * 22;
     s.y += 8;
     n.setPosition(s.x, s.y).setDepth(s.y + 24);
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
-    s.tweens.add({
-      targets: n, scaleX: sx * 0.94, scaleY: sy * 1.06, angle: -12 * back,
-      duration: 180, ease: 'Sine.easeOut',
-    });
-    this.spawnShieldArm(back);
-    s.time.delayedCall(1400, () => {
-      n.setData('chargeReact', false);
-      s.tweens.add({ targets: n, scaleX: sx, scaleY: sy, angle: 0, duration: 160, ease: 'Sine.easeOut' });
-      this.clearShield();
-    });
-  }
-
-  private spawnShieldArm(back: number) {
-    this.clearShield(false);
-    const g = this.s.add.graphics().setDepth((this.s.y ?? 0) + 28).setAlpha(0);
-    this.shieldArm = g;
-    this.s.objs.push(g);
-    this.drawShieldArm(g, back);
-    this.placeShieldArm();
-    this.s.tweens.add({ targets: g, alpha: 1, duration: 120 });
-  }
-
-  private drawShieldArm(g: Phaser.GameObjects.Graphics, back: number) {
-    g.clear();
-    const sx = back;
-    // Jacket sleeve from the shoulder, rising and crossing the face.
-    g.fillStyle(0xb07a28, 1);
-    g.fillEllipse(sx * 18, -36, 16, 14);
-    g.fillStyle(0xd4a24a, 1);
-    g.fillEllipse(sx * 14, -52, 16, 14);
-    g.fillEllipse(sx * 6, -62, 15, 12);
-    // Forearm + palm across the eyes / glasses.
-    g.fillStyle(0x8a4a2e, 1);
-    g.fillEllipse(sx * 2, -66, 14, 10);
-    g.fillStyle(0xae6840, 1);
-    g.fillEllipse(-sx * 2, -62, 20, 13);
-    g.fillEllipse(-sx * 10, -64, 8, 6);
-    g.fillEllipse(-sx * 8, -70, 7, 5);
-    g.fillEllipse(-sx * 4, -72, 7, 5);
-    g.lineStyle(1.2, 0x2a1810, 0.55);
-    g.strokeEllipse(-sx * 2, -62, 20, 13);
+    s.time.delayedCall(1400, () => this.clearShield());
   }
 
   private placeShieldArm() {
-    const g = this.shieldArm;
     const n = this.s.noor;
-    if (!g?.active || !n) return;
-    if (!n.getData('chargeReact')) { this.clearShield(); return; }
-    const back = (n.getData('shieldBack') as number) || 1;
-    g.setPosition(n.x, n.y).setDepth(n.y + 28);
-    this.drawShieldArm(g, back);
+    if (!n) return;
+    if (!n.getData('chargeReact')) return;
+    const key = `noor_shield_${this.s.dir}`;
+    const cur = n.anims.currentAnim?.key ?? '';
+    if (cur !== key && this.s.anims.exists(key)) n.play(key, true);
   }
 
-  private clearShield(resetFlag = true) {
-    const g = this.shieldArm;
-    this.shieldArm = undefined;
-    if (resetFlag) this.s.noor?.setData('chargeReact', false);
-    if (g) {
-      try { this.s.tweens.killTweensOf(g); } catch { /* */ }
-      try { g.destroy(); } catch { /* */ }
-    }
+  private clearShield(_resetFlag = true) {
+    this.s.noor?.setData('chargeReact', false);
   }
 
   /** Tail sits on the box edge and points at the speaker, not straight down. */

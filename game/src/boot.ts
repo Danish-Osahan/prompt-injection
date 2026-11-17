@@ -31,7 +31,7 @@ export class BootScene extends Phaser.Scene {
     for (const p of O11_PROPS) if (p.fg) this.load.image('o11fg_' + p.name, A(p.fg));
     O11_DOOR.frames.forEach((f, i) => this.load.image('o11door_' + i, A(f))); this.load.image('o11_dummy', A(O11_DUMMY.img));
     // art-v12 attack set (combat greybox / wire-in). Loaded always; used when ?combat=1.
-    const A12 = ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release'];
+    const A12 = ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release', 'noor_shield', 'noor_windup'];
     for (const s of A12) this.load.atlas(s, `assets/sprites12/${s}.png`, `assets/sprites12/${s}.json`);
     for (const i of ['hp_on', 'hp_off', 'floor_mark']) this.load.image(i, `assets/icons/${i}.png`);
     // Impact lab FX (CC0 Kenney + original soft particles) + SFX
@@ -71,7 +71,7 @@ export class BootScene extends Phaser.Scene {
       }
     }
     // sprites12 attack anims (per-frame duration is applied in combat when playing)
-    for (const s of ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release']) {
+    for (const s of ['noor_combo1', 'noor_combo2', 'noor_combo3', 'noor_peel', 'noor_throw', 'noor_charge_in', 'noor_charge_hold', 'noor_release', 'noor_shield', 'noor_windup']) {
       if (!this.textures.exists(s)) continue;
       const names = this.textures.get(s).getFrameNames();
       const dirs = new Set(names.map(n => n.split('_').slice(-2, -1)[0]));

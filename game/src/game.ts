@@ -25,7 +25,7 @@ import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
 import { InteractChip, placeChip } from './ui/InteractChip';
-import { launchAnimatedBolt, playChargeHold, playThrowAttack } from './impact/qualityShot';
+import { launchAnimatedBolt, playChargeHold, playThrowAttack, tickWindupFx } from './impact/qualityShot';
 import type { PlateDef } from './plate';
 import { type RoomId, type Save, loadSave, writeSave, wipeSave, freshSave, setEphemeralSave, recomputeGrowth, fernStage, logSwap, topWord } from './save';
 
@@ -1606,7 +1606,7 @@ export class GameScene extends Phaser.Scene {
     if (Math.hypot(mx, my) > 0.1 && this.swingT <= 0) this.dir = DIRS[(Math.round(Math.atan2(my, mx) / (Math.PI / 4)) + 8) % 8];
     const moving = Math.hypot(this.x - ox, this.y - oy) > 0.5;
     const cur = this.noor.anims.currentAnim?.key ?? '';
-    const held = /^noor_(attack|dash|type|combo|peel|throw|release|charge)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look)/.test(cur));   // art-v9 reactions hold while still
+    const held = /^noor_(attack|dash|type|combo|peel|throw|release|charge|windup|shield)/.test(cur) || (Math.hypot(mx, my) < 0.1 && /^noor_(phone|shadow|surprise|look|shield)/.test(cur));   // art-v9 reactions hold while still
     if (!held || !this.noor.anims.isPlaying) {
       let want = `noor_${moving && this.dashT <= 0 && !held ? 'walk' : 'idle'}_${this.dir}`;
       const fi = this.noor.anims.currentFrame?.index ?? 1, nf = this.noor.anims.currentAnim?.frames.length ?? 1;
@@ -1615,7 +1615,7 @@ export class GameScene extends Phaser.Scene {
         this.stopT += dt; const planted = fi === 1 || fi === 1 + Math.floor(nf / 2);
         if (!planted && this.stopT < 0.22) want = cur;
       } else this.stopT = 0;
-      if (cur !== want && !(held && /look/.test(cur))) {
+      if (cur !== want && !(held && /look|shield|windup/.test(cur))) {
         // a change of facing mid-walk keeps the stride phase (no restart, no foot pop)
         if (cur.startsWith('noor_walk_') && want.startsWith('noor_walk_')) this.noor.play({ key: want, startFrame: fi - 1 }, false);
         else this.noor.play(want, true);
@@ -1627,6 +1627,7 @@ export class GameScene extends Phaser.Scene {
     const breathe = !this.dying && (this.noor.anims.currentAnim?.key ?? '').startsWith('noor_idle_') && !this.tweens.isTweening(this.noor);
     if (breathe) { const b = Math.sin(this.t * 2.1); this.noor.setScale(1 - 0.004 * b, 1 + 0.013 * b); } else if (!this.dying && !this.tweens.isTweening(this.noor) && this.noor.scaleY !== 1) this.noor.setScale(1);
     this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
+    tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     if (this.caret.visible) { this.caret.x += (this.x - 46 - this.caret.x) * Math.min(1, dt * 6); this.caret.y += (this.y - 56 - this.caret.y) * Math.min(1, dt * 6); this.caret.setDepth(this.y + 1); }
     this.darkness?.setPosition(this.x, this.y - 30);

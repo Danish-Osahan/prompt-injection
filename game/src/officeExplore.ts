@@ -26,7 +26,7 @@ export interface ExploreSpot {
 const SPOTS: ExploreSpot[] = [
   { id: 'photo', x: 250, y: 575, r: 70, label: 'LOOK' },
   { id: 'calendar', x: 318, y: 128, r: 100, label: 'LOOK' },
-  { id: 'board', x: 580, y: 360, r: 85, label: 'LOOK', artX: 632, artY: 128 },
+  { id: 'board', x: 580, y: 360, r: 85, label: 'LOOK', artX: 620, artY: 139 },
   { id: 'phones', x: 696, y: 280, r: 70, label: 'LOOK', steal: 'LOUD' },
   { id: 'coffee', x: 340, y: 200, r: 45, label: 'LOOK', steal: 'HOT' },
   { id: 'printer', x: 120, y: 220, r: 80, label: 'LOOK' },
@@ -161,14 +161,14 @@ export class OfficeExplore {
       g?.setAlpha(0);
       if (!line) return;
       const pulse = 0.55 + 0.35 * Math.sin(this.s.t * 4.2) + 0.2 * hold;
-      const w = 168, h = 92;
+      const w = 154, h = 61;
       line.clear();
       try { line.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
       line.setPosition(0, 0).setDepth(176);
-      line.lineStyle(8, 0x5ee8e0, 0.18 * pulse);
-      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 6);
-      line.lineStyle(2.6, 0x9af0e0, 0.95 * pulse);
-      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 6);
+      line.lineStyle(5, 0x5ee8e0, 0.16 * pulse);
+      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 3);
+      line.lineStyle(2.2, 0x9af0e0, 0.95 * pulse);
+      line.strokeRoundedRect(ax - w / 2, ay - h / 2, w, h, 3);
       return;
     }
     line?.clear();
