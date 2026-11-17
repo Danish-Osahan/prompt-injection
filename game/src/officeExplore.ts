@@ -133,7 +133,7 @@ export class OfficeExplore {
   }
 
   private chipOff(id: ExploreSpot['id']) {
-    if (id === 'board') return { ox: 18, oy: -18 };
+    if (id === 'board') return { ox: -48, oy: -52 };
     if (id === 'calendar') return { ox: 54, oy: 18 };
     if (id === 'photo') return { ox: 36, oy: 14 };
     if (id === 'printer') return { ox: 44, oy: 16 };

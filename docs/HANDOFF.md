@@ -1,5 +1,24 @@
 # HANDOFF
 
+## 2026-11-17 — Arrival facing, quieter wind-up glow, board chip
+
+Leftovers from `5137b16`: at Fern's arrival Noor faced NW, so the shield was mostly the back of her head; the drawn-back hand glow bloomed; the E chip covered the #4412 sticky; the last-frame-hold change had not been re-tested.
+
+1. **Arrival facing.** Fern's hologram now stands south-east or south-west of Noor (150px gap, side stand when she is low in the room) so she looks at the pot, not the lamp or monitor she rose from. The shield is forced to a camera-facing (`S` / `SE` / `SW`) when the source would have turned her away. She steps back from the landing spot so the raised forearm stays clear of the fronds.
+
+2. **Wind-up glow.** The baked hand orb on `noor_windup` is quieter (`glow` 0.32 / 0.18, re-rendered on the same 38° rig). The additive FX is smaller, lower alpha, and warmer (amber, ~28×22) so it still reads without blooming.
+
+3. **Board chip.** The E chip sits just above the board's top edge, left of center (`ox: -48, oy: -52`), clear of the #4412 sticky and the handwriting.
+
+4. **Playtest.** Full suite re-run after these changes and the earlier last-frame-hold, 201/201 (dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms contracts kept).
+
+Review stills (not in the repo):
+- shield at Fern's arrival: `/workspace/l1-fern-charge-2x.png` (full `/workspace/l1-fern-charge.png`)
+- wind-up drawn-back: `/workspace/l1-throw-windup-2x.png` (full `/workspace/l1-throw-windup.png`)
+- board with chip: `/workspace/l1-board-look-2x.png`, tight crop `/workspace/l1-board-outline-2x.png` (full `/workspace/l1-board-look.png`)
+
+Leftovers: the intro dialogue box can cover the lower half of Fern's pot during the first line. When Noor is very low in the room, Fern has to stand more beside than below her, so the facing is a 3/4 SW/SE rather than dead-on S. The baked orb is still a cool pale light; the warmer tint is mostly the additive FX. Stealable tokens such as "open"/"shut" can still glow in speech.
+
 ## 2026-11-17 — Rendered shield and wind-up sheets, tight board outline
 
 Leftovers from `2f99a3b`: the shield pose still read as a head-turn with a code-drawn arm; the throw wind-up arm was orange blobs; the whiteboard cyan outline sat loose around the painted board.

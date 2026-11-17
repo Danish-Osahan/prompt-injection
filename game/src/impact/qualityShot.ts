@@ -80,17 +80,17 @@ export function startWindupPose(s: GameScene) {
   n.setData('windOn', true);
   const h = handPos(s, true);
   // Dust ring + gathering hand light sit on top of the rendered wind-up frames.
-  const glow = s.add.ellipse(h.x, h.y, 22, 18, 0x5ec8ff, 0)
+  const glow = s.add.ellipse(h.x, h.y, 14, 11, 0xe8b86a, 0)
     .setDepth(s.y + 40).setBlendMode(Phaser.BlendModes.ADD);
-  const orb = s.add.ellipse(h.x, h.y, 10, 10, 0xe8ffff, 0)
+  const orb = s.add.ellipse(h.x, h.y, 7, 6, 0xffe8c0, 0)
     .setDepth(s.y + 41).setBlendMode(Phaser.BlendModes.ADD);
   s.objs.push(glow, orb);
   s.tweens.add({
-    targets: glow, alpha: 0.85, displayWidth: 52, displayHeight: 42,
+    targets: glow, alpha: 0.42, displayWidth: 28, displayHeight: 22,
     duration: WIND_MS, ease: 'Sine.easeOut',
   });
   s.tweens.add({
-    targets: orb, alpha: 0.95, displayWidth: 24, displayHeight: 20,
+    targets: orb, alpha: 0.55, displayWidth: 12, displayHeight: 10,
     duration: WIND_MS, ease: 'Sine.easeOut',
   });
   n.setData('windGlow', glow);

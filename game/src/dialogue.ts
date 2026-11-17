@@ -318,7 +318,7 @@ export class Dialogue {
     this.beamLife = 0.7;
     this.drawBeam(1);
     try { sfx('tell'); } catch { /* */ }
-    this.noorReactToCharge(src);
+    this.noorReactToCharge(src, pos);
   }
 
   private ensureBeam() {
@@ -352,14 +352,14 @@ export class Dialogue {
     }
   }
 
-  /** Sit the pot in a clear patch of floor near the source — not on the shelf, calendar, or lift. */
+  /** Sit the pot south-east or south-west of Noor so she faces the camera, not on her arm. */
   private holoPos(src: Source, bodyH: number) {
-    // Named sources get hand-placed spots in open floor.
-    if (src.id === 'lamp') return { x: 268, y: 348 };
-    if (src.id === 'mon_noor') return { x: 880, y: 430 };
-    if (src.id === 'floorlamp') return { x: 1088, y: 430 };
-    let x = src.x + (src.x < 500 ? 86 : -86);
-    let y = Math.max(src.y + 24, 330);
+    const nx = this.s.x ?? 640, ny = this.s.y ?? 360;
+    const side = nx < 720 ? 1 : -1;
+    const clamp = (x: number, y: number) => ({
+      x: Phaser.Math.Clamp(x, 64, 1216),
+      y: Phaser.Math.Clamp(y, 56 + bodyH, 640),
+    });
     const blocked = [
       { x: 130, y: 50, w: 180, h: 180 },   // lift
       { x: 220, y: 60, w: 90, h: 110 },    // August calendar
@@ -368,21 +368,29 @@ export class Dialogue {
       { x: 60, y: 110, w: 110, h: 140 },   // printer + plantW
       { x: 1060, y: 470, w: 160, h: 130 }, // boxes by Noor
     ];
-    const hits = () => blocked.some(b => x > b.x - 20 && x < b.x + b.w + 20 && y - bodyH < b.y + b.h && y > b.y);
-    if (hits()) { x = src.x < 640 ? src.x + 110 : src.x - 110; y = Math.max(y, 340); }
-    if (hits()) { y = 360; }
-    x = Phaser.Math.Clamp(x, 64, 1216);
-    y = Phaser.Math.Clamp(y, 56 + bodyH, 640);
-    // Never land on Noor — push the hologram away if she's near the source.
-    const nx = this.s.x ?? 640, ny = this.s.y ?? 360;
-    const minD = 110;
-    let dx = x - nx, dy = y - ny;
+    const hits = (x: number, y: number) => blocked.some(b => x > b.x - 20 && x < b.x + b.w + 20 && y - bodyH < b.y + b.h && y > b.y);
+    // If Noor is low in the room, there isn't 150px of floor south of her — stand beside, slightly south.
+    const low = ny > 500;
+    const sx = low ? 150 : 120;
+    // Need enough south so the facing rounds to SE/SW, not E/W (tan(22.5°)*sx ≈ 0.41*sx).
+    const sy = low ? 80 : 96;
+    const candidates = [
+      clamp(nx + side * sx, ny + sy),
+      clamp(nx - side * sx, ny + sy),
+      clamp(nx + side * (low ? 170 : 140), ny + (low ? 80 : 70)),
+      clamp(nx, ny + 150),
+    ];
+    let pos = candidates.find(p => !hits(p.x, p.y)) || candidates[0];
+    let { x, y } = pos;
+    // Keep the pot off her raised forearm; bias any push toward the south so she still faces the camera.
+    const minD = 150;
+    const dx = x - nx, dy = y - ny;
     const d = Math.hypot(dx, dy);
     if (d < minD) {
-      const ux = d < 4 ? (x >= nx ? 1 : -1) : dx / d;
-      const uy = d < 4 ? 0.2 : dy / d;
-      x = Phaser.Math.Clamp(nx + ux * minD, 64, 1216);
-      y = Phaser.Math.Clamp(ny + uy * minD, 56 + bodyH, 640);
+      const ux = d < 4 ? side : dx / d;
+      const uy = d < 4 ? 0.7 : Math.max(0.35, dy / d);
+      const nrm = Math.hypot(ux, uy) || 1;
+      ({ x, y } = clamp(nx + (ux / nrm) * minD, ny + (uy / nrm) * minD));
     }
     return { x, y };
   }
@@ -520,23 +528,32 @@ export class Dialogue {
     this.tailGfx = nxt;
   }
 
-  private noorReactToCharge(src: Source) {
+  private noorReactToCharge(src: Source, at?: { x: number; y: number }) {
     const s = this.s;
     const n = s.noor;
     if (!n) return;
     const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
-    const ang = Math.atan2(src.y - s.y, src.x - s.x);
+    // Face Fern, not the lamp/monitor she rose from — that was turning Noor to N/NW.
+    const hx = at?.x ?? this.holo?.x ?? src.x, hy = at?.y ?? this.holo?.y ?? src.y;
+    const ang = Math.atan2(hy - s.y, hx - s.x);
     s.dir = DIRS[(Math.round(ang / (Math.PI / 4)) + 8) % 8];
+    // The shield only reads from the top-down camera when she faces S/SE/SW.
+    if (s.dir === 'N') s.dir = 'S';
+    else if (s.dir === 'NW') s.dir = 'SW';
+    else if (s.dir === 'NE') s.dir = 'SE';
+    else if (s.dir === 'W' && hy > s.y) s.dir = 'SW';
+    else if (s.dir === 'E' && hy > s.y) s.dir = 'SE';
     const shield = `noor_shield_${s.dir}`;
     if (s.anims.exists(shield)) n.play(shield, true);
     else if (s.anims.exists(`noor_lookR_${s.dir}`)) n.play(`noor_lookR_${s.dir}`, true);
     else if (s.anims.exists(`noor_idle_${s.dir}`)) n.play(`noor_idle_${s.dir}`, true);
     if (n.getData('chargeReact')) return;
     n.setData('chargeReact', true);
-    const back = Math.sign(s.x - src.x) || 1;
-    // Step clearly off the hologram's landing spot.
-    s.x += back * 22;
-    s.y += 8;
+    // Step away from the pot so her raised forearm stays clear.
+    const dx = s.x - hx, dy = s.y - hy;
+    const d = Math.hypot(dx, dy) || 1;
+    s.x += (dx / d) * 22;
+    s.y += (dy / d) * 22;
     n.setPosition(s.x, s.y).setDepth(s.y + 24);
     try { s.shadow?.setPosition(s.x, s.y + 8).setDepth(s.y - 1); } catch { /* */ }
     s.time.delayedCall(1400, () => this.clearShield());

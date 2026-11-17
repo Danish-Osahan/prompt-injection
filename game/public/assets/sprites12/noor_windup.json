@@ -578,7 +578,7 @@
   }
  },
  "meta": {
-  "app": "prompt-injection art-v13 pack13",
+  "app": "prompt-injection art-v13 pack13.py",
   "version": "1.0",
   "image": "noor_windup.png",
   "format": "RGBA8888",
@@ -648,7 +648,7 @@
     "noor_windup_SW_02"
    ]
   },
-  "tell": "THROW WIND-UP: 0 coil, 1 arm drawn back with a glowing hand, 2 release flick. 220ms total. Dust ring and extra hand light are drawn game-side. N/S use CHEAT yaw so the arm reads.",
+  "tell": "THROW WIND-UP: 0 coil, 1 arm drawn back with a softer glowing hand, 2 release flick. 220ms total. Dust ring and a small warm hand light are drawn game-side. N/S use CHEAT yaw so the arm reads.",
   "dur_ms": [
    70,
    90,

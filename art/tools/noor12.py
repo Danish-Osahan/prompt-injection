@@ -215,8 +215,8 @@ PLAN = {
  # throw wind-up: coil, arm drawn back with a glowing hand, then the official release flick.
  'windup': [
           F(c=.22, tw=24, lean=-4, ar=D(-.5, .5, -.25), al=D(.45, .3, -.85), wide=10, dz=-.008),
-          F(c=.38, lean=-16, tw=42, ar=D(-.85, .22, .75), al=D(.95, 0, .05), glow=.9, sr=1.12, wide=14, dz=-.025, ev='coil'),
-          F(c=.35, lean=14, tw=-12, ar=D(1, .05, .25), al=D(-.3, .4, -.8), glow=.45, wide=12, dz=-.02, ev='release', step=8)],
+          F(c=.38, lean=-16, tw=42, ar=D(-.85, .22, .75), al=D(.95, 0, .05), glow=.32, sr=1.12, wide=14, dz=-.025, ev='coil'),
+          F(c=.35, lean=14, tw=-12, ar=D(1, .05, .25), al=D(-.3, .4, -.8), glow=.18, wide=12, dz=-.02, ev='release', step=8)],
 
 }
 LOOPS = {'charge_hold', 'carry'}
