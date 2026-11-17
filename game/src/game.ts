@@ -94,7 +94,7 @@ export class GameScene extends Phaser.Scene {
   edgePad?: Phaser.GameObjects.Rectangle; edgePad2?: Phaser.GameObjects.Rectangle;
   // art-v8 linger layer
   amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
-  idleT = 0; idleSaid = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
+  idleT = 0; idleSaid = false; copyWarm = 0; letterRead = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
   refl: Phaser.GameObjects.Sprite | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
   motes: { x: number; y: number; vx: number; vy: number; a: number; ph: number }[] = []; motesG: Phaser.GameObjects.Graphics | null = null; moteRect: Rect | null = null; moteCol = 0xf6e6c8;
   hairT = 0;
@@ -389,7 +389,7 @@ export class GameScene extends Phaser.Scene {
   }
 
   // ---------- dialogue ----------
-  say(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean }) { this.dialogue?.enqueue(who, line, ms, opts); }
+  say(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean; onStart?: () => void }) { this.dialogue?.enqueue(who, line, ms, opts); }
   nextSub() {
     const n = this.subQueue.shift(); const h = this.hud;
     if (!n) { this.subBusy = false; h.sub.setVisible(false); h.fern.setVisible(false); return; }
@@ -422,7 +422,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.glassRain?.destroy(); this.glassRain = null;
-    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false;
+    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0;
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
@@ -544,7 +544,7 @@ export class GameScene extends Phaser.Scene {
       else if (!s.seen.includes('sc1')) { this.floorText(640, 140, '11:48 PM', C.inkBright, 30, 1300); }
     }
     if (id === 'hub') {
-      const fern = this.add.sprite(1005, 545, 'fern_seated').setOrigin(0.5, 0.83).setScale(0.75).play('fern_seated_S').setDepth(560); this.objs.push(fern);
+      const fern = this.add.sprite(1005, 518, 'fern_plant').setOrigin(0.5, 0.93).setScale(0.62).play('fern_plant_S').setDepth(595); this.objs.push(fern);
       const glow = this.add.image(1005, 560, 'pool').setTint(hex(C.fern)).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(glow);
       // the gap: floor is gone between the door wall and the exit
       const gap = this.add.graphics().setDepth(-950).setVisible(!this.art); this.objs.push(gap);
@@ -674,7 +674,10 @@ export class GameScene extends Phaser.Scene {
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash || (this.room?.id === 'hub' && this.y < 240),
       () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 400 && this.y > 230));
-    this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract());
+    this.addPrompt('letter', 0, 0, 'E  read', 'TAP  read',
+      () => this.letterRead,
+      () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
+    this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract() && !this.nearPrintedLetter());
   }
   nearHintInteract() {
     if (this.nearLostLine()) return true;
@@ -1049,8 +1052,14 @@ export class GameScene extends Phaser.Scene {
       if (f.door && !was.door && !initial && !s.seen.includes('caret')) {
         s.seen.push('caret');
         this.plateById('h_exit')?.pulse(C.cyan);
-        this.say('fern', 'Only the owner of the words leaves.', 2400); this.say('noor', "They're my words.", 1600); this.say('fern', 'Not here. Not anymore.', 2200);
-        this.time.delayedCall(4200, () => { this.caret.setVisible(true).setAlpha(0); this.tweens.add({ targets: this.caret, alpha: 1, duration: 500 }); this.say('fern', "It'll help. It likes you.", 2200); });
+        this.say('fern', 'Only the owner of the words leaves.', 2400);
+        this.say('noor', "They're my words.", 1600);
+        this.say('fern', 'Not here. Not anymore.', 2200);
+        this.say('fern', "That's a cursor. It learned from every line I didn't send.", 2800, {
+          box: true,
+          onStart: () => this.revealCaret(),
+        });
+        this.say('fern', 'When you type, it aims. Keep it close in the dark.', 2600);
       }
     }
     if (id === 'office' && this.clar) this.clar.setDoor(w('o_door') === 'OPEN', initial);
@@ -1230,6 +1239,46 @@ export class GameScene extends Phaser.Scene {
       try { n.play(`noor_idle_${this.dir}`, true); } catch { /* */ }
     }
   }
+  revealCaret() {
+    if (!this.caret) return;
+    this.caret.setVisible(true).setAlpha(0);
+    this.caret.setPosition(this.x - 46, this.y - 56);
+    this.tweens.add({ targets: this.caret, alpha: 1, duration: 500 });
+  }
+  nearPrintedLetter() {
+    return !!this.explore?.printerFired && !!this.explore?.letter && Math.hypot(this.x - 168, this.y - 255) < 90;
+  }
+  showLetterCard() {
+    if (this.lineToast) this.dismissLineToast(true);
+    this.letterRead = true;
+    if (!this.save.tutorials.includes('letter')) { this.save.tutorials.push('letter'); writeSave(this.save); }
+    const text = 'CLAIM #4471\nSTATUS:  DENIED\n\nI UNDERSTAND. I\u2019LL HANDLE IT.\n\nCLAIM DENIED.\n\nLEAVE IT TO ME, NOOR.\n\n\u2014 Claims Desk';
+    const body = this.add.text(0, 4, text, {
+      fontFamily: 'IBM Plex Mono', fontSize: '16px', color: '#2c261c',
+      align: 'left', lineSpacing: 5,
+    }).setOrigin(0.5, 0.5);
+    const W = 500, H = Math.max(280, body.height + 72);
+    const card = this.add.container(640, 356).setScrollFactor(0).setDepth(4300).setAlpha(0).setScale(0.97);
+    const paper = this.add.graphics();
+    paper.fillStyle(0x0a1218, 0.28);
+    paper.fillRoundedRect(-W / 2 + 5, -H / 2 + 7, W, H, 5);
+    paper.fillStyle(0xf3ead4, 0.98);
+    paper.fillRoundedRect(-W / 2, -H / 2, W, H, 5);
+    paper.lineStyle(1.25, 0xc4b496, 0.95);
+    paper.strokeRoundedRect(-W / 2, -H / 2, W, H, 5);
+    paper.fillStyle(0xe8dcc4, 1);
+    paper.fillRect(-W / 2 + 1, -H / 2 + 1, W - 2, 9);
+    paper.fillStyle(0xf3ead4, 1);
+    paper.fillTriangle(-W / 2 + 36, -H / 2 - 1, -W / 2 + 52, -H / 2 - 1, -W / 2 + 44, -H / 2 + 8);
+    paper.fillTriangle(W / 2 - 70, -H / 2 - 1, W / 2 - 52, -H / 2 - 1, W / 2 - 61, -H / 2 + 7);
+    const hint = this.add.text(0, H / 2 - 14, 'E', {
+      fontFamily: 'JetBrains Mono', fontSize: '11px', color: '#8a7a62',
+    }).setOrigin(0.5, 1);
+    card.add([paper, body, hint]);
+    this.lineToast = card;
+    this.objs.push(card);
+    this.tweens.add({ targets: card, alpha: 1, y: 340, scaleX: 1, scaleY: 1, duration: 280, ease: 'Cubic.easeOut' });
+  }
   tryCollectNearLine() {
     const p = this.nearLostLine();
     if (!p) return false;
@@ -1316,10 +1365,23 @@ export class GameScene extends Phaser.Scene {
       if (Number(a.spr.frame.name) !== k) a.spr.setFrame(k);
     }
     if (this.memoDrift()) { /* drifting memo handled inside */ }
-    // stand still ~6 s: the narrator notices (once per room visit)
+    // stand still: in the hub, a delayed glass copy appears, then Fern speaks.
+    // Other rooms keep the once-per-visit narrator line (now credited as THE ROOM).
     const calm = !this.busy && !this.cutscene && (!this.fight || this.fight.won);
-    if (active || !calm || this.dying || this.composer || this.subBusy) this.idleT = 0; else this.idleT += dt;
-    if (this.idleT > 6 && !this.idleSaid && !this.clar) {
+    if (active || !calm || this.dying || this.composer || this.subBusy) {
+      this.idleT = 0;
+      if (this.room.id === 'hub' && !this.idleSaid) this.copyWarm = Math.max(0, this.copyWarm - dt * 1.4);
+    } else {
+      this.idleT += dt;
+      if (this.room.id === 'hub') this.copyWarm = Math.min(5, this.copyWarm + dt);
+    }
+    if (this.room.id === 'hub' && !this.idleSaid && !this.clar && this.copyWarm > 3.2 && calm && !this.dialogue?.busy) {
+      this.idleSaid = true;
+      const v = this.save.visits[this.room.id] ?? 1;
+      const tag = `${this.room.id}:${v}`;
+      if (!this.save.idle.includes(tag)) { this.save.idle.push(tag); writeSave(this.save); }
+      this.say('fern', v > 1 ? LINGER.hub.idle[1] : LINGER.hub.idle[0], 3400, { box: true });
+    } else if (this.room.id !== 'hub' && this.idleT > 6 && !this.idleSaid && !this.clar) {
       this.idleSaid = true; const lg = LINGER[this.room.id], v = this.save.visits[this.room.id] ?? 1;
       this.say('floor', v > 1 ? lg.idle[1] : lg.idle[0], 3400);
       const tag = `${this.room.id}:${v}`; if (!this.save.idle.includes(tag)) { this.save.idle.push(tag); writeSave(this.save); }
@@ -1332,15 +1394,22 @@ export class GameScene extends Phaser.Scene {
       let rx = h.x; if (ahead) { const o = this.hist[0]; rx = this.x + (this.x - o.x) * 0.7; }
       const flip: Record<string, string> = { S: 'N', N: 'S', SE: 'NE', NE: 'SE', SW: 'NW', NW: 'SW', E: 'E', W: 'W' };
       const fr = (ahead ? this.noor.frame.name : h.frame).replace(/_(S|SE|E|NE|N|NW|W|SW)_/, (_m, d) => `_${flip[d]}_`);
-      const key = ahead ? this.noor.texture.key : h.key; const near = this.y < 300;
-      this.refl.setVisible(near);
-      if (near && this.textures.get(key).has(fr)) {
-        this.refl.setTexture(key, fr); const fy = 140 - Math.max(0, (this.y - 150)) * 0.18;
+      const key = ahead ? this.noor.texture.key : h.key;
+      const inGlass = this.y < 300;
+      const showCopy = inGlass || this.copyWarm > 1.4;
+      this.refl.setVisible(false);
+      if (showCopy && this.textures.get(key).has(fr)) {
+        this.refl.setTexture(key, fr);
+        const fy = inGlass ? 140 - Math.max(0, (this.y - 150)) * 0.18 : 118;
+        if (!inGlass) rx = Phaser.Math.Clamp(h.x * 0.25 + 290, 250, 380);
         this.refl.setPosition(rx, fy);
+        const a = inGlass ? 0.55 : 0.2 + 0.5 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 1.6));
+        this.refl.setAlpha(a);
         // crop to the glass (222..404 x 42..140): frame px = (world - origin) / scale
         const sx = 0.55, sy = 0.5, x0 = rx - 96 * sx, y0 = fy - 160 * sy;
         const cx0 = Phaser.Math.Clamp((222 - x0) / sx, 0, 192), cx1 = Phaser.Math.Clamp((404 - x0) / sx, 0, 192), cy0 = Phaser.Math.Clamp((42 - y0) / sy, 0, 192), cy1 = Phaser.Math.Clamp((140 - y0) / sy, 0, 192);
-        if (cx1 - cx0 < 2 || cy1 - cy0 < 2) this.refl.setVisible(false); else this.refl.setCrop(cx0, cy0, cx1 - cx0, cy1 - cy0);
+        if (cx1 - cx0 < 2 || cy1 - cy0 < 2) this.refl.setVisible(false);
+        else { this.refl.setCrop(cx0, cy0, cx1 - cx0, cy1 - cy0); this.refl.setVisible(true); }
       }
     }
     if (this.motesG && this.moteRect) {
@@ -1715,7 +1784,8 @@ export class GameScene extends Phaser.Scene {
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
-      if (this.dismissLineToast()) { /* reading-time toast ate E */ }
+      if (this.dismissLineToast()) { /* reading-time toast or letter card ate E */ }
+      else if (this.nearPrintedLetter()) this.showLetterCard();
       else if (this.tryCollectNearLine()) { /* lost-line E wins over lookables and the lamp */ }
       else if (this.stealOn()) this.explore?.tryTap();
       else this.interact();

@@ -42,7 +42,14 @@ const OFFICE_SOURCES: Source[] = [
   { id: 'mon_podE', x: 1140, y: 308, kind: 'monitor' },
 ];
 
-type Job = { who: SayWho; line: string; ms: number; box?: boolean };
+const HUB_SOURCES: Source[] = [
+  { id: 'hub_lamp', x: 256, y: 530, kind: 'lamp' },
+  { id: 'hub_desk', x: 1005, y: 500, kind: 'monitor' },
+  { id: 'hub_glass', x: 313, y: 90, kind: 'monitor' },
+  { id: 'hub_table', x: 200, y: 500, kind: 'monitor' },
+];
+
+type Job = { who: SayWho; line: string; ms: number; box?: boolean; onStart?: () => void };
 
 export class Dialogue {
   s: GameScene;
@@ -94,8 +101,8 @@ export class Dialogue {
     try { s.input.on('pointerdown', this.onClick); } catch { /* */ }
   }
 
-  enqueue(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean }) {
-    this.queue.push({ who, line, ms, box: opts?.box });
+  enqueue(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean; onStart?: () => void }) {
+    this.queue.push({ who, line, ms, box: opts?.box, onStart: opts?.onStart });
     if (!this.busy) this.kick();
   }
 
@@ -182,6 +189,7 @@ export class Dialogue {
     this.angry = /!/.test(job.line) || (job.line.length > 6 && job.line.replace(/[^A-Z]/g, '').length / job.line.replace(/[^A-Za-z]/g, '').length > 0.7);
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
     try { this.onSpeak?.(job.who, job.line); } catch { /* */ }
+    try { job.onStart?.(); } catch { /* */ }
 
     const useBox = this.shouldBox(job);
     if (job.who === 'fern' && !useBox) {
@@ -211,15 +219,16 @@ export class Dialogue {
 
   private bodyFern(): Source | null {
     if (this.s.room?.id !== 'hub') return null;
-    return { id: 'hub_fern', x: 1005, y: 470, kind: 'body' };
+    return { id: 'hub_fern', x: 1005, y: 500, kind: 'monitor' };
   }
 
   private fernSource(): Source | null {
-    const body = this.bodyFern();
-    if (body) return body;
     const room = this.s.room?.id;
-    const list = room === 'office' ? OFFICE_SOURCES : [];
-    if (!list.length) return null;
+    const list = room === 'office' ? OFFICE_SOURCES : room === 'hub' ? HUB_SOURCES : [];
+    if (!list.length) {
+      // Last resort: the seated plant's desk, never an empty body hologram.
+      return this.bodyFern();
+    }
     const line = this.full.toLowerCase();
     if (/\blamp\b|\bbuzz/.test(line)) {
       const lamp = list.find(s => s.id === 'lamp') || list.find(s => s.kind === 'lamp');
@@ -277,11 +286,8 @@ export class Dialogue {
 
   private spawnHolo(src: Source) {
     const s = this.s;
-    if (src.kind === 'body') {
-      this.holo = s.add.container(src.x, src.y).setDepth(DEPTH);
-      this.holoBaseY = src.y;
-      return;
-    }
+    // Always rise as the plant hologram with a cone. A 'body' source
+    // is just a desk or seat to come out of — never an empty container.
     // Sprite frame is 160×220; opaque plant is ~186px tall. Display ~110px.
     const BODY_H = 110;
     const SCALE = BODY_H / 186;
@@ -854,11 +860,17 @@ export class Dialogue {
       spr.setOrigin(0.5, 0.45).setScale(0.95);
       this.portraitSpr = spr;
       c.add(spr);
-    } else {
+    } else if (who === 'papa') {
       const g = s.add.graphics();
       g.fillStyle(col, 0.28).fillEllipse(0, 0, 70, 78);
       g.lineStyle(2, col, 0.8).strokeEllipse(0, 0, 70, 78);
       c.add(g);
+    } else {
+      // Narrator / the room: typographic mark, never a blank circle.
+      const mark = s.add.text(0, 2, '//', {
+        fontFamily: FONT, fontSize: '36px', fontStyle: 'bold', color: C.inkBright,
+      }).setOrigin(0.5);
+      c.add(mark);
     }
     return c;
   }
@@ -868,7 +880,8 @@ export class Dialogue {
     if (who === 'noor') return 'NOOR';
     if (who === 'draft' || who === 'ai') return 'THE DRAFT';
     if (who === 'papa') return 'PAPA';
-    return '';
+    if (who === 'floor') return 'THE ROOM';
+    return 'THE ROOM';
   }
   private colFor(who: SayWho) {
     if (who === 'fern') return C.fern;
@@ -891,9 +904,10 @@ export class Dialogue {
   /** Camera-visible world rect with a small margin. */
   private speakerWorld(who: SayWho) {
     if (who === 'fern' && this.holo) return { x: this.holo.x, y: this.holo.y };
-    if (who === 'noor') return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };
+    if (who === 'noor' || who === 'floor') return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };
     const src = who === 'fern' ? this.fernSource() : null;
-    return src ? { x: src.x, y: src.y } : null;
+    if (src) return { x: src.x, y: src.y };
+    return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };
   }
 
   /** True when the speaker sits in the lower half of the camera, so a bottom box would cover them. */

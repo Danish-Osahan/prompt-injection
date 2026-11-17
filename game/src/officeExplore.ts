@@ -40,7 +40,7 @@ export class OfficeExplore {
   private glow?: Phaser.GameObjects.Ellipse;
   private glowLine?: Phaser.GameObjects.Graphics;
   private boardGfx?: Phaser.GameObjects.Container;
-  private letter?: Phaser.GameObjects.Container;
+  letter?: Phaser.GameObjects.Container;
   private handChip?: Phaser.GameObjects.Text;
   private flying = false;
   private nearPhones = false;
@@ -93,6 +93,7 @@ export class OfficeExplore {
     if (lab && (lab.state().draining || lab.carrying || lab.flying)) return false;
     const spot = this.nearest(this.s.x, this.s.y);
     if (!spot || this.blockedByLab(spot)) return false;
+    if (spot.id === 'printer' && this.printerFired) { this.s.showLetterCard(); return true; }
     this.look(spot);
     return true;
   }
@@ -155,7 +156,8 @@ export class OfficeExplore {
     const off = this.chipOff(spot.id);
     let c = { x: ax + off.ox, y: ay + off.oy };
     if (spot.id !== 'board') c = placeChip(ax, ay, this.s.x, this.s.y, off.ox, off.oy);
-    p.show(c.x, c.y, stealReady ? `take ${spot.steal}` : 'look', hold, 'E');
+    const verb = stealReady ? `take ${spot.steal}` : (spot.id === 'printer' && this.printerFired ? 'read' : 'look');
+    p.show(c.x, c.y, verb, hold, 'E');
     this.drawSpotGlow(spot, ax, ay, hold);
   }
 
@@ -275,15 +277,15 @@ export class OfficeExplore {
     this.printerFired = true;
     try { sfx('impact_hum'); } catch { /* */ }
     try { sfx('ui'); } catch { /* */ }
-    const c = this.s.add.container(150, 230).setDepth(260);
-    const page = this.s.add.rectangle(0, 0, 36, 46, 0xf4efe4, 1).setStrokeStyle(1, 0xc8c0b4, 1);
+    const c = this.s.add.container(168, 230).setDepth(260);
+    const page = this.s.add.rectangle(0, 0, 40, 52, 0xf4efe4, 1).setStrokeStyle(1, 0xc8c0b4, 1);
     const t1 = this.s.add.text(0, -8, 'CLAIM #4471', { fontFamily: UI, fontSize: '6px', color: '#1a1a18' }).setOrigin(0.5);
-    const t2 = this.s.add.text(0, 6, 'DENIED', { fontFamily: UI, fontSize: '8px', fontStyle: '700', color: '#a03030' }).setOrigin(0.5);
+    const t2 = this.s.add.text(0, 7, 'DENIED', { fontFamily: UI, fontSize: '8px', fontStyle: '700', color: '#a03030' }).setOrigin(0.5);
     c.add([page, t1, t2]);
     this.s.objs.push(c);
     this.letter = c;
-    c.y = 210; c.setAlpha(0);
-    this.s.tweens.add({ targets: c, y: 248, alpha: 1, duration: 700, ease: 'Quad.easeOut' });
+    c.y = 220; c.setAlpha(0);
+    this.s.tweens.add({ targets: c, y: 255, alpha: 1, duration: 700, ease: 'Quad.easeOut' });
   }
 
   private drawBoardMarks() {

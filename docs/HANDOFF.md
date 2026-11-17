@@ -1,5 +1,30 @@
 # HANDOFF
 
+## 2026-11-17 — Room 2 audit, Fern, caret, copy beat, printer letter
+
+Danishpreet moved on from the office to room 2 (the hub / Mirror Office). His still showed a bottom dialogue box with an empty name and empty portrait ("Stand still long enough and the room starts copying you. It's flattering. It isn't."), a floating I-shaped caret with no explanation, and no visible Fern — he asked if the caret was Fern. Full Playwright audit is in `docs/audit/room2.md`.
+
+1. **Named boxes.** Dialogue boxes never ship an empty name or portrait. `floor` is credited as THE ROOM with a typographic `//` portrait. Floor boxes treat Noor as the speaker so a long line in the lower half flips to the top instead of covering her.
+
+2. **Fern in the hub.** Hub speech rises as the same plant hologram and cone as the office, from the nearest lamp, desk, glass, or table. The empty `body` hologram is gone. The seated cyan typist at her desk is now the `fern_plant` pot sitting on the desk, so she matches the office.
+
+3. **Caret intro.** The cursor stays hidden until the door opens. After the owner-of-the-words exchange, Fern names it: "That's a cursor. It learned from every line I didn't send." / "When you type, it aims. Keep it close in the dark." It fades in as the first of those lines starts. No always-on controls bar.
+
+4. **Copy beat.** Stand still in the hub and a delayed cyan copy of Noor fades into the north glass after ~1.4s, even from the south. At ~3.2s Fern says the copy line (visit 2 keeps the clock line), with her hologram on screen. Once per visit.
+
+5. **Printer letter.** The denial scrap sits to the right of the printer, not under Noor's feet. First time nearby, a contextual `E  read` hint appears. E opens a paper card in the lost-line style (CLAIM #4471, STATUS: DENIED, the rewritten AI lines, Claims Desk). Close with E. Approach at (140, 250) still prints.
+
+6. **Playtest.** 204/204. Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms / Fern-arrival walk contracts kept.
+
+Review stills (not in the repo):
+- room 2, Fern visible and box filled: `/workspace/l1-hub-fern-2x.png` (full `/workspace/l1-hub-fern.png`)
+- caret intro: `/workspace/l1-hub-caret-2x.png` (full `/workspace/l1-hub-caret.png`)
+- copy-mechanic beat: `/workspace/l1-hub-copy-2x.png` (full `/workspace/l1-hub-copy.png`)
+- printer letter card: `/workspace/l1-printer-letter-2x.png` (full `/workspace/l1-printer-letter.png`)
+
+Leftovers: the first E hint can still sit next to an explore chip (E look / E take) at the north glass line. The coral SHUT plank in the gap and the room card over the north door were left as cheap leftovers. The glass copy is clearer than before but still modest in the pane. Desk Fern is the plant, but she is small on a large desk. Stealable tokens such as "open"/"shut" can still glow in speech.
+
+
 ## 2026-11-17 — Stuck pose, progressive hints, note card, uncovered Fern box
 
 Danishpreet played `4241ffd`: after some dialogue (especially Fern's arrival) Noor stayed locked in an up-facing / shield pose until a dash; the opening controls bar taught attack/throw/dash too early; the lost-line pickup was cluttered; Fern's first box covered her pot when she landed low.
