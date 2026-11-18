@@ -97,3 +97,11 @@ Still weak: the mid-band box can cover the gap and the top of the SHUT door; the
 - SHUT door glass is a single frost pane (no split). Door depth is behind south-floor Noor; collision covers the real footprint so she cannot walk into the threshold.
 
 Still weak: the painted lamp disc in the glass sits near her hair; at the closest stand her sprite still overlaps the lower door leaf (she is in front, not inside it).
+
+## 2026-11-18 leftovers pass (after 2f70f70)
+
+- The delayed glass copy is texture-cropped to the inner pane and scaled to fit; it no longer spills over the frame. Asserted for front- and back-facing views.
+- The copy sits in the left of the pane so the baked lamp disc is to her right, not on her face. A painted-out overlay looked worse (flat holes), so the disc remains as a light in the glass.
+- SHUT door contact shadow is slightly stronger.
+
+Still weak: in the front view the lamp disc still grazes the bun; the copy is a bust, not a full-body reflection.

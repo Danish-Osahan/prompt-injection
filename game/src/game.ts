@@ -37,6 +37,39 @@ const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
 const READ_R = 90, FOCUS_R = 120;
 const HOLD_T = 0.22, AIM_R = 150, BEAM_R = 560;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+/** Inner rect of the hub north-wall glass, inside the bezel. */
+const HUB_GLASS: Rect = { x: 226, y: 50, w: 178, h: 90 };
+
+/** Scale and foot position so head+shoulders fit the pane, then texture-crop to the glass. */
+function layoutHubCopy(inGlass: boolean, delayedX: number, flipX: boolean) {
+  const g = HUB_GLASS, pad = 4, ox = 96, oy = 160;
+  const body = { w: 116, h: 100, y: 50 };
+  const sc = Math.min((g.w - pad * 2) / body.w, (g.h - pad * 2) / body.h);
+  const half = (body.w / 2) * sc;
+  // Sit her in the left of the pane so the baked lamp disc (≈331, 63) stays off her head.
+  const maxX = Math.min(g.x + g.w - pad - half, 274);
+  const rx = inGlass
+    ? Phaser.Math.Clamp(delayedX, g.x + pad + half, maxX)
+    : Math.min(g.x + pad + half + 8, maxX);
+  const fy = (g.y + g.h / 2) + (oy - (body.y + body.h / 2)) * sc;
+  const toTx = (wx: number) => flipX ? ox - (wx - rx) / sc : ox + (wx - rx) / sc;
+  const toTy = (wy: number) => oy + (wy - fy) / sc;
+  const txs = [toTx(g.x), toTx(g.x + g.w)];
+  const tys = [toTy(g.y), toTy(g.y + g.h)];
+  const cx0 = Phaser.Math.Clamp(Math.min(...txs), 0, 192);
+  const cx1 = Phaser.Math.Clamp(Math.max(...txs), 0, 192);
+  const cy0 = Phaser.Math.Clamp(Math.min(...tys), 0, 192);
+  const cy1 = Phaser.Math.Clamp(Math.max(...tys), 0, 192);
+  const toWx = (tx: number) => flipX ? rx - (tx - ox) * sc : rx + (tx - ox) * sc;
+  const toWy = (ty: number) => fy - oy * sc + ty * sc;
+  const wxs = [toWx(cx0), toWx(cx1)];
+  const wys = [toWy(cy0), toWy(cy1)];
+  const bounds: Rect = {
+    x: Math.min(...wxs), y: Math.min(...wys),
+    w: Math.abs(wxs[1] - wxs[0]), h: Math.abs(wys[1] - wys[0]),
+  };
+  return { sc, rx, fy, crop: { x: cx0, y: cy0, w: cx1 - cx0, h: cy1 - cy0 }, bounds };
+}
 
 type EKind = 'dummy' | 'scribble' | 'note' | 'draft' | 'redline' | 'stapler';
 export interface Enemy {
@@ -96,7 +129,7 @@ export class GameScene extends Phaser.Scene {
   amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
   idleT = 0; idleSaid = false; copyWarm = 0; copySeen = 0; copyGlintT = 0; copyWasVis = false; letterRead = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
   hubFern?: Phaser.GameObjects.Sprite; hubFernGlow?: Phaser.GameObjects.Image; copyGlint?: Phaser.GameObjects.Graphics;
-  refl: Phaser.GameObjects.Sprite | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
+  refl: Phaser.GameObjects.Sprite | null = null; hubCopyBounds: Rect | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
   motes: { x: number; y: number; vx: number; vy: number; a: number; ph: number }[] = []; motesG: Phaser.GameObjects.Graphics | null = null; moteRect: Rect | null = null; moteCol = 0xf6e6c8;
   hairT = 0;
   // art-v9 office test level: perspective view mapping (see office9.ts)
@@ -423,7 +456,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.glassRain?.destroy(); this.glassRain = null;
-    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
+    this.amb = []; this.toyFx = {}; this.refl = null; this.hubCopyBounds = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
@@ -567,10 +600,12 @@ export class GameScene extends Phaser.Scene {
         // Depth at the gap so a south-floor Noor (y typically 480–630) draws in front of the door.
         try { this.fgImgs.door_panel.setDepth(250); } catch { /* */ }
         const shadow = this.add.graphics().setDepth(240);
-        shadow.fillStyle(0x020406, 0.42);
-        shadow.fillRoundedRect(612, 448, 60, 14, 6);
-        shadow.fillStyle(0x020406, 0.2);
-        shadow.fillRoundedRect(618, 454, 48, 10, 5);
+        shadow.fillStyle(0x020406, 0.55);
+        shadow.fillRoundedRect(608, 446, 68, 18, 7);
+        shadow.fillStyle(0x020406, 0.28);
+        shadow.fillRoundedRect(614, 454, 56, 12, 6);
+        shadow.fillStyle(0x000000, 0.18);
+        shadow.fillRoundedRect(610, 444, 64, 6, 3);
         this.objs.push(shadow); this.roomVis.doorShadow = shadow;
         const spill = this.add.graphics().setDepth(-930);
         try { spill.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
@@ -1180,8 +1215,8 @@ export class GameScene extends Phaser.Scene {
     }
     if (id === 'hub') {   // the mirror copies Noor a beat late (or, with the toy, a beat early)
       this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(1).setTint(0xd0e4ec).setAlpha(0.88).setRotation(0).setDepth(-997).setVisible(false);
-      const maskG = this.make.graphics();
-      maskG.fillStyle(0xffffff, 1).fillRect(222, 42, 182, 98);
+      const maskG = this.add.graphics().setScrollFactor(1).setVisible(false).setDepth(-10000);
+      maskG.fillStyle(0xffffff, 1).fillRect(HUB_GLASS.x, HUB_GLASS.y, HUB_GLASS.w, HUB_GLASS.h);
       this.refl.setMask(maskG.createGeometryMask());
       this.objs.push(this.refl, maskG);
     }
@@ -1486,24 +1521,23 @@ export class GameScene extends Phaser.Scene {
       const inGlass = this.y < 300;
       const showCopy = inGlass || this.copyWarm > 1.4;
       this.refl.setVisible(false);
+      this.hubCopyBounds = null;
       if (showCopy && this.textures.get(key).has(fr)) {
         this.refl.setTexture(key, fr);
-        // Portrait in the pane: uniform scale, no rotation, face centred, subtle tint.
-        // A floor-sprite stamp looked smeared/tilted in the landscape glass; we show head and shoulders.
-        const sc = 1.15;
-        const face = 70; // px above origin to the glasses / face (frame y ~90)
-        const fy = 91 + face * sc;
-        if (!inGlass) rx = 313;
-        else rx = Phaser.Math.Clamp(rx, 250, 376);
         this.refl.setRotation(0);
         this.refl.setFlipX(true);  // north-wall mirror
-        this.refl.setScale(sc, sc);
-        this.refl.setPosition(rx, fy);
+        const lay = layoutHubCopy(inGlass, inGlass ? rx : HUB_GLASS.x + HUB_GLASS.w / 2, true);
+        this.refl.setScale(lay.sc, lay.sc);
+        this.refl.setPosition(lay.rx, lay.fy);
         this.refl.setTint(0xd0e4ec);
+        if (lay.crop.w >= 2 && lay.crop.h >= 2) {
+          this.refl.setCrop(lay.crop.x, lay.crop.y, lay.crop.w, lay.crop.h);
+          this.hubCopyBounds = lay.bounds;
+          this.refl.setVisible(true);
+        }
         const glow = this.copyGlintT > 0 ? 0.06 * (this.copyGlintT / 0.55) : 0;
         const a = (inGlass ? 0.88 : 0.86 + 0.08 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 0.8))) + glow;
         this.refl.setAlpha(Math.min(0.96, a));
-        this.refl.setVisible(true);
       }
       const vis = !!this.refl.visible && (this.refl.alpha ?? 0) > 0.4;
       if (vis) this.copySeen += dt;
@@ -1522,9 +1556,9 @@ export class GameScene extends Phaser.Scene {
           this.copyGlintT = Math.max(0, this.copyGlintT - dt);
           const k = this.copyGlintT / 0.55;
           g.fillStyle(0xb8f0f4, 0.22 * k);
-          g.fillRect(222, 42, 182, 98);
+          g.fillRect(HUB_GLASS.x, HUB_GLASS.y, HUB_GLASS.w, HUB_GLASS.h);
           g.fillStyle(0xffffff, 0.14 * k);
-          g.fillRect(222, 42, 182, 8 + 86 * (1 - k));
+          g.fillRect(HUB_GLASS.x, HUB_GLASS.y, HUB_GLASS.w, 8 + (HUB_GLASS.h - 12) * (1 - k));
         }
       }
     }
@@ -2132,7 +2166,11 @@ export class GameScene extends Phaser.Scene {
       glassRain: this.glassRain ? { on: true, drops: this.glassRain.drops.length, paused: this.glassRain.paused, flash: this.glassRain.flash } : null,
 
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
-      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), dialogueBox: this.dialogue?.boxBounds?.() ?? null, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY, rot: this.refl.rotation, flipX: this.refl.flipX } : null,
+      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), dialogueBox: this.dialogue?.boxBounds?.() ?? null, refl: this.refl ? (() => {
+        const b = this.hubCopyBounds, g = HUB_GLASS, slop = 1.5;
+        const inside = !!(b && b.x >= g.x - slop && b.y >= g.y - slop && b.x + b.w <= g.x + g.w + slop && b.y + b.h <= g.y + g.h + slop);
+        return { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY, rot: this.refl.rotation, flipX: this.refl.flipX, bounds: b, pane: g, inside };
+      })() : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,

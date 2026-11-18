@@ -1,5 +1,24 @@
 # HANDOFF
 
+## 2026-11-18 — Clip the glass copy to the pane
+
+Leftovers from `2f70f70`: the delayed Noor copy was larger than the north glass and spilled over the frame onto the wall (front and back); the baked lamp disc sat on her head.
+
+1. **Clipped to the pane.** The copy is scaled to fit head-and-shoulders in the inner glass (226, 50, 178×90) and texture-cropped to that rect (geometry mask as a backup). Playtest asserts the visible bounds stay inside the pane for both the front-facing (south, facing the glass) and back-facing copies.
+
+2. **Lamp disc.** The copy sits in the left of the pane so the baked ceiling-light disc is to her right rather than on her face. A flat overlay to hide the disc read as a hole in the glass, so it was left as a room-light reflection in the pane.
+
+3. **Door (cheap).** The SHUT door's floor contact shadow is a little darker and larger.
+
+4. **Playtest.** 216/216 (214 previous plus in-pane asserts for front and back copies). Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms / Fern-arrival / one-Fern / copy-seen / box-coverage / glow / door-block contracts kept.
+
+Review stills (not in the repo):
+- front-facing copy, clipped to the pane: `/workspace/l2d-copy-front-2x.png` (full `/workspace/l2d-copy-front.png`)
+- back-facing copy, clipped to the pane: `/workspace/l2d-copy-back-2x.png` (full `/workspace/l2d-copy-back.png`)
+
+Leftovers: the baked lamp disc still sits just to the right of her bun in the front view (clearer of her head in the back view). The copy is a clipped bust in the pane, not a full-body floor reflection.
+
+
 ## 2026-11-18 — Side box, sharp glass copy, SHUT door depth
 
 Leftovers from `2caff00`: the copy-line box sat in the mid band and covered the gap rails and the top of the SHUT door; the delayed glass copy looked smeared and tilted; the door glass still read as a split pane, and Noor could walk into the threshold with the door drawing over her head.

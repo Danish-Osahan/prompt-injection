@@ -362,7 +362,7 @@ async function desktop(browser) {
       const stt = window.__pi.state();
       const r = stt.refl;
       const vis = !!(r && r.visible && r.a >= 0.75 && r.sx >= 0.8);
-      if (vis && !firstVis) firstVis = { t: (performance.now() - t0) / 1000, a: r.a, sx: r.sx, seen: stt.copySeen };
+      if (vis && !firstVis) firstVis = { t: (performance.now() - t0) / 1000, a: r.a, sx: r.sx, seen: stt.copySeen, inside: r.inside, bounds: r.bounds, pane: r.pane };
       const line = s.dialogue?.full || '';
       const fired = !!(s.dialogue?.busy && s.dialogue.who === 'fern' && /copying you|lost another hour/i.test(line));
       if (fired) {
@@ -381,7 +381,7 @@ async function desktop(browser) {
         const overlapGlass = hits(box, glass);
         const overlapDoor = hits(box, door);
         const r = st2.refl;
-        firedAt = { t: (performance.now() - t0) / 1000, seen: st2.copySeen, a: r?.a, sx: r?.sx, sy: r?.sy, rot: r?.rot, fernCount: st2.fernCount, line: line.slice(0, 80), box, overlapGlass, overlapDoor };
+        firedAt = { t: (performance.now() - t0) / 1000, seen: st2.copySeen, a: r?.a, sx: r?.sx, sy: r?.sy, rot: r?.rot, inside: r?.inside, bounds: r?.bounds, pane: r?.pane, fernCount: st2.fernCount, line: line.slice(0, 80), box, overlapGlass, overlapDoor };
         if ((st2.copySeen ?? 0) < 0.85 || !firstVis) early = true;
         break;
       }
@@ -394,12 +394,22 @@ async function desktop(browser) {
   ok('hub: exactly one Fern during the copy line', !!(copyBeat.firedAt) && copyBeat.firedAt.fernCount === 1, JSON.stringify(copyBeat.firedAt));
   ok('hub: copy-line box does not cover the glass or the door', !!(copyBeat.firedAt && copyBeat.firedAt.box) && !copyBeat.firedAt.overlapGlass && !copyBeat.firedAt.overlapDoor && (copyBeat.firedAt.box.w || 0) <= 560, JSON.stringify(copyBeat.firedAt && copyBeat.firedAt.box));
   ok('hub: glass copy is upright and uniformly scaled', !!(copyBeat.firedAt) && Math.abs((copyBeat.firedAt.sx ?? 0) - (copyBeat.firedAt.sy ?? 1)) < 0.02 && Math.abs(copyBeat.firedAt.rot ?? 1) < 0.02, JSON.stringify(copyBeat.firedAt));
+  ok('hub: front-facing copy stays inside the glass pane', !!(copyBeat.firstVis) && copyBeat.firstVis.inside === true && !!(copyBeat.firedAt) && copyBeat.firedAt.inside === true, JSON.stringify({ first: copyBeat.firstVis, fired: copyBeat.firedAt && { bounds: copyBeat.firedAt.bounds, pane: copyBeat.firedAt.pane, inside: copyBeat.firedAt.inside } }));
   const glowCasual = await pi(page, 'glowWords', 'The door is shut, then it is open.');
   const glowToken = await pi(page, 'glowWords', 'SHUT becomes OPEN.');
   ok('dialogue: lowercase open/shut do not glow', Array.isArray(glowCasual) && glowCasual.length === 0, JSON.stringify(glowCasual));
   ok('dialogue: OPEN/SHUT quality tokens still glow', Array.isArray(glowToken) && glowToken.some(w => /OPEN|SHUT/.test(w)) && glowToken.length === 2, JSON.stringify(glowToken));
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   await sleep(200);
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    s.dir = 'S'; s.x = 640; s.y = 600;
+    try { s.noor?.setPosition(640, 600); s.noor?.play('noor_idle_S', true); } catch {}
+    s.copyWarm = 4; s.copySeen = 2; s.copyWasVis = true; s.busy = false;
+  });
+  await sleep(600);
+  const backCopy = await page.evaluate(() => window.__pi.state().refl);
+  ok('hub: back-facing copy stays inside the glass pane', !!(backCopy) && backCopy.visible && backCopy.inside === true, JSON.stringify(backCopy));
 
   // HUB: SHUT door blocks the threshold; Noor can still stand in front of it
   const doorBlock = await page.evaluate(() => {
