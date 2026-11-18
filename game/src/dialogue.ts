@@ -157,6 +157,7 @@ export class Dialogue {
     this.root?.destroy(); this.root = undefined;
     this.holo?.destroy(); this.holo = undefined; this.holoBaseY = undefined; this.holoBaseX = undefined;
     this.holoBody = undefined; this.holoGlow = undefined;
+    try { this.s.setDeskFernVisible?.(true); } catch { /* */ }
     this.portraitSpr = undefined; this.portraitEyes = undefined;
     try { this.beamG?.destroy(); } catch { /* */ } this.beamG = undefined; this.beamLife = 0;
     this.arrow = undefined;
@@ -255,7 +256,8 @@ export class Dialogue {
     // Hop: dismiss the old projection, then rise from the new source.
     if (this.holo) {
       const old = this.holo;
-      this.s.tweens.add({ targets: old, alpha: 0, y: old.y + 16, duration: 180, onComplete: () => old.destroy() });
+      try { this.s.tweens.killTweensOf(old); } catch { /* */ }
+      try { old.destroy(); } catch { /* */ }
       this.holo = undefined;
       this.holoBody = undefined;
       this.holoGlow = undefined;
@@ -286,6 +288,7 @@ export class Dialogue {
 
   private spawnHolo(src: Source) {
     const s = this.s;
+    try { s.setDeskFernVisible?.(false); } catch { /* */ }
     // Always rise as the plant hologram with a cone. A 'body' source
     // is just a desk or seat to come out of — never an empty container.
     // Sprite frame is 160×220; opaque plant is ~186px tall. Display ~110px.
@@ -816,7 +819,8 @@ export class Dialogue {
       this.holoGlow = undefined;
       this.source = undefined;
       this.clearFernAct();
-      if (h) this.s.tweens.add({ targets: h, alpha: 0, y: h.y + 18, duration: 280, onComplete: () => h.destroy() });
+      if (h) this.s.tweens.add({ targets: h, alpha: 0, y: h.y + 18, duration: 280, onComplete: () => { try { h.destroy(); } catch { /* */ } try { this.s.setDeskFernVisible?.(true); } catch { /* */ } } });
+      else try { this.s.setDeskFernVisible?.(true); } catch { /* */ }
     }
     this.at(200, () => { this.busy = false; this.kick(); });
   }

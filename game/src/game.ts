@@ -94,7 +94,8 @@ export class GameScene extends Phaser.Scene {
   edgePad?: Phaser.GameObjects.Rectangle; edgePad2?: Phaser.GameObjects.Rectangle;
   // art-v8 linger layer
   amb: { def: AmbLayer; spr: Phaser.GameObjects.Sprite; dir: number; speed: number; t: number; ox: number; oy: number }[] = [];
-  idleT = 0; idleSaid = false; copyWarm = 0; letterRead = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
+  idleT = 0; idleSaid = false; copyWarm = 0; copySeen = 0; copyGlintT = 0; copyWasVis = false; letterRead = false; toyFx: Record<string, Phaser.GameObjects.GameObject> = {};
+  hubFern?: Phaser.GameObjects.Sprite; hubFernGlow?: Phaser.GameObjects.Image; copyGlint?: Phaser.GameObjects.Graphics;
   refl: Phaser.GameObjects.Sprite | null = null; hist: { t: number; x: number; y: number; key: string; frame: string }[] = [];
   motes: { x: number; y: number; vx: number; vy: number; a: number; ph: number }[] = []; motesG: Phaser.GameObjects.Graphics | null = null; moteRect: Rect | null = null; moteCol = 0xf6e6c8;
   hairT = 0;
@@ -422,7 +423,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.glassRain?.destroy(); this.glassRain = null;
-    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0;
+    this.amb = []; this.toyFx = {}; this.refl = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
@@ -544,8 +545,10 @@ export class GameScene extends Phaser.Scene {
       else if (!s.seen.includes('sc1')) { this.floorText(640, 140, '11:48 PM', C.inkBright, 30, 1300); }
     }
     if (id === 'hub') {
-      const fern = this.add.sprite(1005, 518, 'fern_plant').setOrigin(0.5, 0.93).setScale(0.62).play('fern_plant_S').setDepth(595); this.objs.push(fern);
-      const glow = this.add.image(1005, 560, 'pool').setTint(hex(C.fern)).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(glow);
+      const fern = this.add.sprite(1005, 518, 'fern_plant').setOrigin(0.5, 0.93).setScale(0.38).play('fern_plant_S').setDepth(595); this.objs.push(fern);
+      this.hubFern = fern;
+      const glow = this.add.image(1005, 548, 'pool').setTint(hex(C.fern)).setAlpha(0.28).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800).setScale(0.7); this.objs.push(glow);
+      this.hubFernGlow = glow;
       // the gap: floor is gone between the door wall and the exit
       const gap = this.add.graphics().setDepth(-950).setVisible(!this.art); this.objs.push(gap);
       gap.fillStyle(0x010204, 1).fillRect(80, 250, 1120, 72);
@@ -680,8 +683,9 @@ export class GameScene extends Phaser.Scene {
     this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract() && !this.nearPrintedLetter());
   }
   nearHintInteract() {
-    if (this.nearLostLine()) return true;
-    try { if (this.explore?.nearInteract?.()) return true; } catch { /* */ }
+    // World chips (E take / E look / E read) already own these spots — don't stack a HUD twin.
+    if (this.nearLostLine()) return false;
+    try { if (this.explore?.nearInteract?.()) return false; } catch { /* */ }
     try { if (this.clar?.near) return true; } catch { /* */ }
     const lab = this.impactLab;
     if (lab && !lab.done) {
@@ -1239,6 +1243,17 @@ export class GameScene extends Phaser.Scene {
       try { n.play(`noor_idle_${this.dir}`, true); } catch { /* */ }
     }
   }
+  setDeskFernVisible(on: boolean) {
+    if (this.hubFern) this.hubFern.setVisible(on).setAlpha(on ? 1 : 0);
+    if (this.hubFernGlow) this.hubFernGlow.setVisible(on).setAlpha(on ? 0.28 : 0);
+  }
+  worldFernCount() {
+    let n = 0;
+    if (this.hubFern?.visible && (this.hubFern.alpha ?? 0) > 0.15) n++;
+    const h = this.dialogue?.holo;
+    if (h && h.visible && (h.alpha ?? 0) > 0.15) n++;
+    return n;
+  }
   revealCaret() {
     if (!this.caret) return;
     this.caret.setVisible(true).setAlpha(0);
@@ -1271,8 +1286,8 @@ export class GameScene extends Phaser.Scene {
     paper.fillStyle(0xf3ead4, 1);
     paper.fillTriangle(-W / 2 + 36, -H / 2 - 1, -W / 2 + 52, -H / 2 - 1, -W / 2 + 44, -H / 2 + 8);
     paper.fillTriangle(W / 2 - 70, -H / 2 - 1, W / 2 - 52, -H / 2 - 1, W / 2 - 61, -H / 2 + 7);
-    const hint = this.add.text(0, H / 2 - 14, 'E', {
-      fontFamily: 'JetBrains Mono', fontSize: '11px', color: '#8a7a62',
+    const hint = this.add.text(0, H / 2 - 14, 'E  close', {
+      fontFamily: 'JetBrains Mono', fontSize: '13px', color: '#4f4638',
     }).setOrigin(0.5, 1);
     card.add([paper, body, hint]);
     this.lineToast = card;
@@ -1328,8 +1343,8 @@ export class GameScene extends Phaser.Scene {
     const count = this.add.text(W / 2 - 14, -H / 2 + 12, `${n}/${LINES.length}`, {
       fontFamily: 'IBM Plex Mono', fontSize: '11px', color: '#8a7a62',
     }).setOrigin(1, 0);
-    const hint = this.add.text(0, H / 2 - 14, 'E', {
-      fontFamily: 'JetBrains Mono', fontSize: '11px', color: '#8a7a62',
+    const hint = this.add.text(0, H / 2 - 14, 'E  close', {
+      fontFamily: 'JetBrains Mono', fontSize: '13px', color: '#4f4638',
     }).setOrigin(0.5, 1);
     card.add([paper, quote, count, hint]);
     this.lineToast = card;
@@ -1365,8 +1380,9 @@ export class GameScene extends Phaser.Scene {
       if (Number(a.spr.frame.name) !== k) a.spr.setFrame(k);
     }
     if (this.memoDrift()) { /* drifting memo handled inside */ }
-    // stand still: in the hub, a delayed glass copy appears, then Fern speaks.
-    // Other rooms keep the once-per-visit narrator line (now credited as THE ROOM).
+    // stand still: in the hub, a delayed glass copy appears, then Fern speaks
+    // only after the player has actually seen it. Other rooms keep the once-per-visit
+    // narrator line (credited as THE ROOM).
     const calm = !this.busy && !this.cutscene && (!this.fight || this.fight.won);
     if (active || !calm || this.dying || this.composer || this.subBusy) {
       this.idleT = 0;
@@ -1375,7 +1391,9 @@ export class GameScene extends Phaser.Scene {
       this.idleT += dt;
       if (this.room.id === 'hub') this.copyWarm = Math.min(5, this.copyWarm + dt);
     }
-    if (this.room.id === 'hub' && !this.idleSaid && !this.clar && this.copyWarm > 3.2 && calm && !this.dialogue?.busy) {
+    const nearGlass = this.room.id === 'hub' && this.y < 320;
+    const seenCopy = this.copySeen >= 1 && (this.copyWarm > 2.0 || nearGlass);
+    if (this.room.id === 'hub' && !this.idleSaid && !this.clar && seenCopy && calm && !this.dialogue?.busy) {
       this.idleSaid = true;
       const v = this.save.visits[this.room.id] ?? 1;
       const tag = `${this.room.id}:${v}`;
@@ -1400,16 +1418,43 @@ export class GameScene extends Phaser.Scene {
       this.refl.setVisible(false);
       if (showCopy && this.textures.get(key).has(fr)) {
         this.refl.setTexture(key, fr);
-        const fy = inGlass ? 140 - Math.max(0, (this.y - 150)) * 0.18 : 118;
-        if (!inGlass) rx = Phaser.Math.Clamp(h.x * 0.25 + 290, 250, 380);
+        // From the south, fill the pane: larger, brighter, centered. In the north, keep a slightly
+        // bigger read than before so the copy is obvious either way.
+        const sx = inGlass ? 0.72 : 0.92, sy = inGlass ? 0.68 : 0.88;
+        const fy = inGlass ? 136 - Math.max(0, (this.y - 150)) * 0.14 : 108;
+        if (!inGlass) rx = 313;
+        this.refl.setScale(sx, sy);
         this.refl.setPosition(rx, fy);
-        const a = inGlass ? 0.55 : 0.2 + 0.5 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 1.6));
-        this.refl.setAlpha(a);
+        const glow = this.copyGlintT > 0 ? 0.12 * (this.copyGlintT / 0.55) : 0;
+        const a = (inGlass ? 0.82 : 0.82 + 0.14 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 0.8))) + glow;
+        this.refl.setAlpha(Math.min(1, a));
         // crop to the glass (222..404 x 42..140): frame px = (world - origin) / scale
-        const sx = 0.55, sy = 0.5, x0 = rx - 96 * sx, y0 = fy - 160 * sy;
+        const x0 = rx - 96 * sx, y0 = fy - 160 * sy;
         const cx0 = Phaser.Math.Clamp((222 - x0) / sx, 0, 192), cx1 = Phaser.Math.Clamp((404 - x0) / sx, 0, 192), cy0 = Phaser.Math.Clamp((42 - y0) / sy, 0, 192), cy1 = Phaser.Math.Clamp((140 - y0) / sy, 0, 192);
         if (cx1 - cx0 < 2 || cy1 - cy0 < 2) this.refl.setVisible(false);
         else { this.refl.setCrop(cx0, cy0, cx1 - cx0, cy1 - cy0); this.refl.setVisible(true); }
+      }
+      const vis = !!this.refl.visible && (this.refl.alpha ?? 0) > 0.4;
+      if (vis) this.copySeen += dt;
+      else if (!inGlass && this.copyWarm <= 0) this.copySeen = 0;
+      if (vis && !this.copyWasVis) this.copyGlintT = 0.55;
+      this.copyWasVis = vis;
+      if (!this.copyGlint) {
+        const g = this.add.graphics().setDepth(-996);
+        try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+        this.copyGlint = g; this.objs.push(g);
+      }
+      const g = this.copyGlint;
+      if (g) {
+        g.clear();
+        if (this.copyGlintT > 0) {
+          this.copyGlintT = Math.max(0, this.copyGlintT - dt);
+          const k = this.copyGlintT / 0.55;
+          g.fillStyle(0xb8f0f4, 0.22 * k);
+          g.fillRect(222, 42, 182, 98);
+          g.fillStyle(0xffffff, 0.14 * k);
+          g.fillRect(222, 42, 182, 8 + 86 * (1 - k));
+        }
       }
     }
     if (this.motesG && this.moteRect) {
@@ -1819,7 +1864,7 @@ export class GameScene extends Phaser.Scene {
 
   typeAttack() {
     if (this.swingT > 0) return;
-    this.didAttack = true;
+    if (this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick))) this.didAttack = true;
     this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
     const hit = this.combo; this.comboT = 0.55; this.swingT = hit === 3 ? 0.32 : 0.22;
     // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
@@ -2016,12 +2061,12 @@ export class GameScene extends Phaser.Scene {
       glassRain: this.glassRain ? { on: true, drops: this.glassRain.drops.length, paused: this.glassRain.paused, flash: this.glassRain.flash } : null,
 
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
-      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x } : null,
+      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
-      intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.[1] as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
+      intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.find(o => typeof (o as Phaser.GameObjects.Text).text === 'string') as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,
       boss: this.fight ? { hp: this.fight.real.hp, state: this.fight.real.state, guarded: this.fight.guarded, guardT: this.fight.guardT, split: this.fight.split, fake: !!this.fight.fake, won: this.fight.won, punishCount: this.fight.punishCount, lastTell: this.fight.lastTell, tellCount: this.fight.tellCount, sign: this.plateById('r_guard')?.words.join(' '), signX: this.plateById('r_guard')?.container.x, x: this.fight.real.x, y: this.fight.real.y, pinT: this.fight.real.pinT ?? 0, balls: this.fight.balls.length, ring: !!this.fight.ring } : null, composer: this.composer ? this.composer.i : -1, paused: this.paused, save: JSON.parse(JSON.stringify(this.save)),
     };
   }

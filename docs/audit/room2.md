@@ -66,3 +66,14 @@ Patched after this audit (see `docs/HANDOFF.md`, room-2 pass):
 - Office denial letter: scrap offset, first-time `E  read`, paper card with the rewritten claim, close with E.
 
 Left for later: stacked E chips at the north line, the coral SHUT plank, the room card over the north door, modest glass-copy contrast, small desk plant on a large desk.
+
+## 2026-11-18 follow-up
+
+Addressed after `a3eabe5` (see HANDOFF, room-2 pass):
+
+- Exactly one Fern: desk pot or hologram, never both. Desk plant scaled to 0.38.
+- South-spawn copy is larger, brighter, centered, with a pane glint. Fern's line waits until the copy has been visible ~1s (or the player is at the glass).
+- `E look` no longer stacks on `E take` at the north glass, or on office look chips. Office click-attack no longer eats the J hint. Card close is `E  close`, darker.
+- Coral SHUT slab replaced with a code-drawn cyan-framed door. Room title is a slim top nameplate above the glass.
+
+Still weak: the top dialogue box can cover the glass copy while Fern talks about it from the south; the door is flatter than the painted art.

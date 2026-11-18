@@ -1,5 +1,32 @@
 # HANDOFF
 
+## 2026-11-18 — Room 2: one Fern, obvious copy, de-duped E, door and title
+
+Danishpreet played `a3eabe5` and asked for a tight room-2 pass: two Ferns on screen, a copy you couldn't see from spawn, stacked E chips, and the coral SHUT / title-card placeholders.
+
+1. **One Fern.** The desk plant is a single `fern_plant` at 0.38 scale. When Fern speaks, that pot hides and only the office-style hologram is up; when the hologram fades, the pot returns. Never both. Playtest asserts this while she speaks, while idle, and during the copy line.
+
+2. **Obvious copy.** From the south the delayed cyan Noor is centered in the north glass, larger (scale ~0.92) and brighter (~0.82–0.96), with a brief additive pane glint when it first appears. Fern's copy line waits until that image has been visible for ~1s (or the player is in range at the glass). New tests cover "visible and obvious before she speaks" and "line waits until seen."
+
+3. **E chips.** The HUD `E  look` prompt no longer stacks on a world chip: lost-line `E take` owns the north glass, and office look/read chips own their spots, so the first calendar hint is a single `E look`. Click-to-attack in the office no longer marks the J hint seen; `didAttack` is only set when an attackable foe is present (live enemy, or a dummy after QUICK). Note and letter cards use a darker `E  close` at 13px.
+
+4. **Door and title (cheap, no AI art).** The coral SHUT slab is a code-drawn dark door with a cyan frame and a frosted slit (`game/public/assets/rooms/fg/hub_door_panel.png`, same 74×161 slot). The room title is a slim top nameplate above the north glass, not a large card over the door.
+
+5. **Playtest.** 209/209 (204 previous plus five hub asserts). Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms / Fern-arrival walk contracts kept.
+
+Review stills (not in the repo):
+- one Fern speaking (desk pot hidden): `/workspace/l2-fern-speak-2x.png` (full `/workspace/l2-fern-speak.png`)
+- one Fern idle (smaller desk pot): `/workspace/l2-fern-idle-2x.png` (full `/workspace/l2-fern-idle.png`)
+- copy obvious from the south, with glint: `/workspace/l2-copy-south-2x.png` (full `/workspace/l2-copy-south.png`)
+- north glass, only `E take`: `/workspace/l2-e-chips-2x.png` (full `/workspace/l2-e-chips.png`)
+- office calendar, one `E look`: `/workspace/l2-office-e-2x.png` (full `/workspace/l2-office-e.png`)
+- note card `E  close`: `/workspace/l2-note-close-2x.png` (full `/workspace/l2-note-close.png`)
+- new SHUT door: `/workspace/l2-door-2x.png` (full `/workspace/l2-door.png`)
+- room nameplate: `/workspace/l2-room-card-2x.png` (full `/workspace/l2-room-card.png`)
+
+Leftovers: when Fern's copy line plays from the south, her top box covers most of the glass copy the line is about (the player already saw it for ~1s). The new door is flatter than the painted room — a solid cyan slit, slightly sticker-like in the gap. The desk plant is a sensible size but still a sprite sitting on a painted desk. A short last word on the note card can still sit alone on a line. Stealable tokens such as "open"/"shut" can still glow in speech.
+
+
 ## 2026-11-17 — Room 2 audit, Fern, caret, copy beat, printer letter
 
 Danishpreet moved on from the office to room 2 (the hub / Mirror Office). His still showed a bottom dialogue box with an empty name and empty portrait ("Stand still long enough and the room starts copying you. It's flattering. It isn't."), a floating I-shaped caret with no explanation, and no visible Fern — he asked if the caret was Fern. Full Playwright audit is in `docs/audit/room2.md`.

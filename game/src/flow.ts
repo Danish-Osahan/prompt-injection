@@ -38,12 +38,19 @@ export function showRoomCard(s: GameScene, id: RoomId, onDone?: () => void) {
   s.roomCard?.destroy();
   s.roomCard = undefined;
   const name = ROOM_CARD[id] ?? id;
-  const c = s.add.container(640, 140).setScrollFactor(0).setDepth(7600).setAlpha(0);
-  const rule = s.add.rectangle(0, -28, 220, 1.5, hex(C.cyan), 0.85);
-  const t = s.add.text(0, 0, name, {
-    fontFamily: FONT, fontSize: '26px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 4,
+  // Slim top nameplate, above the north glass/door so it never covers the room's hook.
+  const c = s.add.container(640, 28).setScrollFactor(0).setDepth(7600).setAlpha(0);
+  const plate = s.add.graphics();
+  const tw = Math.max(220, name.length * 11 + 36);
+  plate.fillStyle(0x071018, 0.82);
+  plate.fillRoundedRect(-tw / 2, -14, tw, 28, 3);
+  plate.lineStyle(1, 0x5ec8d0, 0.7);
+  plate.strokeRoundedRect(-tw / 2, -14, tw, 28, 3);
+  const tick = s.add.rectangle(-tw / 2 + 8, 0, 2, 14, hex(C.cyan), 0.9);
+  const t = s.add.text(6, 0, name, {
+    fontFamily: FONT, fontSize: '15px', fontStyle: 'bold', color: C.inkBright, letterSpacing: 3,
   } as Phaser.Types.GameObjects.Text.TextStyle).setOrigin(0.5);
-  c.add([rule, t]);
+  c.add([plate, tick, t]);
   s.roomCard = c;
   let done = false;
   const finish = () => { if (done) return; done = true; onDone?.(); };

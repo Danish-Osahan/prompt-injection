@@ -325,6 +325,68 @@ async function desktop(browser) {
   const raw = await page.evaluate(() => JSON.parse(localStorage.getItem('pi.save.v1')));
   ok('desktop: room transition autosaves to localStorage', raw?.room === 'hub', raw?.room);
 
+  // HUB: exactly one Fern, and the glass copy must be seen before Fern's line
+  const fernSpeak = await page.evaluate(async () => {
+    const t0 = performance.now();
+    while (performance.now() - t0 < 7000) {
+      const s = window.__game.scene.getScene('game');
+      if (s.dialogue?.busy && s.dialogue.who === 'fern') return { n: s.worldFernCount(), who: 'fern' };
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    const s = window.__game.scene.getScene('game');
+    return { n: s.worldFernCount(), who: s.dialogue?.who ?? null };
+  });
+  ok('hub: exactly one Fern while she speaks', fernSpeak.who === 'fern' && fernSpeak.n === 1, JSON.stringify(fernSpeak));
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false; s.cutscene = null;
+    try { s.roomCard?.destroy(); s.roomCard = undefined; } catch {}
+  });
+  await sleep(450);
+  s = await st(page);
+  ok('hub: exactly one Fern when idle (the desk plant)', s.fernCount === 1, `fernCount ${s.fernCount}`);
+  await pi(page, 'teleport', 640, 600);
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    s.x = 640; s.y = 600; s.dir = 'N';
+    try { s.noor?.setPosition(640, 600); } catch {}
+    s.idleT = 0; s.idleSaid = false; s.copyWarm = 0; s.copySeen = 0; s.copyWasVis = false; s.copyGlintT = 0;
+    s.busy = false; s.cutscene = null;
+  });
+  const copyBeat = await page.evaluate(async () => {
+    const t0 = performance.now();
+    let firstVis = null, firedAt = null, early = false;
+    while (performance.now() - t0 < 8000) {
+      const s = window.__game.scene.getScene('game');
+      const stt = window.__pi.state();
+      const r = stt.refl;
+      const vis = !!(r && r.visible && r.a >= 0.75 && r.sx >= 0.8);
+      if (vis && !firstVis) firstVis = { t: (performance.now() - t0) / 1000, a: r.a, sx: r.sx, seen: stt.copySeen };
+      const line = s.dialogue?.full || '';
+      const fired = !!(s.dialogue?.busy && s.dialogue.who === 'fern' && /copying you|lost another hour/i.test(line));
+      if (fired) {
+        // Wait for the hologram to finish rising so the Fern-count assert is stable.
+        const t1 = performance.now();
+        while (performance.now() - t1 < 700) {
+          if (s.worldFernCount() >= 1 && s.dialogue?.holo) break;
+          await new Promise(r => requestAnimationFrame(r));
+        }
+        const st2 = window.__pi.state();
+        firedAt = { t: (performance.now() - t0) / 1000, seen: st2.copySeen, a: st2.refl?.a, sx: st2.refl?.sx, fernCount: st2.fernCount, line: line.slice(0, 80) };
+        if ((st2.copySeen ?? 0) < 0.85 || !firstVis) early = true;
+        break;
+      }
+      await new Promise(r => requestAnimationFrame(r));
+    }
+    return { firstVis, firedAt, early };
+  });
+  ok('hub: glass copy is obvious from the south before Fern speaks', !!(copyBeat.firstVis) && copyBeat.firstVis.a >= 0.75 && copyBeat.firstVis.sx >= 0.8, JSON.stringify(copyBeat.firstVis));
+  ok('hub: Fern copy line waits until the glass copy has been seen', !!(copyBeat.firedAt) && !copyBeat.early && copyBeat.firedAt.seen >= 0.9, JSON.stringify(copyBeat));
+  ok('hub: exactly one Fern during the copy line', !!(copyBeat.firedAt) && copyBeat.firedAt.fernCount === 1, JSON.stringify(copyBeat.firedAt));
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await sleep(200);
+
   // HUB: take OPEN from the lamp, throw at the door
   await sleep(400);
   if (s.cutscene) { await page.keyboard.down('x'); await sleep(900); await page.keyboard.up('x'); await sleep(200); }
