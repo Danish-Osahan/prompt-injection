@@ -438,7 +438,8 @@ export class Dialogue {
 
   private beginBox(job: Job) {
     const s = this.s;
-    const textW = 640;
+    const side = this.needsSideBox(job.line);
+    const textW = side ? 292 : 640;
     const words = this.layoutWords(job.line, 0, 0, textW, false);
     let maxW = 80, maxH = 22;
     for (const w of words) {
@@ -446,12 +447,12 @@ export class Dialogue {
       maxH = Math.max(maxH, w.y + w.height);
     }
     const padL = 128, padR = 28, padT = 34, padB = 26;
-    const w = Math.max(660, Math.min(940, padL + maxW + padR));
-    const h = Math.max(120, padT + maxH + padB);
+    const w = side ? Math.max(428, Math.min(520, padL + maxW + padR)) : Math.max(660, Math.min(940, padL + maxW + padR));
+    const h = Math.max(side ? 132 : 120, padT + maxH + padB);
     const seat = this.pickBoxSeat(w, h, job.line, job.who);
     const y = seat.y;
-    const from = y + (seat.y < 360 ? -18 : 18);
-    const c = s.add.container(640, from).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
+    const from = y + (seat.y < 360 ? -16 : 16);
+    const c = s.add.container(seat.x, from).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
     const accent = s.add.rectangle(-w / 2 + 3, 0, 4, h - 16, this.hexFor(job.who), 0.9);
@@ -1003,33 +1004,63 @@ export class Dialogue {
     return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
   }
 
+  /** In the hub, use a compact side box so a mid-band bar never covers the gap or the SHUT door. */
+  private needsSideBox(_line: string) {
+    return this.s.room?.id === 'hub';
+  }
+
   /** Pick a screen-space centre for a portrait box that does not cover the speaker or the thing being talked about. */
   private pickBoxSeat(w: number, h: number, line: string, who: SayWho) {
     const avoids: { x: number; y: number; w: number; h: number }[] = [];
     for (const t of this.topicWorldRects(line)) avoids.push(this.worldToScreenRect(t));
     const sp = this.speakerWorld(who);
     if (sp) avoids.push(this.worldToScreenRect({ x: sp.x - 80, y: sp.y - 130, w: 160, h: 200 }));
+    if (this.s.room?.id === 'hub') {
+      // Always keep hub boxes off the glass, the SHUT door, and the gap rails.
+      avoids.push(this.worldToScreenRect({ x: 222, y: 42, w: 182, h: 98 }));
+      avoids.push(this.worldToScreenRect({ x: 598, y: 288, w: 86, h: 172 }));
+      avoids.push(this.worldToScreenRect({ x: 80, y: 250, w: 1120, h: 72 }));
+    }
     const hits = (r: { x: number; y: number; w: number; h: number }) => avoids.some(a => this.overlaps(r, a));
     const seat = (x: number, y: number) => ({ x, y, r: { x: x - w / 2, y: y - h / 2, w, h } });
     const candidates: { x: number; y: number; r: { x: number; y: number; w: number; h: number } }[] = [];
-    const topBand = avoids.filter(a => a.y < 200);
-    if (topBand.length) {
-      const bottom = Math.max(...topBand.map(a => a.y + a.h));
-      // Extra gap so the panel glow (included in getBounds) stays clear of the topic.
-      candidates.push(seat(640, Math.min(720 - 36 - h / 2, bottom + 44 + h / 2)));
+    const side = this.needsSideBox(line);
+    const margin = 24;
+    const leftX = margin + w / 2;
+    const rightX = 1280 - margin - w / 2;
+    const topics = this.topicWorldRects(line);
+    const topicCx = topics.length ? topics[0].x + topics[0].w / 2 : 640;
+    // Sit on the side away from the thing being talked about (glass is left → prefer right; door is centre → either side).
+    const preferRight = topicCx <= 640;
+    const xs = preferRight ? [rightX, leftX] : [leftX, rightX];
+    if (side) {
+      // Above the gap rails (and the door), tucked left or right.
+      const topY = Math.max(margin + h / 2, Math.min(248 - 10 - h / 2, 48 + h / 2));
+      for (const x of xs) candidates.push(seat(x, topY));
+      // South floor, still off the door.
+      const midY = Math.min(720 - margin - h / 2, 520);
+      for (const x of xs) candidates.push(seat(x, midY));
+      const lowY = 720 - margin - h / 2;
+      for (const x of xs) candidates.push(seat(x, lowY));
+    } else {
+      const topBand = avoids.filter(a => a.y < 200);
+      if (topBand.length) {
+        const bottom = Math.max(...topBand.map(a => a.y + a.h));
+        candidates.push(seat(640, Math.min(720 - 36 - h / 2, bottom + 44 + h / 2)));
+      }
+      if (!this.speakerLow(who)) candidates.push(seat(640, 720 - 28 - h / 2));
+      else candidates.push(seat(640, 28 + h / 2));
+      candidates.push(seat(640, 720 - 28 - h / 2));
+      candidates.push(seat(640, 28 + h / 2));
+      candidates.push(seat(640, 400));
     }
-    if (!this.speakerLow(who)) candidates.push(seat(640, 720 - 28 - h / 2));
-    else candidates.push(seat(640, 28 + h / 2));
-    candidates.push(seat(640, 720 - 28 - h / 2));
-    candidates.push(seat(640, 28 + h / 2));
-    candidates.push(seat(640, 400));
     for (const c of candidates) {
-      if (c.r.y < 6 || c.r.y + c.r.h > 714) continue;
+      if (c.r.y < 6 || c.r.y + c.r.h > 714 || c.r.x < 4 || c.r.x + c.r.w > 1276) continue;
       // Pad for the cut-panel glow that extends a little past the layout size.
-      const fat = { x: c.r.x - 10, y: c.r.y - 22, w: c.r.w + 20, h: c.r.h + 36 };
+      const fat = { x: c.r.x - 10, y: c.r.y - 18, w: c.r.w + 20, h: c.r.h + 30 };
       if (!hits(fat)) return { x: c.x, y: c.y };
     }
-    return candidates[0] ? { x: candidates[0].x, y: candidates[0].y } : { x: 640, y: 400 };
+    return candidates[0] ? { x: candidates[0].x, y: candidates[0].y } : { x: side ? rightX : 640, y: 200 };
   }
 
   /** Keep a bubble inside the camera view and off open panels (mail, etc.). */

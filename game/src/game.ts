@@ -564,7 +564,9 @@ export class GameScene extends Phaser.Scene {
       }
       if (this.art && this.fgImgs.door_panel) {
         this.roomVis.doorPanel = this.fgImgs.door_panel;
-        const shadow = this.add.graphics().setDepth(428);
+        // Depth at the gap so a south-floor Noor (y typically 480–630) draws in front of the door.
+        try { this.fgImgs.door_panel.setDepth(250); } catch { /* */ }
+        const shadow = this.add.graphics().setDepth(240);
         shadow.fillStyle(0x020406, 0.42);
         shadow.fillRoundedRect(612, 448, 60, 14, 6);
         shadow.fillStyle(0x020406, 0.2);
@@ -1060,10 +1062,10 @@ export class GameScene extends Phaser.Scene {
     const id = this.room.id; const was = { ...f };
     if (id === 'hub') {
       f.door = w('h_door') === 'OPEN';
-      this.dyn.door = f.door ? null : { x: 600, y: 400, w: 80, h: 34 };
+      this.dyn.door = f.door ? null : { x: 598, y: 288, w: 86, h: 176 };  // real door footprint (293–464), so Noor cannot walk into the threshold
       const door = this.roomVis.door as Phaser.GameObjects.Rectangle;
       const panel = this.roomVis.doorPanel as Phaser.GameObjects.Image;
-      if (panel) { this.tweens.killTweensOf(panel); if (initial) panel.setAlpha(f.door ? 0 : 1); else { this.tweens.add({ targets: panel, alpha: f.door ? 0 : 1, scaleY: f.door ? 0.96 : 1, duration: 380, ease: 'Quad.easeIn' }); } }
+      if (panel) { this.tweens.killTweensOf(panel); panel.setDepth(250); if (initial) panel.setAlpha(f.door ? 0 : 1); else { this.tweens.add({ targets: panel, alpha: f.door ? 0 : 1, scaleY: f.door ? 0.96 : 1, duration: 380, ease: 'Quad.easeIn' }); } }
       const doorFx = [this.roomVis.doorShadow, this.roomVis.doorSpill].filter(Boolean);
       for (const fx of doorFx) { this.tweens.killTweensOf(fx); if (initial) (fx as Phaser.GameObjects.Graphics).setAlpha(f.door ? 0 : 1); else this.tweens.add({ targets: fx, alpha: f.door ? 0 : 1, duration: 380 }); }
       // art-v8: the coral door light and its floor reflection belong to the SHUT plate; OPEN crossfades to a plate rendered without them
@@ -1177,7 +1179,11 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < m[1]; i++) this.motes.push({ x: m[0].x + Math.random() * m[0].w, y: m[0].y + Math.random() * m[0].h, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 5, a: 0.15 + Math.random() * 0.25, ph: Math.random() * 6 });
     }
     if (id === 'hub') {   // the mirror copies Noor a beat late (or, with the toy, a beat early)
-      this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(0.55, 0.5).setTint(0x9ad8f0).setAlpha(0.42).setDepth(-997).setVisible(false); this.objs.push(this.refl);
+      this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(1).setTint(0xd0e4ec).setAlpha(0.88).setRotation(0).setDepth(-997).setVisible(false);
+      const maskG = this.make.graphics();
+      maskG.fillStyle(0xffffff, 1).fillRect(222, 42, 182, 98);
+      this.refl.setMask(maskG.createGeometryMask());
+      this.objs.push(this.refl, maskG);
     }
     const lampAt: Partial<Record<RoomId, [number, number, number, number]>> = { office: [1185, 470, 0xf6c684, 0.26], arena: [640, 420, 0x78e4e8, 0] };
     const la = lampAt[id];
@@ -1482,21 +1488,22 @@ export class GameScene extends Phaser.Scene {
       this.refl.setVisible(false);
       if (showCopy && this.textures.get(key).has(fr)) {
         this.refl.setTexture(key, fr);
-        // From the south, fill the pane: larger, brighter, centered. In the north, keep a slightly
-        // bigger read than before so the copy is obvious either way.
-        const sx = inGlass ? 0.72 : 0.92, sy = inGlass ? 0.68 : 0.88;
-        const fy = inGlass ? 136 - Math.max(0, (this.y - 150)) * 0.14 : 108;
+        // Portrait in the pane: uniform scale, no rotation, face centred, subtle tint.
+        // A floor-sprite stamp looked smeared/tilted in the landscape glass; we show head and shoulders.
+        const sc = 1.15;
+        const face = 70; // px above origin to the glasses / face (frame y ~90)
+        const fy = 91 + face * sc;
         if (!inGlass) rx = 313;
-        this.refl.setScale(sx, sy);
+        else rx = Phaser.Math.Clamp(rx, 250, 376);
+        this.refl.setRotation(0);
+        this.refl.setFlipX(true);  // north-wall mirror
+        this.refl.setScale(sc, sc);
         this.refl.setPosition(rx, fy);
-        const glow = this.copyGlintT > 0 ? 0.12 * (this.copyGlintT / 0.55) : 0;
-        const a = (inGlass ? 0.82 : 0.82 + 0.14 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 0.8))) + glow;
-        this.refl.setAlpha(Math.min(1, a));
-        // crop to the glass (222..404 x 42..140): frame px = (world - origin) / scale
-        const x0 = rx - 96 * sx, y0 = fy - 160 * sy;
-        const cx0 = Phaser.Math.Clamp((222 - x0) / sx, 0, 192), cx1 = Phaser.Math.Clamp((404 - x0) / sx, 0, 192), cy0 = Phaser.Math.Clamp((42 - y0) / sy, 0, 192), cy1 = Phaser.Math.Clamp((140 - y0) / sy, 0, 192);
-        if (cx1 - cx0 < 2 || cy1 - cy0 < 2) this.refl.setVisible(false);
-        else { this.refl.setCrop(cx0, cy0, cx1 - cx0, cy1 - cy0); this.refl.setVisible(true); }
+        this.refl.setTint(0xd0e4ec);
+        const glow = this.copyGlintT > 0 ? 0.06 * (this.copyGlintT / 0.55) : 0;
+        const a = (inGlass ? 0.88 : 0.86 + 0.08 * Math.min(1, Math.max(0, (this.copyWarm - 1.4) / 0.8))) + glow;
+        this.refl.setAlpha(Math.min(0.96, a));
+        this.refl.setVisible(true);
       }
       const vis = !!this.refl.visible && (this.refl.alpha ?? 0) > 0.4;
       if (vis) this.copySeen += dt;
@@ -2125,7 +2132,7 @@ export class GameScene extends Phaser.Scene {
       glassRain: this.glassRain ? { on: true, drops: this.glassRain.drops.length, paused: this.glassRain.paused, flash: this.glassRain.flash } : null,
 
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
-      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), dialogueBox: this.dialogue?.boxBounds?.() ?? null, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY } : null,
+      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), dialogueBox: this.dialogue?.boxBounds?.() ?? null, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY, rot: this.refl.rotation, flipX: this.refl.flipX } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,

@@ -375,9 +375,13 @@ async function desktop(browser) {
         }
         const st2 = window.__pi.state();
         const box = st2.dialogueBox || (s.dialogue && s.dialogue.boxBounds && s.dialogue.boxBounds());
+        const hits = (a, b) => !!(a && a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
         const glass = { x: 222, y: 42, w: 182, h: 98 };
-        const overlap = !!(box && box.x < glass.x + glass.w && box.x + box.w > glass.x && box.y < glass.y + glass.h && box.y + box.h > glass.y);
-        firedAt = { t: (performance.now() - t0) / 1000, seen: st2.copySeen, a: st2.refl?.a, sx: st2.refl?.sx, fernCount: st2.fernCount, line: line.slice(0, 80), box, overlap };
+        const door = { x: 598, y: 288, w: 86, h: 172 };
+        const overlapGlass = hits(box, glass);
+        const overlapDoor = hits(box, door);
+        const r = st2.refl;
+        firedAt = { t: (performance.now() - t0) / 1000, seen: st2.copySeen, a: r?.a, sx: r?.sx, sy: r?.sy, rot: r?.rot, fernCount: st2.fernCount, line: line.slice(0, 80), box, overlapGlass, overlapDoor };
         if ((st2.copySeen ?? 0) < 0.85 || !firstVis) early = true;
         break;
       }
@@ -388,13 +392,21 @@ async function desktop(browser) {
   ok('hub: glass copy is obvious from the south before Fern speaks', !!(copyBeat.firstVis) && copyBeat.firstVis.a >= 0.75 && copyBeat.firstVis.sx >= 0.8, JSON.stringify(copyBeat.firstVis));
   ok('hub: Fern copy line waits until the glass copy has been seen', !!(copyBeat.firedAt) && !copyBeat.early && copyBeat.firedAt.seen >= 0.9, JSON.stringify(copyBeat));
   ok('hub: exactly one Fern during the copy line', !!(copyBeat.firedAt) && copyBeat.firedAt.fernCount === 1, JSON.stringify(copyBeat.firedAt));
-  ok('hub: copy-line box does not cover the glass copy', !!(copyBeat.firedAt && copyBeat.firedAt.box) && !copyBeat.firedAt.overlap && copyBeat.firedAt.box.y >= 148, JSON.stringify(copyBeat.firedAt && copyBeat.firedAt.box));
+  ok('hub: copy-line box does not cover the glass or the door', !!(copyBeat.firedAt && copyBeat.firedAt.box) && !copyBeat.firedAt.overlapGlass && !copyBeat.firedAt.overlapDoor && (copyBeat.firedAt.box.w || 0) <= 560, JSON.stringify(copyBeat.firedAt && copyBeat.firedAt.box));
+  ok('hub: glass copy is upright and uniformly scaled', !!(copyBeat.firedAt) && Math.abs((copyBeat.firedAt.sx ?? 0) - (copyBeat.firedAt.sy ?? 1)) < 0.02 && Math.abs(copyBeat.firedAt.rot ?? 1) < 0.02, JSON.stringify(copyBeat.firedAt));
   const glowCasual = await pi(page, 'glowWords', 'The door is shut, then it is open.');
   const glowToken = await pi(page, 'glowWords', 'SHUT becomes OPEN.');
   ok('dialogue: lowercase open/shut do not glow', Array.isArray(glowCasual) && glowCasual.length === 0, JSON.stringify(glowCasual));
   ok('dialogue: OPEN/SHUT quality tokens still glow', Array.isArray(glowToken) && glowToken.some(w => /OPEN|SHUT/.test(w)) && glowToken.length === 2, JSON.stringify(glowToken));
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   await sleep(200);
+
+  // HUB: SHUT door blocks the threshold; Noor can still stand in front of it
+  const doorBlock = await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    return { shut: !s.flags.door, inDoor: s.canStand(640, 420), inFront: s.canStand(640, 530) };
+  });
+  ok('hub: SHUT door blocks the threshold', doorBlock.shut && doorBlock.inDoor === false && doorBlock.inFront === true, JSON.stringify(doorBlock));
 
   // HUB: take OPEN from the lamp, throw at the door
   await sleep(400);

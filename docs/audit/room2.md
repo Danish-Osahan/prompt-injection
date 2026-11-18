@@ -89,3 +89,11 @@ From the `55633f7` review:
 - Ambiguous quality tokens glow only when written as ALL-CAPS quality words.
 
 Still weak: the mid-band box can cover the gap and the top of the SHUT door; the door glass is still graphic; Noor can overlap the door foot.
+
+## 2026-11-18 leftovers pass (after 2caff00)
+
+- Hub dialogue boxes are compact and tucked to one side so they do not cover the glass, the gap rails, or the SHUT door. Asserted vs glass and door.
+- Glass copy is a sharp, upright, uniformly scaled portrait of Noor (subtle tint, no rotation). Fern still waits until it has been seen.
+- SHUT door glass is a single frost pane (no split). Door depth is behind south-floor Noor; collision covers the real footprint so she cannot walk into the threshold.
+
+Still weak: the painted lamp disc in the glass sits near her hair; at the closest stand her sprite still overlaps the lower door leaf (she is in front, not inside it).

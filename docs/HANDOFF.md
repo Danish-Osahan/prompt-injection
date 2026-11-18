@@ -1,5 +1,26 @@
 # HANDOFF
 
+## 2026-11-18 — Side box, sharp glass copy, SHUT door depth
+
+Leftovers from `2caff00`: the copy-line box sat in the mid band and covered the gap rails and the top of the SHUT door; the delayed glass copy looked smeared and tilted; the door glass still read as a split pane, and Noor could walk into the threshold with the door drawing over her head.
+
+1. **Side box.** Hub portrait boxes are compact (wrap ~292px, width ~428) and tuck left or right, away from the thing being talked about and always clear of the north glass, the SHUT door, and the gap rails. Name and portrait stay. Playtest: during the south copy line the box does not overlap the glass or the door, and is no wider than 560px.
+
+2. **Sharp glass copy.** The delayed copy is a uniform-scale portrait (no rotation, no squash, no crop smear) masked to the pane, with a light cyan tint. Face and shoulders sit in the glass so she reads as Noor looking out, not a top-down stamp. A north-wall mirror flip (N↔S plus flipX) keeps facing honest. Playtest: scaleX === scaleY, rotation 0, still obvious from the south (alpha ≥ 0.75, scale ≥ 0.8) before Fern speaks.
+
+3. **SHUT door.** The pane was redrawn as a single frost gradient with a soft top glint — no fake split or centre mullion. The door sorts behind anyone on the south floor (depth 250), and its real footprint (293–464) is solid while SHUT so Noor cannot walk into the threshold. Playtest: `canStand(640, 420)` is false, `canStand(640, 530)` is true.
+
+4. **Playtest.** 214/214 (212 previous plus upright-copy and door-block asserts). Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms / Fern-arrival walk / one-Fern / copy-seen / box-coverage / glow contracts kept.
+
+Review stills (not in the repo):
+- copy line, compact box tucked right, glass and door clear: `/workspace/l2c-copy-box-2x.png` (full `/workspace/l2c-copy-box.png`)
+- glass copy, sharp upright Noor: `/workspace/l2c-copy-glass-2x.png` (full `/workspace/l2c-copy-glass.png`)
+- SHUT door, Noor at the blocked threshold (in front): `/workspace/l2c-door-2x.png` (full `/workspace/l2c-door.png`)
+- SHUT door, Noor a step further back: `/workspace/l2c-door-front-2x.png` (full `/workspace/l2c-door-front.png`)
+
+Leftovers: the baked lamp reflection in the north glass still sits near her hair. The copy is a bust in the pane, not a full-body floor reflection — that is how she stays readable. At the closest legal stand, her tall sprite still covers the lower third of the door, but she is drawn in front and cannot walk through it. The door is still a bit more graphic than the painted room.
+
+
 ## 2026-11-18 — Copy-line box, smaller Fern, deeper door, widows, speech glow
 
 Leftovers from `55633f7`: Fern's top box covered the glass copy; the hologram was oversized; the new door still read as a flat sticker; note cards could leave a short last word alone; "open"/"shut" glowed in ordinary speech.
