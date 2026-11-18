@@ -16,7 +16,8 @@ const LONG_LINE = 70;
 
 export type SayWho = 'noor' | 'ai' | 'fern' | 'papa' | 'floor' | 'draft';
 
-/** Only stealable quality tokens, excluding common English words (on, off, up, down, still). */
+/** Stealable quality tokens. Common English (on, off, up, down, still) stays out.
+ *  Ambiguous tokens (open, shut, paper, …) only glow when written as ALL-CAPS quality words. */
 const QUALITY_FX: Record<string, 'frost' | 'heavy' | 'glow' | 'wave' | 'flicker' | 'dim'> = {
   wet: 'wave', dry: 'glow',
   quick: 'flicker',
@@ -28,6 +29,17 @@ const QUALITY_FX: Record<string, 'frost' | 'heavy' | 'glow' | 'wave' | 'flicker'
   open: 'glow', shut: 'dim',
   spark: 'flicker',
 };
+const AMBIGUOUS_QUALITY = new Set(['open', 'shut', 'paper', 'glass', 'low', 'high', 'slow', 'weak', 'dry']);
+
+function qualityKey(raw: string): string | null {
+  const key = raw.toLowerCase().replace(/[^a-z]/g, '');
+  if (!key || !QUALITY_FX[key]) return null;
+  if (AMBIGUOUS_QUALITY.has(key)) {
+    const letters = raw.replace(/[^A-Za-z]/g, '');
+    if (letters.length < 2 || letters !== letters.toUpperCase()) return null;
+  }
+  return key;
+}
 
 type Source = { id: string; x: number; y: number; kind: 'monitor' | 'lamp' | 'body' };
 
@@ -104,6 +116,10 @@ export class Dialogue {
   enqueue(who: SayWho, line: string, ms = 2200, opts?: { box?: boolean; onStart?: () => void }) {
     this.queue.push({ who, line, ms, box: opts?.box, onStart: opts?.onStart });
     if (!this.busy) this.kick();
+  }
+  /** Words in a line that would receive quality-token glow. Used by playtest. */
+  glowWords(line: string) {
+    return line.split(/(\s+)/).filter(p => p.trim() && qualityKey(p));
   }
 
   advance() {
@@ -291,8 +307,8 @@ export class Dialogue {
     try { s.setDeskFernVisible?.(false); } catch { /* */ }
     // Always rise as the plant hologram with a cone. A 'body' source
     // is just a desk or seat to come out of — never an empty container.
-    // Sprite frame is 160×220; opaque plant is ~186px tall. Display ~110px.
-    const BODY_H = 110;
+    // Sprite frame is 160×220; opaque plant is ~186px tall. Display ~76px — readable, smaller than Noor.
+    const BODY_H = 76;
     const SCALE = BODY_H / 186;
     const pos = this.holoPos(src, BODY_H);
     const c = s.add.container(src.x, src.y - 8).setDepth(DEPTH).setAlpha(0);
@@ -380,19 +396,19 @@ export class Dialogue {
     const hits = (x: number, y: number) => blocked.some(b => x > b.x - 20 && x < b.x + b.w + 20 && y - bodyH < b.y + b.h && y > b.y);
     // If Noor is low in the room, there isn't 150px of floor south of her — stand beside, slightly south.
     const low = ny > 500;
-    const sx = low ? 150 : 120;
+    const sx = low ? 118 : 96;
     // Need enough south so the facing rounds to SE/SW, not E/W (tan(22.5°)*sx ≈ 0.41*sx).
-    const sy = low ? 80 : 96;
+    const sy = low ? 64 : 78;
     const candidates = [
       clamp(nx + side * sx, ny + sy),
       clamp(nx - side * sx, ny + sy),
-      clamp(nx + side * (low ? 170 : 140), ny + (low ? 80 : 70)),
-      clamp(nx, ny + 150),
+      clamp(nx + side * (low ? 140 : 116), ny + (low ? 64 : 58)),
+      clamp(nx, ny + 120),
     ];
     let pos = candidates.find(p => !hits(p.x, p.y)) || candidates[0];
     let { x, y } = pos;
     // Keep the pot off her raised forearm; bias any push toward the south so she still faces the camera.
-    const minD = 150;
+    const minD = 110;
     const dx = x - nx, dy = y - ny;
     const d = Math.hypot(dx, dy);
     if (d < minD) {
@@ -432,9 +448,9 @@ export class Dialogue {
     const padL = 128, padR = 28, padT = 34, padB = 26;
     const w = Math.max(660, Math.min(940, padL + maxW + padR));
     const h = Math.max(120, padT + maxH + padB);
-    const top = this.speakerLow(job.who);
-    const y = top ? 28 + h / 2 : 720 - 28 - h / 2;
-    const from = top ? y - 18 : y + 18;
+    const seat = this.pickBoxSeat(w, h, job.line, job.who);
+    const y = seat.y;
+    const from = y + (seat.y < 360 ? -18 : 18);
     const c = s.add.container(640, from).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
@@ -686,8 +702,7 @@ export class Dialogue {
     for (const part of parts) {
       if (!part) continue;
       const raw = part;
-      const key = part.toLowerCase().replace(/[^a-z]/g, '');
-      const isQ = !!QUALITY_FX[key];
+      const isQ = !!qualityKey(raw);
       const style: Phaser.Types.GameObjects.Text.TextStyle = {
         fontFamily: UI, fontSize: '20px', fontStyle: isQ ? 'bold' : '500',
         color: isQ ? C.cyan : C.inkBright,
@@ -752,8 +767,8 @@ export class Dialogue {
 
   private playWordFx(t: Phaser.GameObjects.Text) {
     if (t.getData('fxDone')) return;
-    const key = t.text.toLowerCase().replace(/[^a-z]/g, '');
-    const fx = QUALITY_FX[key];
+    const key = qualityKey((t.getData('full') as string) ?? t.text);
+    const fx = key ? QUALITY_FX[key] : undefined;
     if (!fx) return;
     t.setData('fxDone', true);
     if (fx === 'frost') {
@@ -937,7 +952,7 @@ export class Dialogue {
     return { x, y, w: Math.abs(br.x - tl.x), h: Math.abs(br.y - tl.y) };
   }
 
-  private avoidRects() {
+  private avoidRects(line?: string) {
     const rects: { x: number; y: number; w: number; h: number }[] = [];
     try {
       const panels = this.s.intro?.panelBounds?.() ?? [];
@@ -945,7 +960,76 @@ export class Dialogue {
         rects.push(p.screen ? this.screenToWorldRect(p) : p);
       }
     } catch { /* */ }
+    for (const t of this.topicWorldRects(line ?? this.full ?? '')) rects.push(t);
     return rects;
+  }
+
+  /** World rects of things the current line is talking about (glass copy, door, lamp, …). */
+  private topicWorldRects(line: string) {
+    const l = (line || '').toLowerCase();
+    const rects: { x: number; y: number; w: number; h: number }[] = [];
+    const room = this.s.room?.id;
+    if (room === 'hub') {
+      if (/cop(y|ies|ying)|mirror|reflection|stand still/.test(l)) rects.push({ x: 222, y: 42, w: 182, h: 98 });
+      if (/\bdoor\b|owner of the words/.test(l)) rects.push({ x: 598, y: 288, w: 86, h: 172 });
+    }
+    if (room === 'office') {
+      if (/printer|letter|claim #|denied/.test(l)) rects.push({ x: 70, y: 150, w: 130, h: 140 });
+      if (/calendar|august/.test(l)) rects.push({ x: 220, y: 60, w: 90, h: 110 });
+      if (/board|whiteboard|sticky/.test(l)) rects.push({ x: 540, y: 100, w: 160, h: 80 });
+      if (/\blamp\b|spark/.test(l)) rects.push({ x: 140, y: 220, w: 100, h: 120 });
+    }
+    return rects;
+  }
+
+  private worldToScreenRect(r: { x: number; y: number; w: number; h: number }) {
+    const cam = this.s.cameras.main;
+    const z = cam.zoom, vx = cam.worldView.x, vy = cam.worldView.y;
+    const x0 = (r.x - vx) * z, y0 = (r.y - vy) * z;
+    const x1 = (r.x + r.w - vx) * z, y1 = (r.y + r.h - vy) * z;
+    const x = Math.min(x0, x1), y = Math.min(y0, y1);
+    return { x, y, w: Math.abs(x1 - x0), h: Math.abs(y1 - y0) };
+  }
+  boxBounds() {
+    const c = this.root;
+    if (!c || (c.alpha ?? 0) < 0.2) return null;
+    try {
+      const b = c.getBounds();
+      return { x: b.x, y: b.y, w: b.width, h: b.height };
+    } catch { return { x: c.x - 400, y: c.y - 70, w: 800, h: 140 }; }
+  }
+
+  private overlaps(a: { x: number; y: number; w: number; h: number }, b: { x: number; y: number; w: number; h: number }) {
+    return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  }
+
+  /** Pick a screen-space centre for a portrait box that does not cover the speaker or the thing being talked about. */
+  private pickBoxSeat(w: number, h: number, line: string, who: SayWho) {
+    const avoids: { x: number; y: number; w: number; h: number }[] = [];
+    for (const t of this.topicWorldRects(line)) avoids.push(this.worldToScreenRect(t));
+    const sp = this.speakerWorld(who);
+    if (sp) avoids.push(this.worldToScreenRect({ x: sp.x - 80, y: sp.y - 130, w: 160, h: 200 }));
+    const hits = (r: { x: number; y: number; w: number; h: number }) => avoids.some(a => this.overlaps(r, a));
+    const seat = (x: number, y: number) => ({ x, y, r: { x: x - w / 2, y: y - h / 2, w, h } });
+    const candidates: { x: number; y: number; r: { x: number; y: number; w: number; h: number } }[] = [];
+    const topBand = avoids.filter(a => a.y < 200);
+    if (topBand.length) {
+      const bottom = Math.max(...topBand.map(a => a.y + a.h));
+      // Extra gap so the panel glow (included in getBounds) stays clear of the topic.
+      candidates.push(seat(640, Math.min(720 - 36 - h / 2, bottom + 44 + h / 2)));
+    }
+    if (!this.speakerLow(who)) candidates.push(seat(640, 720 - 28 - h / 2));
+    else candidates.push(seat(640, 28 + h / 2));
+    candidates.push(seat(640, 720 - 28 - h / 2));
+    candidates.push(seat(640, 28 + h / 2));
+    candidates.push(seat(640, 400));
+    for (const c of candidates) {
+      if (c.r.y < 6 || c.r.y + c.r.h > 714) continue;
+      // Pad for the cut-panel glow that extends a little past the layout size.
+      const fat = { x: c.r.x - 10, y: c.r.y - 22, w: c.r.w + 20, h: c.r.h + 36 };
+      if (!hits(fat)) return { x: c.x, y: c.y };
+    }
+    return candidates[0] ? { x: candidates[0].x, y: candidates[0].y } : { x: 640, y: 400 };
   }
 
   /** Keep a bubble inside the camera view and off open panels (mail, etc.). */

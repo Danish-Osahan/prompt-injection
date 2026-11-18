@@ -1,5 +1,31 @@
 # HANDOFF
 
+## 2026-11-18 — Copy-line box, smaller Fern, deeper door, widows, speech glow
+
+Leftovers from `55633f7`: Fern's top box covered the glass copy; the hologram was oversized; the new door still read as a flat sticker; note cards could leave a short last word alone; "open"/"shut" glowed in ordinary speech.
+
+1. **Box vs topic.** Portrait boxes pick a seat that does not cover the speaker or the thing being talked about. When that object is in the top band (the hub glass copy, etc.), the box sits just below it instead of over it. Playtest: during the south copy line, the box does not overlap the glass pane.
+
+2. **Smaller hologram.** Fern's pot is 76px tall (was 110) and stands closer to Noor (~110px), still readable.
+
+3. **Door depth.** The SHUT door was redrawn with a frame bevel, an inset glass well, a metal handle, a threshold, plus a floor contact shadow and a soft cyan spill that fade with the door. Code-drawn, no AI.
+
+4. **Widows.** Note and letter cards rewrap so a short last word is pulled onto the previous line or takes a partner with it. "the claim." now sits with "the" on the second line.
+
+5. **Speech glow.** Ambiguous quality tokens (`open`, `shut`, `paper`, `glass`, `low`, `high`, `slow`, `weak`, `dry`) only glow when written as ALL-CAPS quality words (`OPEN`, `SHUT`). Distinctive tokens (wet, quick, …) still glow in any case. Tests cover lowercase vs OPEN/SHUT.
+
+6. **Playtest.** 212/212 (209 previous plus box-coverage and two glow asserts). Dummy / DRY / Draft / E / explore / lost-line / beam-hold-release / printer-at-140,250 / steal 700ms / Fern-arrival walk / one-Fern / copy-seen contracts kept.
+
+Review stills (not in the repo):
+- copy line, glass clear of the box: `/workspace/l2b-copy-box-2x.png` (full `/workspace/l2b-copy-box.png`)
+- smaller hologram (same beat): `/workspace/l2b-holo-2x.png` (full `/workspace/l2b-holo.png`)
+- deeper SHUT door: `/workspace/l2b-door-2x.png` (full `/workspace/l2b-door.png`)
+- note card, no widow: `/workspace/l2b-note-2x.png` (full `/workspace/l2b-note.png`)
+- casual "open"/"shut" unglowed: `/workspace/l2b-glow-casual-2x.png` (full `/workspace/l2b-glow-casual.png`)
+
+Leftovers: the mid-band copy-line box still covers the gap rails and the top of the SHUT door (the glass itself is clear). The door has bevel and a foot shadow, but the glass is still fairly graphic — the mid reflection can read as a split pane — and Noor can overlap the threshold if she stands close. Teaching lines that want "open"/"shut" to glow must write them as OPEN/SHUT.
+
+
 ## 2026-11-18 — Room 2: one Fern, obvious copy, de-duped E, door and title
 
 Danishpreet played `a3eabe5` and asked for a tight room-2 pass: two Ferns on screen, a copy you couldn't see from spawn, stacked E chips, and the coral SHUT / title-card placeholders.

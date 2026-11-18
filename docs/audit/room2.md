@@ -77,3 +77,15 @@ Addressed after `a3eabe5` (see HANDOFF, room-2 pass):
 - Coral SHUT slab replaced with a code-drawn cyan-framed door. Room title is a slim top nameplate above the glass.
 
 Still weak: the top dialogue box can cover the glass copy while Fern talks about it from the south; the door is flatter than the painted art.
+
+## 2026-11-18 leftovers pass
+
+From the `55633f7` review:
+
+- Copy-line (and other topic) boxes sit below a top-band subject instead of covering it. Asserted vs the north glass.
+- Hologram shrunk to 76px and stood closer to Noor.
+- Door redrawn with bevel, inset glass, handle, threshold, contact shadow, and cyan spill.
+- Note/letter widow control: short last words no longer sit alone.
+- Ambiguous quality tokens glow only when written as ALL-CAPS quality words.
+
+Still weak: the mid-band box can cover the gap and the top of the SHUT door; the door glass is still graphic; Noor can overlap the door foot.

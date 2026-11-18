@@ -562,8 +562,22 @@ export class GameScene extends Phaser.Scene {
         sh.lineStyle(2, 0x78e4e8, 0.35).lineBetween(80, 321, 1200, 321);
         this.tweens.add({ targets: sh, alpha: { from: 0.85, to: 1 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
       }
-      if (this.art && this.fgImgs.door_panel) this.roomVis.doorPanel = this.fgImgs.door_panel;
-      else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
+      if (this.art && this.fgImgs.door_panel) {
+        this.roomVis.doorPanel = this.fgImgs.door_panel;
+        const shadow = this.add.graphics().setDepth(428);
+        shadow.fillStyle(0x020406, 0.42);
+        shadow.fillRoundedRect(612, 448, 60, 14, 6);
+        shadow.fillStyle(0x020406, 0.2);
+        shadow.fillRoundedRect(618, 454, 48, 10, 5);
+        this.objs.push(shadow); this.roomVis.doorShadow = shadow;
+        const spill = this.add.graphics().setDepth(-930);
+        try { spill.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+        spill.fillStyle(0x78e4e8, 0.10);
+        spill.fillRect(616, 318, 52, 132);
+        spill.fillStyle(0x78e4e8, 0.08);
+        spill.fillRoundedRect(608, 440, 68, 22, 6);
+        this.objs.push(spill); this.roomVis.doorSpill = spill;
+      } else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
       // steal path: no word-swap / caption prompts (lure shows E / F)
       if (!s.seen.includes('sc3')) {
         s.seen.push('sc3'); writeSave(s);
@@ -1050,6 +1064,8 @@ export class GameScene extends Phaser.Scene {
       const door = this.roomVis.door as Phaser.GameObjects.Rectangle;
       const panel = this.roomVis.doorPanel as Phaser.GameObjects.Image;
       if (panel) { this.tweens.killTweensOf(panel); if (initial) panel.setAlpha(f.door ? 0 : 1); else { this.tweens.add({ targets: panel, alpha: f.door ? 0 : 1, scaleY: f.door ? 0.96 : 1, duration: 380, ease: 'Quad.easeIn' }); } }
+      const doorFx = [this.roomVis.doorShadow, this.roomVis.doorSpill].filter(Boolean);
+      for (const fx of doorFx) { this.tweens.killTweensOf(fx); if (initial) (fx as Phaser.GameObjects.Graphics).setAlpha(f.door ? 0 : 1); else this.tweens.add({ targets: fx, alpha: f.door ? 0 : 1, duration: 380 }); }
       // art-v8: the coral door light and its floor reflection belong to the SHUT plate; OPEN crossfades to a plate rendered without them
       if (this.bg.shut && this.bg.open) { const want = f.door ? 'open' : 'shut'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 420 }); im.setDepth(k === want ? -999.5 : -1000); } }
       if (door) { if (initial) door.setAlpha(f.door ? 0.1 : 0.8).setFillStyle(f.door ? hex(C.cyan) : hex(C.coral), 0.8); else this.tweens.add({ targets: door, alpha: f.door ? 0.1 : 0.8, duration: 400 }); door.setFillStyle(f.door ? hex(C.cyan) : hex(C.coral)); }
@@ -1243,6 +1259,53 @@ export class GameScene extends Phaser.Scene {
       try { n.play(`noor_idle_${this.dir}`, true); } catch { /* */ }
     }
   }
+  /** Wrap text so a short last word does not sit alone on its own line. */
+  balanceCardText(text: string, font: string, size: number, width: number) {
+    const probe = this.add.text(-2000, -2000, '', { fontFamily: font, fontSize: `${size}px` }).setVisible(false);
+    const measure = (s: string) => { probe.setText(s); return probe.width; };
+    const wrap = (w: number, src: string) => {
+      const parts = src.split(/(\s+)/);
+      const lines: string[] = [];
+      let row = '';
+      for (const part of parts) {
+        if (!part) continue;
+        const trial = row + part;
+        if (row.trim() && measure(trial) > w && part.trim()) {
+          lines.push(row.replace(/\s+$/, ''));
+          row = part.replace(/^\s+/, '');
+        } else row = trial;
+      }
+      if (row) lines.push(row.replace(/\s+$/, ''));
+      return lines;
+    };
+    const lastN = (ls: string[]) => (ls[ls.length - 1] || '').trim().split(/\s+/).filter(Boolean).length;
+    const lastShort = (ls: string[]) => {
+      const wds = (ls[ls.length - 1] || '').trim().split(/\s+/).filter(Boolean);
+      return wds.length === 1 && wds[0].replace(/[^\w]/g, '').length <= 14;
+    };
+    const out: string[] = [];
+    for (const para of text.split('\n')) {
+      if (!para) { out.push(''); continue; }
+      let lines = wrap(width, para);
+      if (lines.length >= 2 && lastShort(lines)) {
+        for (let dw = 6; dw <= 140; dw += 6) {
+          const t2 = wrap(width - dw, para);
+          if (t2.length >= 2 && lastN(t2) >= 2) { lines = t2; break; }
+        }
+        if (lastShort(lines)) {
+          const prev = (lines[lines.length - 2] || '').trim().split(/\s+/);
+          if (prev.length >= 2) {
+            const moved = prev.pop() as string;
+            lines[lines.length - 2] = prev.join(' ');
+            lines[lines.length - 1] = `${moved} ${lines[lines.length - 1]}`;
+          }
+        }
+      }
+      out.push(lines.join('\n'));
+    }
+    probe.destroy();
+    return out.join('\n');
+  }
   setDeskFernVisible(on: boolean) {
     if (this.hubFern) this.hubFern.setVisible(on).setAlpha(on ? 1 : 0);
     if (this.hubFernGlow) this.hubFernGlow.setVisible(on).setAlpha(on ? 0.28 : 0);
@@ -1268,7 +1331,7 @@ export class GameScene extends Phaser.Scene {
     this.letterRead = true;
     if (!this.save.tutorials.includes('letter')) { this.save.tutorials.push('letter'); writeSave(this.save); }
     const text = 'CLAIM #4471\nSTATUS:  DENIED\n\nI UNDERSTAND. I\u2019LL HANDLE IT.\n\nCLAIM DENIED.\n\nLEAVE IT TO ME, NOOR.\n\n\u2014 Claims Desk';
-    const body = this.add.text(0, 4, text, {
+    const body = this.add.text(0, 4, this.balanceCardText(text, 'IBM Plex Mono', 16, 420), {
       fontFamily: 'IBM Plex Mono', fontSize: '16px', color: '#2c261c',
       align: 'left', lineSpacing: 5,
     }).setOrigin(0.5, 0.5);
@@ -1315,9 +1378,10 @@ export class GameScene extends Phaser.Scene {
   showLineToast(text: string, n: number) {
     this.dismissLineToast(true);
     const hold = Math.max(4000, text.length * 60);
-    const quote = this.add.text(0, 0, `“${text}”`, {
+    const balanced = this.balanceCardText(`“${text}”`, 'IBM Plex Mono', 18, 460);
+    const quote = this.add.text(0, 0, balanced, {
       fontFamily: 'IBM Plex Mono', fontSize: '18px', color: '#2c261c',
-      align: 'center', wordWrap: { width: 460 }, lineSpacing: 6,
+      align: 'center', lineSpacing: 6,
     }).setOrigin(0.5);
     const qh = Math.min(220, quote.height);
     const W = 500, H = Math.max(132, qh + 62);
@@ -2061,7 +2125,7 @@ export class GameScene extends Phaser.Scene {
       glassRain: this.glassRain ? { on: true, drops: this.glassRain.drops.length, paused: this.glassRain.paused, flash: this.glassRain.flash } : null,
 
       looks: this.plates.filter(p => p.def.kind === 'look' || p.def.toy).map(p => p.def.id), lineIds: this.plates.filter(p => p.def.kind === 'line').map(p => ({ id: p.def.id, visible: p.visible })), linesHud: this.hud?.linesHud?.visible ? this.hud.linesHud.text : '',
-      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY } : null,
+      ghostTex: this.words.ghost?.texture.key ?? null, idleT: this.idleT, copyWarm: this.copyWarm, copySeen: this.copySeen, idleSaid: this.idleSaid, fernCount: this.worldFernCount(), dialogueBox: this.dialogue?.boxBounds?.() ?? null, refl: this.refl ? { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY } : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,
@@ -2093,6 +2157,7 @@ export class GameScene extends Phaser.Scene {
 
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
+      glowWords: (line: string) => this.dialogue?.glowWords(line) ?? [],
       clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },
       noorAnim: () => ({ key: this.noor.anims.currentAnim?.key ?? '', frame: this.noor.frame.name, sy: this.noor.scaleY }),
       reduceMotion: (on: boolean) => this.setReduceMotion(on),
