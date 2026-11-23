@@ -77,6 +77,7 @@ export class Dialogue {
   timers: Phaser.Time.TimerEvent[] = [];
   private typed = '';
   private full = '';
+  private jobMs = 2200;
   private who: SayWho = 'floor';
   private angry = false;
   private question = false;
@@ -128,9 +129,15 @@ export class Dialogue {
       this.typed = this.full;
       this.refreshBits(true);
       this.showArrow();
+      this.wait(this.jobMs);
       return;
     }
     if (this.waiting) this.finishJob();
+  }
+
+  /** Typed/full snapshot for playtest and the E-advance path. */
+  progress() {
+    return { busy: this.busy, waiting: this.waiting, typed: this.typed, full: this.full, who: this.who, queue: this.queue.length };
   }
 
   update(_dt: number) {
@@ -202,6 +209,7 @@ export class Dialogue {
     this.who = job.who;
     this.full = job.line;
     this.typed = '';
+    this.jobMs = job.ms;
     this.question = /\?\s*$/.test(job.line);
     this.angry = /!/.test(job.line) || (job.line.length > 6 && job.line.replace(/[^A-Z]/g, '').length / job.line.replace(/[^A-Za-z]/g, '').length > 0.7);
     try { this.s.hud.sub.setVisible(false); this.s.hud.fern.setVisible(false); } catch { /* */ }
@@ -804,6 +812,7 @@ export class Dialogue {
   private showArrow() { if (this.arrow) this.arrow.setVisible(true); }
 
   private wait(ms: number) {
+    if (this.waiting) return;
     this.waiting = true;
     this.at(Math.max(700, ms), () => { if (this.waiting) this.finishJob(); });
   }

@@ -343,6 +343,12 @@ export class IntroCutscene {
     return !!m && m.active && !!m.visible && (m.alpha ?? 0) > 0.12;
   }
 
+  /** Test hook: hold the claim-mail tab so E can dismiss it. */
+  forceHold() {
+    this.beginMailHold();
+    return this.mailOpen();
+  }
+
   handleInput(f: { pause: boolean; skipHeld: boolean; interact?: boolean; attack?: boolean }, dt: number): boolean {
     if (!this.playing) return false;
     if (f.pause) { this.skip(); return true; }
@@ -350,6 +356,9 @@ export class IntroCutscene {
       this.mailHoldT -= dt;
       if (this.mailHint) this.mailHint.setAlpha(0.4 + 0.5 * Math.sin(this.s.t * 4.2));
       if (f.interact || f.attack || this.mailHoldT <= 0) this.releaseMail();
+    } else if (this.s.dialogue?.busy && (f.interact || f.attack)) {
+      // E also advances Fern / Noor lines that play during the intro.
+      this.s.dialogue.advance();
     }
     if (f.skipHeld) {
       this.s.skipHold += dt;

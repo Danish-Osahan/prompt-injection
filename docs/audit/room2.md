@@ -1,5 +1,15 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-23 — Hint pin, chasm, E, caret note
+
+Played after the `6b33b7a` follow-up (Playwright, stills under `/workspace/l2e-*.png`).
+
+- **Stray south-floor icon.** Identified as Fern's stuck-hint `hintObj` (green ellipse, pink vein, down-triangle) over `h_lamp`, not a pickup/spawn. Removed the floating pin; the hint now pulses the plate and a soft floor pool. Fern's "Psst. That one." line stays.
+- **Dash gap.** Redesigned as two detached platforms with a real dark chasm, lip faces, hazard edges, cables, faint lights, drifting paper, and short broken bridge stubs. Collision still matches the pit. First arrival: camera pan + a paper sheet falling into the well, then the dash hint. SHUT door and glass-copy beats kept.
+- **E advances dialogue.** First press completes the typewriter line; second press advances or closes. Works in cutscenes, Fern boxes, and the intro claim-mail tab. The press does not also trigger an interact underneath. Tests added.
+- **Caret (behavior unchanged this pass).** The I-beam is `caret_idle`, hidden until the hub door goes SHUT→OPEN. Fern introduces it as a cursor that "learned from every line I didn't send," then "When you type, it aims. Keep it close in the dark." Mechanically it fades in at Noor's left shoulder, follows her (`x-46, y-56`, depth `y+1`), and in the dark corridor adds a radius-90 light pool around itself (in addition to Noor's pool). The TYPE / typed-beam auto-aim does not actually move or aim the caret sprite — that line is flavor until a later pass. How Noor got it, and how it relates to Fern, still does not fully land; leave it for a dedicated story beat.
+
+
 Played end-to-end on `546ab96` (Playwright, `?test=1&new=1`, 1280×720). Room 2 is the hub after the office lift. The owner's still matches the stand-still beat: Noor in the north, a cyan I-shaped caret, a cyan figure at a desk, and a bottom box with an empty name and empty portrait saying "Stand still long enough and the room starts copying you. It's flattering. It isn't."
 
 ## Story / setup

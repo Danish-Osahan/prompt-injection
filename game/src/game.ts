@@ -101,7 +101,10 @@ export class GameScene extends Phaser.Scene {
   hazards: Rect[] = [];
   busy = false; composer: { words: string[]; i: number; ui: Phaser.GameObjects.Container } | null = null;
   dying = false; deathAt = 0; lastRespawnMs = -1; undoShown = 0;
-  stuck = 0; hintOn = false; hintObj: Phaser.GameObjects.Container | null = null; hintUsed = false;
+  stuck = 0; hintOn = false; hintObj: Phaser.GameObjects.Container | null = null; hintUsed = false; hintPulseT = 0;
+  gapPan: 'pending' | 'playing' | 'done' | null = null;
+  private gapPanProxy: { y: number } | null = null;
+  private gapPanToken = 0;
   prompts: Prompt[] = [];
   paused = false; pauseUi: Phaser.GameObjects.Container | null = null;
   debugOn = false; debugText!: Phaser.GameObjects.Text;
@@ -276,6 +279,224 @@ export class GameScene extends Phaser.Scene {
     this.edgePad = this.add.rectangle(640, 360, 2400, 1600, 0x0a1018, 1).setDepth(-10000);
     this.edgePad2 = this.add.rectangle(640, 780, 2400, 400, 0x060a10, 1).setDepth(-9999); // floor extension
     this.objs.push(this.edgePad, this.edgePad2);
+  }
+
+  /** Code-drawn chasm between the north and south hub floors. Collision matches the pit (y 254–318). */
+  drawHubChasm() {
+    const X0 = 80, X1 = 1200, W = 1120, NY = 250, SY = 322, pitTop = 256, pitBot = 318;
+    const pit = this.add.graphics().setDepth(-960); pit.name = 'hub-chasm'; this.objs.push(pit);
+    pit.fillStyle(0x05070b, 1).fillRect(X0, pitTop - 2, W, pitBot - pitTop + 4);
+    for (let i = 0; i < 18; i++) {
+      const t = i / 17;
+      const y = pitTop + (pitBot - pitTop) * t;
+      const h = (pitBot - pitTop) / 18 + 1;
+      const d = Math.max(0, 1 - Math.abs(t - 0.55) * 1.55);
+      const r = Math.round(1 + (1 - d) * 10), g = Math.round(2 + (1 - d) * 12), b = Math.round(5 + (1 - d) * 16);
+      pit.fillStyle((r << 16) | (g << 8) | b, 1).fillRect(X0, y, W, h);
+    }
+    // side walls fall away, and a deeper mid well so the painted rail cannot read as floor
+    for (let i = 0; i < 10; i++) {
+      pit.fillStyle(0x000000, 0.08 + i * 0.03);
+      pit.fillRect(X0, pitTop + i, W, pitBot - pitTop - i * 2);
+    }
+    pit.fillStyle(0x000000, 0.55).fillRect(X0, pitTop + 12, W, pitBot - pitTop - 24);
+    // faint receding lights in the well
+    const lights: [number, number, number, number, number][] = [
+      [150, 276, 3.2, 0x78e4e8, 0.28], [230, 294, 2.0, 0xf6c684, 0.16],
+      [340, 286, 2.4, 0x78e4e8, 0.2], [420, 304, 1.6, 0x8ad4c8, 0.14],
+      [780, 280, 2.6, 0x78e4e8, 0.22], [880, 298, 1.8, 0xf6c684, 0.15],
+      [990, 284, 2.2, 0x78e4e8, 0.18], [1110, 300, 1.5, 0x8ad4c8, 0.12],
+      [200, 308, 1.2, 0x78e4e8, 0.1], [860, 310, 1.1, 0xf6c684, 0.08],
+    ];
+    for (const [x, y, r, c, a] of lights) {
+      pit.fillStyle(c, a * 0.35).fillCircle(x, y, r * 2.4);
+      pit.fillStyle(c, a).fillCircle(x, y, r);
+    }
+    // hanging cables
+    const cables = [
+      { x: 132, drop: 50, bow: 14 }, { x: 268, drop: 58, bow: -12 },
+      { x: 404, drop: 42, bow: 10 }, { x: 812, drop: 54, bow: 16 },
+      { x: 948, drop: 46, bow: -14 }, { x: 1096, drop: 38, bow: 8 },
+    ];
+    for (const c of cables) {
+      const x1 = c.x + c.bow, y1 = NY + c.drop * 0.55, x2 = c.x + c.bow * 0.35, y2 = NY + c.drop;
+      pit.lineStyle(2.2, 0x161c24, 0.95);
+      pit.beginPath(); pit.moveTo(c.x, NY + 3); pit.lineTo(x1, y1); pit.lineTo(x2, y2); pit.strokePath();
+      pit.lineStyle(1, 0x78e4e8, 0.1);
+      pit.beginPath(); pit.moveTo(c.x + 1, NY + 3); pit.lineTo(x1 + 1, y1); pit.lineTo(x2 + 1, y2); pit.strokePath();
+    }
+
+    const lips = this.add.graphics().setDepth(-936); lips.name = 'hub-chasm-lips'; this.objs.push(lips);
+    // north lip + downward face
+    lips.fillStyle(0x2a323c, 1).fillRect(X0, NY - 5, W, 9);
+    lips.fillStyle(0x4a5560, 0.9).fillRect(X0, NY - 5, W, 2);
+    lips.fillStyle(0x12161c, 1).fillRect(X0, NY + 4, W, 11);
+    lips.fillStyle(0x080a0e, 0.85).fillRect(X0, NY + 13, W, 6);
+    for (let x = X0 + 2; x < X1; x += 16) {
+      lips.fillStyle(((Math.floor((x - X0) / 16) % 2) === 0) ? 0xc9a227 : 0x1c1c18, 0.92);
+      lips.fillRect(x, NY - 2, 14, 3.2);
+    }
+    // south lip + upward face (slab thickness)
+    lips.fillStyle(0x080a0e, 0.85).fillRect(X0, SY - 20, W, 6);
+    lips.fillStyle(0x12161c, 1).fillRect(X0, SY - 14, W, 10);
+    lips.fillStyle(0x2a323c, 1).fillRect(X0, SY - 4, W, 8);
+    lips.fillStyle(0x4a5560, 0.9).fillRect(X0, SY - 4, W, 2);
+    for (let x = X0 + 6; x < X1; x += 16) {
+      lips.fillStyle(((Math.floor((x - X0) / 16) % 2) === 0) ? 0xc9a227 : 0x1c1c18, 0.92);
+      lips.fillRect(x, SY - 2, 14, 3.2);
+    }
+    this.drawBridgeStub(lips, 'south', 508, SY, 62, 28);
+    this.drawBridgeStub(lips, 'north', 746, NY, 54, 20);
+    this.startPitPapers();
+  }
+
+  private drawBridgeStub(g: Phaser.GameObjects.Graphics, side: 'north' | 'south', x: number, lipY: number, w: number, len: number) {
+    const dir = side === 'south' ? -1 : 1;
+    const y1 = lipY + dir * len;
+    const jag = side === 'south' ? 8 : 6;
+    g.fillStyle(0x3a424c, 1);
+    g.fillTriangle(x, lipY, x + w, lipY, x + w * 0.18, y1);
+    g.fillTriangle(x + w, lipY, x + w * 0.82, y1 + dir * jag, x + w * 0.18, y1);
+    g.fillStyle(0x1a1e24, 0.95);
+    g.fillTriangle(x + 4, lipY + dir * 3, x + w - 4, lipY + dir * 3, x + w * 0.22, y1);
+    // cracked edge
+    g.lineStyle(1.4, 0x12151a, 0.95);
+    g.beginPath(); g.moveTo(x + w * 0.18, y1); g.lineTo(x + w * 0.4, y1 + dir * 5); g.lineTo(x + w * 0.62, y1 - dir * 2); g.lineTo(x + w * 0.82, y1 + dir * jag); g.strokePath();
+    // rebar stubs hanging off the break
+    g.lineStyle(2, 0x6a737c, 0.9);
+    g.lineBetween(x + w * 0.32, y1, x + w * 0.28, y1 + dir * 11);
+    g.lineBetween(x + w * 0.58, y1 + dir * 2, x + w * 0.62, y1 + dir * 13);
+    g.lineStyle(1, 0xc08060, 0.45);
+    g.lineBetween(x + w * 0.32, y1, x + w * 0.28, y1 + dir * 11);
+  }
+
+  private startPitPapers() {
+    const spots = [{ x: 210, y: 268 }, { x: 390, y: 286 }, { x: 860, y: 274 }];
+    for (let i = 0; i < spots.length; i++) {
+      const s = spots[i];
+      const paper = this.add.graphics().setDepth(-950).setPosition(s.x, s.y);
+      paper.name = 'hub-pit-paper';
+      const draw = (a: number) => {
+        paper.clear();
+        paper.fillStyle(0xe8dcc4, a);
+        paper.fillRoundedRect(-7, -5, 14, 10, 1);
+        paper.lineStyle(1, 0xc4b496, a * 0.8);
+        paper.strokeRoundedRect(-7, -5, 14, 10, 1);
+        paper.lineStyle(1, 0x8a7a62, a * 0.35);
+        paper.lineBetween(-4, -2, 4, -2);
+        paper.lineBetween(-3, 1, 3, 1);
+      };
+      draw(0.55);
+      this.objs.push(paper);
+      const delay = i * 400;
+      const loop = () => {
+        if (!paper.active) return;
+        paper.setPosition(s.x, s.y).setScale(1).setAlpha(1).setRotation(0);
+        draw(0.6);
+        this.tweens.add({
+          targets: paper,
+          x: s.x + (i % 2 === 0 ? 28 : -24),
+          y: 312,
+          scale: 0.45,
+          rotation: (i % 2 === 0 ? 0.9 : -0.8),
+          alpha: 0.05,
+          duration: 3200 + i * 400,
+          delay,
+          ease: 'Sine.in',
+          onComplete: () => { if (paper.active) { paper.setAlpha(0); this.time.delayedCall(200, loop); } },
+        });
+      };
+      this.time.delayedCall(200 + i * 500, loop);
+    }
+  }
+
+  maybeGapReveal() {
+    if (this.room?.id !== 'hub') return;
+    if (this.gapPan !== 'pending') return;
+    if (this.busy || this.dying || this.transitioning || this.dialogue?.busy || this.lineToast) return;
+    this.playGapReveal();
+  }
+
+  /** First-arrival look into the chasm, then a sheet of paper falls in, then the camera returns. */
+  playGapReveal(force = false) {
+    if (this.room?.id !== 'hub') return;
+    if (!force && this.gapPan === 'playing') return;
+    if (!force && this.gapPan === 'done' && this.save.seen.includes('gap_pan')) return;
+    this.skipGapReveal(false);
+    const token = ++this.gapPanToken;
+    this.gapPan = 'playing';
+    this.busy = true;
+    const cam = this.cameras.main;
+    const reduce = !!this.save.settings?.reduceMotion;
+    this.spawnFallingPaper();
+    if (reduce) {
+      this.time.delayedCall(900, () => { if (this.gapPanToken === token) this.endGapReveal(); });
+      return;
+    }
+    // The static plate camera is bound to 1280×720 at zoom 1, so it cannot scroll.
+    // Punch in and slide the view onto the chasm, then ease back to the full plate.
+    const proxy = { y: cam.midPoint.y || 360, z: cam.zoom || 1 };
+    this.gapPanProxy = proxy;
+    const look = () => {
+      try { cam.setZoom(proxy.z); cam.centerOn(640, proxy.y); } catch { /* */ }
+    };
+    this.tweens.add({
+      targets: proxy, y: 286, z: 1.34, duration: 1100, ease: 'Sine.easeInOut',
+      onUpdate: () => { if (this.gapPanToken === token) look(); },
+      onComplete: () => {
+        if (this.gapPanToken !== token) return;
+        this.time.delayedCall(800, () => {
+          if (this.gapPanToken !== token) return;
+          this.tweens.add({
+            targets: proxy, y: 360, z: 1, duration: 900, ease: 'Sine.easeInOut',
+            onUpdate: () => { if (this.gapPanToken === token) look(); },
+            onComplete: () => { if (this.gapPanToken === token) this.endGapReveal(); },
+          });
+        });
+      },
+    });
+  }
+
+  skipGapReveal(restoreCam = true) {
+    this.gapPanToken += 1;
+    if (this.gapPanProxy) { try { this.tweens.killTweensOf(this.gapPanProxy); } catch { /* */ } this.gapPanProxy = null; }
+    if (this.gapPan === 'playing' || this.gapPan === 'pending') this.endGapReveal(restoreCam);
+  }
+
+  private endGapReveal(restoreCam = true) {
+    if (this.gapPanProxy) { try { this.tweens.killTweensOf(this.gapPanProxy); } catch { /* */ } this.gapPanProxy = null; }
+    if (restoreCam) { try { this.cameras.main.setZoom(1); this.cameras.main.centerOn(640, 360); } catch { /* */ } }
+    this.gapPan = 'done';
+    if (this.room?.id === 'hub') this.busy = false;
+    if (!this.save.seen.includes('gap_pan')) {
+      this.save.seen.push('gap_pan');
+      try { writeSave(this.save); } catch { /* */ }
+    }
+  }
+
+  private spawnFallingPaper() {
+    const paper = this.add.graphics().setDepth(-945).setPosition(700, 318);
+    paper.name = 'hub-fall-paper';
+    paper.fillStyle(0xf3ead4, 0.95);
+    paper.fillRoundedRect(-9, -6, 18, 13, 1);
+    paper.lineStyle(1, 0xc4b496, 0.9);
+    paper.strokeRoundedRect(-9, -6, 18, 13, 1);
+    paper.lineStyle(1, 0x8a7a62, 0.4);
+    paper.lineBetween(-5, -2, 5, -2);
+    paper.lineBetween(-4, 1, 4, 1);
+    paper.lineBetween(-3, 4, 2, 4);
+    this.objs.push(paper);
+    this.tweens.add({
+      targets: paper,
+      x: 640,
+      y: 308,
+      scale: 0.35,
+      rotation: 1.15,
+      alpha: 0,
+      duration: 1400,
+      ease: 'Sine.in',
+      onComplete: () => { try { paper.destroy(); } catch { /* */ } },
+    });
   }
 
   setupCameras() {
@@ -582,19 +803,10 @@ export class GameScene extends Phaser.Scene {
       this.hubFern = fern;
       const glow = this.add.image(1005, 548, 'pool').setTint(hex(C.fern)).setAlpha(0.28).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800).setScale(0.7); this.objs.push(glow);
       this.hubFernGlow = glow;
-      // the gap: floor is gone between the door wall and the exit
-      const gap = this.add.graphics().setDepth(-950).setVisible(!this.art); this.objs.push(gap);
-      gap.fillStyle(0x010204, 1).fillRect(80, 250, 1120, 72);
-      for (let i = 0; i < 18; i++) gap.lineStyle(1, 0x78e4e8, 0.06 + i * 0.004).lineBetween(80 + i * 64, 250, 80 + i * 64 + 20, 322);
-      gap.lineStyle(2, 0x78e4e8, 0.4).lineBetween(80, 250, 1200, 250).lineBetween(80, 322, 1200, 322);
+      // Two detached platforms with a real chasm between them (collision matches the pit).
+      this.drawHubChasm();
       this.hazards.push({ x: 80, y: 254, w: 1120, h: 64 });
-      if (this.art) {   // art-v9 fix: light falls up the shaft so the gap reads as depth, not a black band
-        const sh = this.add.graphics().setDepth(-940).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(sh);
-        for (let i = 0; i < 12; i++) { const t = i / 11; sh.fillStyle(0x2a6f7a, 0.05 + 0.09 * t).fillRect(80, 250 + 6 * i, 1120, 72 - 6 * i); }
-        for (let i = 0; i < 9; i++) sh.fillStyle(0x78e4e8, 0.07).fillRect(140 + i * 120, 252, 34, 68);
-        sh.lineStyle(2, 0x78e4e8, 0.35).lineBetween(80, 321, 1200, 321);
-        this.tweens.add({ targets: sh, alpha: { from: 0.85, to: 1 }, duration: 2200, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
-      }
+      this.gapPan = s.seen.includes('gap_pan') ? 'done' : 'pending';
       if (this.art && this.fgImgs.door_panel) {
         this.roomVis.doorPanel = this.fgImgs.door_panel;
         // Depth at the gap so a south-floor Noor (y typically 480–630) draws in front of the door.
@@ -727,7 +939,7 @@ export class GameScene extends Phaser.Scene {
       () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash || (this.room?.id === 'hub' && this.y < 240),
-      () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 400 && this.y > 230));
+      () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 400 && this.y > 230 && this.gapPan === 'done'));
     this.addPrompt('letter', 0, 0, 'E  read', 'TAP  read',
       () => this.letterRead,
       () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
@@ -1593,26 +1805,40 @@ export class GameScene extends Phaser.Scene {
     if (this.room.id === 'archive' && !f.bridge) return h ? 'a_bridge' : 'a_stairs';
     return null;
   }
+  clearHint(resetOn = true) {
+    if (this.hintObj) { try { this.tweens.killTweensOf(this.hintObj.list ?? []); } catch { /* */ } try { this.hintObj.destroy(); } catch { /* */ } this.hintObj = null; }
+    if (resetOn) this.hintOn = false;
+  }
   updateHint(dt: number) {
-    if (this.impactLab?.on) { if (this.hintObj) { this.hintObj.destroy(); this.hintObj = null; } this.hintOn = false; return; }
+    if (this.impactLab?.on) { this.clearHint(); return; }
     const target = this.hintTarget();
-    if (!target || this.busy) { if (this.hintObj) { this.hintObj.destroy(); this.hintObj = null; } this.hintOn = false; return; }
+    if (!target || this.busy) { this.clearHint(); return; }
     this.stuck += dt;
     const st = fernStage(this.save.fernGrowth);
     if (this.stuck >= st.hintS) {
-      const p = this.plateById(target)!;
+      const p = this.plateById(target);
+      if (!p) return;
       if (!this.hintObj || this.hintObj.name !== target) {
-        this.hintObj?.destroy();
-        const c = this.add.container(p.def.sx, p.def.sy - 52).setDepth(3600); c.name = target;
-        const leaf = this.add.graphics(); leaf.fillStyle(0x7ad08a, 1).fillEllipse(0, 0, 18, 34); leaf.lineStyle(2, hex(C.fern), 1).lineBetween(0, -14, 0, 18).strokeTriangle(-8, 22, 8, 22, 0, 34);
-        c.add(leaf);
-        if (st.name === 'Bloom') c.add(this.add.text(16, -8, p.slotWord ?? '', { fontFamily: 'JetBrains Mono', fontSize: '14px', fontStyle: 'bold', color: C.fern }));
+        this.clearHint(false);
+        p.pulse(C.fern);
+        // Floor pool under the plate — no floating pin.
+        const c = this.add.container(p.def.sx, p.def.sy + 8).setDepth(p.def.sy - 6);
+        c.name = target;
+        const glow = this.add.image(0, 0, 'pool').setTint(hex(C.fern)).setAlpha(0.26).setScale(0.52);
+        try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
+        c.add(glow);
+        this.tweens.add({ targets: glow, alpha: { from: 0.14, to: 0.4 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+        if (st.name === 'Bloom' && p.slotWord) {
+          c.add(this.add.text(0, 16, p.slotWord, { fontFamily: 'JetBrains Mono', fontSize: '12px', fontStyle: 'bold', color: C.fern }).setOrigin(0.5, 0).setAlpha(0.88));
+        }
         this.hintObj = c; this.objs.push(c);
+        this.hintPulseT = 0;
         if (!this.hintOn) this.say('fern', st.name === 'Bloom' ? `Try ${p.slotWord}.` : 'Psst. That one.', 1800);
       }
-      this.hintObj.setY(p.def.sy - 52 + Math.sin(this.t * 4) * 6);
+      this.hintPulseT += dt;
+      if (this.hintPulseT > 2.4) { this.hintPulseT = 0; p.pulse(C.fern); }
       this.hintOn = true; this.hintUsed = true;
-    } else if (this.hintObj) { this.hintObj.destroy(); this.hintObj = null; this.hintOn = false; }
+    } else if (this.hintOn || this.hintObj) this.clearHint();
   }
 
   // ---------- office composer + SC2 ----------
@@ -1824,6 +2050,7 @@ export class GameScene extends Phaser.Scene {
     }
     this.t += dt;
     this.dialogue?.update(dt);
+    this.maybeGapReveal();
     this.glassRain?.update(dt);
     this.dashCd = Math.max(0, this.dashCd - dt); this.iframes = Math.max(0, this.iframes - dt); this.comboT -= dt; this.swingT -= dt; this.sinceDash += dt;
 
@@ -1847,6 +2074,12 @@ export class GameScene extends Phaser.Scene {
     this.selectCd -= dt;
     if (this.composer && (f.attack || f.interact)) this.typeKey();
     if (this.clar?.modal && f.interact && !this.stealOn()) { this.clar.interact(); f.interact = false; }
+    // E / READ advances dialogue (and closes a letter card) even during cutscenes.
+    // Consume the press so it cannot also inspect, steal, or take a word underneath.
+    if (f.interact && !this.composer && !this.clar?.modal) {
+      if (this.dialogue?.busy) { this.dialogue.advance(); f.interact = false; }
+      else if (this.lineToast) { this.dismissLineToast(); f.interact = false; }
+    }
     const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
     if (control && f.dash && this.dashCd <= 0 && this.dashT <= 0) {
@@ -2156,6 +2389,9 @@ export class GameScene extends Phaser.Scene {
   getTestState() {
     return {
       screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp, talking: !!this.dialogue?.busy,
+      dialogueProg: this.dialogue ? this.dialogue.progress() : null,
+      gapPan: this.gapPan, camMid: { x: this.cameras.main.midPoint.x, y: this.cameras.main.midPoint.y, scrollY: this.cameras.main.scrollY, zoom: this.cameras.main.zoom },
+      introMail: !!this.intro?.mailOpen?.(),
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
@@ -2203,6 +2439,10 @@ export class GameScene extends Phaser.Scene {
       readAll: () => { this.inspectOff = true; setTimeout(() => { this.inspectOff = false; }, 0); for (const p of this.plates) if (p.visible && (p.def.kind === 'look' || p.def.kind === 'lore' || p.def.toy) && !(p.def.id === 'o_monitor')) { this.read(p); if (this.hand) { this.plateById(this.hand.from)?.setOpts({ selected: false }); this.hand = null; } } return this.save.tutorials.includes('all:' + this.room.id); },
       idle: (s: number) => { this.idleT = s; },
       glowWords: (line: string) => this.dialogue?.glowWords(line) ?? [],
+      advanceDialogue: () => { this.dialogue?.advance(); return this.dialogue?.progress() ?? null; },
+      skipGapPan: () => { this.skipGapReveal(); return this.gapPan; },
+      playGapPan: () => { this.playGapReveal(true); return this.gapPan; },
+      forceMailHold: () => this.intro?.forceHold?.() ?? false,
       clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },
       noorAnim: () => ({ key: this.noor.anims.currentAnim?.key ?? '', frame: this.noor.frame.name, sy: this.noor.scaleY }),
       reduceMotion: (on: boolean) => this.setReduceMotion(on),

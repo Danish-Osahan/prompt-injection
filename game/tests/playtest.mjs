@@ -179,10 +179,23 @@ async function linger(browser) {
     if (r === 'office') ok('caption office (clarity): no screenplay caption rows; lore lives in cards', rows.length === 0, JSON.stringify(rows)); else ok(`caption wrap ${r}: longest line (${longest.t.length} chars) fits in <= 2 lines`, rows.length >= 1 && rows.length <= 2 && rows.every(q => q.x0 >= 16 && q.x1 <= 1264), JSON.stringify(rows) + ' ' + longest.t.slice(0, 40));
     await pi(page, 'capForce', null);
     if (r === 'corridor' || r === 'archive') { const sm = s.amb.filter(a => ['moth', 'drip', 'duck'].includes(a.name)); ok(`linger ${r}: small ambient loops are readable at game size (>= 20 px)`, sm.length > 0 && sm.every(a => Math.min(a.w, a.h) >= 20), sm.map(a => `${a.name} ${a.w}x${a.h}`).join(' ')); }
-    if (r === 'hub') {   // global fix: the dash gap is a lit shaft, not a hard black band
+    if (r === 'hub') {   // two detached platforms with a dark chasm between them
+      await pi(page, 'skipGapPan');
       await pi(page, 'teleport', 640, 560); await sleep(400); await shot(page, 'v9-hub-gap');
-      const lum = await meanLum(page, { x: 300, y: 228, width: 600, height: 40 });
-      ok('hub: the gap reads as a shaft, not a hard black band', lum > 14, `mean luminance ${lum.toFixed(1)}`);
+      const pit = await meanLum(page, { x: 180, y: 272, width: 260, height: 28 });
+      const northLip = await meanLum(page, { x: 180, y: 246, width: 260, height: 10 });
+      const southLip = await meanLum(page, { x: 180, y: 316, width: 260, height: 10 });
+      ok('hub: the gap is a dark chasm with brighter lip edges', pit < 50 && northLip > pit + 6 && southLip > pit + 8, `pit ${pit.toFixed(1)} north ${northLip.toFixed(1)} south ${southLip.toFixed(1)}`);
+      const stand = await page.evaluate(() => {
+        const s = window.__game.scene.getScene('game');
+        const inH = (x, y) => s.hazards.some(h => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h);
+        return {
+          northWalk: s.canStand(400, 236), northSafe: !inH(400, 236),
+          pitHazard: inH(400, 280),
+          southWalk: s.canStand(400, 340), southSafe: !inH(400, 340),
+        };
+      });
+      ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe, JSON.stringify(stand));
     }
   }
   await pi(page, 'goto', 'office'); await waitFor(page, s => s.room === 'office', 5000); await sleep(400);
@@ -225,6 +238,11 @@ async function desktop(browser) {
     s = await st(page);
     ok('intro: cutscene is playing and skippable', s.intro || s.cutscene === 'intro', `intro ${s.intro} cut ${s.cutscene}`);
     await stillL1(page, 'intro');
+    const mailOn = await pi(page, 'forceMailHold');
+    ok('intro: claim-mail tab can be held', !!mailOn, `mailOn ${mailOn}`);
+    await page.keyboard.down('e'); await sleep(80); await page.keyboard.up('e'); await sleep(120);
+    s = await st(page);
+    ok('intro: E dismisses the claim-mail tab', s.introMail === false, `introMail ${s.introMail}`);
     await pi(page, 'skipIntro');
     s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play', 8000);
   }
@@ -278,6 +296,8 @@ async function desktop(browser) {
   ok('office: approaching the printer prints the denial letter', !!(s.explore && s.explore.printer), `explore ${JSON.stringify(s.explore)}`);
 
   // OFFICE: pick up a lost line with real KeyE (works during the dead-lift beat)
+  // Clear any leftover look/printer line so E collects the scrap instead of advancing dialogue.
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   const nLines = s.save.lines.length;
   await pi(page, 'teleport', 1070, 610); await sleep(250);
   try { await page.mouse.click(640, 360); } catch { /* */ }
@@ -341,6 +361,7 @@ async function desktop(browser) {
     const s = window.__game.scene.getScene('game');
     try { s.dialogue?.clear(); } catch {}
     s.busy = false; s.cutscene = null;
+    try { s.skipGapReveal(true); } catch {}
     try { s.roomCard?.destroy(); s.roomCard = undefined; } catch {}
   });
   await sleep(450);
@@ -417,6 +438,45 @@ async function desktop(browser) {
     return { shut: !s.flags.door, inDoor: s.canStand(640, 420), inFront: s.canStand(640, 530) };
   });
   ok('hub: SHUT door blocks the threshold', doorBlock.shut && doorBlock.inDoor === false && doorBlock.inFront === true, JSON.stringify(doorBlock));
+
+  // E advances dialogue (complete, then close) and must not also inspect a nearby plate
+  await pi(page, 'skipGapPan');
+  const looked0 = await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false; s.cutscene = null;
+    s.x = 256; s.y = 556; s.dir = 'N';
+    try { s.noor?.setPosition(256, 556); } catch {}
+    s.say('fern', 'Hold this reasonably long typing line so the first E can finish it.', 8000, { box: true });
+    return s.save.looked.slice();
+  });
+  s = await waitFor(page, s => s.talking && s.dialogueProg && s.dialogueProg.typed.length < s.dialogueProg.full.length, 3000);
+  ok('dialogue: a Fern box is still typing before E', !!(s.dialogueProg) && s.dialogueProg.typed.length < s.dialogueProg.full.length, JSON.stringify(s.dialogueProg));
+  await page.keyboard.down('e'); await sleep(60); await page.keyboard.up('e'); await sleep(80);
+  s = await st(page);
+  ok('dialogue: first E completes the typing line', !!(s.dialogueProg) && s.dialogueProg.typed === s.dialogueProg.full && s.dialogueProg.busy && s.dialogueProg.waiting, JSON.stringify(s.dialogueProg));
+  ok('dialogue: first E does not also inspect a nearby lookable', JSON.stringify(s.save.looked) === JSON.stringify(looked0), `${JSON.stringify(looked0)} -> ${JSON.stringify(s.save.looked)}`);
+  await page.keyboard.down('e'); await sleep(60); await page.keyboard.up('e'); await sleep(180);
+  s = await st(page);
+  ok('dialogue: second E advances and closes the line', !s.talking && !(s.dialogueProg && s.dialogueProg.busy), JSON.stringify(s.dialogueProg));
+  ok('dialogue: second E does not also inspect a nearby lookable', JSON.stringify(s.save.looked) === JSON.stringify(looked0), `${JSON.stringify(looked0)} -> ${JSON.stringify(s.save.looked)}`);
+
+  // Same two-press rule while a cutscene has the scene locked (busy)
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = true;
+    s.say('noor', 'A cutscene line that should still skip when you press E.', 8000, { box: true });
+  });
+  s = await waitFor(page, s => s.talking, 3000);
+  await sleep(50);
+  await page.keyboard.down('e'); await sleep(60); await page.keyboard.up('e'); await sleep(80);
+  s = await st(page);
+  ok('dialogue: first E completes a cutscene line', !!(s.dialogueProg) && s.dialogueProg.typed === s.dialogueProg.full && s.dialogueProg.busy, JSON.stringify(s.dialogueProg));
+  await page.keyboard.down('e'); await sleep(60); await page.keyboard.up('e'); await sleep(180);
+  s = await st(page);
+  ok('dialogue: second E closes a cutscene line', !s.talking && !(s.dialogueProg && s.dialogueProg.busy), JSON.stringify(s.dialogueProg));
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); s.busy = false; try { s.dialogue?.clear(); } catch {} });
 
   // HUB: take OPEN from the lamp, throw at the door
   await sleep(400);
@@ -648,7 +708,7 @@ async function mobile(browser) {
   await pi(page, 'teleport', 232, 655); await sleep(100); await input.press('interact'); await sleep(200); s = await st(page);
   ok('mobile: READ button reads', s.save.lore.includes('o_coffee'));
   // hub drag-swap on touch
-  await pi(page, 'goto', 'hub'); await sleep(700);
+  await pi(page, 'goto', 'hub'); await sleep(200); await pi(page, 'skipGapPan'); await sleep(500);
   await pi(page, 'read', 'h_lamp'); await pi(page, 'teleport', 640, 560); await sleep(1300); s = await st(page);
   const shutChip = s.chips.find(c => c.id === 'h_door' && c.where === 'cap');
   ok('mobile: caption shows SHUT as a chip; touch buttons sit above the caption bar', !!shutChip && s.handChip.y < 626, JSON.stringify(s.chips));

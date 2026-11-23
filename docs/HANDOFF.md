@@ -1,5 +1,25 @@
 # HANDOFF
 
+## 2026-11-23 — Stray hint pin, real dash chasm, E advances dialogue
+
+Leftovers from `6b33b7a`: a green leaf-and-triangle icon appeared on the south floor by the left desk; the mid-room dash gap still read as one attached surface (painted rail plus an additive cyan shaft); pressing E did not skip or advance dialogue.
+
+1. **Stray icon.** It was Fern's stuck-hint marker (`hintObj` in `updateHint`), not a pickup or spawn. After `fernStage().hintS` (45s at Sprout, 30s later) with the door still SHUT and nothing in hand, it drew a green ellipse, a fern-pink vein, and a down-triangle over the `h_lamp` plate at (256, 556), bobbing above the lamp's floor glow. The pin is gone. The hint now pulses the target plate and a soft floor pool, and Fern still says "Psst. That one."
+
+2. **Dash gap as two platforms.** The additive teal shaft that sat on the painted rail was removed. A code-drawn chasm covers the mid band: a dark well, visible lip faces and hazard-tape edges on both floors, hanging cables, faint receding lights, looping pit paper, and short broken bridge stubs that are obviously not standable. Collision is unchanged (`80, 254, 1120×64`) and matches the pit; lips stay walkable. The SHUT door and the copy-in-glass beats are untouched. On first arrival, after the entry lines, a short camera pan looks into the gap and a paper sheet drifts down into it before the dash hint appears (once per save, `gap_pan`). Reduce-motion skips the camera move but still drops the paper.
+
+3. **E advances dialogue.** First E completes the typing line and waits; second E advances or closes. This works in cutscenes (even when `scene.busy`), Fern boxes, and the intro claim-mail tab (E still dismisses the mail; later intro lines also advance). The press is consumed so it cannot also inspect, steal, or take a word underneath. `wait()` is idempotent so early-complete cannot double-fire the next line.
+
+4. **Playtest.** 226/226 (216 previous plus claim-mail E, chasm lip/collision, and the two-press E tests — Fern box and cutscene, no inspect underneath). Dummy / DRY / Draft / explore / lost-line / beam / printer / steal / Fern-arrival / one-Fern / copy-seen / box-coverage / glow / door-block / in-pane contracts kept.
+
+Review stills (not in the repo):
+- gap from spawn: `/workspace/l2e-gap-spawn-2x.png` (full `/workspace/l2e-gap-spawn.png`)
+- gap during the first-arrival pan: `/workspace/l2e-gap-pan-2x.png` (full `/workspace/l2e-gap-pan.png`)
+- south desk area, no hint pin: `/workspace/l2e-desk-2x.png` (full `/workspace/l2e-desk.png`)
+
+Leftovers: the chasm is code-drawn over the painted rail, so the hazard tape and stubs are a bit more graphic than the furniture. The well is only as tall as the old mid band (~64px), so it reads as a trench more than a deep shaft. The first-arrival camera move is a short punch-in onto the gap (the 1280×720 plate camera cannot scroll at zoom 1). The stubs are short on purpose so they do not look walkable. The I-beam caret's behavior was left alone this pass — see the room 2 audit for what it currently does. Fern's "When you type, it aims" line is not yet a unique caret mechanic (the typed beam auto-aims on its own); the caret follows Noor and lights a pool in the dark corridor. How she got it, and how it relates to Fern, still needs a later story pass.
+
+
 ## 2026-11-18 — Clip the glass copy to the pane
 
 Leftovers from `2f70f70`: the delayed Noor copy was larger than the north glass and spilled over the frame onto the wall (front and back); the baked lamp disc sat on her head.
