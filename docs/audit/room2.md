@@ -1,5 +1,12 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-23 — Drop, pan, slit, jump sequence
+
+- **Gap.** The chasm now uses a taller visual shaft than the kill band: inner walls, a lit near face, a far underside with shadow, fog, motes, and camera-linked parallax. First arrival is a pan (frame Noor, pan to the gap, ease back), not a punch-in.
+- **Caret slit.** Inset into the SHUT door glass with a recess and bevel.
+- **Claim beat.** Jump, then Fern ("That's yours…" / "It took everything you wrote. Not that."), then the F hint after the box closes. No stacked arrival line.
+
+
 ## 2026-11-23 — Chasm depth, south ledge, Caret origin
 
 - **Gap.** The well now reads as a receding shaft (layers, vanishing bottom, thicker lip faces). Hazard tape was replaced with scuffed metal and a dim cyan edge. The dark band under the south lip, where the SHUT door sits, is a tiled walkable floor whose north edge is the chasm lip.

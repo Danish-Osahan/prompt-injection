@@ -73,6 +73,7 @@ export class IntroCutscene {
   private mailGone = false;
   private draftCursor?: Phaser.GameObjects.Rectangle;
   private lastTypeLine?: Phaser.GameObjects.Text;
+  private draftLocked = false;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -353,8 +354,9 @@ export class IntroCutscene {
 
   /** Test / still hook: finish the typed lines and leave the blinking cursor after the message. */
   forceCursor() {
+    this.draftLocked = true;
     for (const t of this.letters) {
-      const full = (t.getData('full') as string) || t.text;
+      const full = (t.getData('full') as string) || (t.getData('src') as string) || t.text;
       if (full) t.setText(full).setAlpha(1).setVisible(true);
     }
     const host = this.lastTypeLine ?? this.letters.filter(l => !!(l.getData('src'))).pop();
@@ -364,8 +366,9 @@ export class IntroCutscene {
 
   cursorState() {
     const c = this.draftCursor;
-    if (!c || !c.active) return { visible: false, x: 0, y: 0, a: 0 };
-    return { visible: c.visible && (c.alpha ?? 0) > 0.05, x: c.x, y: c.y, a: c.alpha ?? 0 };
+    const lines = this.letters.map(l => l.text).filter(Boolean);
+    if (!c || !c.active) return { visible: false, x: 0, y: 0, a: 0, lines };
+    return { visible: c.visible && (c.alpha ?? 0) > 0.05, x: c.x, y: c.y, a: c.alpha ?? 0, lines };
   }
 
   private showDraftCursor(host?: Phaser.GameObjects.Text) {
@@ -379,7 +382,8 @@ export class IntroCutscene {
       this.s.tweens.add({ targets: cur, alpha: { from: 1, to: 0.08 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
     }
     const cur = this.draftCursor;
-    cur.setPosition(line.x + Math.max(8, line.width) + 4, line.y + 2);
+    const lastH = Math.max(18, line.height || 20);
+    cur.setPosition(line.x + Math.max(8, line.width) + 4, line.y + Math.max(0, lastH - 20));
     cur.setVisible(true);
   }
 
@@ -468,14 +472,15 @@ export class IntroCutscene {
   private typeDraft() {
     const s = this.s;
     if (!this.monitor) return;
-    const left = -300, top = -150, lh = 28;
+    const left = -300, top = -150, lh = 32, wrap = 580;
     let delay = 400;
     DRAFT.forEach((row, i) => {
       const y = top + i * lh;
       if (!row.text) return;
       if (row.kind === 'static') {
         const t = s.add.text(left, y, row.text, {
-          fontFamily: UI, fontSize: '22px', color: i === 0 ? C.cyan : C.inkBright,
+          fontFamily: UI, fontSize: '20px', color: i === 0 ? C.cyan : C.inkBright,
+          wordWrap: { width: wrap },
         }).setOrigin(0, 0).setAlpha(0);
         this.monitor!.add(t);
         this.letters.push(t);
@@ -484,7 +489,8 @@ export class IntroCutscene {
         return;
       }
       const t = s.add.text(left, y, '', {
-        fontFamily: UI, fontSize: '22px', fontStyle: '500', color: C.inkBright,
+        fontFamily: UI, fontSize: '20px', fontStyle: '500', color: C.inkBright,
+        wordWrap: { width: wrap },
       }).setOrigin(0, 0);
       t.setData('full', row.text);
       t.setData('src', row.text);
@@ -494,7 +500,7 @@ export class IntroCutscene {
       for (let k = 1; k <= row.text.length; k++) {
         const at = start + k * 42;
         this.at(at, () => {
-          if (!this.playing) return;
+          if (!this.playing || this.draftLocked) return;
           t.setText(row.text.slice(0, k));
           if (k % 2 === 0) try { sfx('key'); } catch { /* */ }
         });
@@ -826,6 +832,7 @@ export class IntroCutscene {
     this.mailHint = undefined;
     this.draftCursor = undefined;
     this.lastTypeLine = undefined;
+    this.draftLocked = false;
     this.mailHold = false;
     this.mailHoldT = 0;
     this.mailGone = true;

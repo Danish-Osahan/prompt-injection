@@ -107,12 +107,12 @@ export class OnboardLure {
       if (nearSrc) this.onNearSource?.();
     } else {
       this.sourceGlow?.setAlpha(0);
-      const pulse = 0.3 + 0.25 * Math.sin(t * 5.5);
-      this.targetGlow?.setAlpha(pulse);
+      this.targetGlow?.setAlpha(0);
       this.targetGlyph?.setAlpha(0);
-      const p = placeChip(this.target.x, this.target.y, this.s.x, this.s.y, 34, 6);
-      this.chip?.show(p.x, p.y, 'throw', 0, 'F');
-      void nearTgt;
+      if (nearTgt) {
+        const p = placeChip(this.target.x, this.target.y, this.s.x, this.s.y, 34, 6);
+        this.chip?.show(p.x, p.y, 'throw', 0, 'F');
+      } else this.chip?.hide();
     }
   }
 

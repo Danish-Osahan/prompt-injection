@@ -1,5 +1,37 @@
 # HANDOFF
 
+## 2026-11-23 — Real chasm drop, inset caret slit, pan, aim in the corridor
+
+Follow-up to `7a4b140`. The gap still read as a flat band; the bolt tip bloomed a ring; the door box sat on the glass like a sticker; the jump beat stacked an arrival line and the F hint; the opening draft cut "My father lo"; first arrival was a punch-in because the plate camera cannot scroll at zoom 1.
+
+1. **Chasm as a drop.** Visual shaft is taller than the 64px kill band (void and faces extend under both platforms). Lit near-lip face, far-platform underside with shadow, receding inner walls, cold updraft, falling motes/paper, and parallax layers that shift with the camera. Collision is unchanged (`80, 254, 1120×64`).
+
+2. **No rings on the bolt.** Tip and impact use short strokes, not circular blooms. The stray `F throw` chip no longer sits on the door from across the room — it only appears when Noor is near the target.
+
+3. **Door slit is cut in.** The trapped-caret box is a recessed cut in the frosted glass (inner shadow, bevel), not a rounded sticker.
+
+4. **Jump sequence.** Auto-claim waits for dialogue to close. The Caret jumps first; Fern's lines start when it lands; the F hint waits until the box is gone and the Caret is following.
+
+5. **Aim in the corridor.** Once the dummy is QUICK, F can park the Caret on it and hold-J sends the bolt there. The `HOLD J  the cursor aims` hint appears the first time that's possible. No new rings.
+
+6. **Opening draft fits.** The typed line wraps/fits; `forceCursor` locks the typewriter so the full "My father lost everything in the fire." stays on the monitor with the blinking cursor after the message.
+
+7. **Real pan.** First arrival frames Noor at zoom 1.68, pans north to the gap, then eases back to the full plate. Reduce-motion skips the move.
+
+Playtest: 235/235, including draft-fit, pan-to-gap-and-back, and a caret-aimed bolt hitting the woken dummy.
+
+Review stills (not in the repo):
+- gap from spawn: `/workspace/l2g-gap-spawn-2x.png` (full `/workspace/l2g-gap-spawn.png`)
+- pan at the gap: `/workspace/l2g-gap-pan-2x.png` (full `/workspace/l2g-gap-pan.png`)
+- south ledge: `/workspace/l2g-gap-ledge-2x.png` (full `/workspace/l2g-gap-ledge.png`)
+- inset door slit: `/workspace/l2g-caret-slit-2x.png` (full `/workspace/l2g-caret-slit.png`)
+- jump beat: `/workspace/l2g-caret-jump-2x.png` (full `/workspace/l2g-caret-jump.png`)
+- aim in the corridor: `/workspace/l2g-caret-aim-2x.png` (full `/workspace/l2g-caret-aim.png`)
+- opening monitor: `/workspace/l2g-caret-intro-2x.png` (full `/workspace/l2g-caret-intro.png`)
+
+Leftovers: the well is still a perspective trick over a 64px kill band, so from a full-plate spawn view it can read shallower than during the pan. Parallax only shows while the camera is moving. The door slit is code-drawn on the painted pane. Aiming around a true corner is still a straight bolt to the parked Caret.
+
+
 ## 2026-11-23 — Deeper chasm, painted lip, Caret origin and hands
 
 Follow-up to `b9a8fb2`. The gap still read as a thin taped trench with a wall-like band under the south lip. The Caret's origin vs Fern still did not land.

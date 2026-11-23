@@ -202,6 +202,11 @@ async function linger(browser) {
       const ledge = await lumStats(page, { x: 200, y: 350, width: 220, height: 50 });
       const pitVar = await lumStats(page, { x: 180, y: 272, width: 260, height: 28 });
       ok('hub: the south ledge under the door is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
+      await pi(page, 'playGapPan');
+      s = await waitFor(page, s => s.gapPan === 'playing' && s.camMid && s.camMid.y < 330, 4000);
+      ok('hub: first arrival pans the camera to the gap', s.gapPan === 'playing' && s.camMid.y < 330 && s.camMid.zoom > 1.15, JSON.stringify(s.camMid));
+      s = await waitFor(page, s => s.gapPan === 'done' && Math.abs(((s.camMid && s.camMid.zoom) || (s.cam && s.cam.zoom) || 0) - 1) < 0.05, 5000);
+      ok('hub: the gap pan returns to the full plate', s.gapPan === 'done' && Math.abs((s.camMid && s.camMid.zoom) - 1) < 0.05, JSON.stringify(s.camMid));
     }
   }
   await pi(page, 'goto', 'office'); await waitFor(page, s => s.room === 'office', 5000); await sleep(400);
@@ -246,6 +251,8 @@ async function desktop(browser) {
     await stillL1(page, 'intro');
     const cur = await pi(page, 'forceDraftCursor');
     ok('intro: a cursor blinks after Noor\'s typed message', !!(cur && cur.visible), JSON.stringify(cur));
+    const draft = (cur && cur.lines ? cur.lines.join(' | ') : '');
+    ok('intro: the opening draft line fits on the monitor', /lost everything/.test(draft), draft);
     const mailOn = await pi(page, 'forceMailHold');
     ok('intro: claim-mail tab can be held', !!mailOn, `mailOn ${mailOn}`);
     await page.keyboard.down('e'); await sleep(80); await page.keyboard.up('e'); await sleep(120);
@@ -562,6 +569,21 @@ async function desktop(browser) {
   await steal(page, 'c_clock', 'c_dummy');
   s = await waitFor(page, s => s.flags.quick, 3000);
   ok('corridor: take QUICK from the clock, throw it at the dummy', s.flags.quick && s.plates.c_dummy.words === 'DUMMY IS QUICK');
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false;
+    if (!s.caretOwned) s.claimCaret(true);
+  });
+  await sleep(200);
+  const aimHp0 = (await st(page)).enemies.find(e => e.kind === 'dummy')?.hp;
+  const aimBeams0 = (await st(page)).beamN;
+  await pi(page, 'teleport', 980, 540); await sleep(60);
+  await pi(page, 'sendCaret', 'dummy'); await sleep(400);
+  await pi(page, 'fireBeam', 1); await sleep(500);
+  s = await st(page);
+  const dummyAim = s.enemies.find(e => e.kind === 'dummy');
+  ok('corridor: a bolt aimed by the Caret hits the woken dummy', !!(dummyAim && dummyAim.hp < aimHp0) && s.beamN > aimBeams0, `hp ${aimHp0} -> ${dummyAim && dummyAim.hp} beams ${aimBeams0} -> ${s.beamN}`);
   await pi(page, 'teleport', 1110, 560); await input.move(0, -1); await sleep(30); await input.stop();
   let swings = 0; for (let i = 0; i < 30; i++) { s = await st(page); if (s.enemies[0].dead) break; await page.keyboard.press('j'); swings++; await sleep(230); if (swings === 2) await shot(page, 'desktop-09-dummy-fight'); }
   s = await st(page);

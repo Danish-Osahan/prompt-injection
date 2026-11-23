@@ -213,7 +213,7 @@ function drawBoltFrame(
   const live = jittered(spine, t, extend).filter(p => p.u <= extend + 0.001);
   if (live.length < 2) {
     const p = spine[0];
-    g.fillStyle(0xe8ffff, 0.7 * fade).fillCircle(p.x, p.y, glow ? 5 : 3);
+    g.fillStyle(0xe8ffff, 0.7 * fade).fillRect(p.x - (glow ? 3 : 2), p.y - 1, glow ? 6 : 4, 2);
     return;
   }
   const a = fade;
@@ -247,7 +247,10 @@ function drawBoltFrame(
     }
   }
   const tip = live[live.length - 1];
-  if (!glow) g.fillStyle(0xffffff, 0.9 * a).fillCircle(tip.x, tip.y, 3.6);
+  if (!glow) {
+    g.fillStyle(0xffffff, 0.95 * a);
+    g.fillRect(tip.x - 2, tip.y - 1, 5, 2);
+  }
 }
 
 export function impactBurst(s: GameScene, at: { x: number; y: number }, dir?: { x: number; y: number }) {
@@ -271,9 +274,6 @@ export function impactBurst(s: GameScene, at: { x: number; y: number }, dir?: { 
   const paint = (u: number) => {
     g.clear();
     const fade = 1 - u;
-    g.fillStyle(0x7ad0ff, 0.4 * fade).fillCircle(at.x, at.y, 18 + u * 22);
-    g.fillStyle(0xe8ffff, 0.55 * fade).fillCircle(at.x, at.y, 10 + u * 10);
-    g.fillStyle(0xffffff, 0.8 * fade).fillCircle(at.x, at.y, 5);
     for (const st of streaks) {
       g.lineStyle(1.6, 0xd8f4ff, st.a * fade).lineBetween(st.ax, st.ay, st.bx, st.by);
       g.lineStyle(0.7, 0xffffff, 0.8 * fade).lineBetween(st.ax, st.ay, st.bx, st.by);
@@ -437,7 +437,7 @@ function drawShot(
   const c = Math.cos(ang), sn = Math.sin(ang);
   g.fillStyle(0x9ad8f0, 0.95);
   g.fillTriangle(px + c * 10, py + sn * 10, px - c * 8 + -sn * 5, py - sn * 8 + c * 5, px - c * 8 - -sn * 5, py - sn * 8 - c * 5);
-  g.fillStyle(0xe8ffff, 0.7).fillCircle(px, py, 2.2);
+  g.fillStyle(0xe8ffff, 0.7).fillRect(px - 1.5, py - 1.5, 3, 3);
 }
 
 function burst(s: GameScene, kind: ShotKind, at: { x: number; y: number }) {
@@ -445,14 +445,19 @@ function burst(s: GameScene, kind: ShotKind, at: { x: number; y: number }) {
   s.objs.push(g);
   if (kind === 'hot') g.fillStyle(0xffc070, 0.5).fillEllipse(at.x, at.y, 36, 20);
   else if (kind === 'loud') {
-    g.lineStyle(3, 0x7ad4d8, 0.6).strokeCircle(at.x, at.y, 18);
-    g.lineStyle(2, 0x7ad4d8, 0.35).strokeCircle(at.x, at.y, 32);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      g.lineStyle(2, 0x7ad4d8, 0.55).lineBetween(at.x + Math.cos(a) * 6, at.y + Math.sin(a) * 6, at.x + Math.cos(a) * 16, at.y + Math.sin(a) * 16);
+    }
   } else if (kind === 'wet') {
     for (let i = 0; i < 8; i++) {
       const a = -0.2 + Math.random() * (Math.PI + 0.4);
       g.fillStyle(0x8ad4f0, 0.8).fillCircle(at.x + Math.cos(a) * 8, at.y + Math.sin(a) * 6, 2.4);
     }
-  } else g.fillStyle(0x9ad8f0, 0.7).fillCircle(at.x, at.y, 7);
+  } else {
+    g.fillStyle(0x9ad8f0, 0.7);
+    g.fillRect(at.x - 4, at.y - 2, 8, 4);
+  }
   s.tweens.add({ targets: g, alpha: 0, duration: 220, onComplete: () => g.destroy() });
 }
 
