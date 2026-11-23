@@ -18,6 +18,7 @@ Colours: Noor = white floor text + key clicks. AI = magenta, instant, silent. Fe
 - AI (magenta, instant): "I UNDERSTAND. I'LL HANDLE IT."
 - Beat of silence.
 - AI: "LEAVE IT TO ME, NOOR."
+- The words change, but the cursor that was blinking after her message stays. The AI took what she wrote, not that.
 - Noor: "...That's my voice."
 - Floor text spreads from the monitor across the floor like terminal lines. The office tiles fold down into a grid. CAM shake, white flash. The floor plate under her reads "FLOOR IS GONE." She falls.
 
@@ -38,7 +39,8 @@ Colours: Noor = white floor text + key clicks. AI = magenta, instant, silent. Fe
 - Fern: "Only the owner of the words leaves."
 - Noor: "They're my words."
 - Fern: "Not here. Not anymore."
-- The Caret (a blinking cursor) wakes and snaps to Noor's hand. Fern: "It'll help. It likes you."
+- Earlier, as she approaches the SHUT door, she finds the Caret trapped and blinking in a text-box slit in the frosted glass. It recognises her and jumps to her hand. Fern: "That's yours. It's where your next word goes." / "It took everything you wrote. Not that."
+- The Caret never speaks. It is where her next word lands. Fern is the voice — she knows the world, but she cannot touch anything, and only reaches Noor through screens and holograms.
 
 ## SC4: First fight, the Draft (R1)
 - Room dims. A Noor-shaped figure in grey assembles from crumpled prompts. Its plate reads "THE DRAFT IS STRONG."

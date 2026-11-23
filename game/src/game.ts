@@ -92,6 +92,12 @@ export class GameScene extends Phaser.Scene {
   noor!: Phaser.GameObjects.Sprite;
   shadow!: Phaser.GameObjects.Ellipse;
   caret!: Phaser.GameObjects.Sprite;
+  caretMode: 'hidden' | 'trapped' | 'jumping' | 'follow' | 'travel' | 'sent' = 'hidden';
+  caretOwned = false;
+  caretSentAt = 0;
+  private caretBox?: Phaser.GameObjects.Graphics;
+  private caretSendOnce = false;
+  private caretKeyF?: Phaser.Input.Keyboard.Key;
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
   dashT = 0; dashCd = 0; dashVec = { x: 0, y: 1 }; iframes = 0; sinceDash = 9; didDash = false; didAttack = false; hintThrowArmed = false;
   combo = 0; comboT = 0; swingT = 0; hitStopT = 0; trailT = 0; bsT = 0; bsHit = new Set<Enemy>();
@@ -197,6 +203,7 @@ export class GameScene extends Phaser.Scene {
     recomputeGrowth(this.save);
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
+    this.caretKeyF = this.input.keyboard?.addKey('F');
     bindSfxScene(this);
     bindMusicScene(this);
     this.makeTextures();
@@ -283,95 +290,151 @@ export class GameScene extends Phaser.Scene {
 
   /** Code-drawn chasm between the north and south hub floors. Collision matches the pit (y 254–318). */
   drawHubChasm() {
-    const X0 = 80, X1 = 1200, W = 1120, NY = 250, SY = 322, pitTop = 256, pitBot = 318;
+    const X0 = 80, X1 = 1200, W = 1120, NY = 250, SY = 322, pitTop = 254, pitBot = 320;
+    const vpX = 640, vpY = 286;
     const pit = this.add.graphics().setDepth(-960); pit.name = 'hub-chasm'; this.objs.push(pit);
-    pit.fillStyle(0x05070b, 1).fillRect(X0, pitTop - 2, W, pitBot - pitTop + 4);
-    for (let i = 0; i < 18; i++) {
-      const t = i / 17;
-      const y = pitTop + (pitBot - pitTop) * t;
-      const h = (pitBot - pitTop) / 18 + 1;
-      const d = Math.max(0, 1 - Math.abs(t - 0.55) * 1.55);
-      const r = Math.round(1 + (1 - d) * 10), g = Math.round(2 + (1 - d) * 12), b = Math.round(5 + (1 - d) * 16);
-      pit.fillStyle((r << 16) | (g << 8) | b, 1).fillRect(X0, y, W, h);
+
+    // Deep shaft: receding layers toward a vanishing well, not a flat trench.
+    pit.fillStyle(0x020308, 1).fillRect(X0, pitTop - 2, W, pitBot - pitTop + 6);
+    const layers = 9;
+    for (let i = 0; i < layers; i++) {
+      const t = (i + 1) / layers;
+      const insetX = 8 + t * 210;
+      const midY = pitTop + (vpY - pitTop) * (0.15 + 0.85 * t);
+      const h = Math.max(3, (pitBot - pitTop) * (1 - t * 0.78) * 0.45);
+      const y0 = midY - h / 2;
+      const r = Math.round(1 + (1 - t) * 8), g = Math.round(2 + (1 - t) * 10), b = Math.round(6 + (1 - t) * 14);
+      pit.fillStyle((r << 16) | (g << 8) | b, 1);
+      pit.fillTriangle(X0 + insetX, y0, X1 - insetX, y0, vpX, midY + h);
+      pit.fillTriangle(X0 + insetX, y0, X1 - insetX, y0, vpX, midY - h * 0.35);
     }
-    // side walls fall away, and a deeper mid well so the painted rail cannot read as floor
-    for (let i = 0; i < 10; i++) {
-      pit.fillStyle(0x000000, 0.08 + i * 0.03);
-      pit.fillRect(X0, pitTop + i, W, pitBot - pitTop - i * 2);
+    // bottom of the well
+    pit.fillStyle(0x000000, 0.95).fillEllipse(vpX, vpY, 86, 16);
+    pit.fillStyle(0x000000, 1).fillEllipse(vpX, vpY + 2, 48, 8);
+    // shaft wall shade
+    for (let i = 0; i < 8; i++) {
+      pit.fillStyle(0x000000, 0.1 + i * 0.04);
+      pit.fillRect(X0, pitTop + 4 + i * 2, 70 - i * 5, pitBot - pitTop - 10 - i * 3);
+      pit.fillRect(X1 - (70 - i * 5), pitTop + 4 + i * 2, 70 - i * 5, pitBot - pitTop - 10 - i * 3);
     }
-    pit.fillStyle(0x000000, 0.55).fillRect(X0, pitTop + 12, W, pitBot - pitTop - 24);
-    // faint receding lights in the well
+    // receding structure (faint ribs)
+    for (let i = 1; i <= 4; i++) {
+      const t = i / 5;
+      const w = 900 - t * 520, h = 10 - t * 6;
+      pit.lineStyle(1, 0x1a2834, 0.35 - t * 0.06);
+      pit.strokeEllipse(vpX, pitTop + 8 + t * (vpY - pitTop - 4), w, Math.max(4, (pitBot - pitTop - 10) * (1 - t * 0.7)));
+    }
+    // faint lights, smaller and dimmer as they recede
     const lights: [number, number, number, number, number][] = [
-      [150, 276, 3.2, 0x78e4e8, 0.28], [230, 294, 2.0, 0xf6c684, 0.16],
-      [340, 286, 2.4, 0x78e4e8, 0.2], [420, 304, 1.6, 0x8ad4c8, 0.14],
-      [780, 280, 2.6, 0x78e4e8, 0.22], [880, 298, 1.8, 0xf6c684, 0.15],
-      [990, 284, 2.2, 0x78e4e8, 0.18], [1110, 300, 1.5, 0x8ad4c8, 0.12],
-      [200, 308, 1.2, 0x78e4e8, 0.1], [860, 310, 1.1, 0xf6c684, 0.08],
+      [170, 268, 2.8, 0x78e4e8, 0.22], [300, 274, 1.6, 0xf6c684, 0.12],
+      [470, 280, 1.4, 0x78e4e8, 0.12], [810, 272, 2.2, 0x78e4e8, 0.16],
+      [960, 278, 1.3, 0xf6c684, 0.1], [1100, 270, 1.8, 0x8ad4c8, 0.12],
+      [400, 292, 1.0, 0x78e4e8, 0.08], [880, 294, 0.9, 0xf6c684, 0.07],
+      [640, 300, 0.7, 0x78e4e8, 0.05],
     ];
     for (const [x, y, r, c, a] of lights) {
-      pit.fillStyle(c, a * 0.35).fillCircle(x, y, r * 2.4);
+      pit.fillStyle(c, a * 0.3).fillCircle(x, y, r * 2.2);
       pit.fillStyle(c, a).fillCircle(x, y, r);
     }
-    // hanging cables
     const cables = [
-      { x: 132, drop: 50, bow: 14 }, { x: 268, drop: 58, bow: -12 },
-      { x: 404, drop: 42, bow: 10 }, { x: 812, drop: 54, bow: 16 },
-      { x: 948, drop: 46, bow: -14 }, { x: 1096, drop: 38, bow: 8 },
+      { x: 132, drop: 44, bow: 10 }, { x: 268, drop: 52, bow: -9 },
+      { x: 404, drop: 38, bow: 8 }, { x: 812, drop: 48, bow: 12 },
+      { x: 948, drop: 40, bow: -10 }, { x: 1096, drop: 34, bow: 6 },
     ];
     for (const c of cables) {
-      const x1 = c.x + c.bow, y1 = NY + c.drop * 0.55, x2 = c.x + c.bow * 0.35, y2 = NY + c.drop;
-      pit.lineStyle(2.2, 0x161c24, 0.95);
-      pit.beginPath(); pit.moveTo(c.x, NY + 3); pit.lineTo(x1, y1); pit.lineTo(x2, y2); pit.strokePath();
-      pit.lineStyle(1, 0x78e4e8, 0.1);
-      pit.beginPath(); pit.moveTo(c.x + 1, NY + 3); pit.lineTo(x1 + 1, y1); pit.lineTo(x2 + 1, y2); pit.strokePath();
+      const x1 = c.x + c.bow, y1 = NY + c.drop * 0.45, x2 = vpX * 0.15 + c.x * 0.85, y2 = NY + c.drop;
+      pit.lineStyle(2, 0x141a22, 0.9);
+      pit.beginPath(); pit.moveTo(c.x, NY + 6); pit.lineTo(x1, y1); pit.lineTo(x2, y2); pit.strokePath();
+      pit.lineStyle(1, 0x78e4e8, 0.08);
+      pit.beginPath(); pit.moveTo(c.x + 1, NY + 6); pit.lineTo(x1 + 1, y1); pit.lineTo(x2 + 1, y2); pit.strokePath();
     }
 
     const lips = this.add.graphics().setDepth(-936); lips.name = 'hub-chasm-lips'; this.objs.push(lips);
-    // north lip + downward face
-    lips.fillStyle(0x2a323c, 1).fillRect(X0, NY - 5, W, 9);
-    lips.fillStyle(0x4a5560, 0.9).fillRect(X0, NY - 5, W, 2);
-    lips.fillStyle(0x12161c, 1).fillRect(X0, NY + 4, W, 11);
-    lips.fillStyle(0x080a0e, 0.85).fillRect(X0, NY + 13, W, 6);
-    for (let x = X0 + 2; x < X1; x += 16) {
-      lips.fillStyle(((Math.floor((x - X0) / 16) % 2) === 0) ? 0xc9a227 : 0x1c1c18, 0.92);
-      lips.fillRect(x, NY - 2, 14, 3.2);
-    }
-    // south lip + upward face (slab thickness)
-    lips.fillStyle(0x080a0e, 0.85).fillRect(X0, SY - 20, W, 6);
-    lips.fillStyle(0x12161c, 1).fillRect(X0, SY - 14, W, 10);
-    lips.fillStyle(0x2a323c, 1).fillRect(X0, SY - 4, W, 8);
-    lips.fillStyle(0x4a5560, 0.9).fillRect(X0, SY - 4, W, 2);
-    for (let x = X0 + 6; x < X1; x += 16) {
-      lips.fillStyle(((Math.floor((x - X0) / 16) % 2) === 0) ? 0xc9a227 : 0x1c1c18, 0.92);
-      lips.fillRect(x, SY - 2, 14, 3.2);
-    }
+    // North walkable cap + slab face (worn metal, dim cyan edge — no hazard tape)
+    lips.fillStyle(0x354858, 1).fillRect(X0, NY - 6, W, 7);
+    lips.fillStyle(0x6a8494, 0.7).fillRect(X0, NY - 6, W, 2.5);
+    lips.fillStyle(0x0a0e14, 1).fillRect(X0, NY + 1, W, 16);
+    lips.fillStyle(0x05070c, 0.92).fillRect(X0, NY + 16, W, 10);
+    lips.fillStyle(0x78e4e8, 0.32).fillRect(X0, NY - 1, W, 1.6);
+    this.scuffLip(lips, X0, X1, NY - 1);
+
+    // South slab face (thickness looking into the well) then the walkable floor starts
+    lips.fillStyle(0x05070c, 0.9).fillRect(X0, SY - 22, W, 8);
+    lips.fillStyle(0x0a0e14, 1).fillRect(X0, SY - 16, W, 14);
+    lips.fillStyle(0x1a222c, 1).fillRect(X0, SY - 4, W, 6);
+    lips.fillStyle(0x3a4a58, 0.5).fillRect(X0, SY - 2, W, 1.5);
+    lips.fillStyle(0x78e4e8, 0.22).fillRect(X0, SY - 1, W, 1.25);
+    this.scuffLip(lips, X0, X1, SY - 1);
+
     this.drawBridgeStub(lips, 'south', 508, SY, 62, 28);
     this.drawBridgeStub(lips, 'north', 746, NY, 54, 20);
+    this.drawSouthLedgeFloor(X0, X1, SY, 436);
     this.startPitPapers();
+  }
+
+  /** Irregular worn nicks along a lip — painted-room metal, not tape. */
+  private scuffLip(g: Phaser.GameObjects.Graphics, x0: number, x1: number, y: number) {
+    for (let x = x0 + 10; x < x1; x += 28 + ((x * 13) % 11)) {
+      const w = 3 + ((x * 7) % 5);
+      g.fillStyle(0x121820, 0.55).fillRect(x, y - 1, w, 2);
+      if ((x * 5) % 3 === 0) g.fillStyle(0x5a6a78, 0.25).fillRect(x + 1, y - 1, 1.5, 1);
+    }
+  }
+
+  /** The dark band under the south lip is walkable floor, not a wall. Tiles meet the painted south floor at y≈436. */
+  private drawSouthLedgeFloor(x0: number, x1: number, y0: number, y1: number) {
+    const floor = this.add.graphics().setDepth(-920); floor.name = 'hub-south-ledge'; this.objs.push(floor);
+    const W = x1 - x0, H = y1 - y0;
+    floor.fillStyle(0x0b1a2c, 1).fillRect(x0, y0, W, H);
+    // Diamond tile grid, same family as the painted south floor.
+    const vpX = 640, vpY = 40;
+    floor.lineStyle(1, 0x1a4a66, 0.55);
+    for (let i = -14; i <= 14; i++) {
+      const x = vpX + i * 96;
+      floor.lineBetween(x, y0, vpX + (x - vpX) * ((y1 + 80 - vpY) / (y0 - vpY)), y1);
+    }
+    floor.lineStyle(1, 0x1a4a66, 0.32);
+    for (let i = -14; i <= 14; i++) {
+      const x = vpX + i * 96 + 48;
+      floor.lineBetween(x, y1, vpX + (x - vpX) * ((y0 - 40 - vpY) / (y1 - vpY)), y0);
+    }
+    for (let y = y0 + 8; y < y1; y += 28) {
+      floor.lineStyle(1, 0x1c4860, 0.4);
+      floor.lineBetween(x0, y, x1, y);
+    }
+    // Soft lighting: slightly lifted in the middle (door approach), dimmer at the sides
+    floor.fillStyle(0x000000, 0.18).fillRect(x0, y0, 160, H);
+    floor.fillStyle(0x000000, 0.18).fillRect(x1 - 160, y0, 160, H);
+    floor.fillStyle(0xf6c684, 0.03).fillEllipse(640, y0 + 70, 220, 50);
+    // Fade into the existing floor at the bright painted edge (~432–436)
+    for (let i = 0; i < 8; i++) {
+      floor.fillStyle(0x0a1628, 0.35 - i * 0.04);
+      floor.fillRect(x0, y1 - 10 + i, W, 2);
+    }
+    // North edge of this ledge is the chasm lip — already drawn on `lips`.
   }
 
   private drawBridgeStub(g: Phaser.GameObjects.Graphics, side: 'north' | 'south', x: number, lipY: number, w: number, len: number) {
     const dir = side === 'south' ? -1 : 1;
     const y1 = lipY + dir * len;
     const jag = side === 'south' ? 8 : 6;
-    g.fillStyle(0x3a424c, 1);
+    g.fillStyle(0x2a343e, 1);
     g.fillTriangle(x, lipY, x + w, lipY, x + w * 0.18, y1);
     g.fillTriangle(x + w, lipY, x + w * 0.82, y1 + dir * jag, x + w * 0.18, y1);
-    g.fillStyle(0x1a1e24, 0.95);
+    g.fillStyle(0x151a20, 0.95);
     g.fillTriangle(x + 4, lipY + dir * 3, x + w - 4, lipY + dir * 3, x + w * 0.22, y1);
-    // cracked edge
-    g.lineStyle(1.4, 0x12151a, 0.95);
+    g.lineStyle(1.2, 0x78e4e8, 0.12);
+    g.lineBetween(x + 4, lipY, x + w * 0.2, y1);
+    g.lineStyle(1.4, 0x10141a, 0.95);
     g.beginPath(); g.moveTo(x + w * 0.18, y1); g.lineTo(x + w * 0.4, y1 + dir * 5); g.lineTo(x + w * 0.62, y1 - dir * 2); g.lineTo(x + w * 0.82, y1 + dir * jag); g.strokePath();
-    // rebar stubs hanging off the break
-    g.lineStyle(2, 0x6a737c, 0.9);
+    g.lineStyle(2, 0x5a6570, 0.8);
     g.lineBetween(x + w * 0.32, y1, x + w * 0.28, y1 + dir * 11);
     g.lineBetween(x + w * 0.58, y1 + dir * 2, x + w * 0.62, y1 + dir * 13);
-    g.lineStyle(1, 0xc08060, 0.45);
-    g.lineBetween(x + w * 0.32, y1, x + w * 0.28, y1 + dir * 11);
   }
 
   private startPitPapers() {
-    const spots = [{ x: 210, y: 268 }, { x: 390, y: 286 }, { x: 860, y: 274 }];
+    const spots = [{ x: 210, y: 262 }, { x: 390, y: 268 }, { x: 860, y: 264 }];
+    const vpX = 640, vpY = 286;
     for (let i = 0; i < spots.length; i++) {
       const s = spots[i];
       const paper = this.add.graphics().setDepth(-950).setPosition(s.x, s.y);
@@ -395,12 +458,12 @@ export class GameScene extends Phaser.Scene {
         draw(0.6);
         this.tweens.add({
           targets: paper,
-          x: s.x + (i % 2 === 0 ? 28 : -24),
-          y: 312,
-          scale: 0.45,
-          rotation: (i % 2 === 0 ? 0.9 : -0.8),
-          alpha: 0.05,
-          duration: 3200 + i * 400,
+          x: s.x + (vpX - s.x) * 0.55,
+          y: vpY + 8,
+          scale: 0.18,
+          rotation: (i % 2 === 0 ? 1.2 : -1.0),
+          alpha: 0.04,
+          duration: 2800 + i * 400,
           delay,
           ease: 'Sine.in',
           onComplete: () => { if (paper.active) { paper.setAlpha(0); this.time.delayedCall(200, loop); } },
@@ -681,6 +744,7 @@ export class GameScene extends Phaser.Scene {
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
+    this.caretBox = undefined; this.caretMode = 'hidden';
     this.dialogue?.clear(); this.hud.sub.setVisible(false); this.hud.fern.setVisible(false); this.composer = null; this.busy = false; this.hand = null;
     this.endTimer?.remove(false); this.endTimer = undefined;
     this.endScreen?.destroy(); this.endScreen = undefined; this.endLinesText = undefined; this.ending = false;
@@ -723,11 +787,12 @@ export class GameScene extends Phaser.Scene {
     this.noor = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192); this.objs.push(this.noor);
     this.noor.play('noor_idle_S');
     this.noor.on('animationcomplete', (a: Phaser.Animations.Animation) => { if (/^noor_(attack|dash|type|combo|peel|throw|release|charge_in)/.test(a.key)) this.noor.play(`noor_idle_${this.dir}`); });
-    this.caret = this.add.sprite(0, 0, 'caret_idle').setScale(0.45).setOrigin(0.5, 0.83).play('caret_idle_S').setVisible(this.save.seen.includes('caret')); this.objs.push(this.caret);
+    this.caret = this.add.sprite(0, 0, 'caret_idle').setScale(0.45).setOrigin(0.5, 0.83).play('caret_idle_S').setVisible(false); this.objs.push(this.caret);
     const cp = this.save.checkpoint;
     const spawn = fromLoad && cp.room === id ? cp : r.spawn;
     this.x = spawn.x; this.y = spawn.y; this.unstick(); this.hp = MAX_HP; this.dashCd = 0; this.dashT = 0; this.iframes = 0; this.moved = 0;
-    this.caret.setPosition(this.x - 40, this.y - 40);
+    this.caret.setPosition(this.x - 46, this.y - 56);
+    this.setupCaretForRoom(id);
     if (!fromLoad || cp.room !== id) { this.save.checkpoint = { room: id, x: r.spawn.x, y: r.spawn.y, plate: null }; }
     this.save.room = id; writeSave(this.save);
     this.words.quiet = !!this.clar || ((STEAL_ROOMS.includes(id) || id === 'message') && !this.swapMode);
@@ -819,7 +884,7 @@ export class GameScene extends Phaser.Scene {
         shadow.fillStyle(0x000000, 0.18);
         shadow.fillRoundedRect(610, 444, 64, 6, 3);
         this.objs.push(shadow); this.roomVis.doorShadow = shadow;
-        const spill = this.add.graphics().setDepth(-930);
+        const spill = this.add.graphics().setDepth(-910);
         try { spill.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
         spill.fillStyle(0x78e4e8, 0.10);
         spill.fillRect(616, 318, 52, 132);
@@ -944,6 +1009,12 @@ export class GameScene extends Phaser.Scene {
       () => this.letterRead,
       () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
     this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract() && !this.nearPrintedLetter());
+    this.addPrompt('caretSend', 0, 0, 'F  send the cursor', 'TAP  send the cursor',
+      () => this.caretSendOnce || this.save.tutorials.includes('caretSend'),
+      () => this.caretOwned && !this.hand && !!this.caretSendTarget());
+    this.addPrompt('caretAim', 0, 0, 'HOLD J  the cursor aims', 'HOLD TYPE  the cursor aims',
+      () => this.selectN > 0 || this.save.tutorials.includes('caretAim') || this.save.tutorials.includes('select'),
+      () => this.caretOwned && this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
   }
   nearHintInteract() {
     // World chips (E take / E look / E read) already own these spots — don't stack a HUD twin.
@@ -1318,17 +1389,12 @@ export class GameScene extends Phaser.Scene {
       // art-v8: the coral door light and its floor reflection belong to the SHUT plate; OPEN crossfades to a plate rendered without them
       if (this.bg.shut && this.bg.open) { const want = f.door ? 'open' : 'shut'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 420 }); im.setDepth(k === want ? -999.5 : -1000); } }
       if (door) { if (initial) door.setAlpha(f.door ? 0.1 : 0.8).setFillStyle(f.door ? hex(C.cyan) : hex(C.coral), 0.8); else this.tweens.add({ targets: door, alpha: f.door ? 0.1 : 0.8, duration: 400 }); door.setFillStyle(f.door ? hex(C.cyan) : hex(C.coral)); }
-      if (f.door && !was.door && !initial && !s.seen.includes('caret')) {
-        s.seen.push('caret');
+      if (f.door && !was.door && !initial) {
         this.plateById('h_exit')?.pulse(C.cyan);
         this.say('fern', 'Only the owner of the words leaves.', 2400);
         this.say('noor', "They're my words.", 1600);
         this.say('fern', 'Not here. Not anymore.', 2200);
-        this.say('fern', "That's a cursor. It learned from every line I didn't send.", 2800, {
-          box: true,
-          onStart: () => this.revealCaret(),
-        });
-        this.say('fern', 'When you type, it aims. Keep it close in the dark.', 2600);
+        if (this.caretMode === 'trapped') this.claimCaret();
       }
     }
     if (id === 'office' && this.clar) this.clar.setDoor(w('o_door') === 'OPEN', initial);
@@ -1570,11 +1636,169 @@ export class GameScene extends Phaser.Scene {
     if (h && h.visible && (h.alpha ?? 0) > 0.15) n++;
     return n;
   }
-  revealCaret() {
+  /** Shoulder follow point for a claimed caret. */
+  private caretHome() { return { x: this.x - 46, y: this.y - 56 }; }
+  private slitPos() { return { x: 640, y: 372 }; }
+
+  setupCaretForRoom(id: string) {
+    this.caretBox?.destroy(); this.caretBox = undefined;
+    const owned = this.save.seen.includes('caret');
+    this.caretOwned = owned;
+    if (id === 'hub' && !owned) { this.placeTrappedCaret(); return; }
+    if (owned) {
+      const h = this.caretHome();
+      this.caret.setVisible(true).setAlpha(1).setScale(0.45).setPosition(h.x, h.y);
+      this.caretMode = 'follow';
+    } else {
+      this.caret.setVisible(false);
+      this.caretMode = 'hidden';
+    }
+  }
+
+  /** The Caret is trapped in a text-box slit in the SHUT door until Noor gets close. */
+  placeTrappedCaret() {
+    const p = this.slitPos();
+    this.caret.setVisible(true).setAlpha(1).setScale(0.34).setPosition(p.x, p.y).setDepth(255);
+    const box = this.add.graphics().setDepth(254);
+    box.fillStyle(0x071018, 0.88);
+    box.fillRoundedRect(p.x - 18, p.y - 26, 36, 32, 3);
+    box.lineStyle(1.25, 0x78e4e8, 0.75);
+    box.strokeRoundedRect(p.x - 18, p.y - 26, 36, 32, 3);
+    box.lineStyle(1, 0x78e4e8, 0.2);
+    box.strokeRoundedRect(p.x - 20, p.y - 28, 40, 36, 4);
+    this.caretBox = box; this.objs.push(box);
+    this.caretMode = 'trapped';
+    this.caretOwned = false;
+  }
+
+  revealCaret() { this.claimCaret(); }
+
+  /** Caret recognises Noor, jumps to her hand, and Fern names it. */
+  claimCaret(force = false) {
     if (!this.caret) return;
-    this.caret.setVisible(true).setAlpha(0);
-    this.caret.setPosition(this.x - 46, this.y - 56);
-    this.tweens.add({ targets: this.caret, alpha: 1, duration: 500 });
+    if (this.caretOwned && this.caretMode !== 'trapped' && !force) return;
+    if (this.caretMode === 'jumping' && !force) return;
+    const s = this.save;
+    if (!s.seen.includes('caret')) { s.seen.push('caret'); try { writeSave(s); } catch { /* */ } }
+    this.caretMode = 'jumping';
+    this.caretOwned = true;
+    this.caret.setVisible(true);
+    if (this.caretBox) {
+      const box = this.caretBox; this.caretBox = undefined;
+      this.tweens.add({ targets: box, alpha: 0, duration: 280, onComplete: () => { try { box.destroy(); } catch { /* */ } } });
+    }
+    const h = this.caretHome();
+    const start = { x: this.caret.x, y: this.caret.y };
+    const mid = { x: (start.x + h.x) / 2, y: Math.min(start.y, h.y) - 40 };
+    this.tweens.killTweensOf(this.caret);
+    this.tweens.add({
+      targets: this.caret, x: mid.x, y: mid.y, scale: 0.42, duration: 220, ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.tweens.add({
+          targets: this.caret, x: h.x, y: h.y, scale: 0.45, duration: 280, ease: 'Back.easeOut',
+          onComplete: () => { this.caretMode = 'follow'; },
+        });
+      },
+    });
+    this.say('fern', "That's yours. It's where your next word goes.", 2600, { box: true });
+    this.say('fern', 'It took everything you wrote. Not that.', 2600);
+  }
+
+  /** Nearest stealable plate (or live foe) in facing range for F-send. */
+  caretSendTarget(): { x: number; y: number; plate?: Plate; enemy?: Enemy } | null {
+    if (!this.caretOwned) return null;
+    const v = this.dirVec();
+    const R = 420;
+    type Hit = { x: number; y: number; d: number; plate?: Plate; enemy?: Enemy };
+    let best: Hit | null = null;
+    const consider = (x: number, y: number, extra: Partial<Hit>) => {
+      const dx = x - this.x, dy = y - this.y, d = Math.hypot(dx, dy);
+      if (d < 40 || d > R) return;
+      const dot = (dx * v.x + dy * v.y) / (d || 1);
+      if (dot < 0.15 && d > 160) return;
+      const score = d - dot * 40;
+      if (!best || score < best.d) best = { x, y, d: score, ...extra };
+    };
+    for (const p of this.plates) {
+      if (!p.visible || p.def.slot < 0) continue;
+      if (this.hand?.from === p.def.id) continue;
+      consider(p.def.sx, p.def.sy, { plate: p });
+    }
+    for (const e of this.enemies) {
+      if (e.dead) continue;
+      if (e.kind === 'dummy' && !this.flags.quick) continue;
+      consider(e.x, e.y - 24, { enemy: e });
+    }
+    return best;
+  }
+
+  sendCaret(to?: { x: number; y: number; plate?: Plate; enemy?: Enemy } | null) {
+    if (!this.caretOwned || this.caretMode === 'trapped') return false;
+    const tgt = to ?? this.caretSendTarget();
+    const dest = tgt ?? (() => { const v = this.dirVec(); return { x: this.x + v.x * 140, y: this.y + v.y * 140 }; })();
+    this.guideCaretTo(dest.x, dest.y, () => {
+      this.caretSendOnce = true;
+      if (!this.save.tutorials.includes('caretSend')) this.save.tutorials.push('caretSend');
+      const plate = tgt && 'plate' in tgt ? tgt.plate : undefined;
+      if (plate && plate.visible && plate.def.slot >= 0) {
+        if (this.stealPlay?.on) this.stealPlay.take(plate.def.id);
+        else this.read(plate);
+      }
+      this.caretMode = plate ? 'follow' : 'sent';
+      this.caretSentAt = this.t;
+    });
+    return true;
+  }
+
+  /** Visibly move the Caret to a point, then run onArrive. */
+  guideCaretTo(x: number, y: number, onArrive?: () => void) {
+    if (!this.caret) return;
+    this.tweens.killTweensOf(this.caret);
+    this.caretMode = 'travel';
+    const d = Math.hypot(x - this.caret.x, y - this.caret.y);
+    const dur = Math.max(160, Math.min(360, d * 0.7));
+    this.tweens.add({
+      targets: this.caret, x, y, duration: dur, ease: 'Cubic.easeOut',
+      onUpdate: () => this.caret.setDepth((this.caret.y) + 8),
+      onComplete: () => { onArrive?.(); },
+    });
+  }
+
+  /** Where a typed bolt should land: the Caret, sent to the target first. */
+  caretBoltDest(fallback: { x: number; y: number }) {
+    if (!this.caretOwned) return fallback;
+    const e = this.aimTarget(BEAM_R);
+    const dest = e ? { x: e.x, y: e.y - 28 } : (this.caretMode === 'sent' ? { x: this.caret.x, y: this.caret.y } : fallback);
+    if (Math.hypot(dest.x - this.caret.x, dest.y - this.caret.y) > 12) this.guideCaretTo(dest.x, dest.y);
+    return dest;
+  }
+
+  updateCaret(dt: number) {
+    if (!this.caret) return;
+    if (this.caretMode === 'trapped') {
+      const p = this.slitPos();
+      this.caret.setPosition(p.x, p.y).setDepth(255);
+      this.caret.setAlpha(0.25 + 0.75 * (Math.sin(this.t * 8) > 0 ? 1 : 0));
+      if (this.caretBox) this.caretBox.setAlpha(0.85 + 0.15 * Math.sin(this.t * 3));
+      if (!this.busy && !this.dying && !this.transitioning && (this.flags.door || Math.hypot(this.x - p.x, this.y - p.y) < 150)) this.claimCaret();
+      return;
+    }
+    if (this.caretMode === 'jumping' || this.caretMode === 'travel') {
+      this.caret.setVisible(true).setDepth(this.caret.y + 8);
+      return;
+    }
+    if (!this.caret.visible) return;
+    if (this.caretMode === 'sent') {
+      this.caret.setDepth(this.caret.y + 8);
+      if (this.t - this.caretSentAt > 4) this.caretMode = 'follow';
+      return;
+    }
+    if (this.caretMode === 'follow') {
+      const h = this.caretHome();
+      this.caret.x += (h.x - this.caret.x) * Math.min(1, dt * 6);
+      this.caret.y += (h.y - this.caret.y) * Math.min(1, dt * 6);
+      this.caret.setDepth(this.y + 1);
+    }
   }
   nearPrintedLetter() {
     return !!this.explore?.printerFired && !!this.explore?.letter && Math.hypot(this.x - 168, this.y - 255) < 90;
@@ -1958,6 +2182,9 @@ export class GameScene extends Phaser.Scene {
     const tgt = this.aimTarget(BEAM_R); let v = this.dirVec();
     if (tgt) { const dx = tgt.x - this.x, dy = tgt.y - this.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; this.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; }
     const L = tgt ? Math.min(BEAM_R, Math.hypot(tgt.x - this.x, tgt.y - this.y) + 50) : 360, x0 = this.x, y0 = this.y;
+    const ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
+    const rawTip = tgt ? { x: tgt.x, y: tgt.y - 28 } : { x: ox + v.x * L, y: oy + v.y * L };
+    const tip = this.caretBoltDest(rawTip);
     const hit = this.enemies.filter(e => { if (e.dead) return false; const t = Phaser.Math.Clamp(((e.x - x0) * v.x + (e.y - y0) * v.y) / L, 0, 1); return Math.hypot(e.x - (x0 + v.x * L * t), e.y - (y0 + v.y * L * t)) < 40; });
     this.selectN++; this.beamN++; this.selectHits += hit.length; this.beamHits += hit.length;
     const dmg = 1 + charge + 0.5 * Math.max(0, hit.length - 1);
@@ -1966,8 +2193,6 @@ export class GameScene extends Phaser.Scene {
     for (const e of hit) this.hurtEnemy(e, dmg, v.x * 220, v.y * 220, true);
     if (hit.length && this.clar && hit.some(e => e.practice)) { this.markTut('o11beam'); this.clar.beamHits++; }
     if (!this.save.tutorials.includes('select')) { this.save.tutorials.push('select'); }
-    const ox = x0 + v.x * 20, oy = y0 - 52 + v.y * 14;
-    const tip = hit[0] ? { x: hit[0].x, y: hit[0].y - 28 } : { x: ox + v.x * L, y: oy + v.y * L };
     playThrowAttack(this, () => {
       launchAnimatedBolt(this, { x: ox, y: oy }, tip, () => {
         if (tgt) this.fragments(tgt.x, tgt.y - 50, 'rephrase', hit.length ? C.lamp : C.cyan, 8);
@@ -2163,7 +2388,8 @@ export class GameScene extends Phaser.Scene {
     this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
-    if (this.caret.visible) { this.caret.x += (this.x - 46 - this.caret.x) * Math.min(1, dt * 6); this.caret.y += (this.y - 56 - this.caret.y) * Math.min(1, dt * 6); this.caret.setDepth(this.y + 1); }
+    this.updateCaret(dt);
+    if (this.caretKeyF && Phaser.Input.Keyboard.JustDown(this.caretKeyF) && this.caretOwned && !this.hand && !this.stealPlay?.held && !this.composer && control) this.sendCaret();
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
@@ -2392,6 +2618,8 @@ export class GameScene extends Phaser.Scene {
       dialogueProg: this.dialogue ? this.dialogue.progress() : null,
       gapPan: this.gapPan, camMid: { x: this.cameras.main.midPoint.x, y: this.cameras.main.midPoint.y, scrollY: this.cameras.main.scrollY, zoom: this.cameras.main.zoom },
       introMail: !!this.intro?.mailOpen?.(),
+      introCursor: this.intro?.cursorState?.() ?? null,
+      caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible },
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
@@ -2443,6 +2671,16 @@ export class GameScene extends Phaser.Scene {
       skipGapPan: () => { this.skipGapReveal(); return this.gapPan; },
       playGapPan: () => { this.playGapReveal(true); return this.gapPan; },
       forceMailHold: () => this.intro?.forceHold?.() ?? false,
+      forceDraftCursor: () => this.intro?.forceCursor?.() ?? false,
+      sendCaret: (id?: string) => {
+        if (id) {
+          const p = this.plateById(id);
+          if (p) return this.sendCaret({ x: p.def.sx, y: p.def.sy, plate: p });
+        }
+        return this.sendCaret();
+      },
+      claimCaret: () => { this.claimCaret(true); return this.caretMode; },
+      trapCaret: () => { this.placeTrappedCaret(); return this.caretMode; },
       clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },
       noorAnim: () => ({ key: this.noor.anims.currentAnim?.key ?? '', frame: this.noor.frame.name, sy: this.noor.scaleY }),
       reduceMotion: (on: boolean) => this.setReduceMotion(on),

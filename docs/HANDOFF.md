@@ -1,5 +1,34 @@
 # HANDOFF
 
+## 2026-11-23 — Deeper chasm, painted lip, Caret origin and hands
+
+Follow-up to `b9a8fb2`. The gap still read as a thin taped trench with a wall-like band under the south lip. The Caret's origin vs Fern still did not land.
+
+1. **Deeper well.** The mid-room chasm is a receding shaft (layered falloff, a dark vanishing well, hanging cables, lights that shrink with depth, paper falling toward the bottom). Lip faces have slab thickness and shadow. Collision is unchanged (`80, 254, 1120×64`) so the door, dash, and copy beats stay put.
+
+2. **Painted lip, not tape.** The yellow hazard dashes are gone. Edges are scuffed metal with a dim cyan edge light, closer to the painted furniture.
+
+3. **South ledge is floor.** The dark band under the south lip (the strip the SHUT door stands on) is painted as walkable tiled floor matching the south grid, fading into the baked floor at y≈436. The chasm lip is clearly that ledge's north edge. Door spill sits on the new floor.
+
+4. **Caret story.** Fern is the voice (screens/holograms only; she cannot touch). The Caret is Noor's hands — where her next word lands — and never speaks. In the opening, a cursor blinks after her typed message; when the AI rewrites the claim, the cursor is left behind. In the hub it is trapped and blinking in a text-box slit in the SHUT door. When she gets close (or the door opens with it still trapped) it jumps to her hand. Fern: "That's yours. It's where your next word goes." / "It took everything you wrote. Not that." The old "It likes you" / "learned from every line I didn't send" lines are gone.
+
+5. **Caret mechanics (two).** F sends the Caret to the nearest word plate or foe in facing range (it travels visibly, then grabs the word). Hold-J beam: the Caret moves to the target first, and the bolt flies to where it sits. Progressive prompts only when first needed (`F  send the cursor`, `HOLD J  the cursor aims`). Room 2 use: grab OPEN from mid-south without walking to the lamp. Existing lamp-to-door swap still works.
+
+6. **Playtest.** Previous 226 plus intro cursor, trapped/jump caret, range-grab OPEN, and a south-ledge floor check. Door-block, dash-gap, copy, and E-advance contracts kept.
+
+Review stills (not in the repo):
+- deeper gap from spawn: `/workspace/l2f-gap-spawn-2x.png` (full `/workspace/l2f-gap-spawn.png`)
+- gap during the arrival punch-in: `/workspace/l2f-gap-pan-2x.png` (full `/workspace/l2f-gap-pan.png`)
+- south ledge as floor: `/workspace/l2f-gap-ledge-2x.png` (full `/workspace/l2f-gap-ledge.png`)
+- caret trapped in the door slit: `/workspace/l2f-caret-slit-2x.png` (full `/workspace/l2f-caret-slit.png`)
+- caret jumping to her hand: `/workspace/l2f-caret-jump-2x.png` (full `/workspace/l2f-caret-jump.png`)
+- caret aiming a bolt: `/workspace/l2f-caret-aim-2x.png` (full `/workspace/l2f-caret-aim.png`)
+- caret grabbing a word at range: `/workspace/l2f-caret-grab-2x.png` (full `/workspace/l2f-caret-grab.png`)
+- opening cutscene cursor blink: `/workspace/l2f-caret-intro-2x.png` (full `/workspace/l2f-caret-intro.png`)
+
+Leftovers: the well is still only as tall as the mid band (~64px of collision), so depth is a perspective trick, not a wider kill zone. The new ledge tiles are code-drawn to match the painted grid and may seam slightly at y≈436. Caret send range is a facing cone, not a free cursor-drag. Aiming around a true corner still sends the bolt in a straight line to the Caret.
+
+
 ## 2026-11-23 — Stray hint pin, real dash chasm, E advances dialogue
 
 Leftovers from `6b33b7a`: a green leaf-and-triangle icon appeared on the south floor by the left desk; the mid-room dash gap still read as one attached surface (painted rail plus an additive cyan shaft); pressing E did not skip or advance dialogue.

@@ -684,9 +684,10 @@ export class CombatGreybox {
     if (tgt) { const dx = tgt.x - s.x, dy = tgt.y - s.y, l = Math.hypot(dx, dy) || 1; v = { x: dx / l, y: dy / l }; s.dir = DIRS[(Math.round(Math.atan2(v.y, v.x) / (Math.PI / 4)) + 8) % 8]; }
     const L = Math.min(R, tgt ? Math.hypot(tgt.x - s.x, tgt.y - s.y) + 20 : R);
     const x0 = s.x, y0 = s.y - 52;
+    const tip = s.caretBoltDest({ x: x0 + v.x * L, y: y0 + v.y * L });
     s.swingT = 0.45; s.beamN++; sfx('paste');
     playThrowAttack(s, () => {
-      launchAnimatedBolt(s, { x: x0, y: y0 }, { x: x0 + v.x * L, y: y0 + v.y * L }, undefined, 240);
+      launchAnimatedBolt(s, { x: x0, y: y0 }, tip, undefined, 240);
     }, true);
     this.lightDip = 0.55; this.spawnFlutter(x0, y0, v, L); this.spawnScorch(x0, y0, v, L);
     const hit = s.enemies.filter(e => {

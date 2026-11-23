@@ -44,9 +44,12 @@ async function steal(page, from, to) {
 }
 
 
-async function meanLum(page, clip) {
+async function lumStats(page, clip) {
   const b64 = (await page.screenshot({ clip })).toString('base64');
-  return page.evaluate((b64) => new Promise(res => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(0, 0, c.width, c.height).data; let t = 0; for (let i = 0; i < d.length; i += 4) t += (d[i] + d[i + 1] + d[i + 2]) / 3; res(t / (d.length / 4)); }; im.src = 'data:image/png;base64,' + b64; }), b64);
+  return page.evaluate((b64) => new Promise(res => { const im = new Image(); im.onload = () => { const c = document.createElement('canvas'); c.width = im.width; c.height = im.height; const g = c.getContext('2d'); g.drawImage(im, 0, 0); const d = g.getImageData(0, 0, c.width, c.height).data; const n = d.length / 4; let t = 0, t2 = 0; for (let i = 0; i < d.length; i += 4) { const v = (d[i] + d[i + 1] + d[i + 2]) / 3; t += v; t2 += v * v; } const mean = t / n; res({ mean, std: Math.sqrt(Math.max(0, t2 / n - mean * mean)) }); }; im.src = 'data:image/png;base64,' + b64; }), b64);
+}
+async function meanLum(page, clip) {
+  return (await lumStats(page, clip)).mean;
 }
 
 /** art-v9 OFFICE test level: directing camera, layers, close-ups, swap visuals, Noor reactions, pressure, reduce motion */
@@ -196,6 +199,9 @@ async function linger(browser) {
         };
       });
       ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe, JSON.stringify(stand));
+      const ledge = await lumStats(page, { x: 200, y: 350, width: 220, height: 50 });
+      const pitVar = await lumStats(page, { x: 180, y: 272, width: 260, height: 28 });
+      ok('hub: the south ledge under the door is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
     }
   }
   await pi(page, 'goto', 'office'); await waitFor(page, s => s.room === 'office', 5000); await sleep(400);
@@ -238,6 +244,8 @@ async function desktop(browser) {
     s = await st(page);
     ok('intro: cutscene is playing and skippable', s.intro || s.cutscene === 'intro', `intro ${s.intro} cut ${s.cutscene}`);
     await stillL1(page, 'intro');
+    const cur = await pi(page, 'forceDraftCursor');
+    ok('intro: a cursor blinks after Noor\'s typed message', !!(cur && cur.visible), JSON.stringify(cur));
     const mailOn = await pi(page, 'forceMailHold');
     ok('intro: claim-mail tab can be held', !!mailOn, `mailOn ${mailOn}`);
     await page.keyboard.down('e'); await sleep(80); await page.keyboard.up('e'); await sleep(120);
@@ -477,6 +485,37 @@ async function desktop(browser) {
   s = await st(page);
   ok('dialogue: second E closes a cutscene line', !s.talking && !(s.dialogueProg && s.dialogueProg.busy), JSON.stringify(s.dialogueProg));
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); s.busy = false; try { s.dialogue?.clear(); } catch {} });
+
+  // HUB: Caret is trapped in the SHUT door slit, jumps on approach, can grab OPEN at range
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false; s.cutscene = null; s.hand = null;
+  });
+  let caretMode = await pi(page, 'trapCaret');
+  s = await st(page);
+  ok('hub: the Caret is trapped in the SHUT door slit', s.caret && s.caret.mode === 'trapped' && s.caret.visible && Math.abs(s.caret.x - 640) < 40 && s.caret.y > 330 && s.caret.y < 420, `mode ${caretMode} ${JSON.stringify(s.caret)}`);
+  await pi(page, 'teleport', 640, 500); await sleep(350);
+  s = await waitFor(page, s => s.caret && s.caret.owned && s.caret.mode === 'follow', 4000);
+  ok('hub: close approach makes the Caret jump to her hand', !!(s.caret && s.caret.owned && (s.caret.mode === 'follow' || s.caret.mode === 'jumping')), JSON.stringify(s.caret));
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false; s.hand = null;
+    const p = s.plateById('h_lamp');
+    if (p) p.setOpts({ selected: false });
+  });
+  await pi(page, 'teleport', 520, 580); await sleep(80);
+  const sent = await pi(page, 'sendCaret', 'h_lamp');
+  s = await waitFor(page, s => (s.steal && s.steal.held && s.steal.held.word === 'OPEN') || (s.hand && s.hand.word === 'OPEN'), 4000);
+  ok('hub: sending the Caret grabs OPEN at range', !!(s.steal && s.steal.held && s.steal.held.word === 'OPEN') || !!(s.hand && s.hand.word === 'OPEN'), `sent ${sent} steal ${JSON.stringify(s.steal && s.steal.held)} hand ${JSON.stringify(s.hand)}`);
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false;
+    try { s.stealPlay?.snapHeld(); } catch {}
+    s.hand = null;
+  });
 
   // HUB: take OPEN from the lamp, throw at the door
   await sleep(400);

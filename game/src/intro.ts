@@ -71,6 +71,8 @@ export class IntroCutscene {
   private mailHoldT = 0;
   private mailHint?: Phaser.GameObjects.Text;
   private mailGone = false;
+  private draftCursor?: Phaser.GameObjects.Rectangle;
+  private lastTypeLine?: Phaser.GameObjects.Text;
 
   constructor(s: GameScene) { this.s = s; }
 
@@ -349,6 +351,38 @@ export class IntroCutscene {
     return this.mailOpen();
   }
 
+  /** Test / still hook: finish the typed lines and leave the blinking cursor after the message. */
+  forceCursor() {
+    for (const t of this.letters) {
+      const full = (t.getData('full') as string) || t.text;
+      if (full) t.setText(full).setAlpha(1).setVisible(true);
+    }
+    const host = this.lastTypeLine ?? this.letters.filter(l => !!(l.getData('src'))).pop();
+    this.showDraftCursor(host);
+    return this.cursorState();
+  }
+
+  cursorState() {
+    const c = this.draftCursor;
+    if (!c || !c.active) return { visible: false, x: 0, y: 0, a: 0 };
+    return { visible: c.visible && (c.alpha ?? 0) > 0.05, x: c.x, y: c.y, a: c.alpha ?? 0 };
+  }
+
+  private showDraftCursor(host?: Phaser.GameObjects.Text) {
+    if (!this.monitor) return;
+    const line = host ?? this.lastTypeLine;
+    if (!line) return;
+    if (!this.draftCursor || !this.draftCursor.active) {
+      const cur = this.s.add.rectangle(0, 0, 2, 20, 0x78e4e8, 1).setOrigin(0, 0);
+      this.monitor.add(cur);
+      this.draftCursor = cur;
+      this.s.tweens.add({ targets: cur, alpha: { from: 1, to: 0.08 }, duration: 420, yoyo: true, repeat: -1, ease: 'Sine.inOut' });
+    }
+    const cur = this.draftCursor;
+    cur.setPosition(line.x + Math.max(8, line.width) + 4, line.y + 2);
+    cur.setVisible(true);
+  }
+
   handleInput(f: { pause: boolean; skipHeld: boolean; interact?: boolean; attack?: boolean }, dt: number): boolean {
     if (!this.playing) return false;
     if (f.pause) { this.skip(); return true; }
@@ -466,6 +500,9 @@ export class IntroCutscene {
         });
       }
       delay = start + row.text.length * 42 + 220;
+      this.lastTypeLine = t;
+      const doneAt = start + row.text.length * 42;
+      this.at(doneAt + 80, () => { if (this.playing) this.showDraftCursor(t); });
     });
   }
 
@@ -473,13 +510,17 @@ export class IntroCutscene {
     const s = this.s;
     if (!this.monitor) return;
     // Glitch the other body lines, and crawl "Please reconsider." into "CLAIM DENIED."
+    // The cursor is left behind — the AI takes the words, not the caret.
+    let last: Phaser.GameObjects.Text | undefined;
     for (const t of this.letters) {
       const src = (t.getData('src') as string) || t.text;
       const dest = AFTER[src];
       if (!dest) continue;
+      last = t;
       if (src === 'Please reconsider.') this.crawlLetters(t, dest);
       else this.glitchLine(t, dest);
     }
+    if (last) this.at(900, () => { if (this.playing) this.showDraftCursor(last!); });
   }
 
   /** Quality-word style: each letter is its own glyph, they glow, then crawl into the new word. */
@@ -783,6 +824,8 @@ export class IntroCutscene {
     this.skipHint = undefined;
     this.monitor = undefined;
     this.mailHint = undefined;
+    this.draftCursor = undefined;
+    this.lastTypeLine = undefined;
     this.mailHold = false;
     this.mailHoldT = 0;
     this.mailGone = true;

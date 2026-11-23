@@ -1,5 +1,12 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-23 — Chasm depth, south ledge, Caret origin
+
+- **Gap.** The well now reads as a receding shaft (layers, vanishing bottom, thicker lip faces). Hazard tape was replaced with scuffed metal and a dim cyan edge. The dark band under the south lip, where the SHUT door sits, is a tiled walkable floor whose north edge is the chasm lip.
+- **Caret.** No longer an unexplained ally that fades in after the door opens with "It likes you." It is first seen blinking after Noor's opening message, left behind when the AI steals her words, then found trapped in a text-box slit in the SHUT door. Close approach (or opening the door) makes it jump to her hand. Fern: "That's yours. It's where your next word goes." / "It took everything you wrote. Not that." The Caret never speaks; Fern cannot touch.
+- **Hands.** F sends it to a word plate to grab at range (OPEN can be taken from mid-south). Hold-J beams fly to wherever the Caret has been sent, after it visibly moves to the target.
+
+
 ## 2026-11-23 — Hint pin, chasm, E, caret note
 
 Played after the `6b33b7a` follow-up (Playwright, stills under `/workspace/l2e-*.png`).
