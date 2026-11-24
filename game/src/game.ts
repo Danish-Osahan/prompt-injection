@@ -8,6 +8,7 @@ import { WordUI, BAR_Y } from './words';
 import { ROOMS, type Rect, type RoomDef } from './rooms';
 import { DraftFight, DRAFT } from './boss';
 import { sfx, bindSfxScene, setSfxVolume, getMasterVolume, getAudioContext, meterRms } from './sfx';
+import { installAudioUnlock, setAmbience, setAmbienceDuck, updateAmbience, getAmbienceId, getAmbienceDucked, getAmbienceErrors, unlockAudio } from './ambience';
 import { voiceBlip, freezeBedActive } from './voice';
 import { bindMusicScene, playMusic, setMusicVolume } from './music';
 import { ROOMART, type AmbLayer } from './roomart';
@@ -222,7 +223,7 @@ export class GameScene extends Phaser.Scene {
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
     this.caretKeyF = this.input.keyboard?.addKey('F');
-    bindSfxScene(this);
+    bindSfxScene(this); installAudioUnlock(); unlockAudio();
     bindMusicScene(this);
     this.makeTextures();
     this.buildHud();
@@ -974,7 +975,8 @@ export class GameScene extends Phaser.Scene {
     if (!this.introPending) this.cameras.main.fadeIn(220, 4, 8, 12);
     else { try { this.cameras.main.setAlpha(1); } catch { /* */ } this.cameras.main.fadeOut(0, 4, 8, 12); }
     if (!this.introPending && !this.intro?.playing && !this.swapMode) showRoomCard(this, id);
-    playMusic(id === 'arena' ? 'tense' : 'office');
+    playMusic(id === 'arena' ? 'tense' : 'none', 1.2);
+    setAmbience(id, 1.25);
   }
 
   drawFloor(r: RoomDef) {
@@ -2570,6 +2572,8 @@ export class GameScene extends Phaser.Scene {
     // facing + animation
     if (Math.hypot(mx, my) > 0.1 && this.swingT <= 0) this.dir = DIRS[(Math.round(Math.atan2(my, mx) / (Math.PI / 4)) + 8) % 8];
     const moving = Math.hypot(this.x - ox, this.y - oy) > 0.5;
+    setAmbienceDuck(!!this.dialogue?.busy || !!this.busy || !!this.cutscene || this.paused);
+    updateAmbience({ room: this.room?.id, x: this.x, y: this.y, moving, dt });
     const steering = Math.hypot(mx, my) > 0.1;
     const cur = this.noor.anims.currentAnim?.key ?? '';
     const winding = !!this.noor.getData('windOn');
@@ -2835,7 +2839,7 @@ export class GameScene extends Phaser.Scene {
     return {
       screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp, talking: !!this.dialogue?.busy,
       dialogueProg: this.dialogue ? this.dialogue.progress() : null,
-      gapPan: this.gapPan, camMid: { x: this.cameras.main.midPoint.x, y: this.cameras.main.midPoint.y, scrollY: this.cameras.main.scrollY, zoom: this.cameras.main.zoom },
+      gapPan: this.gapPan, ambience: getAmbienceId(), ambDuck: getAmbienceDucked(), ambErrors: getAmbienceErrors(), camMid: { x: this.cameras.main.midPoint.x, y: this.cameras.main.midPoint.y, scrollY: this.cameras.main.scrollY, zoom: this.cameras.main.zoom },
       introMail: !!this.intro?.mailOpen?.(),
       introCursor: this.intro?.cursorState?.() ?? null,
       caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible },
@@ -2888,6 +2892,9 @@ export class GameScene extends Phaser.Scene {
       glowWords: (line: string) => this.dialogue?.glowWords(line) ?? [],
       advanceDialogue: () => { this.dialogue?.advance(); return this.dialogue?.progress() ?? null; },
       skipGapPan: () => { this.skipGapReveal(); return this.gapPan; },
+      setAmbience: (id: string) => { setAmbience(id as Parameters<typeof setAmbience>[0], 0.2); return getAmbienceId(); },
+      unlockAudio: () => unlockAudio(),
+
       playGapPan: () => { this.playGapReveal(true); return this.gapPan; },
       forceMailHold: () => this.intro?.forceHold?.() ?? false,
       forceDraftCursor: () => this.intro?.forceCursor?.() ?? false,

@@ -5,6 +5,7 @@ import type { RoomId } from './save';
 import { writeSave } from './save';
 import { LINES } from './linger';
 import { sfx } from './sfx';
+import { setAmbience } from './ambience';
 import type { GameScene } from './game';
 
 const C = tokens.color;
@@ -131,6 +132,7 @@ export function backToTitle(s: GameScene) {
   s.cameras.main.once('camerafadeoutcomplete', () => {
     s.endScreen?.destroy(); s.endScreen = undefined; s.endLinesText = undefined;
     s.busy = false; s.cutscene = null; s.ending = false;
+    try { setAmbience('none'); } catch { /* */ }
     s.scene.start('title');
   });
 }

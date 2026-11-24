@@ -4,6 +4,7 @@ import { OFFICE9 } from './office9art';
 import { OFFICE8C } from './office8art';
 import { O11_PROPS, O11_DOOR, O11_DUMMY } from './office11art';
 import { shouldSkipTitle } from './settings';
+import { installAudioUnlock, unlockAudio } from './ambience';
 
 export const SHEETS = ['noor_idle', 'noor_walk', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3', 'noor_lookL', 'noor_lookR', 'noor_phone', 'noor_shadow', 'noor_surprise', 'fern_seated', 'fern_plant', 'caret_idle', 'caret_move'];
 
@@ -58,6 +59,7 @@ export class BootScene extends Phaser.Scene {
     this.load.on('progress', (p: number) => t.setText(`> loading ${Math.round(p * 100)}%_`));
   }
   create() {
+    installAudioUnlock(); unlockAudio();
     // Build animations from the frame names in each JSON-hash sheet: <char>_<anim>_<DIR>_<NN>
     for (const s of SHEETS) {
       const names = this.textures.get(s).getFrameNames();

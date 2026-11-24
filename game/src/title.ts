@@ -6,6 +6,7 @@ import { hasSave, wipeSave } from './save';
 import { loadSettings, writeSettings, shouldSkipTitle } from './settings';
 import { bindSfxScene, sfx, setSfxVolume } from './sfx';
 import { bindMusicScene, playMusic, setMusicVolume } from './music';
+import { setAmbience } from './ambience';
 
 const C = tokens.color;
 const FONT = 'JetBrains Mono';
@@ -41,6 +42,7 @@ export class TitleScene extends Phaser.Scene {
     setSfxVolume(this.sfxVol);
     setMusicVolume(this.musicVol);
     playMusic('office');
+    setAmbience('none');
 
     // Full-bleed office plate, dimmed.
     const bg = this.add.image(0, 0, 'bg_office_base').setOrigin(0).setDepth(0);

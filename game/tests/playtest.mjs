@@ -266,6 +266,8 @@ async function desktop(browser) {
     s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play', 8000);
   }
   ok('desktop: after intro, R0 is controllable', s.room === 'office' && s.state === 'play' && !s.intro, `state ${s.state} intro ${s.intro}`);
+  try { await pi(page, 'unlockAudio'); } catch {}
+  ok('audio: office room starts its own ambience', s.ambience === 'office', `amb ${s.ambience}`);
   await shot(page, 'desktop-01-office');
   // movement (real keys)
   const x0 = s.player.x, y0 = s.player.y;
@@ -439,6 +441,20 @@ async function desktop(browser) {
   const glowToken = await pi(page, 'glowWords', 'SHUT becomes OPEN.');
   ok('dialogue: lowercase open/shut do not glow', Array.isArray(glowCasual) && glowCasual.length === 0, JSON.stringify(glowCasual));
   ok('dialogue: OPEN/SHUT quality tokens still glow', Array.isArray(glowToken) && glowToken.some(w => /OPEN|SHUT/.test(w)) && glowToken.length === 2, JSON.stringify(glowToken));
+  s = await st(page);
+  ok('audio: hub room switches to hub ambience', s.ambience === 'hub', `amb ${s.ambience}`);
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false; s.cutscene = null;
+    s.say('fern', 'The room is listening.', 2400, { box: true });
+  });
+  await sleep(250); s = await st(page);
+  ok('audio: ambience ducks under dialogue', s.ambDuck === true, `duck ${s.ambDuck} talking ${s.talking}`);
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; s.cutscene = null; });
+  await sleep(350); s = await st(page);
+  ok('audio: ambience unducks after dialogue', s.ambDuck === false, `duck ${s.ambDuck}`);
+  ok('audio: no ambience errors', !s.ambErrors || s.ambErrors.length === 0, JSON.stringify(s.ambErrors));
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   await sleep(200);
   await page.evaluate(() => {
@@ -552,6 +568,8 @@ async function desktop(browser) {
   ok('hub: dash crosses the gap', !s.dying && s.player.y < 250, `y ${Math.round(s.player.y)} dying ${s.dying}`);
   await input.move(0, -1); s = await waitFor(page, s => s.room === 'corridor', 4000); await input.stop();
   ok('hub: north exit leads to the Dark Corridor', s.room === 'corridor');
+  s = await st(page);
+  ok('audio: corridor room switches to corridor ambience', s.ambience === 'corridor', `amb ${s.ambience}`);
 
   // CORRIDOR: switch ON → lamp, clock QUICK → dummy, then attack
   await sleep(400); await shot(page, 'desktop-06-corridor-dark');
@@ -754,6 +772,7 @@ async function desktop(browser) {
   await pi(page, 'goto', 'archive');
   s = await waitFor(page, s => s.room === 'archive' && !s.endScreen && s.cutscene !== 'end' && !s.paused, 8000);
   ok('save: puzzle progress kept on revisit', s.flags && s.flags.bridge && s.flags.drained);
+  ok('audio: archive room switches to archive ambience', s.ambience === 'archive', `amb ${s.ambience}`);
   if (s.paused) { await page.keyboard.press('Escape'); await sleep(200); }
   await page.keyboard.press('Escape'); await sleep(200); s = await st(page);
   ok('pause: Esc opens the controls menu', s.paused, `paused ${s.paused} state ${s.state} cut ${s.cutscene} room ${s.room}`);

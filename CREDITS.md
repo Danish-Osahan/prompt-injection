@@ -209,3 +209,9 @@ Original WebAudio, no third-party samples:
 - Freeze bed in `game/src/voice.ts`: sub-boom, tape-stop (falling lowpass noise), low eerie drone, faint high ringing tone, slow heartbeat, glitchy digital crackles on the drifting DENIED word, and a reverse-noise swell into Fern's arrival. All synthesized at runtime.
 - Voice blips in the same file: Noor is a warm lower sine+triangle with slight pitch variation and a lowpass; Fern is a brighter bitcrushed square chirp plus a short noise burst. They share the game's AudioContext (`game/src/sfx.ts`).
 
+## Per-room Level 1 ambience (2026-11-24)
+
+Original procedural WebAudio in `game/src/ambience.ts`. No third-party samples and no AI audio. Each Level 1 room has its own bed (filtered noise room-tone), a slow evolving drone in a distinct key/timbre, and sparse random spots (fluorescent buzz, creaks, paper, reversed typing, drips, glass ping, CRT hiss). The hub updraft rises near the gap; a glass hum rises near the mirror pane. Rooms crossfade in ~1.25s. Ambience ducks under dialogue and cutscenes. Combat SFX (bolt, hit, dash) stay on the SFX bus so they read over the bed.
+
+Existing CC0 loops and one-shots (Kenney Interface Sounds, alxl *Rain on Window Loop*, yd *Insistent*, skrjablin *The Final Battle*, rubberduck *100 CC0 SFX*, sinny *old elevator door*) are unchanged and already credited above. Rain stays quiet (0.15, and ducks further under dialogue).
+

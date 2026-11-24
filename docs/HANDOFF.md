@@ -1,5 +1,51 @@
 # HANDOFF
 
+## 2026-11-24 — Hub void cleanup + per-room eerie ambience
+
+Part A (`11dacf0`) then Part B (this commit), after `7ce3abe`. Cleanup first, then unique room sound.
+
+### A. Visual cleanup (GB-1)
+
+- **Hub void edges.** The black drop is clipped to the inner walls (`WL=68`–`WR=1212`) so it no longer punches square blocks out past the painted side walls. Side notches are short shadowed recesses, not cut-through squares. The far lip is a recessed dark seam only (`0x152838` / `0x0a141c`) — the leftover pale pipe/duct highlight along y≈240 is gone.
+- **Mid-dash occlusion.** Noor mid-void sorts to depth -940. A cropped copy of `bg_hub_shut` / `bg_hub_open` (crop `0,0,1280,HUB_NY`, depth 200, alphas synced with the door fade) occludes her head inside the north door/glass until her feet land. Legs in the shaft stay visible. Hair echoes and the follow-caret hide in the void; dash-trail glyphs clamp to `y >= HUB_NY+10`.
+- **Hints.** `caretSend` only appears while `caretMode === 'follow'`, so "F send the cursor" is gone once the Caret is parked. Hint text is clamped to the playfield (x 110–1170, y 40–680) near Noor, never a detached chip at the screen edge.
+- **Parked I-beam.** Fill is electric cyan `0x1afff0` with a `0xe8ffff` hot core and the dark outline kept. Blink alpha floors at 0.88 so corridor light cannot mute it.
+
+Review stills (not in the repo):
+- void edges: `/workspace/l2j-void-edges-2x.png` (1x `/workspace/l2j-void-edges.png`)
+- mid-dash: `/workspace/l2j-gap-dash-2x.png` (1x `/workspace/l2j-gap-dash.png`)
+- parked I-beam: `/workspace/l2j-caret-park-2x.png` (1x `/workspace/l2j-caret-park.png`)
+
+### B. Per-room eerie ambience (GB-2)
+
+`game/src/ambience.ts` — original procedural WebAudio (no new samples, no AI audio, no spend). Every Level 1 room has its own bed + drone key/timbre + sparse spots. Rooms crossfade in 1.25s. Ambience uses the music×master bus and ducks to 28% under dialogue, cutscenes, and pause. Spots and combat stay on the SFX bus. Autoplay unlock is installed from boot + game create (first pointer/key resumes the AudioContext). Title and the end-screen return fade ambience to `none` so it does not stack under the office title loop. Rain stays at 0.15 and still ducks under dialogue. Dash is mapped to `sfx_whoosh` at 0.8 so attacks read over the bed.
+
+Room tones (previews in `/workspace/audio-previews/`, ~20s each, plus a ~30s walkthrough):
+- **office** — 58 Hz HVAC brown-noise bed, faint fluorescent band, paper/creak/key spots.
+- **hub** (Mirror Office) — deeper 46 Hz drone, glass bandpass hum near the pane, updraft/wind that swells near the gap, paper, a glass ping, reversed typing.
+- **corridor** — 41 Hz muffled brown hush, clock tick, distant drip, concrete foot, a faint whisper.
+- **archive** — 49 Hz damp bed, wet drips, paper, creak, wet footsteps.
+- **arena** — 36 Hz tense saw-tinged drone, scrape, tick, reversed typing under the existing *Final Battle* loop.
+- **message** — 50 Hz plus a thin 10 kHz CRT hiss, keyboard and reversed type.
+- **walkthrough** — office → hub → corridor with 1.25s crossfades.
+- **combat-over-office** — office bed with dash+hit stings; stings peak clearly above the bed.
+
+Measured (ffmpeg loudnorm): room beds sit about -23 to -21 LUFS integrated, no clipping. Combat true-peak is several dB above the bed.
+
+Playtest adds: office/hub/corridor/archive ambience id switching, duck/unduck under a dialogue line, and no ambience errors.
+
+### Leftovers / weak spots
+
+- Possible 1px overlay seam on the north deck; a tiny sliver of Noor at the lip mid-dash.
+- Overlay `setCrop` works on the jpg plate; Phaser 4 spritesheet `setCrop` on Noor did not (UVs came out inverted), so the occluder is the plate, not a crop on her sprite.
+- Aiming the Caret around a true corner is still a straight bolt.
+- Alcove warm light is painted art, not a live light.
+- Ambience is synthesized, so it will not have the grain of a recorded room; spots are sparse by design (eerie, not noisy) and may feel thin on a first 20s listen.
+- Arena still layers the *Final Battle* music over its bed — the bed is quieter so the loop can lead.
+- Intro can briefly replay the office music loop on some skip paths; title clears ambience but that loop is unchanged.
+- leftover circles (boss tells, qualityShot blooms, typography lens, portraits, motes) as listed in the previous pass — not this cleanup.
+
+
 ## 2026-11-24 — Structural chasm, no telegraph circles, visible parked I-beam
 
 Follow-up to `e386aa9`. The user rejected those stills: the parked dummy sat inside a large translucent red/pink circle (the QUICK dummy's r=95 windup tell), the I-beam didn't read on the cream clipboard, and from spawn/pan the "gap" still looked like a horizontal metal pipe/duct with only a thin black void line.

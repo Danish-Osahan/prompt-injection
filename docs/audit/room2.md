@@ -1,5 +1,15 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-24 — Void edges, mid-dash occlusion, I-beam, per-room sound
+
+- **Void edges.** The drop is clipped to the inner walls so black squares no longer poke past the side walls. The far lip is a dark recessed seam; the leftover pale pipe/duct line is gone.
+- **Mid-dash.** A cropped north-wall overlay (depth 200) hides Noor's head in the door/glass until her feet land; mid-void depth is -940 so her legs stay in the shaft.
+- **Hints / I-beam.** "F send the cursor" is suppressed once the Caret is parked. The parked I-beam is electric cyan (`0x1afff0`) with a hot core and dark outline.
+- **Audio.** The hub has its own procedural bed: a 46 Hz drone, a glass hum that rises near the mirror, and an updraft that gets louder near the gap, plus sparse paper / ping / reversed-typing spots. It crossfades (~1.25s) from the office HVAC bed and into the corridor hush, and ducks under Fern's lines.
+
+Stills (not in the repo): `/workspace/l2j-void-edges-2x.png`, `/workspace/l2j-gap-dash-2x.png`, `/workspace/l2j-caret-park-2x.png` (and 1x twins). Hub preview: `/workspace/audio-previews/hub.mp3`.
+
+
 ## 2026-11-24 — Structural chasm, no windup circle, readable I-beam
 
 - **Gap.** The leftover `hub_partition.png` metal bar was hidden; a ~126px-tall (1x) empty shaft is overdrawn so the painted mid-band cannot read as a pipe/duct. Far face is a flat slab with a muted cap, void fading to black, near lip where the south floor ends, and dark notches into the side walls. Collision is now `80, 252, 1120×148`. Dash duration 0.24s (~216px) clears it from the south lip. The SHUT door stays on the near slab (open-then-dash).

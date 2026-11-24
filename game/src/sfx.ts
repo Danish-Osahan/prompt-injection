@@ -46,6 +46,7 @@ const SAMPLE: Partial<Record<string, string>> = {
   hit: 'sfx_hit_heavy',
   steal: 'sfx_steal',
   throw: 'sfx_whoosh',
+  dash: 'sfx_whoosh',
   door_open: 'sfx_door_open',
   door_close: 'sfx_door_close',
   lift: 'sfx_lift',
@@ -72,6 +73,7 @@ const SAMPLE_VOL: Partial<Record<SfxKind, number>> = {
   impact_big: 0.9,
   impact_clank: 0.7,
   throw: 0.7,
+  dash: 0.8,
   steal: 0.65,
 };
 
@@ -87,8 +89,8 @@ export function sfx(kind: SfxKind, volMul = 1) {
   const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
   const P: Record<string, [OscillatorType, number, number, number, number]> = {
     key: ['square', 1800, 1200, 0.03, 0.05], hit: ['triangle', 280, 70, 0.12, 0.28], block: ['square', 140, 110, 0.08, 0.06],
-    dash: ['sawtooth', 600, 200, 0.12, 0.04], swap: ['sine', 520, 1040, 0.18, 0.08], hurt: ['sawtooth', 220, 60, 0.25, 0.1],
-    ring: ['sine', 90, 260, 0.6, 0.12], tell: ['triangle', 880, 880, 0.08, 0.05], paste: ['square', 300, 900, 0.15, 0.06],
+    dash: ['sawtooth', 600, 200, 0.16, 0.16], swap: ['sine', 520, 1040, 0.18, 0.08], hurt: ['sawtooth', 220, 60, 0.25, 0.1],
+    ring: ['sine', 90, 260, 0.6, 0.12], tell: ['triangle', 880, 880, 0.08, 0.05], paste: ['square', 300, 900, 0.18, 0.16],
     root: ['sine', 160, 90, 0.4, 0.12], win: ['sine', 440, 880, 0.8, 0.1],
     impact_whoosh: ['sawtooth', 900, 180, 0.22, 0.07],
     impact_clank: ['triangle', 280, 90, 0.14, 0.14],
@@ -108,7 +110,7 @@ export function sfx(kind: SfxKind, volMul = 1) {
   const [type, f0, f1, dur, vol] = P[kind] ?? P.hit;
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
   g.gain.setValueAtTime(vol * master, t); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-  o.connect(g).connect(a.destination); o.start(t); o.stop(t + dur + 0.02);
+  o.connect(g).connect(outNode() || a.destination); o.start(t); o.stop(t + dur + 0.02);
 }
 
 function playCrackle(volMul = 1) {
