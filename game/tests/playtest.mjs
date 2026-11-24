@@ -185,10 +185,13 @@ async function linger(browser) {
     if (r === 'hub') {   // two detached platforms with a dark chasm between them
       await pi(page, 'skipGapPan');
       await pi(page, 'teleport', 640, 560); await sleep(400); await shot(page, 'v9-hub-gap');
-      const pit = await meanLum(page, { x: 180, y: 272, width: 260, height: 28 });
+      const pit = await meanLum(page, { x: 100, y: 300, width: 90, height: 10 });
       const northLip = await meanLum(page, { x: 180, y: 246, width: 260, height: 10 });
       const southLip = await meanLum(page, { x: 180, y: 316, width: 260, height: 10 });
+      const cliff = await meanLum(page, { x: 180, y: 254, width: 260, height: 16 });
+      const deck = await meanLum(page, { x: 180, y: 228, width: 260, height: 14 });
       ok('hub: the gap is a dark chasm with brighter lip edges', pit < 50 && northLip > pit + 6 && southLip > pit + 8, `pit ${pit.toFixed(1)} north ${northLip.toFixed(1)} south ${southLip.toFixed(1)}`);
+      ok('hub: the far platform is a lit cliff over a dark drop', cliff > pit + 6 && deck > pit + 6 && northLip > pit + 8, `cliff ${cliff.toFixed(1)} deck ${deck.toFixed(1)} pit ${pit.toFixed(1)} north ${northLip.toFixed(1)}`);
       const stand = await page.evaluate(() => {
         const s = window.__game.scene.getScene('game');
         const inH = (x, y) => s.hazards.some(h => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h);
@@ -200,7 +203,7 @@ async function linger(browser) {
       });
       ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe, JSON.stringify(stand));
       const ledge = await lumStats(page, { x: 200, y: 350, width: 220, height: 50 });
-      const pitVar = await lumStats(page, { x: 180, y: 272, width: 260, height: 28 });
+      const pitVar = await lumStats(page, { x: 100, y: 300, width: 90, height: 10 });
       ok('hub: the south ledge under the door is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
       await pi(page, 'playGapPan');
       s = await waitFor(page, s => s.gapPan === 'playing' && s.camMid && s.camMid.y < 330, 4000);
@@ -578,13 +581,29 @@ async function desktop(browser) {
   await sleep(200);
   const aimHp0 = (await st(page)).enemies.find(e => e.kind === 'dummy')?.hp;
   const aimBeams0 = (await st(page)).beamN;
-  await pi(page, 'teleport', 980, 540); await sleep(60);
+  await pi(page, 'teleport', 1040, 530); await sleep(60);
   await pi(page, 'sendCaret', 'dummy'); await sleep(400);
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    try { s.dialogue?.clear(); } catch {}
+    s.busy = false;
+  });
+  s = await waitFor(page, s => !!(s.caret && s.caret.mode === 'sent') && (
+    !!(s.prompts || []).some(p => /cursor aims/.test(p)) ||
+    (s.save.tutorials || []).includes('caretAim') ||
+    (s.save.tutorials || []).includes('select')
+  ), 4000);
+  const reach = Math.hypot((s.caret?.x ?? 0) - s.player.x, (s.caret?.y ?? 0) - s.player.y);
+  ok('corridor: parked Caret reaches across the alcove', s.caret && s.caret.mode === 'sent' && reach > 160, `mode ${s.caret && s.caret.mode} reach ${reach.toFixed(0)} caret ${s.caret && Math.round(s.caret.x)},${s.caret && Math.round(s.caret.y)} player ${Math.round(s.player.x)},${Math.round(s.player.y)}`);
+  ok('corridor: the cursor-aims hint shows once', !!(s.prompts || []).some(p => /cursor aims/.test(p)) || (s.save.tutorials || []).includes('caretAim') || (s.save.tutorials || []).includes('select'), `prompts ${(s.prompts || []).join(' | ')} tut ${(s.save.tutorials || []).join(',')}`);
+  await pi(page, 'teleport', 1110, 390); await sleep(120);
+  s = await st(page);
+  ok('corridor: E take is hidden while the Caret is aimed at the dummy', !(s.lureChip && s.lureChip.visible && s.lureChip.verb === 'take'), JSON.stringify(s.lureChip));
   await pi(page, 'fireBeam', 1); await sleep(500);
   s = await st(page);
   const dummyAim = s.enemies.find(e => e.kind === 'dummy');
   ok('corridor: a bolt aimed by the Caret hits the woken dummy', !!(dummyAim && dummyAim.hp < aimHp0) && s.beamN > aimBeams0, `hp ${aimHp0} -> ${dummyAim && dummyAim.hp} beams ${aimBeams0} -> ${s.beamN}`);
-  await pi(page, 'teleport', 1110, 560); await input.move(0, -1); await sleep(30); await input.stop();
+  await pi(page, 'teleport', 1110, 390); await input.move(0, -1); await sleep(30); await input.stop();
   let swings = 0; for (let i = 0; i < 30; i++) { s = await st(page); if (s.enemies[0].dead) break; await page.keyboard.press('j'); swings++; await sleep(230); if (swings === 2) await shot(page, 'desktop-09-dummy-fight'); }
   s = await st(page);
   ok('corridor: TYPE combo defeats the woken dummy', s.enemies[0].dead, `${swings} swings, hp ${s.hp}`);

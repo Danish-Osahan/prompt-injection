@@ -1,5 +1,10 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-24 — Raised cliff, I-beam, far dummy
+
+- **Gap.** The far (north) side is a raised deck with a lit front wall dropping into a dark void; the near lip is a shorter edge. From spawn the two floors read as detached sections, though the wall is still only mid-band tall. The SHUT door and its stoop stay on the south ledge (open, then dash). Collision unchanged.
+- **Caret aim.** Parked Caret is a blinking I-beam in front of the target (no clipboard rings, no aim brackets). The corridor dummy stands further back at `(1110, 318)`. Steal and lost-line "E take" chips hide while aiming or firing. The cursor-aims hint shows once, ahead of the generic attack hint.
+
 ## 2026-11-23 — Drop, pan, slit, jump sequence
 
 - **Gap.** The chasm now uses a taller visual shaft than the kill band: inner walls, a lit near face, a far underside with shadow, fog, motes, and camera-linked parallax. First arrival is a pan (frame Noor, pan to the gap, ease back), not a punch-in.

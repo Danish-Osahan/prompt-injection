@@ -84,6 +84,16 @@ export class OnboardLure {
       this.chip?.hide();
       return;
     }
+    // Don't show the peel lure on a target while the Caret is parked / traveling / firing at it.
+    const gs = this.s;
+    const aiming = gs.caretOwned && (gs.caretMode === 'sent' || gs.caretMode === 'travel' || gs.atkPending || gs.swingT > 0 || gs.selecting);
+    if (aiming) {
+      this.sourceGlow?.setAlpha(0);
+      this.targetGlow?.setAlpha(0);
+      this.targetGlyph?.setAlpha(0);
+      this.chip?.hide();
+      return;
+    }
     const t = this.s.t;
     this.sourceAct?.(t, dt);
     this.sourceGlow?.setPosition(this.source.x, this.source.y - 8);
@@ -114,6 +124,11 @@ export class OnboardLure {
         this.chip?.show(p.x, p.y, 'throw', 0, 'F');
       } else this.chip?.hide();
     }
+  }
+
+  chipState() {
+    const shown = !!this.chip?.isShown();
+    return { visible: shown, verb: shown ? (this.chip?.currentVerb() ?? '') : '', key: shown ? (this.chip?.currentKey() ?? '') : '', carrying: this.carrying };
   }
 
   destroy() {

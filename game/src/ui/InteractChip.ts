@@ -51,5 +51,8 @@ export class InteractChip {
   }
 
   hide() { this.root.setAlpha(0).setVisible(false); }
+  isShown() { return this.root.visible && this.root.alpha > 0.1; }
+  currentVerb() { return this.verb.text; }
+  currentKey() { return this.letter.text; }
   destroy() { this.root.destroy(); }
 }

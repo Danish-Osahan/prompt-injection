@@ -1,5 +1,28 @@
 # HANDOFF
 
+## 2026-11-24 — Raised far platform, I-beam aim, longer dummy shot
+
+Follow-up to `9c6fd4c`. From the full-plate spawn view the chasm still read as a dark mid-room stripe. The caret parked on the dummy sat inside a clipboard crosshair-and-ring. The dummy was next to Noor, so the aimed bolt looked like a melee poke, and an "E take" chip stayed on it during the aim beat.
+
+1. **Far platform sits higher.** The north floor has a raised deck and a tall lit front wall (vertical grooves, a sun line under the cap, shadow at the foot) dropping into a dark void. The south lip is a shorter edge. The SHUT door and a small stoop stay on the near (south) tiled ledge — that is the platform you walk before the dash, so the door was not moved onto the far side. Collision is unchanged (`80, 254, 1120×64`). Visual only.
+
+2. **Parked Caret is a blinking I-beam.** Clipboard target circles are gone (plain text lines). Auto-aim brackets no longer draw once the Caret is owned. The I-beam blinks while parked and is drawn in front of the target. Bolt tip/impact were already stroke-based; no new rings.
+
+3. **Dummy is further back.** It now stands at `(1110, 318)`, up the alcove by the clock, so a bolt from the alcove entrance travels a clearly visible distance. The `HOLD J  the cursor aims` hint is prioritized over the generic attack hint and still shows once.
+
+4. **No "E take" during the aim beat.** The steal lure and the lost-line `E take` chip hide while the Caret is traveling, parked, or a beam is winding up / firing.
+
+Playtest: 239/239, including a lit-cliff-over-dark-drop check, parked-caret reach across the alcove, the cursor-aims hint, and hidden E take while aimed.
+
+Review stills (not in the repo):
+- gap from spawn: `/workspace/l2h-gap-spawn-2x.png` (full `/workspace/l2h-gap-spawn.png`)
+- pan at the gap: `/workspace/l2h-gap-pan-2x.png` (full `/workspace/l2h-gap-pan.png`)
+- door / south ledge: `/workspace/l2h-gap-ledge-2x.png` (full `/workspace/l2h-gap-ledge.png`)
+- parked I-beam on the dummy: `/workspace/l2h-caret-park-2x.png` (full `/workspace/l2h-caret-park.png`)
+- bolt reaching the far dummy: `/workspace/l2h-caret-bolt-2x.png` (full `/workspace/l2h-caret-bolt.png`)
+
+Leftovers: the north face is only as tall as the mid band allows, so from the full plate it can still read as a thick horizontal wall (almost a duct) rather than a deep canyon — the height difference is real but modest. The SHUT door remains on the near ledge, not the far platform, because the beat is open-then-dash. The parked I-beam is a little low-contrast on the cream clipboard. The alcove floor has a warm oval light falloff in the painted art (not a UI ring).
+
 ## 2026-11-23 — Real chasm drop, inset caret slit, pan, aim in the corridor
 
 Follow-up to `7a4b140`. The gap still read as a flat band; the bolt tip bloomed a ring; the door box sat on the glass like a sticker; the jump beat stacked an arrival line and the F hint; the opening draft cut "My father lo"; first arrival was a punch-in because the plate camera cannot scroll at zoom 1.

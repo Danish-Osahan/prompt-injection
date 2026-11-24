@@ -86,7 +86,7 @@ export const ROOMS: Record<RoomId, RoomDef> = {
       { id: 'c_switch', words: ['SWITCH', 'IS', 'ON'], slot: 2, x: 205, y: 270, sx: 205, sy: 226, kind: 'rule', cap: 'A switch, painted over twice. It is {}.', code: 'switch.state' },
       { id: 'c_note', words: ['FERN\u2019S', 'NOTE'], slot: -1, x: 860, y: 365, sx: 860, sy: 298, kind: 'lore', note: true, hidden: true, text: 'YOU ALWAYS SAID GOOD MORNING.', cap: "Fern's handwriting, taped low. You always said good morning.", code: 'fern.note', val: '"good morning"' },
       { id: 'c_wall', words: ['WALL'], slot: -1, x: 540, y: 400, sx: 540, sy: 290, kind: 'secret', code: 'wall.solid', val: 'TRUE', cap: 'A wall where a door should be. Painted in.', text: 'SOMEONE WROTE THIS WALL IN. NOT YOU.' },
-      { id: 'c_dummy', words: ['DUMMY', 'IS', 'STILL'], slot: 2, x: 1090, y: 585, sx: 1110, sy: 450, kind: 'rule', cap: 'A paper dummy, patient as furniture. It is {}.', code: 'dummy.state' },
+      { id: 'c_dummy', words: ['DUMMY', 'IS', 'STILL'], slot: 2, x: 1110, y: 400, sx: 1110, sy: 318, kind: 'rule', cap: 'A paper dummy, patient as furniture. It is {}.', code: 'dummy.state' },
       { id: 'c_clock', words: ['CLOCK', 'IS', 'QUICK'], slot: 2, x: 1110, y: 255, sx: 1110, sy: 202, kind: 'rule', cap: 'The clock runs ahead of everyone. It is {}.', code: 'clock.speed' },
     ],
     spawn: { x: 110, y: 400 },
