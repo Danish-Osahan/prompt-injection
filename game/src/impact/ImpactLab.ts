@@ -110,7 +110,7 @@ export class ImpactLab {
   state() {
     return {
       on: this.on, lampReady: this.lampReady, carrying: this.carrying, draining: this.draining,
-      flying: this.flying, done: this.done, peelT: this.peelT, holdKind: this.holdKind,
+      flying: this.flying, throwQueued: this.throwQueued, done: this.done, peelT: this.peelT, holdKind: this.holdKind,
     };
   }
 

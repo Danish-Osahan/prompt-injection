@@ -262,12 +262,45 @@ async function desktop(browser) {
     await page.keyboard.down('e'); await sleep(80); await page.keyboard.up('e'); await sleep(120);
     s = await st(page);
     ok('intro: E dismisses the claim-mail tab', s.introMail === false, `introMail ${s.introMail}`);
-    await pi(page, 'skipIntro');
-    s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play', 8000);
+    try { await page.mouse.click(640, 360); } catch { /* */ }
+    await page.keyboard.press('Escape');
+    s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play' && !s.paused, 8000);
+    ok('intro: Esc skips the opening cutscene and reaches gameplay', !!(s && s.room === 'office' && s.state === 'play' && !s.intro && !s.paused), `state ${s && s.state} intro ${s && s.intro} paused ${s && s.paused} cutscene ${s && s.cutscene}`);
+    if (!s || s.intro || s.cutscene === 'intro' || s.state !== 'play') {
+      await pi(page, 'skipIntro');
+      s = await waitFor(page, s => !s.intro && s.cutscene !== 'intro' && s.state === 'play', 8000);
+    }
   }
   ok('desktop: after intro, R0 is controllable', s.room === 'office' && s.state === 'play' && !s.intro, `state ${s.state} intro ${s.intro}`);
   try { await pi(page, 'unlockAudio'); } catch {}
   ok('audio: office room starts its own ambience', s.ambience === 'office', `amb ${s.ambience}`);
+
+  // Mash E through the Fern/Noor opening exchange — never more than one box, and none left at the end.
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await pi(page, 'openingExchange');
+  s = await waitFor(page, s => !!(s.talking && (s.dialogueBoxes ?? 0) >= 1), 4000);
+  await page.evaluate(() => {
+    window.__dlgMax = 0;
+    window.__dlgStop = false;
+    const id = setInterval(() => {
+      try {
+        const n = (window.__pi.state().dialogueBoxes) ?? 0;
+        if (n > window.__dlgMax) window.__dlgMax = n;
+      } catch { /* */ }
+      if (window.__dlgStop) clearInterval(id);
+    }, 8);
+  });
+  for (let i = 0; i < 30; i++) {
+    await page.keyboard.press('KeyE');
+    if (i === 10) await page.screenshot({ path: '/workspace/l1-dialog-mash.png' });
+    await sleep(30);
+  }
+  const mashMax = await page.evaluate(() => { window.__dlgStop = true; return window.__dlgMax; });
+  ok('office: mashing E never stacks dialogue boxes', mashMax <= 1, `max boxes ${mashMax}`);
+  s = await waitFor(page, s => !s.talking && (s.dialogueBoxes ?? 0) === 0, 15000);
+  ok('office: opening exchange ends with no leftover boxes', !!(s && !s.talking && (s.dialogueBoxes ?? 0) === 0), `talking ${s && s.talking} boxes ${s && s.dialogueBoxes}`);
+  try { await pi(page, 'clearDialogue'); } catch { /* */ }
+
   await shot(page, 'desktop-01-office');
   // movement (real keys)
   const x0 = s.player.x, y0 = s.player.y;
@@ -354,6 +387,16 @@ async function desktop(browser) {
   await page.keyboard.up('KeyE');
   s = await waitFor(page, s => !!(s.lab && (s.lab.carrying || s.lab.draining || s.lab.done)), 4000);
   ok('office: holding E at the lamp peels the spark', !!(s.lab && (s.lab.carrying || s.lab.draining || s.lab.done)), `held ${holding} lab ${JSON.stringify(s.lab)}`);
+  s = await waitFor(page, s => !!(s.lab && (s.lab.carrying || s.lab.done)), 4000);
+  try { await page.mouse.click(640, 360); } catch { /* */ }
+  await sleep(80);
+  await page.keyboard.press('KeyF');
+  s = await waitFor(page, s => !!(s.lab && (s.lab.flying || s.lab.throwQueued || s.lab.done)), 4000);
+  if (!(s && s.lab && (s.lab.flying || s.lab.throwQueued || s.lab.done))) {
+    await page.keyboard.press('KeyF');
+    s = await waitFor(page, s => !!(s.lab && (s.lab.flying || s.lab.throwQueued || s.lab.done)), 2500);
+  }
+  ok('office: F throws a bolt projectile', !!(s.lab && (s.lab.flying || s.lab.throwQueued || s.lab.done)), `lab ${JSON.stringify(s && s.lab)}`);
   const lit = await pi(page, 'openLift');
   s = await waitFor(page, s => s.liftDone, 8000);
   ok('office: lamp spark thrown into the lift panel opens the doors', !!(s.liftDone || s.doorOpen || (s.plates.o_door && s.plates.o_door.words.includes('OPEN'))), `lit ${lit} door ${s.plates.o_door && s.plates.o_door.words} done ${s.liftDone}`);

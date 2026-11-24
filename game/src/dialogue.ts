@@ -104,6 +104,10 @@ export class Dialogue {
   private boxPadT = 22;
   private tailGfx?: Phaser.GameObjects.Triangle;
   private boxReveal = false;
+  /** Bumped on each new job / clear so leftover typewrite and wait timers cannot finish a later line. */
+  private jobId = 0;
+  private lastAdvanceAt = -9999;
+  private transitioning = false;
   constructor(s: GameScene) {
     this.s = s;
     this.onKey = (ev: KeyboardEvent) => {
@@ -124,7 +128,10 @@ export class Dialogue {
   }
 
   advance() {
-    if (!this.busy) return;
+    if (!this.busy || this.transitioning) return;
+    const now = this.s.time?.now ?? 0;
+    if (now - this.lastAdvanceAt < 120) return;
+    this.lastAdvanceAt = now;
     if (this.typed.length < this.full.length) {
       this.typed = this.full;
       this.refreshBits(true);
@@ -137,7 +144,18 @@ export class Dialogue {
 
   /** Typed/full snapshot for playtest and the E-advance path. */
   progress() {
-    return { busy: this.busy, waiting: this.waiting, typed: this.typed, full: this.full, who: this.who, queue: this.queue.length };
+    return { busy: this.busy, waiting: this.waiting, typed: this.typed, full: this.full, who: this.who, queue: this.queue.length, boxes: this.boxCount(), transitioning: this.transitioning };
+  }
+
+  /** Live speaker boxes on screen, including any orphaned leftovers. */
+  boxCount() {
+    let n = 0;
+    try {
+      for (const o of this.s.children.list) {
+        if (o && (o as Phaser.GameObjects.GameObject).name === 'dlgBox' && (o as Phaser.GameObjects.GameObject).active) n++;
+      }
+    } catch { /* */ }
+    return n;
   }
 
   update(_dt: number) {
@@ -170,8 +188,10 @@ export class Dialogue {
     for (const t of this.timers) { try { t.remove(false); } catch { /* */ } }
     this.timers = [];
     this.queue = [];
+    this.jobId++;
     this.busy = false;
     this.waiting = false;
+    this.transitioning = false;
     this.typed = ''; this.full = '';
     this.letterBits = [];
     this.clearFernAct();
@@ -199,13 +219,15 @@ export class Dialogue {
   }
 
   private kick() {
-    if (this.busy) return;
+    if (this.busy || this.transitioning) return;
     if (this.mailBlocking()) return;
     const job = this.queue.shift();
     if (!job) { this.busy = false; try { this.s.releaseHeldPose?.(true); } catch { /* */ } try { this.onIdle?.(); } catch { /* */ } return; }
-    if (!job.line || !job.line.trim()) { this.at(job.ms, () => { this.busy = false; this.kick(); }); this.busy = true; return; }
+    if (!job.line || !job.line.trim()) { this.busy = true; this.at(job.ms, () => { this.busy = false; this.kick(); }); return; }
     this.busy = true;
     this.waiting = false;
+    this.jobId++;
+    const id = this.jobId;
     this.who = job.who;
     this.full = job.line;
     this.typed = '';
@@ -218,9 +240,9 @@ export class Dialogue {
 
     const useBox = this.shouldBox(job);
     if (job.who === 'fern' && !useBox) {
-      this.summonFern(() => this.beginBubble(job, false));
+      this.summonFern(() => { if (this.jobId === id) this.beginBubble(job, false); });
     } else if (useBox) {
-      if (job.who === 'fern') this.summonFern(() => this.beginBox(job));
+      if (job.who === 'fern') this.summonFern(() => { if (this.jobId === id) this.beginBox(job); });
       else this.beginBox(job);
     } else {
       this.beginBubble(job, true);
@@ -430,8 +452,10 @@ export class Dialogue {
 
   private beginBubble(job: Job, fromSpeaker: boolean) {
     const s = this.s;
+    this.retireRoot(false);
     const anchor = this.bubbleAnchor(job.who, fromSpeaker);
     const box = this.makeLineBox(anchor.x, anchor.y, job, false, anchor.flip, anchor.speaker);
+    box.setName('dlgBox');
     this.root = box;
     this.baseX = box.x;
     this.followWorld = true;
@@ -460,7 +484,9 @@ export class Dialogue {
     const seat = this.pickBoxSeat(w, h, job.line, job.who);
     const y = seat.y;
     const from = y + (seat.y < 360 ? -16 : 16);
+    this.retireRoot(false);
     const c = s.add.container(seat.x, from).setScrollFactor(0).setDepth(UI_DEPTH).setAlpha(0).setScale(0.96);
+    c.setName('dlgBox');
     const bg = this.cutPanel(0, 0, w, h, 0x07141c, 0.94, this.hexFor(job.who), 12);
     bg.setPosition(-w / 2, -h / 2);
     const accent = s.add.rectangle(-w / 2 + 3, 0, 4, h - 16, this.hexFor(job.who), 0.9);
@@ -730,9 +756,10 @@ export class Dialogue {
 
   private typewrite(job: Job) {
     const chars = job.line;
+    const id = this.jobId;
     let i = 0;
     const tick = () => {
-      if (!this.busy) return;
+      if (!this.busy || this.transitioning || this.jobId !== id) return;
       if (this.typed.length >= chars.length) { this.showArrow(); this.wait(job.ms); return; }
       // Reveal by character across the word sprites.
       i += 1;
@@ -812,29 +839,58 @@ export class Dialogue {
   private showArrow() { if (this.arrow) this.arrow.setVisible(true); }
 
   private wait(ms: number) {
-    if (this.waiting) return;
+    if (this.waiting || this.transitioning) return;
     this.waiting = true;
-    this.at(Math.max(700, ms), () => { if (this.waiting) this.finishJob(); });
+    const id = this.jobId;
+    this.at(Math.max(700, ms), () => { if (this.jobId === id && this.waiting && !this.transitioning) this.finishJob(); });
   }
 
-  private finishJob() {
-    this.waiting = false;
+  /** Fade and drop a box immediately. Used when a new box must replace a leftover. */
+  private retireRoot(fade: boolean) {
     const root = this.root;
     this.root = undefined;
     this.followWorld = false;
     this.tailGfx = undefined;
+    if (!root) {
+      this.sweepOrphans(fade);
+      return;
+    }
+    this.dismissContainer(root, fade);
+    this.sweepOrphans(fade);
+  }
+
+  private dismissContainer(root: Phaser.GameObjects.Container, fade: boolean) {
+    try { this.s.tweens.killTweensOf(root); } catch { /* */ }
+    try { for (const child of root.list ?? []) this.s.tweens.killTweensOf(child); } catch { /* */ }
+    if (!fade) {
+      try { root.destroy(); } catch { /* */ }
+      return;
+    }
+    this.s.tweens.add({
+      targets: root, alpha: 0, duration: 180,
+      onComplete: () => { try { root.destroy(); } catch { /* */ } },
+    });
+  }
+
+  private sweepOrphans(fade: boolean) {
+    try {
+      for (const o of [...this.s.children.list]) {
+        if (o && o !== this.root && o.name === 'dlgBox' && o.active) this.dismissContainer(o as Phaser.GameObjects.Container, fade);
+      }
+    } catch { /* */ }
+  }
+
+  private finishJob() {
+    if (this.transitioning) return;
+    this.transitioning = true;
+    this.waiting = false;
+    this.jobId++;
+    const closeId = this.jobId;
+    this.retireRoot(true);
     this.letterBits = [];
     this.arrow = undefined;
     this.portraitSpr = undefined;
     this.portraitEyes = undefined;
-    if (root) {
-      try { this.s.tweens.killTweensOf(root); } catch { /* */ }
-      try { for (const child of root.list ?? []) this.s.tweens.killTweensOf(child); } catch { /* */ }
-      this.s.tweens.add({
-        targets: root, alpha: 0, duration: 180,
-        onComplete: () => { try { root.destroy(); } catch { /* */ } },
-      });
-    }
     // Keep Fern's hologram up briefly between her lines; dismiss if the next job isn't hers.
     const next = this.queue[0];
     if (!next || next.who !== 'fern') {
@@ -847,7 +903,15 @@ export class Dialogue {
       if (h) this.s.tweens.add({ targets: h, alpha: 0, y: h.y + 18, duration: 280, onComplete: () => { try { h.destroy(); } catch { /* */ } try { this.s.setDeskFernVisible?.(true); } catch { /* */ } } });
       else try { this.s.setDeskFernVisible?.(true); } catch { /* */ }
     }
-    this.at(200, () => { this.busy = false; this.kick(); });
+    let released = false;
+    const done = () => {
+      if (released || this.jobId !== closeId) return;
+      released = true;
+      this.busy = false;
+      this.transitioning = false;
+      this.kick();
+    };
+    this.s.time.delayedCall(200, done);
   }
 
   private makePortrait(who: SayWho) {
@@ -1336,7 +1400,11 @@ export class Dialogue {
   }
 
   private at(ms: number, fn: () => void) {
-    this.timers.push(this.s.time.delayedCall(ms, fn));
+    const id = this.jobId;
+    this.timers.push(this.s.time.delayedCall(ms, () => {
+      if (this.jobId !== id) return;
+      fn();
+    }));
   }
 }
 

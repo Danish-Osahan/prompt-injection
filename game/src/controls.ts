@@ -10,6 +10,7 @@ export type InputKind = 'kb' | 'touch';
 export class Controls {
   last: InputKind;
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
+  private onEsc?: (ev: KeyboardEvent) => void;
   private joyId: number | null = null;
   private joyBase = { x: 0, y: 0 };
   private joyVec = { x: 0, y: 0 };
@@ -32,6 +33,11 @@ export class Controls {
     const bind = (names: string[], a: Action) => names.forEach(n => this.keys[n].on('down', () => { this.pressed[a] = true; this.setKind('kb'); }));
     bind(['J', 'ENTER'], 'attack'); bind(['K', 'SPACE', 'SHIFT'], 'dash'); bind(['E'], 'interact'); bind(['ESC', 'P'], 'pause'); bind(['BACKTICK', 'F2'], 'debug'); bind(['R'], 'root');
     kb.on('keydown', () => this.setKind('kb'));
+    // Phaser can miss Escape when the canvas is not focused; a window listener keeps skip/pause reliable.
+    this.onEsc = (ev: KeyboardEvent) => {
+      if (ev.key === 'Escape' || ev.code === 'Escape') { this.pressed.pause = true; this.setKind('kb'); }
+    };
+    try { window.addEventListener('keydown', this.onEsc); } catch { /* */ }
     const dev = scene.sys.game.device.input.touch && (navigator.maxTouchPoints ?? 0) > 0;
     this.last = dev ? 'touch' : 'kb';
 

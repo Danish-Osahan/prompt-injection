@@ -19,7 +19,7 @@ import { CombatGreybox } from './combat/greybox';
 import { ImpactLab } from './impact/ImpactLab'
 import { OfficeExplore } from './officeExplore';
 import type { TitleStartData } from './title';
-import { IntroCutscene } from './intro';
+import { IntroCutscene, OPENING_EXCHANGE } from './intro';
 import { Dialogue, type SayWho } from './dialogue';
 import { GlassRain } from './rain';
 import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
@@ -2485,6 +2485,11 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (f.pause && this.clar?.modal) { this.clar.closeAll(); f.pause = false; }
+    // Esc skips a running cutscene (intro included). During play it still opens the menu.
+    if (f.pause && this.cutscene && this.cutscene.id !== 'end' && !this.dying) {
+      this.cutscene.skip();
+      f.pause = false;
+    }
     if (f.pause && !this.dying) this.togglePause();
     if (this.paused) return;
     if (!this.labMode) {
@@ -2610,7 +2615,14 @@ export class GameScene extends Phaser.Scene {
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     this.updateCaret(dt);
-    if (this.caretKeyF && Phaser.Input.Keyboard.JustDown(this.caretKeyF) && this.caretOwned && !this.hand && !this.stealPlay?.held && !this.composer && control) this.sendCaret();
+    // Only consume F when the Caret is owned AND a send target is in range.
+    // JustDown is per-Key and shared with ImpactLab / StealPlay / OfficeExplore,
+    // so calling it earlier used to swallow the Level 1 spark throw.
+    if (this.caretKeyF && this.caretOwned && !this.hand && !this.stealPlay?.held
+        && !this.impactLab?.carrying && !this.explore?.carrying && !this.composer && control) {
+      const sendTo = this.caretSendTarget();
+      if (sendTo && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.sendCaret(sendTo);
+    }
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
@@ -2839,6 +2851,7 @@ export class GameScene extends Phaser.Scene {
     return {
       screen: 'game', state: this.paused ? 'paused' : this.busy ? 'cutscene' : 'play', room: this.room.id, player: { x: this.x, y: this.y }, hp: this.hp, talking: !!this.dialogue?.busy,
       dialogueProg: this.dialogue ? this.dialogue.progress() : null,
+      dialogueBoxes: this.dialogue?.boxCount() ?? 0,
       gapPan: this.gapPan, ambience: getAmbienceId(), ambDuck: getAmbienceDucked(), ambErrors: getAmbienceErrors(), camMid: { x: this.cameras.main.midPoint.x, y: this.cameras.main.midPoint.y, scrollY: this.cameras.main.scrollY, zoom: this.cameras.main.zoom },
       introMail: !!this.intro?.mailOpen?.(),
       introCursor: this.intro?.cursorState?.() ?? null,
@@ -2883,7 +2896,16 @@ export class GameScene extends Phaser.Scene {
         return sp.state();
       },
       openLift: () => { if (this.impactLab?.on && !this.impactLab.done) { if (!this.impactLab.lampReady) this.impactLab.unlockLamp(); this.impactLab.takeSpark(); this.impactLab.throwBolt(); return true; } return !!this.impactLab?.done; },
-      skipIntro: () => { if (this.intro?.playing) { this.intro.skip(); return true; } return !this.intro?.playing; },
+      skipIntro: () => {
+        if (this.intro && !this.intro.released) { if (!this.intro.finished) this.intro.skip(); return true; }
+        return !this.intro?.playing;
+      },
+      openingExchange: () => {
+        this.dialogue?.clear();
+        for (const [who, line, ms, box] of OPENING_EXCHANGE) this.say(who, line, ms, { box });
+        return this.dialogue?.progress() ?? null;
+      },
+      clearDialogue: () => { this.dialogue?.clear(); return true; },
       endScreen: () => { showEndScreen(this); return true; },
       toMenu: () => { backToTitle(this); return true; },
 

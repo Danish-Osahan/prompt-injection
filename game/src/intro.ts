@@ -47,6 +47,17 @@ const DESKS: { x: number; y: number; w: number; h: number }[] = [
   { x: 989, y: 448, w: 180, h: 150 },
 ];
 
+/** Fern / Noor exchange that follows the claim rewrite. Used by the intro and the mash playtest. */
+export const OPENING_EXCHANGE: [Parameters<GameScene['say']>[0], string, number, boolean][] = [
+  ['noor', 'Who— what are you?', 2200, false],
+  ['fern', 'The office plant. I was on the desk when the lights went.', 2600, true],
+  ['noor', "That's not possible.", 1800, false],
+  ['fern', 'Same rule that rewrote your send. Words catch. Things wake up.', 3200, true],
+  ['noor', 'That was my voice. It was not me.', 2400, false],
+  ['fern', 'I know. Something is wrong with the send. The lift is dead.', 3000, true],
+  ['fern', 'The lamp is still drawing power. Try the lift.', 2600, true],
+];
+
 export class IntroCutscene {
   s: GameScene;
   playing = false;
@@ -225,15 +236,7 @@ export class IntroCutscene {
     this.meeting = true;
     this.beat = 'meet';
     const s = this.s;
-    const lines: [Parameters<GameScene['say']>[0], string, number, boolean][] = [
-      ['noor', 'Who— what are you?', 2200, false],
-      ['fern', 'The office plant. I was on the desk when the lights went.', 2600, true],
-      ['noor', "That's not possible.", 1800, false],
-      ['fern', 'Same rule that rewrote your send. Words catch. Things wake up.', 3200, true],
-      ['noor', 'That was my voice. It was not me.', 2400, false],
-      ['fern', 'I know. Something is wrong with the send. The lift is dead.', 3000, true],
-      ['fern', 'The lamp is still drawing power. Try the lift.', 2600, true],
-    ];
+    const lines = OPENING_EXCHANGE;
     if (s.dialogue) {
       const prevIdle = s.dialogue.onIdle;
       const prevSpeak = s.dialogue.onSpeak;
@@ -278,7 +281,8 @@ export class IntroCutscene {
   finish(skipped = false) {
     if (this.finished) return;
     this.finished = true;
-    this.playing = false;
+    // Stay 'playing' until go() so a second Esc cannot open the pause menu
+    // mid-fade and freeze the skip timers.
     this.beat = skipped ? 'skip' : 'g';
     for (const t of this.timers) { try { t.remove(false); } catch { /* */ } }
     this.timers = [];
@@ -313,9 +317,11 @@ export class IntroCutscene {
       try { s.noor.play(`noor_idle_${s.dir}`); } catch { /* */ }
       s.setupStaticCamera();
       s.setHudVisible(true);
+      this.playing = false;
       s.busy = false;
       s.cutscene = null;
       s.introPending = false;
+      if (s.paused) { try { s.togglePause(); } catch { /* */ } }
       try { focusGameCanvas(s); } catch { /* */ }
       s.introCardPending = true;
       if (!s.save.seen.includes('intro')) s.save.seen.push('intro');
@@ -388,6 +394,10 @@ export class IntroCutscene {
   }
 
   handleInput(f: { pause: boolean; skipHeld: boolean; interact?: boolean; attack?: boolean }, dt: number): boolean {
+    if (this.finished && !this.released) {
+      if (f.pause) f.pause = false;
+      return true;
+    }
     if (!this.playing) return false;
     if (f.pause) { this.skip(); return true; }
     if (this.mailHold) {

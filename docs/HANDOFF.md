@@ -1,5 +1,31 @@
 # HANDOFF
 
+## 2026-11-24 — Dialogue mash, Esc skip, F throw (office)
+
+Three Level 1 bugs, one pass. Worked in a separate worktree so the audio work on main was not touched.
+
+### 1. Spamming E stacked dialogue boxes
+
+Mashing E during the Fern/Noor office exchange could leave two speaker boxes on screen (a Noor line behind a still-typing Fern line) that then never went away.
+
+Root cause: `finishJob()` started the close tween and scheduled `busy = false; kick()` 200ms later, but it did not cancel leftover `typewrite` / `wait` timers. A late tick could call `wait()` again after `waiting` had been cleared, and a second E then scheduled a second kick. The later kick created a new box while `this.root` was already pointing at the new one, so the previous box was orphaned and never destroyed. `busy` / `waiting` could also desync, leaving a box that E no longer advanced.
+
+Fix: dialogue is a single serialized queue. Each job has a generation id so stale timers cannot finish a later line. Advancing during the close tween is ignored. E is debounced (~120ms). Starting a new box retires any leftover `dlgBox`. There is at most one box on screen; a mash of 30 E presses at 30ms is asserted in playtest.
+
+### 2. Esc did not skip the intro
+
+`handleInput` already skipped on pause, but `finish()` set `playing = false` immediately, before the fade-out `go()` landed. A second Esc (or a retry when the skip was not obvious) opened the pause menu, which pauses Phaser time and froze the skip timers, so the intro never released. Phaser can also miss Escape when the canvas is not focused.
+
+Fix: the intro stays "playing" until `go()` completes, so Esc cannot open the menu mid-skip. A window-level Escape listener sets the pause action as a fallback. Esc also skips any other skippable cutscene; during gameplay it still opens the menu. The existing "Esc to skip" hint is unchanged.
+
+### 3. F no longer threw the lightning bolt in the Level 1 office
+
+`caretKeyF` called `Phaser.Input.Keyboard.JustDown` *before* checking `caretOwned`. JustDown is consumed on the shared F Key object, so ImpactLab / StealPlay never saw the press — even in the office, before the Caret is claimed.
+
+Fix: only call JustDown when the Caret is owned, Noor is not carrying a quality, and a send target is in range. Otherwise F still throws (spark in the office, a held quality later). After the Caret is claimed, F sends the cursor when a plate or target is in range, and throws otherwise. The progressive hint is still `F  throw` while holding a quality, and `F  send the cursor` only when a send target is in range.
+
+Playtest: 250/250. Adds Esc skip reaches gameplay; mash E through the opening exchange (max 1 box, 0 at the end, still at `/workspace/l1-dialog-mash.png`); F in the office fires a bolt projectile.
+
 ## 2026-11-24 — Recorded CC0 room ambience (v2)
 
 Follow-up to `f07fcbe`. The procedural WebAudio beds did not read as a real space; they felt synthetic and not eerie enough. The Level 1 ambience was rebuilt around real CC0 field recordings (Freesound, all license pages checked as CC0). No AI audio, no spend.
@@ -11,7 +37,6 @@ Beds are all under ~280 KB; the whole ambience pack is about 1.6 MB.
 Previews (not in the repo): `/workspace/audio-previews-v2/{office,hub,corridor,archive,arena,message}.mp3`, plus `walkthrough.mp3` (~33 s) and `combat-over-office.mp3`. Self-checked with ffmpeg ebur128/spectrum: beds sit near -22 LUFS (previews with spots around -21), no bed clipping; combat stings peak about 15–20 dB above the bed, limiter holding true peak around -1 dBTP.
 
 Full author / URL / license table is in `CREDITS.md`.
-
 
 ## 2026-11-24 — Hub void cleanup + per-room eerie ambience
 
