@@ -112,6 +112,7 @@ export class GameScene extends Phaser.Scene {
   caretSentAt = 0;
   private caretBox?: Phaser.GameObjects.Graphics;
   private caretMark?: Phaser.GameObjects.Graphics;
+  private hubNorthOcclude: Record<string, Phaser.GameObjects.Image> = {};
   private caretSendOnce = false;
   private caretKeyF?: Phaser.Input.Keyboard.Key;
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
@@ -305,6 +306,22 @@ export class GameScene extends Phaser.Scene {
     this.objs.push(this.edgePad, this.edgePad2);
   }
 
+  /** True while Noor's feet are over the hub void (not yet on either slab). */
+  private overHubVoid() {
+    return this.room?.id === 'hub' && this.y > HUB_NY && this.y < HUB_SY;
+  }
+  /** Mid-dash over the hub void: sit behind the far lip until the feet land on the north slab. */
+  private noorSortDepth() {
+    return this.overHubVoid() ? -940 : this.y;
+  }
+  /** North-wall overlay hides a mid-dash body that would otherwise sit in the door. */
+  private syncPitCrop() {
+    if (!this.noor) return;
+    this.noor.isCropped = false; this.noor.setCrop();
+    try { this.noor.clearMask(); } catch { /* */ }
+  }
+
+
   /** Code-drawn chasm between the north and south hub floors. Collision matches HUB_PIT (~y 252–400). */
   drawHubChasm() {
     const X0 = 80, X1 = 1200, W = 1120, NY = HUB_NY, SY = HUB_SY, FACE = HUB_FACE;
@@ -316,10 +333,14 @@ export class GameScene extends Phaser.Scene {
       g.fillTriangle(a.x, a.y, c.x, c.y, d.x, d.y);
     };
 
-    // Cover the painted mid-band (and the leftover partition strip) with a real drop.
-    // Side notches extend past the walk bounds so the slabs clearly end in the walls.
+    // Cover the painted mid-band with a real drop. Notch a few px into the
+    // inner wall faces, but do not punch square blocks out past the side walls.
+    const WL = 68, WR = 1212, VW = WR - WL;
     const pit = this.add.graphics().setDepth(-972); pit.name = 'hub-chasm'; this.objs.push(pit);
-    pit.fillStyle(0x000000, 1).fillRect(36, NY - 2, 1208, (SY + 18) - (NY - 2));
+    pit.fillStyle(0x000000, 1).fillRect(WL, NY - 2, VW, (SY + 18) - (NY - 2));
+    // Blend the notch into the wall (shadowed recess, not a hard square).
+    pit.fillStyle(0x070b10, 1).fillRect(WL - 2, NY + 6, 6, SY - NY - 10);
+    pit.fillStyle(0x070b10, 1).fillRect(WR - 4, NY + 6, 6, SY - NY - 10);
 
     // Tall empty shaft: receding inner walls, fading to black. Not a thin line, not an oval mouth.
     const layers = 8;
@@ -327,8 +348,8 @@ export class GameScene extends Phaser.Scene {
     for (let i = 0; i < layers; i++) {
       const t0 = i / layers, t1 = (i + 1) / layers;
       const edge = (t: number) => ({
-        l: 44 + t * (bot.x0 - 44),
-        r: 1236 - t * (1236 - bot.x1),
+        l: WL + t * (bot.x0 - WL),
+        r: WR - t * (WR - bot.x1),
         top: FOOT + t * (bot.y - 16 - FOOT),
         bot: SY - t * (SY - (bot.y + 16)),
       });
@@ -353,7 +374,7 @@ export class GameScene extends Phaser.Scene {
     const slot = this.add.graphics().setDepth(-968); slot.name = 'hub-chasm-far'; this.objs.push(slot);
     for (let i = 1; i <= 4; i++) {
       const t = i / 5;
-      const l = 52 + t * (bot.x0 - 52), r = 1228 - t * (1228 - bot.x1);
+      const l = WL + 2 + t * (bot.x0 - (WL + 2)), r = WR - 2 - t * ((WR - 2) - bot.x1);
       const top = FOOT + t * (bot.y - 16 - FOOT), botY = SY - t * (SY - (bot.y + 16));
       slot.lineStyle(1, 0x12181e, 0.18 * (1 - t * 0.4));
       slot.lineBetween(l, top, l, botY);
@@ -362,7 +383,7 @@ export class GameScene extends Phaser.Scene {
     this.chasmParallax.push({ g: slot, k: 0.12 });
 
     // Raised north deck + FLAT slab edge (office-floor / concrete, not a cylinder).
-    const cliff = this.add.graphics().setDepth(-960); cliff.name = 'hub-chasm-mid'; this.objs.push(cliff);
+    const cliff = this.add.graphics().setDepth(120); cliff.name = 'hub-chasm-mid'; this.objs.push(cliff);
     const DECK = 206;
     cliff.fillStyle(0x16344c, 1).fillRect(X0, DECK, W, NY - DECK);
     cliff.lineStyle(1, 0x2a5a78, 0.5);
@@ -372,11 +393,10 @@ export class GameScene extends Phaser.Scene {
     }
     cliff.lineStyle(1, 0x2a5a78, 0.3);
     for (let y = DECK + 8; y < NY - 4; y += 14) cliff.lineBetween(X0, y, X1, y);
-    // Sharp cap — a floor that STOPS. A muted lip, not a glowing cyan pipe.
-    cliff.fillStyle(0x1c4058, 1).fillRect(X0, NY - 10, W, 10);
-    cliff.fillStyle(0x5a7484, 1).fillRect(X0, NY - 10, W, 3);
-    cliff.fillStyle(0xc4d0d4, 0.45).fillRect(X0, NY - 10, W, 1);
-    this.scuffLip(cliff, X0, X1, NY - 9);
+    // Floor that STOPS: a recessed dark seam, no light pipe/duct line.
+    cliff.fillStyle(0x152838, 1).fillRect(X0, NY - 8, W, 8);
+    cliff.fillStyle(0x0a141c, 0.85).fillRect(X0, NY - 1, W, 2);
+    this.scuffLip(cliff, X0, X1, NY - 2);
 
     // Flat front face: horizontal strata / expansion joints, no rounded wrap lighting.
     const bands = [0x3a5464, 0x2e4454, 0x243848, 0x1c303e, 0x162830];
@@ -394,13 +414,14 @@ export class GameScene extends Phaser.Scene {
     cliff.fillStyle(0x000000, 0.7).fillRect(X0, FOOT - 3, W, 5);
     cliff.fillStyle(0x000000, 1).fillRect(X0, FOOT, W, 8);
 
-    // Side returns + dark notches into the walls so the slabs end.
-    cliff.fillStyle(0x000000, 1).fillRect(36, NY, 44, SY - NY + 8);
-    cliff.fillStyle(0x000000, 1).fillRect(X1, NY, 44, SY - NY + 8);
-    cliff.fillStyle(0x1a303c, 1).fillRect(X0, NY, 10, FACE);
-    cliff.fillStyle(0x1a303c, 1).fillRect(X1 - 10, NY, 10, FACE);
+    // Side returns: short notches into the inner wall, blended, not square cutouts.
+    cliff.fillStyle(0x05080c, 1).fillRect(WL, NY, X0 - WL + 2, SY - NY + 4);
+    cliff.fillStyle(0x05080c, 1).fillRect(X1 - 2, NY, WR - X1 + 2, SY - NY + 4);
+    cliff.fillStyle(0x1a303c, 1).fillRect(X0, NY, 8, FACE);
+    cliff.fillStyle(0x1a303c, 1).fillRect(X1 - 8, NY, 8, FACE);
 
-    // Cables drop off the slab into the tall void.
+    // Cables hang in the void (behind a mid-dash Noor).
+    const cableG = this.add.graphics().setDepth(-944); cableG.name = 'hub-chasm-cables'; this.objs.push(cableG);
     const cables = [
       { x: 132, drop: 110, bow: 10 }, { x: 268, drop: 128, bow: -9 },
       { x: 404, drop: 100, bow: 8 }, { x: 812, drop: 122, bow: 12 },
@@ -410,8 +431,8 @@ export class GameScene extends Phaser.Scene {
       const y2 = Math.min(SY - 8, NY + c.drop);
       const x1 = c.x + c.bow, y1 = NY + (y2 - NY) * 0.4;
       const x2 = vpX * 0.12 + c.x * 0.88;
-      cliff.lineStyle(2, 0x101418, 0.95);
-      cliff.beginPath(); cliff.moveTo(c.x, NY + 2); cliff.lineTo(x1, y1); cliff.lineTo(x2, y2); cliff.strokePath();
+      cableG.lineStyle(2, 0x101418, 0.95);
+      cableG.beginPath(); cableG.moveTo(c.x, NY + 2); cableG.lineTo(x1, y1); cableG.lineTo(x2, y2); cableG.strokePath();
     }
 
     const lips = this.add.graphics().setDepth(-936); lips.name = 'hub-chasm-lips'; this.objs.push(lips);
@@ -421,8 +442,8 @@ export class GameScene extends Phaser.Scene {
     lips.fillStyle(0x4a6878, 1).fillRect(X0, SY - 2, W, 3);
     lips.fillStyle(0xc8dce0, 0.55).fillRect(X0, SY - 2, W, 1.2);
     this.scuffLip(lips, X0, X1, SY - 1);
-    lips.fillStyle(0x000000, 1).fillRect(36, SY - 8, 44, 16);
-    lips.fillStyle(0x000000, 1).fillRect(X1, SY - 8, 44, 16);
+    lips.fillStyle(0x05080c, 1).fillRect(WL, SY - 8, X0 - WL + 2, 14);
+    lips.fillStyle(0x05080c, 1).fillRect(X1 - 2, SY - 8, WR - X1 + 2, 14);
 
     this.drawBridgeStub(lips, 'south', 508, SY, 62, 36);
     this.drawBridgeStub(lips, 'north', 746, NY, 54, 22);
@@ -433,6 +454,18 @@ export class GameScene extends Phaser.Scene {
     stoop.fillStyle(0x0a1620, 0.45).fillRect(586, SY + 18, 108, 4);
     this.startPitPapers();
     this.startChasmMotes(X0, X1, NY, SY, vpX, vpY);
+    // Overlay the painted north wall/door/glass so a mid-dash Noor (depth -940) is hidden
+    // behind the far slab until her feet land. Cropped to the lip so her legs stay visible in the void.
+    this.hubNorthOcclude = {};
+    for (const [st, im] of Object.entries(this.bg)) {
+      if (!im?.texture) continue;
+      const ov = this.add.image(0, 0, im.texture.key).setOrigin(0).setDepth(200);
+      ov.setCrop(0, 0, 1280, NY);
+      ov.setAlpha(im.alpha);
+      ov.name = 'hub-north-occlude-' + st;
+      this.objs.push(ov);
+      this.hubNorthOcclude[st] = ov;
+    }
   }
 
   private updateChasmParallax() {
@@ -1108,7 +1141,13 @@ export class GameScene extends Phaser.Scene {
       if (p.done()) {
         this.save.tutorials.push(p.id); writeSave(this.save); this.prompts.splice(this.prompts.indexOf(p), 1);
         this.tweens.add({ targets: p.text, alpha: 0, duration: 400, onComplete: () => p.text.destroy() });
-      } else { const show = p.when() && !this.busy && !this.dialogue?.busy && !shown; if (show) shown = true; p.text.setPosition(Math.round(this.x), Math.round(this.y + 46 > 680 ? this.y - 190 : this.y + 46)).setAlpha(show ? 0.9 * (1 - this.words.codeA) : 0); }
+      } else {
+        const show = p.when() && !this.busy && !this.dialogue?.busy && !shown;
+        if (show) shown = true;
+        const hx = Phaser.Math.Clamp(Math.round(this.x), 110, 1170);
+        const hy = Math.round(this.y + 46 > 660 ? this.y - 96 : this.y + 46);
+        p.text.setPosition(hx, Phaser.Math.Clamp(hy, 40, 680)).setAlpha(show ? 0.9 * (1 - this.words.codeA) : 0);
+      }
     }
   }
   /** Progressive, one-at-a-time control hints. Move at start; the rest only when first needed. */
@@ -1119,7 +1158,7 @@ export class GameScene extends Phaser.Scene {
     this.addPrompt('throw', 0, 0, 'F  throw', 'TAP  throw', () => this.hintThrowDone(), () => this.holdingQuality());
     this.addPrompt('caretSend', 0, 0, 'F  send the cursor', 'TAP  send the cursor',
       () => this.caretSendOnce || this.save.tutorials.includes('caretSend'),
-      () => this.caretOwned && !this.hand && !!this.caretSendTarget());
+      () => this.caretOwned && !this.hand && this.caretMode === 'follow' && !!this.caretSendTarget());
     this.addPrompt('caretAim', 0, 0, 'HOLD J  the cursor aims', 'HOLD TYPE  the cursor aims',
       () => this.selectN > 0 || this.save.tutorials.includes('caretAim') || this.save.tutorials.includes('select'),
       () => this.caretOwned && this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
@@ -1503,7 +1542,7 @@ export class GameScene extends Phaser.Scene {
       const doorFx = [this.roomVis.doorShadow, this.roomVis.doorSpill].filter(Boolean);
       for (const fx of doorFx) { this.tweens.killTweensOf(fx); if (initial) (fx as Phaser.GameObjects.Graphics).setAlpha(f.door ? 0 : 1); else this.tweens.add({ targets: fx, alpha: f.door ? 0 : 1, duration: 380 }); }
       // art-v8: the coral door light and its floor reflection belong to the SHUT plate; OPEN crossfades to a plate rendered without them
-      if (this.bg.shut && this.bg.open) { const want = f.door ? 'open' : 'shut'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 420 }); im.setDepth(k === want ? -999.5 : -1000); } }
+      if (this.bg.shut && this.bg.open) { const want = f.door ? 'open' : 'shut'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 420 }); im.setDepth(k === want ? -999.5 : -1000); const ov = this.hubNorthOcclude[k]; if (ov) { this.tweens.killTweensOf(ov); if (initial) ov.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: ov, alpha: k === want ? 1 : 0, duration: 420 }); } } }
       if (door) { if (initial) door.setAlpha(f.door ? 0.1 : 0.8).setFillStyle(f.door ? hex(C.cyan) : hex(C.coral), 0.8); else this.tweens.add({ targets: door, alpha: f.door ? 0.1 : 0.8, duration: 400 }); door.setFillStyle(f.door ? hex(C.cyan) : hex(C.coral)); }
       if (f.door && !was.door && !initial) {
         this.plateById('h_exit')?.pulse(C.cyan);
@@ -1766,7 +1805,7 @@ export class GameScene extends Phaser.Scene {
     const parked = this.caretMode === 'sent' || this.caretMode === 'travel' || this.caretMode === 'trapped';
     if (!parked && this.caretMode !== 'follow') { g.setVisible(false); return; }
     // Parked cursor pulses but never vanishes — it has to read on cream paper.
-    if (this.caretMode === 'sent') g.setAlpha(0.55 + 0.45 * Math.max(0, Math.sin(this.t * 8)));
+    if (this.caretMode === 'sent') g.setAlpha(0.88 + 0.12 * Math.max(0, Math.sin(this.t * 8)));
     else if (this.caret.alpha <= 0.2) { g.setVisible(false); return; }
     else g.setAlpha(1);
     const x = this.caret.x, y = this.caret.y - (this.caretMode === 'follow' ? 8 : 14);
@@ -1778,10 +1817,15 @@ export class GameScene extends Phaser.Scene {
     g.fillRect(x - bw / 2 - o, y - bh / 2 - o, bw + o * 2, bh + o * 2);
     g.fillRect(x - cap / 2 - o, y - bh / 2 - o, cap + o * 2, 6 + o);
     g.fillRect(x - cap / 2 - o, y + bh / 2 - 6 - o, cap + o * 2, 6 + o);
-    g.fillStyle(0xb8fff8, 1);
+    g.fillStyle(0x1afff0, 1);
     g.fillRect(x - bw / 2, y - bh / 2, bw, bh);
     g.fillRect(x - cap / 2, y - bh / 2, cap, 5);
     g.fillRect(x - cap / 2, y + bh / 2 - 5, cap, 5);
+    // Hot core so it stays electric under corridor darkness.
+    if (big) {
+      g.fillStyle(0xe8ffff, 1);
+      g.fillRect(x - Math.max(2, bw / 2 - 2), y - bh / 2 + 2, Math.max(3, bw - 4), bh - 4);
+    }
   }
 
   setupCaretForRoom(id: string) {
@@ -1956,7 +2000,12 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (this.caretMode === 'follow') {
-      this.caret.setAlpha(1);
+      if (this.overHubVoid()) {
+        this.caret.setVisible(false);
+        this.drawCaretMark();
+        return;
+      }
+      this.caret.setVisible(true).setAlpha(1);
       const h = this.caretHome();
       this.caret.x += (h.x - this.caret.x) * Math.min(1, dt * 6);
       this.caret.y += (h.y - this.caret.y) * Math.min(1, dt * 6);
@@ -2178,6 +2227,7 @@ export class GameScene extends Phaser.Scene {
   /** dash hair trail (art-v8): warm echoes of the hair + bun region of the current dash frame, left along the path.
    *  Readable at 640x360 (each echo ~60x30 game px) but short-lived (220 ms) so it stays tasteful. */
   hairEcho(dt: number) {
+    if (this.overHubVoid()) return;
     this.hairT -= dt; if (this.hairT > 0) return; this.hairT = 0.032;
     const e = this.add.sprite(this.x, this.y, this.noor.texture.key, this.noor.frame.name).setOrigin(96 / 192, 160 / 192).setDepth(this.y - 1.5)
       .setCrop(38, 48, 116, 62).setTint(0xffb27a).setAlpha(0.7).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(e);
@@ -2552,7 +2602,7 @@ export class GameScene extends Phaser.Scene {
     }
     const breathe = !this.dying && (this.noor.anims.currentAnim?.key ?? '').startsWith('noor_idle_') && !this.tweens.isTweening(this.noor);
     if (breathe) { const b = Math.sin(this.t * 2.1); this.noor.setScale(1 - 0.004 * b, 1 + 0.013 * b); } else if (!this.dying && !this.tweens.isTweening(this.noor) && this.noor.scaleY !== 1) this.noor.setScale(1);
-    this.noor.setPosition(this.x, this.y).setDepth(this.y).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
+    this.syncPitCrop(); this.noor.setPosition(this.x, this.y).setDepth(this.noorSortDepth()).setAlpha(this.dying ? this.noor.alpha : this.iframes > 0 && this.dashT <= 0 ? 0.6 + 0.4 * Math.sin(this.t * 40) : 1);
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     this.updateCaret(dt);
@@ -2767,7 +2817,9 @@ export class GameScene extends Phaser.Scene {
   dashTrail(dt: number) {
     this.trailT -= dt; if (this.trailT > 0) return; this.trailT = 0.022;
     const G = '|_>;{}/*#'; const ch = Math.random() < 0.35 ? '|' : G[(Math.random() * G.length) | 0];
-    const t = this.glyph(this.x - this.dashVec.x * 14 + (Math.random() - 0.5) * 8, this.y - 26 - Math.random() * 30, ch, Math.random() < 0.25 ? C.inkBright : C.cyan, 18 + ((Math.random() * 8) | 0), this.y - 1);
+    const over = this.overHubVoid();
+    const gy = over ? Math.max(HUB_NY + 10, this.y - 8) : this.y - 26 - Math.random() * 30;
+    const t = this.glyph(this.x - this.dashVec.x * 14 + (Math.random() - 0.5) * 8, gy, ch, Math.random() < 0.25 ? C.inkBright : C.cyan, 18 + ((Math.random() * 8) | 0), over ? -940 : this.y - 1);
     this.tweens.add({ targets: t, alpha: { from: 1, to: 0 }, y: t.y - 6, duration: 380, onComplete: () => t.destroy() });
   }
   backspace() {
