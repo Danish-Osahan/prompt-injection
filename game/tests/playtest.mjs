@@ -185,29 +185,30 @@ async function linger(browser) {
     if (r === 'hub') {   // two detached platforms with a dark chasm between them
       await pi(page, 'skipGapPan');
       await pi(page, 'teleport', 640, 560); await sleep(400); await shot(page, 'v9-hub-gap');
-      const pit = await meanLum(page, { x: 100, y: 300, width: 90, height: 10 });
-      const northLip = await meanLum(page, { x: 180, y: 246, width: 260, height: 10 });
-      const southLip = await meanLum(page, { x: 180, y: 316, width: 260, height: 10 });
+      const pit = await meanLum(page, { x: 100, y: 330, width: 90, height: 40 });
+      const northLip = await meanLum(page, { x: 180, y: 242, width: 260, height: 10 });
+      const southLip = await meanLum(page, { x: 180, y: 398, width: 260, height: 10 });
       const cliff = await meanLum(page, { x: 180, y: 254, width: 260, height: 16 });
-      const deck = await meanLum(page, { x: 180, y: 228, width: 260, height: 14 });
-      ok('hub: the gap is a dark chasm with brighter lip edges', pit < 50 && northLip > pit + 6 && southLip > pit + 8, `pit ${pit.toFixed(1)} north ${northLip.toFixed(1)} south ${southLip.toFixed(1)}`);
-      ok('hub: the far platform is a lit cliff over a dark drop', cliff > pit + 6 && deck > pit + 6 && northLip > pit + 8, `cliff ${cliff.toFixed(1)} deck ${deck.toFixed(1)} pit ${pit.toFixed(1)} north ${northLip.toFixed(1)}`);
+      const deck = await meanLum(page, { x: 180, y: 222, width: 260, height: 14 });
+      ok('hub: the gap is a dark chasm with brighter lip edges', pit < 40 && northLip > pit + 8 && southLip > pit + 8, `pit ${pit.toFixed(1)} north ${northLip.toFixed(1)} south ${southLip.toFixed(1)}`);
+      ok('hub: the far platform is a lit cliff over a dark drop', cliff > pit + 8 && deck > pit + 6 && northLip > pit + 8, `cliff ${cliff.toFixed(1)} deck ${deck.toFixed(1)} pit ${pit.toFixed(1)} north ${northLip.toFixed(1)}`);
       const stand = await page.evaluate(() => {
         const s = window.__game.scene.getScene('game');
         const inH = (x, y) => s.hazards.some(h => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h);
         return {
           northWalk: s.canStand(400, 236), northSafe: !inH(400, 236),
-          pitHazard: inH(400, 280),
-          southWalk: s.canStand(400, 340), southSafe: !inH(400, 340),
+          pitHazard: inH(400, 330),
+          southWalk: s.canStand(400, 430), southSafe: !inH(400, 430),
+          pitH: s.hazards[0] && s.hazards[0].h,
         };
       });
-      ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe, JSON.stringify(stand));
-      const ledge = await lumStats(page, { x: 200, y: 350, width: 220, height: 50 });
-      const pitVar = await lumStats(page, { x: 100, y: 300, width: 90, height: 10 });
+      ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe && stand.pitH >= 140, JSON.stringify(stand));
+      const ledge = await lumStats(page, { x: 200, y: 430, width: 220, height: 50 });
+      const pitVar = await lumStats(page, { x: 100, y: 330, width: 90, height: 40 });
       ok('hub: the south ledge under the door is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
       await pi(page, 'playGapPan');
-      s = await waitFor(page, s => s.gapPan === 'playing' && s.camMid && s.camMid.y < 330, 4000);
-      ok('hub: first arrival pans the camera to the gap', s.gapPan === 'playing' && s.camMid.y < 330 && s.camMid.zoom > 1.15, JSON.stringify(s.camMid));
+      s = await waitFor(page, s => s.gapPan === 'playing' && s.camMid && s.camMid.zoom > 1.3 && s.camMid.y < 370, 5000);
+      ok('hub: first arrival pans the camera to the gap', s.gapPan === 'playing' && s.camMid.y < 370 && s.camMid.zoom > 1.15, JSON.stringify(s.camMid));
       s = await waitFor(page, s => s.gapPan === 'done' && Math.abs(((s.camMid && s.camMid.zoom) || (s.cam && s.cam.zoom) || 0) - 1) < 0.05, 5000);
       ok('hub: the gap pan returns to the full plate', s.gapPan === 'done' && Math.abs((s.camMid && s.camMid.zoom) - 1) < 0.05, JSON.stringify(s.camMid));
     }
@@ -416,7 +417,7 @@ async function desktop(browser) {
         const box = st2.dialogueBox || (s.dialogue && s.dialogue.boxBounds && s.dialogue.boxBounds());
         const hits = (a, b) => !!(a && a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y);
         const glass = { x: 222, y: 42, w: 182, h: 98 };
-        const door = { x: 598, y: 288, w: 86, h: 172 };
+        const door = { x: 598, y: 388, w: 86, h: 176 };
         const overlapGlass = hits(box, glass);
         const overlapDoor = hits(box, door);
         const r = st2.refl;
@@ -453,7 +454,7 @@ async function desktop(browser) {
   // HUB: SHUT door blocks the threshold; Noor can still stand in front of it
   const doorBlock = await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
-    return { shut: !s.flags.door, inDoor: s.canStand(640, 420), inFront: s.canStand(640, 530) };
+    return { shut: !s.flags.door, inDoor: s.canStand(640, 450), inFront: s.canStand(640, 580) };
   });
   ok('hub: SHUT door blocks the threshold', doorBlock.shut && doorBlock.inDoor === false && doorBlock.inFront === true, JSON.stringify(doorBlock));
 
@@ -504,7 +505,7 @@ async function desktop(browser) {
   });
   let caretMode = await pi(page, 'trapCaret');
   s = await st(page);
-  ok('hub: the Caret is trapped in the SHUT door slit', s.caret && s.caret.mode === 'trapped' && s.caret.visible && Math.abs(s.caret.x - 640) < 40 && s.caret.y > 330 && s.caret.y < 420, `mode ${caretMode} ${JSON.stringify(s.caret)}`);
+  ok('hub: the Caret is trapped in the SHUT door slit', s.caret && s.caret.mode === 'trapped' && s.caret.visible && Math.abs(s.caret.x - 640) < 40 && s.caret.y > 430 && s.caret.y < 520, `mode ${caretMode} ${JSON.stringify(s.caret)}`);
   await pi(page, 'teleport', 640, 500); await sleep(350);
   s = await waitFor(page, s => s.caret && s.caret.owned && s.caret.mode === 'follow', 4000);
   ok('hub: close approach makes the Caret jump to her hand', !!(s.caret && s.caret.owned && (s.caret.mode === 'follow' || s.caret.mode === 'jumping')), JSON.stringify(s.caret));
@@ -537,16 +538,16 @@ async function desktop(browser) {
   ok('hub: door throw is the checkpoint', s.save.checkpoint.plate === 'h_door');
   await still1(page, 'hub-door-open');
   await shot(page, 'desktop-04-hub-door');
-  await pi(page, 'teleport', 640, 505); await sleep(200);
-  await input.move(0, -1); await sleep(700); await input.stop(); s = await st(page);
-  ok('hub: walk through the open door', s.player.y < 400, `y ${Math.round(s.player.y)}`);
+  await pi(page, 'teleport', 640, 560); await sleep(200);
+  await input.move(0, -1); await sleep(500); await input.stop(); s = await st(page);
+  ok('hub: walk through the open door', s.player.y < 530 && s.player.y > 404 && !s.dying, `y ${Math.round(s.player.y)} dying ${s.dying}`);
   const deaths0 = s.save.deaths;
   await input.move(0, -1); s = await waitFor(page, s => s.dying, 3000); await input.stop();
   ok('hub: walking into the gap kills (UNDO)', s.dying);
   await shot(page, 'desktop-05-undo');
   s = await waitFor(page, s => !s.dying && s.lastRespawnMs > 0, 3000);
   ok('hub: respawn under 1s at checkpoint, door stays open', s.lastRespawnMs > 0 && s.lastRespawnMs < 1000 && s.flags.door && s.save.deaths === deaths0 + 1, `${Math.round(s.lastRespawnMs)}ms door ${s.flags.door} y ${Math.round(s.player.y)}`);
-  await pi(page, 'teleport', 640, 350); await sleep(400);
+  await pi(page, 'teleport', 640, 430); await sleep(400);
   await input.move(0, -1); await sleep(30); await input.press('dash'); await sleep(250); await input.stop(); s = await st(page);
   ok('hub: dash crosses the gap', !s.dying && s.player.y < 250, `y ${Math.round(s.player.y)} dying ${s.dying}`);
   await input.move(0, -1); s = await waitFor(page, s => s.room === 'corridor', 4000); await input.stop();

@@ -39,7 +39,7 @@ export class Plate {
   /** A small glowing torn scrap so the collectible is visible even when captions are off. */
   private makeScrap(scene: Phaser.Scene) {
     const c = scene.add.container(0, 0);
-    const glow = scene.add.ellipse(0, 2, 42, 26, 0xf6e6c8, 0.28).setBlendMode(Phaser.BlendModes.ADD);
+    const glow = scene.add.rectangle(0, 4, 36, 10, 0xf6e6c8, 0.2).setBlendMode(Phaser.BlendModes.ADD);
     const g = scene.add.graphics();
     g.fillStyle(0xfff6e0, 0.95);
     g.fillRoundedRect(-13, -8, 26, 16, 2);

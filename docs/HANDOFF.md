@@ -1,5 +1,49 @@
 # HANDOFF
 
+## 2026-11-24 — Structural chasm, no telegraph circles, visible parked I-beam
+
+Follow-up to `e386aa9`. The user rejected those stills: the parked dummy sat inside a large translucent red/pink circle (the QUICK dummy's r=95 windup tell), the I-beam didn't read on the cream clipboard, and from spawn/pan the "gap" still looked like a horizontal metal pipe/duct with only a thin black void line.
+
+1. **Chasm is structural, not more trim.** The painted `hub_partition.png` bar (full-width metal duct at y=305, depth 434) was sitting in front of the code-drawn void and hiding it. It is now hidden in-game (the PNG under `art/out` is untouched). A tall black drop is overdrawn so painted mid-band tiles cannot show through. Visible void is ~126px at 1x (target 110–140). The far platform has a flat concrete/office-slab face (horizontal strata + expansion joints, muted cap lip — not a cylinder) under its edge, then the shaft fades to black. The near lip is a short floor-ending edge with a stoop. Dark notches at the left/right walls so the slabs end. Collision widened to `HUB_PIT { x: 80, y: 252, w: 1120, h: 148 }` (y 252–400). Dash time is 0.24s (~216px at 900) so a standing dash from the south lip (~y=430) still clears comfortably. The SHUT door stays on the near slab (open-then-dash). Hub mid-room rail walls were cleared so they don't block the new lip.
+
+2. **No circle / ring / disc / oval telegraphs in the touched combat/UI path.** Replaced with corner ticks (`tellBox`), short strokes, tints/alpha flashes, or chevrons:
+   - QUICK dummy windup: coral `fillCircle`/`strokeCircle` r=95 → `tellBox`
+   - Scribble windup `fillEllipse` and stuck `strokeCircle` → `tellBox` + two short strokes (hub and greybox)
+   - Practice/combo hit blooms (`add.ellipse`) → brief sprite/container alpha flash
+   - Redline scrape disc, stun "stars", stapler shield arc + snapwind disc + recover ring → tint, plus marks, chevron, `tellBox`, short strokes
+   - OnboardLure source/target glow ellipses → removed (chip only)
+   - Plate drop-glow ellipse → short rectangle
+   - Code-vision enemy `strokeEllipse` → corner ticks
+   - Office-explore ring → rectangle
+   - Fern hint floor `pool` disc → short rectangle
+   Hit logic (dummy `d < 95`, etc.) is unchanged.
+
+3. **Parked I-beam is a code-drawn cursor.** Dark outline + bright cyan, 10×32 with caps, depth 6200. The pale sprite is hidden while parked so it doesn't wash out on cream paper. `caretMark` is recreated after a room teardown (it used to draw on a destroyed Graphics and vanish after leaving the hub). Blink pulses alpha but never fully hides.
+
+Playtest: 239/239 (hub walk/dash/door/pit lum updated for the wider kill band; corridor aim contracts kept).
+
+Review stills (not in the repo):
+- gap from spawn: `/workspace/l2i-gap-spawn-2x.png` (1x `/workspace/l2i-gap-spawn.png`)
+- pan at the gap: `/workspace/l2i-gap-pan-2x.png` (1x `/workspace/l2i-gap-pan.png`)
+- mid-dash over the void: `/workspace/l2i-gap-dash-2x.png` (1x `/workspace/l2i-gap-dash.png`)
+- parked I-beam on the dummy: `/workspace/l2i-caret-park-2x.png` (1x `/workspace/l2i-caret-park.png`)
+- bolt reaching the far dummy: `/workspace/l2i-caret-bolt-2x.png` (1x `/workspace/l2i-caret-bolt.png`)
+
+Honest read of spawn + pan: a first-time player should now see two detached floor slabs with a tall empty drop between them, not a pipe painted across the room. The far cap is a muted slab lip rather than a glowing cyan tube.
+
+Leftovers / not replaced (listed, not telegraphs in the hub/corridor beat):
+- `boss.ts` ring tells and swipe arc (later arena draft) — still circular
+- `qualityShot.ts` wet/hot bloom ellipses and a few tip dots; ImpactLab spark circles
+- `words.ts` typography-lens `strokeCircle`/`arc` (code-vision magnifier)
+- `clarity.ts` debug `strokeEllipse` overlays
+- Dialogue / Fern portrait construction (heads, eyes)
+- Environmental: rain/mote `fillCircle` dots, `floor.round` room fills, intro/title/lamp `pool` light discs, Noor contact-shadow ellipse, greybox enemy body art (heads/shadows/droplets), touch `Phaser.Geom.Circle` hit areas
+- The "F send the cursor" hint can still appear in the corridor while the caret is already parked
+- Mid-dash, Noor's tall sprite already overlaps the far lip before her feet land
+- Aiming around a true corner is still a straight bolt to the parked Caret
+- Alcove warm light falloff is painted art, not a UI ring
+
+
 ## 2026-11-24 — Raised far platform, I-beam aim, longer dummy shot
 
 Follow-up to `9c6fd4c`. From the full-plate spawn view the chasm still read as a dark mid-room stripe. The caret parked on the dummy sat inside a clipboard crosshair-and-ring. The dummy was next to Noor, so the aimed bolt looked like a melee poke, and an "E take" chip stayed on it during the aim beat.

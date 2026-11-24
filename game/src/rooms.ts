@@ -45,7 +45,7 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     id: 'hub', title: 'mirror_office', path: '~/hub/', heading: 'INT. MIRROR OFFICE \u2014 NIGHT, PROBABLY',
     floor: { base: 0x0c1626, line: 0x16304a, tile: 64 },
     walk: [R(80, 150, 1120, 530)],
-    walls: [R(80, 400, 520, 34), R(680, 400, 520, 34)],
+    walls: [],  // old mid-room rail walls removed; the chasm hazard is the gap
     props: [
       { x: 590, y: 366, w: 100, h: 34, color: 0x1c3450, label: 'doorframe' },
       { x: 300, y: 322, w: 8, h: 44, color: 0x5a7080, top: 0x78e4e8 },                      // rail post beside the gap
@@ -59,8 +59,8 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     ],
     plates: [
       { id: 'h_lamp', words: ['LAMP', 'IS', 'OPEN'], slot: 2, x: 300, y: 560, sx: 256, sy: 556, kind: 'rule', cap: 'A small lamp keeps watch. It is {}.', code: 'lamp.state' },
-      { id: 'h_door', words: ['DOOR', 'IS', 'SHUT'], slot: 2, x: 640, y: 480, sx: 640, sy: 362, kind: 'rule', cap: 'The door is {}. It would rather you stayed.', code: 'door.state' },
-      { id: 'h_gap', words: ['GAP', 'IS', 'WIDE'], slot: -1, x: 430, y: 365, sx: 360, sy: 292, kind: 'fixed', cap: 'The floor gives up here. The gap is WIDE.', code: 'gap.width', val: 'WIDE' },
+      { id: 'h_door', words: ['DOOR', 'IS', 'SHUT'], slot: 2, x: 640, y: 530, sx: 640, sy: 430, kind: 'rule', cap: 'The door is {}. It would rather you stayed.', code: 'door.state' },
+      { id: 'h_gap', words: ['GAP', 'IS', 'WIDE'], slot: -1, x: 430, y: 430, sx: 360, sy: 336, kind: 'fixed', cap: 'The floor gives up here. The gap is WIDE.', code: 'gap.width', val: 'WIDE' },
       { id: 'h_fern', words: ['FERN'], slot: -1, x: 1005, y: 640, sx: 1005, sy: 470, kind: 'secret', code: 'fern.awake', val: 'true', cap: 'Fern, at her desk. She was always here first.', text: 'SHE NEVER SLEPT. SHE WAS WAITING FOR GOOD MORNING.' },
       { id: 'h_exit', words: ['EXIT', 'IS', 'NOOR\u2019S'], slot: -1, x: 640, y: 185, sx: 640, sy: 96, kind: 'fixed', cap: "A door that knows your name. EXIT is NOOR'S.", code: 'exit.owner', val: 'NOOR' },
     ],

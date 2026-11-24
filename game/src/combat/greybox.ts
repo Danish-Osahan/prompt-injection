@@ -78,6 +78,16 @@ export const TRANSFORM: Record<WorldWord, Record<GBKind | 'dummy', { stars: numb
   },
 };
 
+const tellBox = (g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, col: number, a: number) => {
+  g.lineStyle(2.2, col, a);
+  const sx = r * 0.72, sy = r * 0.55;
+  for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+    const px = x + dx * sx, py = y + dy * sy;
+    g.lineBetween(px, py, px - dx * 14, py);
+    g.lineBetween(px, py, px, py - dy * 10);
+  }
+};
+
 export class CombatGreybox {
   on = true;
   tune: CombatTune = { ...DEFAULT_TUNE };
@@ -363,17 +373,15 @@ export class CombatGreybox {
           else if (e.t <= 0) { e.state = 'windup'; e.t = wind; }
         }
       } else if (e.state === 'windup') {
-        e.g.setScale(1.25, 0.6);
-        fl.fillStyle(hex(C.coral), 0.3).fillEllipse(e.x + dx / d * 40, e.y + dy / d * 40, 50, 18);
+        e.g.setScale(1.25, 0.6); tellBox(fl, e.x + dx / d * 40, e.y + dy / d * 40, 48, hex(C.coral), 0.85);
         if (e.t <= 0) { e.state = 'lunge'; e.t = this.tune.scribbleLungeActive; e.tx = dx / d; e.ty = dy / d; }
-      } else if (e.state === 'lunge') {
-        e.g.setScale(0.8, 1.2);
+      } else if (e.state === 'lunge') { e.g.setScale(0.8, 1.2);
         this.moveEnemy(e, e.tx * 560 * fast * spdMul * dt, e.ty * 560 * fast * spdMul * dt);
         if (d < 32) { s.hurtNoor('lunge'); e.state = 'recover'; e.t = 0.6; }
         else if (e.t <= 0) { e.state = 'stuck'; e.t = this.tune.scribbleStuck; }
       } else if (e.state === 'stuck') {
         e.g.setScale(1.1, 0.9);
-        fl.lineStyle(1, hex(C.cyan), 0.5).strokeCircle(e.x, e.y - 20, 26);
+        fl.lineStyle(1.4, hex(C.cyan), 0.7); fl.lineBetween(e.x - 16, e.y - 28, e.x - 6, e.y - 28); fl.lineBetween(e.x + 6, e.y - 28, e.x + 16, e.y - 28);
         if (e.t <= 0) { e.state = 'idle'; e.t = 0.4; }
       } else if (e.t <= 0) { e.state = 'idle'; e.t = 0.5; }
     }
@@ -386,7 +394,6 @@ export class CombatGreybox {
       } else if (e.state === 'scrape') {
         const L = 280;
         fl.lineStyle(4, e.form === 'slow' ? 0x886040 : 0xff4040, 0.7).lineBetween(e.x, e.y, e.x + e.tx * L, e.y + e.ty * L);
-        fl.fillStyle(0xff4040, 0.2).fillCircle(e.x, e.y, 16);
         if (e.t <= 0) { e.state = 'charge'; e.t = 1.6; }
       } else if (e.state === 'charge') {
         const sp = this.tune.redlineChargeSpd * spdMul;
@@ -403,7 +410,7 @@ export class CombatGreybox {
         }
       } else if (e.state === 'stun') {
         fl.lineStyle(2, hex(C.lamp), 0.8);
-        for (let i = 0; i < 3; i++) fl.strokeCircle(e.x + Math.cos(s.t * 8 + i) * 18, e.y - 50 + Math.sin(s.t * 6 + i) * 6, 3);
+        for (let i = 0; i < 3; i++) { const px = e.x + Math.cos(s.t * 8 + i) * 18, py = e.y - 50 + Math.sin(s.t * 6 + i) * 6; fl.lineBetween(px - 4, py, px + 4, py); fl.lineBetween(px, py - 4, px, py + 4); }
         e.g.setRotation(Math.sin(s.t * 20) * 0.15);
         if (e.t <= 0) { e.state = 'idle'; e.t = 0.8; e.g.setRotation(0); }
       } else { e.g.setRotation(0); if (e.t <= 0) { e.state = 'idle'; e.t = 0.6; } }
@@ -417,12 +424,15 @@ export class CombatGreybox {
         e.faceX = Math.cos(face); e.faceY = Math.sin(face);
         if (d < aggro) this.moveEnemy(e, dx / d * 55 * spdMul * dt, dy / d * 55 * spdMul * dt);
         if (e.shielded && e.form === 'default') {
-          fl.fillStyle(0x9eb0c0, 0.15); fl.beginPath(); fl.moveTo(e.x, e.y); fl.arc(e.x, e.y, 50, face - 0.9, face + 0.9, false); fl.closePath(); fl.fillPath();
-          fl.lineStyle(2, 0x9eb0c0, 0.7); fl.beginPath(); fl.arc(e.x, e.y, 50, face - 0.9, face + 0.9, false); fl.strokePath();
+          const a0 = face - 0.9, a1 = face + 0.9;
+          fl.lineStyle(2.4, 0x9eb0c0, 0.8);
+          fl.lineBetween(e.x, e.y, e.x + Math.cos(a0) * 50, e.y + Math.sin(a0) * 50);
+          fl.lineBetween(e.x, e.y, e.x + Math.cos(a1) * 50, e.y + Math.sin(a1) * 50);
+          fl.lineBetween(e.x + Math.cos(a0) * 50, e.y + Math.sin(a0) * 50, e.x + Math.cos(a1) * 50, e.y + Math.sin(a1) * 50);
         }
         if (d > 40 && d < 65 && e.t <= 0) { e.state = 'snapwind'; e.t = this.tune.staplerSnapWind / spdMul; }
       } else if (e.state === 'snapwind') {
-        fl.fillStyle(hex(C.lamp), 0.35).fillCircle(e.x + Math.cos(face) * 30, e.y + Math.sin(face) * 30, 18);
+        tellBox(fl, e.x + Math.cos(face) * 30, e.y + Math.sin(face) * 30, 22, hex(C.lamp), 0.85);
         e.g.setRotation(-0.2);
         if (e.t <= 0) { e.state = 'snap'; e.t = this.tune.staplerSnapActive; e.tx = Math.cos(face); e.ty = Math.sin(face); }
       } else if (e.state === 'snap') {
@@ -432,7 +442,7 @@ export class CombatGreybox {
         if (e.t <= 0) { e.state = 'snaprecover'; e.t = this.tune.staplerSnapRecover; }
       } else if (e.state === 'snaprecover') {
         e.g.setRotation(0.15);
-        fl.lineStyle(1, hex(C.cyan), 0.5).strokeCircle(e.x, e.y - 20, 30);
+        fl.lineStyle(1.4, hex(C.cyan), 0.7); fl.lineBetween(e.x - 18, e.y - 28, e.x - 8, e.y - 28); fl.lineBetween(e.x + 8, e.y - 28, e.x + 18, e.y - 28);
         if (e.t <= 0) { e.state = 'guard'; e.t = 0.5; e.g.setRotation(0); }
       } else if (e.state === 'stun' && e.t <= 0) { e.state = 'guard'; e.t = 0.3; }
     }

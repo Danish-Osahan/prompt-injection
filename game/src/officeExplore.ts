@@ -301,7 +301,7 @@ export class OfficeExplore {
       }).setOrigin(0.5);
       c.add(t);
     }
-    const ring = this.s.add.ellipse(8, 6, 38, 18).setStrokeStyle(1.6, 0xb43030, 0.95).setFillStyle(0xb43030, 0);
+    const ring = this.s.add.rectangle(8, 6, 36, 16).setStrokeStyle(1.6, 0xb43030, 0.95).setFillStyle(0xb43030, 0);
     c.add(ring);
     this.boardGfx = c;
     this.s.objs.push(c);

@@ -298,7 +298,7 @@ export class WordUI {
     const g = this.codeG!; g.clear();
     if (on) {
       // enemies as wireframes + hp lines
-      for (const e of s.enemies) { if (e.dead) continue; const q = s.vm ? s.vm.P(e.x, e.y) : e; g.lineStyle(1.5, hex(C.coral), 0.8 * a).strokeEllipse(q.x, q.y - 30, 70, 80); g.lineStyle(1, hex(C.coral), 0.4 * a).lineBetween(q.x - 40, q.y, q.x + 40, q.y); }
+      for (const e of s.enemies) { if (e.dead) continue; const q = s.vm ? s.vm.P(e.x, e.y) : e; const b = 28; g.lineStyle(1.5, hex(C.coral), 0.8 * a); for (const [dx, dy] of [[-1,-1],[1,-1],[1,1],[-1,1]]) { const px = q.x + dx * b, py = q.y - 30 + dy * b * 0.9; g.lineBetween(px, py, px - dx * 10, py); g.lineBetween(px, py, px, py - dy * 10); } }
       // leader dots from each line to its object
       for (const l of this.codeLines) { g.fillStyle(hex(C.cyan), a * 0.9).fillCircle(l.plate.container.x, l.plate.container.y + 18, 2.5); }
     }

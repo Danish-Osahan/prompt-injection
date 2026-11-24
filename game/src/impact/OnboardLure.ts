@@ -45,11 +45,10 @@ export class OnboardLure {
     const sg = opts?.sourceGlowSize ?? { w: 40, h: 48 };
     const tg = opts?.targetGlowSize ?? { w: 28, h: 40 };
 
-    this.sourceGlow = s.add.ellipse(source.x, source.y - 8, sg.w, sg.h, 0xffe08a, 0)
-      .setDepth(source.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    this.targetGlow = s.add.ellipse(target.x, target.y, tg.w, tg.h, 0x7ec8e3, 0)
-      .setDepth(target.y + 1).setBlendMode(Phaser.BlendModes.ADD);
-    s.objs.push(this.sourceGlow, this.targetGlow);
+    // No disc/oval glows — the chip is the only lure mark.
+    void sg; void tg;
+    this.sourceGlow = undefined;
+    this.targetGlow = undefined;
 
     if (s.textures.exists(tk)) {
       this.targetGlyph = s.add.image(target.x, target.y - 40, tk)

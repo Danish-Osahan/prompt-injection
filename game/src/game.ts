@@ -33,10 +33,25 @@ const C = tokens.color;
 const hex = (s: string) => parseInt(s.slice(1), 16);
 const DIRS = ['E', 'SE', 'S', 'SW', 'W', 'NW', 'N', 'NE'];
 const MAX_HP = 4;
-const WALK = 230, DASH_SPEED = 900, DASH_T = 0.18, DASH_CD = 1.0;
+const WALK = 230, DASH_SPEED = 900, DASH_T = 0.24, DASH_CD = 1.0;  // 216px dash; hub void is 148px
+const HUB_NY = 248, HUB_FACE = 28, HUB_VOID_H = 128, HUB_SY = 404;  // 128px of visible dark drop under a 28px flat face
+const HUB_PIT = { x: 80, y: 252, w: 1120, h: 148 };  // 252–400
+const HUB_DOOR = { x: 598, y: 388, w: 86, h: 176 };
+const HUB_PANEL = { x: 603, y: 388 };
+const HUB_SLIT = { x: 640, y: 468 };
 const READ_R = 90, FOCUS_R = 120;
 const HOLD_T = 0.22, AIM_R = 150, BEAM_R = 560;
 const inR = (r: Rect, x: number, y: number) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+/** Non-circular attack telegraph: corner ticks of a box, never a circle/ring/disc. */
+const tellBox = (g: Phaser.GameObjects.Graphics, x: number, y: number, r: number, col: number, a: number) => {
+  g.lineStyle(2.2, col, a);
+  const sx = r * 0.72, sy = r * 0.55;
+  for (const [dx, dy] of [[-1, -1], [1, -1], [1, 1], [-1, 1]] as const) {
+    const px = x + dx * sx, py = y + dy * sy;
+    g.lineBetween(px, py, px - dx * 14, py);
+    g.lineBetween(px, py, px, py - dy * 10);
+  }
+};
 /** Inner rect of the hub north-wall glass, inside the bezel. */
 const HUB_GLASS: Rect = { x: 226, y: 50, w: 178, h: 90 };
 
@@ -96,6 +111,7 @@ export class GameScene extends Phaser.Scene {
   caretOwned = false;
   caretSentAt = 0;
   private caretBox?: Phaser.GameObjects.Graphics;
+  private caretMark?: Phaser.GameObjects.Graphics;
   private caretSendOnce = false;
   private caretKeyF?: Phaser.Input.Keyboard.Key;
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
@@ -289,154 +305,132 @@ export class GameScene extends Phaser.Scene {
     this.objs.push(this.edgePad, this.edgePad2);
   }
 
-  /** Code-drawn chasm between the north and south hub floors. Collision matches the pit (y 254–318). */
+  /** Code-drawn chasm between the north and south hub floors. Collision matches HUB_PIT (~y 252–400). */
   drawHubChasm() {
-    const X0 = 80, X1 = 1200, W = 1120, NY = 250, SY = 322;
-    const vpX = 640, vpY = 292;
+    const X0 = 80, X1 = 1200, W = 1120, NY = HUB_NY, SY = HUB_SY, FACE = HUB_FACE;
+    const FOOT = NY + FACE;
+    const vpX = 640, vpY = FOOT + HUB_VOID_H * 0.55;
     this.chasmParallax = [];
     const quad = (g: Phaser.GameObjects.Graphics, a: { x: number; y: number }, b: { x: number; y: number }, c: { x: number; y: number }, d: { x: number; y: number }) => {
       g.fillTriangle(a.x, a.y, b.x, b.y, c.x, c.y);
       g.fillTriangle(a.x, a.y, c.x, c.y, d.x, d.y);
     };
 
-    // Far (north) platform sits visually higher: a raised deck + tall lit front wall
-    // dropping into a dark void. Near (south) lip is a shorter edge. Collision unchanged.
-    const DECK = 208, FOOT = SY - 24, voidBot = SY + 52;
-
+    // Cover the painted mid-band (and the leftover partition strip) with a real drop.
+    // Side notches extend past the walk bounds so the slabs clearly end in the walls.
     const pit = this.add.graphics().setDepth(-972); pit.name = 'hub-chasm'; this.objs.push(pit);
-    pit.fillStyle(0x000000, 1).fillRect(X0 - 2, NY - 2, W + 4, voidBot - (NY - 2));
+    pit.fillStyle(0x000000, 1).fillRect(36, NY - 2, 1208, (SY + 18) - (NY - 2));
 
-    // Narrow receding crack between the cliff foot and the south lip — not a wide mid-room oval.
-    const slotT = FOOT, slotB = SY + 6;
-    const bot = { x0: vpX - 80, x1: vpX + 80, y: (slotT + slotB) / 2 + 8 };
-    const layers = 7;
+    // Tall empty shaft: receding inner walls, fading to black. Not a thin line, not an oval mouth.
+    const layers = 8;
+    const bot = { x0: vpX - 70, x1: vpX + 70, y: vpY + 20 };
     for (let i = 0; i < layers; i++) {
       const t0 = i / layers, t1 = (i + 1) / layers;
       const edge = (t: number) => ({
-        l: X0 + 8 + t * (bot.x0 - X0),
-        r: X1 - 8 - t * (X1 - bot.x1),
-        top: slotT + t * (bot.y - 6 - slotT),
-        bot: slotB - t * (slotB - (bot.y + 6)),
+        l: 44 + t * (bot.x0 - 44),
+        r: 1236 - t * (1236 - bot.x1),
+        top: FOOT + t * (bot.y - 16 - FOOT),
+        bot: SY - t * (SY - (bot.y + 16)),
       });
       const a = edge(t0), b = edge(t1);
-      const shade = Math.max(0, Math.round(10 * (1 - t1)));
-      pit.fillStyle((shade << 16) | ((shade + 1) << 8) | (shade + 3), 1);
+      const shade = Math.max(0, Math.round(8 * (1 - t1)));
+      pit.fillStyle((shade << 16) | (shade << 8) | (shade + 1), 1);
       quad(pit, { x: a.l, y: a.top }, { x: a.r, y: a.top }, { x: b.r, y: b.top }, { x: b.l, y: b.top });
-      const wall = Math.max(0, Math.round(6 * (1 - t1)));
-      pit.fillStyle((wall << 16) | ((wall + 1) << 8) | (wall + 2), 1);
+      const wall = Math.max(0, Math.round(5 * (1 - t1)));
+      pit.fillStyle((wall << 16) | (wall << 8) | (wall + 1), 1);
       quad(pit, { x: a.l, y: a.top }, { x: b.l, y: b.top }, { x: b.l, y: b.bot }, { x: a.l, y: a.bot });
       quad(pit, { x: a.r, y: a.top }, { x: a.r, y: a.bot }, { x: b.r, y: b.bot }, { x: b.r, y: b.top });
     }
     pit.fillStyle(0x000000, 1);
-    quad(pit, { x: bot.x0, y: bot.y - 4 }, { x: bot.x1, y: bot.y - 4 }, { x: vpX + 28, y: bot.y + 8 }, { x: vpX - 28, y: bot.y + 8 });
-    for (let i = 0; i < 5; i++) {
-      const t = i / 5;
-      pit.fillStyle(0x163044, 0.08 * (1 - t));
-      pit.fillRect(vpX - (70 + t * 200), slotT + 2 + t * 6, 140 + t * 400, 6);
+    quad(pit, { x: bot.x0, y: bot.y - 8 }, { x: bot.x1, y: bot.y - 8 }, { x: vpX + 24, y: bot.y + 18 }, { x: vpX - 24, y: bot.y + 18 });
+    // Fade the mid-void to black so it reads empty, not filled.
+    for (let i = 0; i < 6; i++) {
+      pit.fillStyle(0x000000, 0.18 + i * 0.1);
+      pit.fillRect(80, FOOT + 20 + i * 14, 1120, 18);
     }
+    pit.fillStyle(0x000000, 1).fillRect(80, FOOT + 96, 1120, SY - (FOOT + 96));
 
     const slot = this.add.graphics().setDepth(-968); slot.name = 'hub-chasm-far'; this.objs.push(slot);
     for (let i = 1; i <= 4; i++) {
       const t = i / 5;
-      const l = X0 + 10 + t * (bot.x0 - X0), r = X1 - 10 - t * (X1 - bot.x1);
-      const top = slotT + t * (bot.y - 6 - slotT), botY = slotB - t * (slotB - (bot.y + 6));
-      slot.lineStyle(1, 0x1a2830, 0.22 * (1 - t * 0.4));
-      slot.lineBetween(l, top, r, top);
+      const l = 52 + t * (bot.x0 - 52), r = 1228 - t * (1228 - bot.x1);
+      const top = FOOT + t * (bot.y - 16 - FOOT), botY = SY - t * (SY - (bot.y + 16));
+      slot.lineStyle(1, 0x12181e, 0.18 * (1 - t * 0.4));
       slot.lineBetween(l, top, l, botY);
       slot.lineBetween(r, top, r, botY);
     }
-    this.chasmParallax.push({ g: slot, k: 0.16 });
+    this.chasmParallax.push({ g: slot, k: 0.12 });
 
-    // Raised north deck + tall front wall of the far platform (behind the south door).
+    // Raised north deck + FLAT slab edge (office-floor / concrete, not a cylinder).
     const cliff = this.add.graphics().setDepth(-960); cliff.name = 'hub-chasm-mid'; this.objs.push(cliff);
-    // Deck top — a terrace slab on the south edge of the north floor.
+    const DECK = 206;
     cliff.fillStyle(0x16344c, 1).fillRect(X0, DECK, W, NY - DECK);
-    const deckVpY = -40;
-    cliff.lineStyle(1, 0x2a5a78, 0.55);
+    cliff.lineStyle(1, 0x2a5a78, 0.5);
     for (let i = -14; i <= 14; i++) {
       const x = vpX + i * 88;
-      cliff.lineBetween(x, DECK, vpX + (x - vpX) * ((NY + 40 - deckVpY) / (DECK - deckVpY)), NY);
+      cliff.lineBetween(x, DECK, x, NY);
     }
-    cliff.lineStyle(1, 0x2a5a78, 0.32);
-    for (let y = DECK + 8; y < NY - 2; y += 14) cliff.lineBetween(X0, y, X1, y);
-    cliff.fillStyle(0x1c4058, 0.55).fillRect(X0, NY - 18, W, 18);
-    cliff.fillStyle(0x2a546c, 0.4).fillRect(X0, NY - 12, W, 12);
+    cliff.lineStyle(1, 0x2a5a78, 0.3);
+    for (let y = DECK + 8; y < NY - 4; y += 14) cliff.lineBetween(X0, y, X1, y);
+    // Sharp cap — a floor that STOPS. A muted lip, not a glowing cyan pipe.
+    cliff.fillStyle(0x1c4058, 1).fillRect(X0, NY - 10, W, 10);
+    cliff.fillStyle(0x5a7484, 1).fillRect(X0, NY - 10, W, 3);
+    cliff.fillStyle(0xc4d0d4, 0.45).fillRect(X0, NY - 10, W, 1);
+    this.scuffLip(cliff, X0, X1, NY - 9);
 
-    // Lit cap — the walkable south edge of the raised deck.
-    cliff.fillStyle(0x3a5468, 1).fillRect(X0, NY - 8, W, 8);
-    cliff.fillStyle(0x7a96a4, 0.85).fillRect(X0, NY - 8, W, 3);
-    cliff.fillStyle(0xc8e8ec, 0.55).fillRect(X0, NY - 8, W, 1.5);
-    cliff.fillStyle(0x78e4e8, 0.4).fillRect(X0, NY - 1.5, W, 2);
-    this.scuffLip(cliff, X0, X1, NY - 1);
-
-    // Front wall: vertical pilasters, lit under the cap, falling into shadow at the foot.
-    const CH = FOOT - NY;
-    const faceCols = [0x5a7a8c, 0x4a6a7c, 0x3a5868, 0x2c4656, 0x1e3444, 0x142230, 0x0a121c, 0x030508];
-    for (let i = 0; i < faceCols.length; i++) {
-      const y = NY + (CH * i) / faceCols.length;
-      const h = Math.ceil(CH / faceCols.length) + 1;
-      cliff.fillStyle(faceCols[i], 1).fillRect(X0, y, W, h);
+    // Flat front face: horizontal strata / expansion joints, no rounded wrap lighting.
+    const bands = [0x3a5464, 0x2e4454, 0x243848, 0x1c303e, 0x162830];
+    for (let i = 0; i < bands.length; i++) {
+      const y = NY + (FACE * i) / bands.length;
+      const h = Math.ceil(FACE / bands.length) + 1;
+      cliff.fillStyle(bands[i], 1).fillRect(X0, y, W, h);
+      cliff.fillStyle(0x0a1218, 0.35).fillRect(X0, y + h - 1, W, 1);
     }
-    // Vertical grooves / pilasters so the face reads as a wall, not a horizontal stripe.
-    for (let x = X0 + 28; x < X1; x += 72 + ((x * 11) % 18)) {
-      const w = 7 + ((x * 5) % 5);
-      cliff.fillStyle(0x0a1218, 0.55).fillRect(x, NY + 2, 2, CH - 4);
-      cliff.fillStyle(0x4a6878, 0.22).fillRect(x + 2, NY + 2, 1.5, Math.min(22, CH * 0.35));
-      cliff.fillStyle(0x1a2830, 0.35).fillRect(x + w, NY + 8, 3, CH - 14);
+    // Vertical expansion joints (flat slab, not fluting that can read as a pipe).
+    for (let x = X0 + 40; x < X1; x += 160) {
+      cliff.fillStyle(0x0c141c, 0.45).fillRect(x, NY + 1, 2, FACE - 2);
     }
-    // Corners: short side-returns so the terrace reads as a block.
-    cliff.fillStyle(0x0c141c, 1).fillRect(X0 - 2, NY, 14, CH);
-    cliff.fillStyle(0x3a5464, 0.5).fillRect(X0 - 2, NY, 14, 6);
-    cliff.fillStyle(0x0c141c, 1).fillRect(X1 - 12, NY, 14, CH);
-    cliff.fillStyle(0x3a5464, 0.5).fillRect(X1 - 12, NY, 14, 6);
-    // Lit band just under the cap (the "sun line" on the cliff).
-    cliff.fillStyle(0xb8d4dc, 0.4).fillRect(X0, NY + 1, W, 8);
-    cliff.fillStyle(0xf0e0b0, 0.12).fillRect(X0, NY + 1, W, 16);
-    // Deep shadow at the foot, meeting the void.
-    cliff.fillStyle(0x000000, 0.6).fillRect(X0, FOOT - 14, W, 14);
-    cliff.fillStyle(0x000000, 0.88).fillRect(X0, FOOT - 6, W, 8);
+    // Hard shadow under the face, then the void.
+    cliff.fillStyle(0x000000, 0.7).fillRect(X0, FOOT - 3, W, 5);
+    cliff.fillStyle(0x000000, 1).fillRect(X0, FOOT, W, 8);
 
-    // Cables hanging off the cap, down the face, into the void.
+    // Side returns + dark notches into the walls so the slabs end.
+    cliff.fillStyle(0x000000, 1).fillRect(36, NY, 44, SY - NY + 8);
+    cliff.fillStyle(0x000000, 1).fillRect(X1, NY, 44, SY - NY + 8);
+    cliff.fillStyle(0x1a303c, 1).fillRect(X0, NY, 10, FACE);
+    cliff.fillStyle(0x1a303c, 1).fillRect(X1 - 10, NY, 10, FACE);
+
+    // Cables drop off the slab into the tall void.
     const cables = [
-      { x: 132, drop: 78, bow: 10 }, { x: 268, drop: 90, bow: -9 },
-      { x: 404, drop: 70, bow: 8 }, { x: 812, drop: 86, bow: 12 },
-      { x: 948, drop: 74, bow: -10 }, { x: 1096, drop: 64, bow: 6 },
+      { x: 132, drop: 110, bow: 10 }, { x: 268, drop: 128, bow: -9 },
+      { x: 404, drop: 100, bow: 8 }, { x: 812, drop: 122, bow: 12 },
+      { x: 948, drop: 108, bow: -10 }, { x: 1096, drop: 96, bow: 6 },
     ];
     for (const c of cables) {
-      const y2 = Math.min(voidBot - 8, NY + c.drop);
+      const y2 = Math.min(SY - 8, NY + c.drop);
       const x1 = c.x + c.bow, y1 = NY + (y2 - NY) * 0.4;
-      const x2 = vpX * 0.15 + c.x * 0.85;
-      cliff.lineStyle(2, 0x12181e, 0.95);
+      const x2 = vpX * 0.12 + c.x * 0.88;
+      cliff.lineStyle(2, 0x101418, 0.95);
       cliff.beginPath(); cliff.moveTo(c.x, NY + 2); cliff.lineTo(x1, y1); cliff.lineTo(x2, y2); cliff.strokePath();
-      cliff.lineStyle(1, 0x78e4e8, 0.06);
-      cliff.beginPath(); cliff.moveTo(c.x + 1, NY + 2); cliff.lineTo(x1 + 1, y1); cliff.lineTo(x2 + 1, y2); cliff.strokePath();
-    }
-    // Small square fixtures on the face — not circles.
-    const lights: [number, number, number][] = [[170, NY + 18, 0x78e4e8], [470, NY + 26, 0x78e4e8], [810, NY + 16, 0x8ad4c8], [1100, NY + 22, 0xf6c684]];
-    for (const [x, y, c] of lights) {
-      cliff.fillStyle(c, 0.18).fillRect(x - 3, y - 2, 6, 3);
-      cliff.fillStyle(c, 0.45).fillRect(x - 1.5, y - 1, 3, 2);
     }
 
     const lips = this.add.graphics().setDepth(-936); lips.name = 'hub-chasm-lips'; this.objs.push(lips);
-    // Near (south) platform: a proper but shorter lip face looking into the void.
-    lips.fillStyle(0x000000, 0.75).fillRect(X0, SY - 10, W, 6);
-    lips.fillStyle(0x0a0e14, 1).fillRect(X0, SY - 8, W, 5);
-    lips.fillStyle(0x1a2834, 1).fillRect(X0, SY - 5, W, 3);
-    lips.fillStyle(0x3a5060, 1).fillRect(X0, SY - 3, W, 3);
-    lips.fillStyle(0x7a96a4, 0.7).fillRect(X0, SY - 2, W, 2);
-    lips.fillStyle(0x78e4e8, 0.3).fillRect(X0, SY - 1, W, 1.5);
+    // Near (south) slab: a short flat lip where the floor ends.
+    lips.fillStyle(0x000000, 0.85).fillRect(X0, SY - 8, W, 5);
+    lips.fillStyle(0x1a2834, 1).fillRect(X0, SY - 5, W, 5);
+    lips.fillStyle(0x4a6878, 1).fillRect(X0, SY - 2, W, 3);
+    lips.fillStyle(0xc8dce0, 0.55).fillRect(X0, SY - 2, W, 1.2);
     this.scuffLip(lips, X0, X1, SY - 1);
+    lips.fillStyle(0x000000, 1).fillRect(36, SY - 8, 44, 16);
+    lips.fillStyle(0x000000, 1).fillRect(X1, SY - 8, 44, 16);
 
-    this.drawBridgeStub(lips, 'south', 508, SY, 62, 34);
-    this.drawBridgeStub(lips, 'north', 746, NY, 54, 24);
-    this.drawSouthLedgeFloor(X0, X1, SY, 436);
-    // Door threshold stoop on the near ledge, in front of the floor tiles, behind the door.
+    this.drawBridgeStub(lips, 'south', 508, SY, 62, 36);
+    this.drawBridgeStub(lips, 'north', 746, NY, 54, 22);
+    this.drawSouthLedgeFloor(X0, X1, SY, 500);
     const stoop = this.add.graphics().setDepth(-915); stoop.name = 'hub-door-stoop'; this.objs.push(stoop);
-    stoop.fillStyle(0x1a3040, 1).fillRect(586, SY, 108, 20);
-    stoop.fillStyle(0x2a4458, 0.9).fillRect(586, SY, 108, 3);
-    stoop.fillStyle(0x0a1620, 0.45).fillRect(586, SY + 16, 108, 4);
-    stoop.fillStyle(0x78e4e8, 0.12).fillRect(600, SY + 1, 80, 2);
+    stoop.fillStyle(0x1a3040, 1).fillRect(586, SY, 108, 22);
+    stoop.fillStyle(0x3a5868, 0.95).fillRect(586, SY, 108, 3);
+    stoop.fillStyle(0x0a1620, 0.45).fillRect(586, SY + 18, 108, 4);
     this.startPitPapers();
     this.startChasmMotes(X0, X1, NY, SY, vpX, vpY);
   }
@@ -547,8 +541,8 @@ export class GameScene extends Phaser.Scene {
   }
 
   private startPitPapers() {
-    const spots = [{ x: 210, y: 304 }, { x: 390, y: 308 }, { x: 860, y: 306 }];
-    const vpX = 640, vpY = 318;
+    const spots = [{ x: 210, y: 300 }, { x: 390, y: 316 }, { x: 860, y: 308 }];
+    const vpX = 640, vpY = 360;
     for (let i = 0; i < spots.length; i++) {
       const s = spots[i];
       const paper = this.add.graphics().setDepth(-950).setPosition(s.x, s.y);
@@ -617,7 +611,7 @@ export class GameScene extends Phaser.Scene {
     const look = () => {
       try { cam.setZoom(proxy.z); cam.centerOn(640, proxy.y); } catch { /* */ }
     };
-    const Z = 1.68, startY = 508, gapY = 282;
+    const Z = 1.55, startY = 540, gapY = 336;
     this.tweens.add({
       targets: proxy, y: startY, z: Z, duration: 450, ease: 'Sine.easeInOut',
       onUpdate: () => { if (this.gapPanToken === token) look(); },
@@ -994,28 +988,28 @@ export class GameScene extends Phaser.Scene {
       this.hubFernGlow = glow;
       // Two detached platforms with a real chasm between them (collision matches the pit).
       this.drawHubChasm();
-      this.hazards.push({ x: 80, y: 254, w: 1120, h: 64 });
+      this.hazards.push({ ...HUB_PIT });
       this.gapPan = s.seen.includes('gap_pan') ? 'done' : 'pending';
+      // The painted mid-room partition is a full-width metal bar — hide it so the chasm can read as a drop.
+      try { this.fgImgs.partition?.setVisible(false); } catch { /* */ }
       if (this.art && this.fgImgs.door_panel) {
         this.roomVis.doorPanel = this.fgImgs.door_panel;
-        // Depth at the gap so a south-floor Noor (y typically 480–630) draws in front of the door.
-        try { this.fgImgs.door_panel.setDepth(250); } catch { /* */ }
+        try { this.fgImgs.door_panel.setPosition(HUB_PANEL.x, HUB_PANEL.y).setDepth(250); } catch { /* */ }
         const shadow = this.add.graphics().setDepth(240);
+        const by = HUB_PANEL.y + 155;
         shadow.fillStyle(0x020406, 0.55);
-        shadow.fillRoundedRect(608, 446, 68, 18, 7);
+        shadow.fillRect(608, by, 68, 16);
         shadow.fillStyle(0x020406, 0.28);
-        shadow.fillRoundedRect(614, 454, 56, 12, 6);
-        shadow.fillStyle(0x000000, 0.18);
-        shadow.fillRoundedRect(610, 444, 64, 6, 3);
+        shadow.fillRect(614, by + 8, 56, 12);
         this.objs.push(shadow); this.roomVis.doorShadow = shadow;
         const spill = this.add.graphics().setDepth(-910);
         try { spill.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
         spill.fillStyle(0x78e4e8, 0.10);
-        spill.fillRect(616, 318, 52, 132);
+        spill.fillRect(616, HUB_SY, 52, 140);
         spill.fillStyle(0x78e4e8, 0.08);
-        spill.fillRoundedRect(608, 440, 68, 22, 6);
+        spill.fillRect(608, HUB_SY + 118, 68, 22);
         this.objs.push(spill); this.roomVis.doorSpill = spill;
-      } else { const door = this.add.rectangle(600, 400, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(434.5); this.objs.push(door); this.roomVis.door = door; }
+      } else { const door = this.add.rectangle(HUB_PANEL.x, HUB_PANEL.y, 80, 34, hex(C.coral), 0.8).setOrigin(0).setDepth(HUB_SY + 30); this.objs.push(door); this.roomVis.door = door; }
       // steal path: no word-swap / caption prompts (lure shows E / F)
       if (!s.seen.includes('sc3')) {
         s.seen.push('sc3'); writeSave(s);
@@ -1134,7 +1128,7 @@ export class GameScene extends Phaser.Scene {
       () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash || (this.room?.id === 'hub' && this.y < 240),
-      () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 400 && this.y > 230 && this.gapPan === 'done'));
+      () => this.enemies.some(e => !e.dead) || (this.room?.id === 'hub' && this.y < 500 && this.y > 230 && this.gapPan === 'done'));
     this.addPrompt('letter', 0, 0, 'E  read', 'TAP  read',
       () => this.letterRead,
       () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
@@ -1291,8 +1285,7 @@ export class GameScene extends Phaser.Scene {
       if (mod) { if (mod.blocked || mod.dmg <= 0) { if (mod.blocked) return; dmg = mod.dmg; if (dmg <= 0) return; } else dmg = mod.dmg; }
     }
     if (e.practice) {   // the office's stuffed practice dummy: flash, wobble, count; never breaks
-      sfx('hit'); const fl = this.add.ellipse(e.x, e.y - 60, 70, 100, 0xffffff, 0.7).setDepth(e.y + 2).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(fl);
-      this.tweens.add({ targets: fl, alpha: 0, scale: 1.2, duration: 130, onComplete: () => fl.destroy() });
+      sfx('hit'); this.time.delayedCall(130, () => { try { } catch { /* */ } });
       this.tweens.killTweensOf(e.g); e.g.setRotation(0); const sgn = Math.sign(kx || 1);
       this.tweens.add({ targets: e.g, rotation: { from: 0.16 * sgn * Math.min(2, dmg), to: 0 }, duration: 520, ease: 'Elastic.easeOut' });
       return;
@@ -1305,9 +1298,7 @@ export class GameScene extends Phaser.Scene {
     sfx('hit');
     e.hp -= dmg; if (e.kind !== 'draft' && e.kind !== 'dummy') { e.kx += kx; e.ky += ky; }
     if (e.state === 'lunge' || e.state === 'dive' || e.state === 'windup') { e.state = 'stun'; e.t = 0.5; }
-    // hit flash: a white pop over the enemy + a squash punch (readable at 640x360)
-    const fl = this.add.ellipse(e.x, e.y - 34, 74, 86, 0xffffff, 0.75).setDepth(e.y + 2).setBlendMode(Phaser.BlendModes.ADD); this.objs.push(fl);
-    this.tweens.add({ targets: fl, alpha: 0, scale: 1.25, duration: 130, onComplete: () => fl.destroy() });
+    // hit flash: a white pop over the enemy + a squash punch (readable at 640x360) this.time.delayedCall(130, () => { try { if (e.g) } catch { /* */ } });
     this.tweens.add({ targets: e.g, scaleX: 1.14, scaleY: 0.88, duration: 55, yoyo: true, ease: 'Quad.easeOut' });
     if (mark) { const m = this.add.text(e.x + 14, e.y - 50, '|', { fontFamily: 'JetBrains Mono', fontSize: '30px', fontStyle: 'bold', color: C.cyan }).setOrigin(0.5).setDepth(3200); this.objs.push(m); this.tweens.add({ targets: m, alpha: 0, duration: 265, yoyo: true, repeat: 2, onComplete: () => m.destroy() }); }
     if (e.hp <= 0) {
@@ -1338,7 +1329,7 @@ export class GameScene extends Phaser.Scene {
         else {
           const wind = (e.swipeN ?? 0) === 0 ? 1.15 : 0.8;
           if (e.state === 'idle' && e.t <= 0) { e.state = 'windup'; e.t = wind; }
-          if (e.state === 'windup') { fl.fillStyle(hex(C.coral), 0.15 + 0.3 * (1 - e.t / wind)).fillCircle(e.x, e.y, 95); fl.lineStyle(2, hex(C.coral), 0.8).strokeCircle(e.x, e.y, 95); e.g.setRotation(-0.3 * (1 - e.t / wind)); if (e.t <= 0) { e.state = 'swipe'; e.t = 0.25; e.swipeN = (e.swipeN ?? 0) + 1; if (d < 95) this.hurtNoor('swipe'); } }
+          if (e.state === 'windup') { tellBox(fl, e.x, e.y - 28, 95, hex(C.coral), 0.55 + 0.45 * (1 - e.t / wind)); e.g.setRotation(-0.3 * (1 - e.t / wind)); if (e.t <= 0) { e.state = 'swipe'; e.t = 0.25; e.swipeN = (e.swipeN ?? 0) + 1; if (d < 95) this.hurtNoor('swipe'); } }
           else if (e.state === 'swipe') { e.g.setRotation(0.5); if (e.t <= 0) { e.state = 'recover'; e.t = (e.swipeN ?? 1) === 1 ? 1.25 : 0.9; } }
           else if (e.state === 'recover' || e.state === 'stun') { e.g.setRotation(0); if (e.t <= 0) { e.state = 'idle'; e.t = 1.4; } }
         }
@@ -1349,9 +1340,9 @@ export class GameScene extends Phaser.Scene {
         if (e.wet) e.g.setScale(1.08, 0.78 + 0.04 * Math.sin(this.t * 5));
         const fast = e.wet ? 0.7 : e.hp <= e.maxHp / 2 ? 1.4 : 1; const aware = d < 420 && this.x > 820;
         if (e.state === 'idle') { e.g.setScale(1, 1 + 0.05 * Math.sin(this.t * 6)); if (aware) { if (d > 170) { e.x += dx / d * 70 * fast * dt; e.y += dy / d * 70 * fast * dt; } else if (e.t <= 0) { e.state = 'windup'; e.t = 0.6 / fast; } } }
-        else if (e.state === 'windup') { e.g.setScale(1.25, 0.6); fl.fillStyle(hex(C.coral), 0.25).fillEllipse(e.x, e.y, 60, 20); if (e.t <= 0) { e.state = 'lunge'; e.t = 0.32; e.tx = dx / d; e.ty = dy / d; } }
+        else if (e.state === 'windup') { e.g.setScale(1.25, 0.6); tellBox(fl, e.x, e.y - 10, 48, hex(C.coral), 0.8); if (e.t <= 0) { e.state = 'lunge'; e.t = 0.32; e.tx = dx / d; e.ty = dy / d; } }
         else if (e.state === 'lunge') { e.g.setScale(0.8, 1.2); e.x += e.tx * 560 * fast * dt; e.y += e.ty * 560 * fast * dt; if (d < 32) { this.hurtNoor('lunge'); e.state = 'recover'; e.t = 0.6; } else if (e.t <= 0) { e.state = 'stuck'; e.t = 1.0; } }
-        else if (e.state === 'stuck') { e.g.setScale(1.1, 0.9); fl.lineStyle(1, hex(C.cyan), 0.5).strokeCircle(e.x, e.y - 20, 26); if (e.t <= 0) { e.state = 'idle'; e.t = 0.5; } }
+        else if (e.state === 'stuck') { e.g.setScale(1.1, 0.9); fl.lineStyle(1.4, hex(C.cyan), 0.7); fl.lineBetween(e.x - 16, e.y - 28, e.x - 6, e.y - 28); fl.lineBetween(e.x + 6, e.y - 28, e.x + 16, e.y - 28); if (e.t <= 0) { e.state = 'idle'; e.t = 0.5; } }
         else { e.g.setScale(1); if (e.t <= 0) { e.state = 'idle'; e.t = 0.6; } }
         if (e.wet) e.g.setScale(1.08, 0.78 + 0.04 * Math.sin(this.t * 5));
         e.x = Phaser.Math.Clamp(e.x, 860, 1200); e.y = Phaser.Math.Clamp(e.y, 200, 670);
@@ -1505,7 +1496,7 @@ export class GameScene extends Phaser.Scene {
     const id = this.room.id; const was = { ...f };
     if (id === 'hub') {
       f.door = w('h_door') === 'OPEN';
-      this.dyn.door = f.door ? null : { x: 598, y: 288, w: 86, h: 176 };  // real door footprint (293–464), so Noor cannot walk into the threshold
+      this.dyn.door = f.door ? null : { ...HUB_DOOR };  // footprint on the near slab edge
       const door = this.roomVis.door as Phaser.GameObjects.Rectangle;
       const panel = this.roomVis.doorPanel as Phaser.GameObjects.Image;
       if (panel) { this.tweens.killTweensOf(panel); panel.setDepth(250); if (initial) panel.setAlpha(f.door ? 0 : 1); else { this.tweens.add({ targets: panel, alpha: f.door ? 0 : 1, scaleY: f.door ? 0.96 : 1, duration: 380, ease: 'Quad.easeIn' }); } }
@@ -1763,7 +1754,35 @@ export class GameScene extends Phaser.Scene {
   }
   /** Shoulder follow point for a claimed caret. */
   private caretHome() { return { x: this.x - 46, y: this.y - 56 }; }
-  private slitPos() { return { x: 640, y: 372 }; }
+  private slitPos() { return { x: HUB_SLIT.x, y: HUB_SLIT.y }; }
+  /** Crisp I-beam (dark outline + cyan), sized to read on a cream clipboard. */
+  private drawCaretMark() {
+    if (!this.caretMark || !this.caretMark.active || !this.caretMark.scene) {
+      this.caretMark = this.add.graphics();
+      this.objs.push(this.caretMark);
+    }
+    const g = this.caretMark; g.clear();
+    if (!this.caret || !this.caret.visible || this.caretMode === 'hidden' || this.caretMode === 'jumping') { g.setVisible(false); return; }
+    const parked = this.caretMode === 'sent' || this.caretMode === 'travel' || this.caretMode === 'trapped';
+    if (!parked && this.caretMode !== 'follow') { g.setVisible(false); return; }
+    // Parked cursor pulses but never vanishes — it has to read on cream paper.
+    if (this.caretMode === 'sent') g.setAlpha(0.55 + 0.45 * Math.max(0, Math.sin(this.t * 8)));
+    else if (this.caret.alpha <= 0.2) { g.setVisible(false); return; }
+    else g.setAlpha(1);
+    const x = this.caret.x, y = this.caret.y - (this.caretMode === 'follow' ? 8 : 14);
+    g.setVisible(true).setDepth(6200);
+    const big = this.caretMode === 'sent' || this.caretMode === 'travel';
+    const trapped = this.caretMode === 'trapped';
+    const bw = big ? 10 : trapped ? 5 : 6, bh = big ? 32 : trapped ? 16 : 20, cap = big ? 16 : trapped ? 9 : 8, o = big ? 3 : 2;
+    g.fillStyle(0x000000, 1);
+    g.fillRect(x - bw / 2 - o, y - bh / 2 - o, bw + o * 2, bh + o * 2);
+    g.fillRect(x - cap / 2 - o, y - bh / 2 - o, cap + o * 2, 6 + o);
+    g.fillRect(x - cap / 2 - o, y + bh / 2 - 6 - o, cap + o * 2, 6 + o);
+    g.fillStyle(0xb8fff8, 1);
+    g.fillRect(x - bw / 2, y - bh / 2, bw, bh);
+    g.fillRect(x - cap / 2, y - bh / 2, cap, 5);
+    g.fillRect(x - cap / 2, y + bh / 2 - 5, cap, 5);
+  }
 
   setupCaretForRoom(id: string) {
     this.caretBox?.destroy(); this.caretBox = undefined;
@@ -1919,20 +1938,21 @@ export class GameScene extends Phaser.Scene {
       this.caret.setPosition(p.x, p.y).setDepth(255);
       this.caret.setAlpha(0.25 + 0.75 * (Math.sin(this.t * 8) > 0 ? 1 : 0));
       if (this.caretBox) this.caretBox.setAlpha(0.85 + 0.15 * Math.sin(this.t * 3));
-      if (!this.busy && !this.dialogue?.busy && !this.dying && !this.transitioning && (this.flags.door || Math.hypot(this.x - p.x, this.y - p.y) < 150)) this.claimCaret();
+      if (!this.busy && !this.dialogue?.busy && !this.dying && !this.transitioning && (this.flags.door || Math.hypot(this.x - p.x, this.y - p.y) < 100)) this.claimCaret();
+      this.drawCaretMark();
       return;
     }
     if (this.caretMode === 'jumping' || this.caretMode === 'travel') {
       this.caret.setVisible(true).setDepth(this.caretMode === 'travel' ? 3600 : this.caret.y + 8);
+      this.drawCaretMark();
       return;
     }
-    if (!this.caret.visible) return;
+    if (!this.caret.visible) { this.drawCaretMark(); return; }
     if (this.caretMode === 'sent') {
-      // Sit in front of the target (dummy, plate) so the I-beam isn't buried under it.
-      this.caret.setDepth(3600);
-      // Plain blinking I-beam while parked on a target — no ring or crosshair.
-      this.caret.setAlpha(Math.sin(this.t * 8) > 0 ? 1 : 0.15);
+      // Hide the pale sprite; the code-drawn I-beam is the parked cursor.
+      this.caret.setDepth(3600).setAlpha(0);
       if (this.t - this.caretSentAt > 4) { this.caret.setAlpha(1); this.caretMode = 'follow'; }
+      this.drawCaretMark();
       return;
     }
     if (this.caretMode === 'follow') {
@@ -1942,6 +1962,7 @@ export class GameScene extends Phaser.Scene {
       this.caret.y += (h.y - this.caret.y) * Math.min(1, dt * 6);
       this.caret.setDepth(this.y + 1);
     }
+    this.drawCaretMark();
   }
   nearPrintedLetter() {
     return !!this.explore?.printerFired && !!this.explore?.letter && Math.hypot(this.x - 168, this.y - 255) < 90;
@@ -2192,7 +2213,8 @@ export class GameScene extends Phaser.Scene {
         // Floor pool under the plate — no floating pin.
         const c = this.add.container(p.def.sx, p.def.sy + 8).setDepth(p.def.sy - 6);
         c.name = target;
-        const glow = this.add.image(0, 0, 'pool').setTint(hex(C.fern)).setAlpha(0.26).setScale(0.52);
+        const glow = this.add.graphics();
+        glow.fillStyle(0x7ad08a, 0.28).fillRect(-22, -6, 44, 12);
         try { glow.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
         c.add(glow);
         this.tweens.add({ targets: glow, alpha: { from: 0.14, to: 0.4 }, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.inOut' });

@@ -1,5 +1,11 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-24 — Structural chasm, no windup circle, readable I-beam
+
+- **Gap.** The leftover `hub_partition.png` metal bar was hidden; a ~126px-tall (1x) empty shaft is overdrawn so the painted mid-band cannot read as a pipe/duct. Far face is a flat slab with a muted cap, void fading to black, near lip where the south floor ends, and dark notches into the side walls. Collision is now `80, 252, 1120×148`. Dash duration 0.24s (~216px) clears it from the south lip. The SHUT door stays on the near slab (open-then-dash).
+- **Circles.** The large pink/red disc on the parked dummy was the QUICK windup `fillCircle` r=95; it is gone (corner ticks only). Other combat/UI telegraphs in the Level 1 path were switched to ticks, strokes, chevrons, or flashes. See HANDOFF for the remaining leftover circles (boss tells, lens, portraits, motes).
+- **Caret.** Parked I-beam is a code-drawn dark-outline cyan I, recreated after room changes, hidden-sprite so it reads on the cream clipboard. Dummy remains at `(1110, 318)`.
+
 ## 2026-11-24 — Raised cliff, I-beam, far dummy
 
 - **Gap.** The far (north) side is a raised deck with a lit front wall dropping into a dark void; the near lip is a shorter edge. From spawn the two floors read as detached sections, though the wall is still only mid-band tall. The SHUT door and its stoop stay on the south ledge (open, then dash). Collision unchanged.
