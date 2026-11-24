@@ -4,7 +4,7 @@ import { OFFICE9 } from './office9art';
 import { OFFICE8C } from './office8art';
 import { O11_PROPS, O11_DOOR, O11_DUMMY } from './office11art';
 import { shouldSkipTitle } from './settings';
-import { installAudioUnlock, unlockAudio } from './ambience';
+import { installAudioUnlock, unlockAudio, preloadAmbience } from './ambience';
 
 export const SHEETS = ['noor_idle', 'noor_walk', 'noor_attack', 'noor_dash', 'noor_type1', 'noor_type2', 'noor_type3', 'noor_lookL', 'noor_lookR', 'noor_phone', 'noor_shadow', 'noor_surprise', 'fern_seated', 'fern_plant', 'caret_idle', 'caret_move'];
 
@@ -51,15 +51,18 @@ export class BootScene extends Phaser.Scene {
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
     const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on','wall_cover','seam','spill','lamp_on','lamp_off'];
     for (const f of LL) this.load.image('lift_' + f, `assets/fx/lift_layers/${f}.png`);
-    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui', 'sfx_rain'];
+    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui', 'sfx_click', 'sfx_rain'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
+    const AMB = ['office','hub','hub_wind','corridor','archive','arena','message'];
+    for (const f of AMB) this.load.audio('amb_' + f, `assets/ambience/${f}.ogg`);
+    for (const f of ['slam','creak','pipe','lift','murmur','boom','paper','buzz']) this.load.audio('ambspot_' + f, `assets/ambience/spots/${f}.ogg`);
     this.load.audio('music_office', 'assets/music/office.ogg');
     this.load.audio('music_tense', 'assets/music/tense.ogg');
     const t = this.add.text(640, 360, '> loading_', { fontFamily: 'JetBrains Mono', fontSize: '18px', color: '#B4EEF0' }).setOrigin(0.5);
     this.load.on('progress', (p: number) => t.setText(`> loading ${Math.round(p * 100)}%_`));
   }
   create() {
-    installAudioUnlock(); unlockAudio();
+    installAudioUnlock(); unlockAudio(); void preloadAmbience();
     // Build animations from the frame names in each JSON-hash sheet: <char>_<anim>_<DIR>_<NN>
     for (const s of SHEETS) {
       const names = this.textures.get(s).getFrameNames();

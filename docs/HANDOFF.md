@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-24 — Recorded CC0 room ambience (v2)
+
+Follow-up to `f07fcbe`. The procedural WebAudio beds did not read as a real space; they felt synthetic and not eerie enough. The Level 1 ambience was rebuilt around real CC0 field recordings (Freesound, all license pages checked as CC0). No AI audio, no spend.
+
+Each room now has a treated 24 s seamless ogg bed (low-pass, short convolution IR, loop crossfade) at about -22 LUFS, plus a very quiet detuned pad (minor second or tritone) and sparse recorded one-shots with random timing, playback rate and stereo pan. The hub updraft (`hub_wind.ogg`) still swells near the gap; a quiet glass beating-tone rises near the mirror. Rooms crossfade in 1.25 s and duck under dialogue. Rain stays subtle. Dash/hit/bolt stay on the SFX bus. Cheerful UI blips (Kenney `sfx_ui`, rising swap/key/tell synths) were darkened to soft low clicks (`sfx_click.ogg`).
+
+Beds are all under ~280 KB; the whole ambience pack is about 1.6 MB.
+
+Previews (not in the repo): `/workspace/audio-previews-v2/{office,hub,corridor,archive,arena,message}.mp3`, plus `walkthrough.mp3` (~33 s) and `combat-over-office.mp3`. Self-checked with ffmpeg ebur128/spectrum: beds sit near -22 LUFS (previews with spots around -21), no bed clipping; combat stings peak about 15–20 dB above the bed, limiter holding true peak around -1 dBTP.
+
+Full author / URL / license table is in `CREDITS.md`.
+
+
 ## 2026-11-24 — Hub void cleanup + per-room eerie ambience
 
 Part A (`11dacf0`) then Part B (this commit), after `7ce3abe`. Cleanup first, then unique room sound.

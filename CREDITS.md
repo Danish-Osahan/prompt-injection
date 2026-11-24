@@ -209,9 +209,34 @@ Original WebAudio, no third-party samples:
 - Freeze bed in `game/src/voice.ts`: sub-boom, tape-stop (falling lowpass noise), low eerie drone, faint high ringing tone, slow heartbeat, glitchy digital crackles on the drifting DENIED word, and a reverse-noise swell into Fern's arrival. All synthesized at runtime.
 - Voice blips in the same file: Noor is a warm lower sine+triangle with slight pitch variation and a lowpass; Fern is a brighter bitcrushed square chirp plus a short noise burst. They share the game's AudioContext (`game/src/sfx.ts`).
 
-## Per-room Level 1 ambience (2026-11-24)
+## Per-room Level 1 ambience (2026-11-24, v2 — recorded)
 
-Original procedural WebAudio in `game/src/ambience.ts`. No third-party samples and no AI audio. Each Level 1 room has its own bed (filtered noise room-tone), a slow evolving drone in a distinct key/timbre, and sparse random spots (fluorescent buzz, creaks, paper, reversed typing, drips, glass ping, CRT hiss). The hub updraft rises near the gap; a glass hum rises near the mirror pane. Rooms crossfade in ~1.25s. Ambience ducks under dialogue and cutscenes. Combat SFX (bolt, hit, dash) stay on the SFX bus so they read over the bed.
+The first pass used only procedural WebAudio beds. Those read as synthetic, so the beds and spots were rebuilt from real CC0 field recordings, treated offline (low-pass, a short convolution IR, pitch-down on one-shots, seamless loop crossfades) and shipped as small ogg loops. A very quiet detuned pad (minor second or tritone) still sits under each recording. No AI audio, no paid packs. Files live in `game/public/assets/ambience/` (beds under ~280 KB, 24 s stereo ogg) and `.../spots/`.
 
-Existing CC0 loops and one-shots (Kenney Interface Sounds, alxl *Rain on Window Loop*, yd *Insistent*, skrjablin *The Final Battle*, rubberduck *100 CC0 SFX*, sinny *old elevator door*) are unchanged and already credited above. Rain stays quiet (0.15, and ducks further under dialogue).
+| Asset | Author | License | Source | Shipped as / used for |
+|---|---|---|---|---|
+| *Empty Office Room Tone* | richwise | CC0 1.0 | https://freesound.org/people/richwise/sounds/456207/ | `ambience/office.ogg` (empty office HVAC bed) |
+| *AMB_Wind_Howling_empty Church close to window* | Tonmeister88 | CC0 1.0 | https://freesound.org/people/Tonmeister88/sounds/557380/ | `ambience/hub.ogg` (large empty hall / atrium) |
+| *Room Tone, Corridor, Howling Wind* | Kinoton | CC0 1.0 | https://freesound.org/people/Kinoton/sounds/558840/ | `ambience/hub.ogg` layer and `ambience/hub_wind.ogg` (gap updraft) |
+| *Concrete Hallway with Air Conditioner* | ecfike | CC0 1.0 | https://freesound.org/people/ecfike/sounds/474458/ | `ambience/corridor.ogg` |
+| *room tone quiet low ceiling cellar unfinished basement drips and light water pipe hiss* | kyles | CC0 1.0 | https://freesound.org/people/kyles/sounds/454170/ | `ambience/archive.ogg` |
+| *water pipe basement delicate high pitched steady metallic trickle* | kyles | CC0 1.0 | https://freesound.org/people/kyles/sounds/451937/ | `ambience/archive.ogg` (quiet trickle layer) |
+| *Factory Ambience* | JWS24 | CC0 1.0 | https://freesound.org/people/JWS24/sounds/790753/ | `ambience/arena.ogg` |
+| *Factory Ambience, Rumble, Machines* | CHallSmith | CC0 1.0 | https://freesound.org/people/CHallSmith/sounds/870510/ | `ambience/arena.ogg` (low rumble layer) |
+| *Analog CRT TV Electronic Static Noise* | grcekh | CC0 1.0 | https://freesound.org/people/grcekh/sounds/546047/ | `ambience/message.ogg` |
+| *CRT TV Whine* | Fission9 | CC0 1.0 | https://freesound.org/people/Fission9/sounds/693863/ | `ambience/message.ogg` (quiet flyback layer) |
+| *Little Basement (iR - Impulse Response)* | Uzbazur | CC0 1.0 | https://freesound.org/people/Uzbazur/sounds/382908/ | convolution IR (office, message) |
+| *Small Carpeted Corridor IR* | LewisEmmott5 | CC0 1.0 | https://freesound.org/people/LewisEmmott5/sounds/732029/ | convolution IR (hub, corridor, arena, spots) |
+| *Large Unfurnished Basement IR* | LewisEmmott5 | CC0 1.0 | https://freesound.org/people/LewisEmmott5/sounds/732027/ | convolution IR (archive) |
+| *Creaky Steel and Wood Doors* | Breviceps | CC0 1.0 | https://freesound.org/people/Breviceps/sounds/456816/ | `ambience/spots/slam.ogg` |
+| *Squeaky Metal Door* | Breviceps | CC0 1.0 | https://freesound.org/people/Breviceps/sounds/515289/ | `ambience/spots/creak.ogg` |
+| *Multiple Pipe Banging Metal Hit Sound Effects* | DanJFilms | CC0 1.0 | https://freesound.org/people/DanJFilms/sounds/687242/ | `ambience/spots/pipe.ogg` |
+| *elevator old buzz slight rattle ride … nice thunk in elevator shaft* | kyles | CC0 1.0 | https://freesound.org/people/kyles/sounds/452487/ | `ambience/spots/lift.ogg` |
+| *Incoherent Talking* | Beetlemuse | CC0 1.0 | https://freesound.org/people/Beetlemuse/sounds/530220/ | `ambience/spots/murmur.ogg` (pitched down, heavily low-passed, unintelligible) |
+| *distant explosion* | 1piemanpie | CC0 1.0 | https://freesound.org/people/1piemanpie/sounds/383220/ | `ambience/spots/boom.ogg` (pre-impact swell only, low-passed to a sub thud) |
+| *Paper Rustle* | BenjaminNelan | CC0 1.0 | https://freesound.org/people/BenjaminNelan/sounds/353125/ | `ambience/spots/paper.ogg` |
+| *Fluorescent Ballast Buzz - Room Tone* | Sauron974 | CC0 1.0 | https://freesound.org/people/Sauron974/sounds/273625/ | `ambience/spots/buzz.ogg` (short flicker slice) |
+| Interface Sounds (UI click, already shipped) | Kenney | CC0 1.0 | already logged above | `sfx/sfx_click.ogg` is a darker, pitched-down, low-passed derivative of `sfx_ui.ogg` |
+
+Existing CC0 loops and one-shots (Kenney Interface Sounds, alxl *Rain on Window Loop*, yd *Insistent*, skrjablin *The Final Battle*, rubberduck *100 CC0 SFX*, sinny *old elevator door*) are unchanged and already credited above. Rain stays quiet (0.15, and ducks further under dialogue). Rooms still crossfade in ~1.25 s and duck under dialogue. Combat SFX stay on the SFX bus so they read over the bed.
 

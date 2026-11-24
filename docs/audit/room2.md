@@ -1,5 +1,10 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-24 — Recorded hub ambience (v2)
+
+The hub bed is now a treated recording of a large empty hall with wind at the windows (Tonmeister88, CC0), layered with a howling corridor draft (Kinoton, CC0) that swells as Noor approaches the gap. Sparse distant slams, metal creaks, paper and a muffled murmur. Crossfades from the office HVAC bed and into the concrete corridor. Preview: `/workspace/audio-previews-v2/hub.mp3`.
+
+
 ## 2026-11-24 — Void edges, mid-dash occlusion, I-beam, per-room sound
 
 - **Void edges.** The drop is clipped to the inner walls so black squares no longer poke past the side walls. The far lip is a dark recessed seam; the leftover pale pipe/duct line is gone.

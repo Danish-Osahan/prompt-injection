@@ -50,7 +50,7 @@ const SAMPLE: Partial<Record<string, string>> = {
   door_open: 'sfx_door_open',
   door_close: 'sfx_door_close',
   lift: 'sfx_lift',
-  ui: 'sfx_ui',
+  ui: 'sfx_click',
 };
 
 /** Optional: scene caches Phaser sound instances after boot. */
@@ -88,10 +88,10 @@ export function sfx(kind: SfxKind, volMul = 1) {
   const a = ac(); if (!a) return;
   const t = a.currentTime, o = a.createOscillator(), g = a.createGain();
   const P: Record<string, [OscillatorType, number, number, number, number]> = {
-    key: ['square', 1800, 1200, 0.03, 0.05], hit: ['triangle', 280, 70, 0.12, 0.28], block: ['square', 140, 110, 0.08, 0.06],
-    dash: ['sawtooth', 600, 200, 0.16, 0.16], swap: ['sine', 520, 1040, 0.18, 0.08], hurt: ['sawtooth', 220, 60, 0.25, 0.1],
-    ring: ['sine', 90, 260, 0.6, 0.12], tell: ['triangle', 880, 880, 0.08, 0.05], paste: ['square', 300, 900, 0.18, 0.16],
-    root: ['sine', 160, 90, 0.4, 0.12], win: ['sine', 440, 880, 0.8, 0.1],
+    key: ['sine', 280, 160, 0.04, 0.04], hit: ['triangle', 280, 70, 0.12, 0.28], block: ['square', 140, 110, 0.08, 0.06],
+    dash: ['sawtooth', 600, 200, 0.16, 0.16], swap: ['sine', 220, 140, 0.07, 0.05], hurt: ['sawtooth', 220, 60, 0.25, 0.1],
+    ring: ['sine', 90, 160, 0.6, 0.1], tell: ['sine', 180, 140, 0.07, 0.04], paste: ['triangle', 200, 90, 0.16, 0.1],
+    root: ['sine', 160, 90, 0.4, 0.12], win: ['sine', 180, 240, 0.55, 0.08],
     impact_whoosh: ['sawtooth', 900, 180, 0.22, 0.07],
     impact_clank: ['triangle', 280, 90, 0.14, 0.14],
     impact_snap: ['square', 700, 120, 0.1, 0.12],
@@ -105,7 +105,7 @@ export function sfx(kind: SfxKind, volMul = 1) {
     door_open: ['triangle', 200, 90, 0.22, 0.1],
     door_close: ['triangle', 140, 70, 0.18, 0.1],
     lift: ['sine', 120, 80, 0.5, 0.08],
-    ui: ['square', 1400, 900, 0.04, 0.04],
+    ui: ['sine', 240, 120, 0.05, 0.04],
   };
   const [type, f0, f1, dur, vol] = P[kind] ?? P.hit;
   o.type = type; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);

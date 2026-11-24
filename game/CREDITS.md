@@ -47,5 +47,5 @@ Original procedural PIL under `public/assets/fx/` (CC0, no third-party images):
 ## Procedural audio (2026-11-16)
 No new third-party samples. The opening freeze bed (sub-boom, tape-stop, drone, ring, heartbeat, DENIED crackles, reverse swell) and the Noor/Fern voice blips are original WebAudio in `src/voice.ts`. Credit is listed in `../CREDITS.md`.
 
-## Per-room Level 1 ambience (2026-11-24)
-No new third-party samples. Each Level 1 room (office, Mirror Office hub, Dark Corridor, archive, arena, message) has an original procedural WebAudio bed, drone, and sparse spots in `src/ambience.ts`. Crossfade ~1.25s; ducks under dialogue. Credit and sources are listed in `../CREDITS.md`.
+## Per-room Level 1 ambience (2026-11-24, v2 — recorded)
+Beds and one-shots are real CC0 field recordings, treated offline (EQ, short convolution IR, seamless loops) and shipped in `public/assets/ambience/`. A very quiet detuned pad still sits under each recording. Author, URL and license for every file are listed in `../CREDITS.md`.
