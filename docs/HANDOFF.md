@@ -26,6 +26,20 @@ Fix: only call JustDown when the Caret is owned, Noor is not carrying a quality,
 
 Playtest: 250/250. Adds Esc skip reaches gameplay; mash E through the opening exchange (max 1 box, 0 at the end, still at `/workspace/l1-dialog-mash.png`); F in the office fires a bolt projectile.
 
+## 2026-11-24 — Ambience listen-pass (loop seams, office beep, hub howl)
+
+Reviewed the v2 previews with the free, local channel of wolframs/claude-audio-listening-skill (`look_at_audio.py`: spectrogram, waveform, EBU R128). The paid OpenRouter "relay" was not used (needs a key and spend).
+
+Clear problems and fixes (same CC0 sources, no new files to credit):
+- Every bed had a broadband click at the 2 s loop-crossfade (amix dropped the tail stream). Loops were remade with equal-power fades and a padded tail so the input never ends mid-mix. Seam zooms in `/workspace/audio-previews-v3/looks/seams/` no longer show the impulse.
+- Stronger notch on the office 3.7 kHz toner; a remnant line may still be visible on a spectrogram.
+- A wide, shallow dip around 520 Hz on the hub bed and `hub_wind` so the draft howl is less whistle-like.
+- Paper and pipe one-shots low-passed further (they were very bright, up to ~15 kHz).
+- Message CRT flyback was lowered (high shelf) so the 15 kHz line is less piercing; the electrical rumble still carries the room.
+- Message bed is now built from the full 26 s static take, not a 15 s truncated mix.
+
+Re-previews: `/workspace/audio-previews-v3/`.
+
 ## 2026-11-24 — Recorded CC0 room ambience (v2)
 
 Follow-up to `f07fcbe`. The procedural WebAudio beds did not read as a real space; they felt synthetic and not eerie enough. The Level 1 ambience was rebuilt around real CC0 field recordings (Freesound, all license pages checked as CC0). No AI audio, no spend.
