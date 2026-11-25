@@ -1,5 +1,12 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-25 (d) — Far cliff strata across the middle + parallax fog + bridge floor grain
+
+- **Middle far cliff (`art/tools/rift12.py`).** Added fractured rock/broken-floor strata and vertical fissure ribs across the entire far cliff face (`x 80..1200`, `k 0.075..0.605`) lit from above and receding into cold fog and near-black at the bottom (`y > 350`).
+- **Parallax fog (`game/src/hubRift.ts`).** Three slow-drifting low-alpha polygonal mist layers at depths `-956`, `-952`, and `-944` (`k = 0.05 / 0.11 / 0.18` in `chasmParallax`), strictly behind falling Noor (`-940`), the broken south lip (`-932`), and the bridge (`123`).
+- **Polish.** Feathered `drawSouthLedgeFloor` from `y = 444..500` to remove the horizontal seam; dimmed `startPitPapers`; updated `RiftSpan` board lines to follow the hub's diagonal tile perspective (`vpX = 640, vpY = 40`).
+- **Stills:** `/workspace/l5r-hub-rift.png`, `/workspace/l5r-hub-rift-close-2x.png`, `/workspace/l5r-hub-bridge.png`, `/workspace/l5r-hub-bridge-close-2x.png`.
+
 ## 2026-11-25 (c) — Pitfall perspective, lips, fast depth fade, bridge shadow
 
 - **Perspective shaft (`art/tools/rift12.py`).** Instead of horizontal slab shelves facing the ortho camera, the north, west, and east shaft walls extrude along perspective rays from the exact screen rim (`x 80..1200, ny 248, sy 404`) toward a vanishing throat at `(640, 392, -6.4)`.

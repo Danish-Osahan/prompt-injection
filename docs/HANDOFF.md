@@ -1,5 +1,13 @@
 # HANDOFF
 
+## 2026-11-25 (d) — Hub rift middle strata & parallax fog pass
+
+Built on `283b37b` after feedback that the middle span of the pit still read mostly flat black:
+- **Middle cliff strata (`art/tools/rift12.py` → `fg/hub_rift.png`):** Added 6 stepped, irregular fractured rock / broken-floor strata ledges + vertical fissure ribs across the full width (`x 80..1200`, `k 0.075..0.605`), lit from above so top bevels catch cool light while undercuts drop into shadow and recede toward `(640, 392, -6.4)` through cold blue-slate fog into near-black.
+- **Layered parallax fog (`game/src/hubRift.ts`, `game/src/game.ts`):** Replaced the single fog layer with 3 soft polygonal mist sheets at depths `-956` (`k=0.05`), `-952` (`k=0.11`), and `-944` (`k=0.18`) drifting slowly at different speeds behind falling Noor (`-940`), the south lip (`-932`), and the bridge (`123`), registered in `chasmParallax`.
+- **Polish:** Feathered `drawSouthLedgeFloor` (`y 444..500`) to eliminate the `y≈500` seam, dimmed `startPitPapers`, and aligned `RiftSpan` deck seams to the hub's diagonal floor perspective (`vpX=640, vpY=40`).
+- **Stills:** `/workspace/l5r-hub-rift.png`, `/workspace/l5r-hub-rift-close-2x.png`, `/workspace/l5r-hub-bridge.png`, `/workspace/l5r-hub-bridge-close-2x.png`.
+
 ## 2026-11-25 (c) — Hub rift pitfall depth pass
 
 Danishpreet's and review feedback on `d8eda2b`: the hub rift read like a flat wall of grey horizontal slabs facing the camera rather than a drop.

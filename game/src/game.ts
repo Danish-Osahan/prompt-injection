@@ -457,7 +457,8 @@ export class GameScene extends Phaser.Scene {
     lips.fillStyle(0x05080c, 1).fillRect(X1 - 2, SY - 8, WR - X1 + 2, 14);
 
     this.drawSouthLedgeFloor(X0, X1, SY, 500);
-    drawRiftDetail(this);
+    const rd = drawRiftDetail(this);
+    for (const fl of rd.fogLayers) this.chasmParallax.push(fl);
     startRiftDebris(this);
     this.startPitPapers();
     this.startChasmMotes(X0, X1, NY, SY, vpX, vpY);
@@ -532,34 +533,37 @@ export class GameScene extends Phaser.Scene {
   /** The dark band under the south lip is walkable floor, not a wall. Tiles meet the painted south floor at y≈436. */
   private drawSouthLedgeFloor(x0: number, x1: number, y0: number, y1: number) {
     const floor = this.add.graphics().setDepth(-920); floor.name = 'hub-south-ledge'; this.objs.push(floor);
-    const W = x1 - x0, H = y1 - y0;
-    floor.fillStyle(0x0b1a2c, 1).fillRect(x0, y0, W, H);
-    // Diamond tile grid, same family as the painted south floor.
+    const W = x1 - x0;
+    // Solid over the old partition band (404..444), then feather alpha cleanly to 0 by y=496 so no seam shows at y=500.
+    const solidEnd = y0 + 40;
+    floor.fillStyle(0x0b1a2c, 1).fillRect(x0, y0, W, solidEnd - y0);
+    const fadeSteps = 14;
+    for (let i = 0; i < fadeSteps; i++) {
+      const ya = solidEnd + (y1 - solidEnd) * i / fadeSteps;
+      const yb = solidEnd + (y1 - solidEnd) * (i + 1) / fadeSteps;
+      const a = Math.pow(1 - (i + 0.5) / fadeSteps, 1.5);
+      floor.fillStyle(0x091829, a).fillRect(x0, ya, W, yb - ya + 0.6);
+    }
+    // Diamond tile grid, fading toward the painted south floor so lines blend seamlessly.
     const vpX = 640, vpY = 40;
-    floor.lineStyle(1, 0x1a4a66, 0.55);
+    const gridEnd = y0 + 56;
+    floor.lineStyle(1, 0x1a4a66, 0.48);
     for (let i = -14; i <= 14; i++) {
       const x = vpX + i * 96;
-      floor.lineBetween(x, y0, vpX + (x - vpX) * ((y1 + 80 - vpY) / (y0 - vpY)), y1);
+      floor.lineBetween(x, y0, vpX + (x - vpX) * ((gridEnd - vpY) / (y0 - vpY)), gridEnd);
     }
-    floor.lineStyle(1, 0x1a4a66, 0.32);
+    floor.lineStyle(1, 0x1a4a66, 0.26);
     for (let i = -14; i <= 14; i++) {
       const x = vpX + i * 96 + 48;
-      floor.lineBetween(x, y1, vpX + (x - vpX) * ((y0 - 40 - vpY) / (y1 - vpY)), y0);
+      floor.lineBetween(x, gridEnd, vpX + (x - vpX) * ((y0 - 40 - vpY) / (gridEnd - vpY)), y0);
     }
-    for (let y = y0 + 8; y < y1; y += 28) {
-      floor.lineStyle(1, 0x1c4860, 0.4);
+    for (let y = y0 + 8; y < gridEnd; y += 26) {
+      const k = 1 - (y - y0) / (gridEnd - y0);
+      floor.lineStyle(1, 0x1c4860, 0.38 * k);
       floor.lineBetween(x0, y, x1, y);
     }
-    // Soft lighting: slightly lifted in the middle (door approach), dimmer at the sides
-    floor.fillStyle(0x000000, 0.18).fillRect(x0, y0, 160, H);
-    floor.fillStyle(0x000000, 0.18).fillRect(x1 - 160, y0, 160, H);
-    floor.fillStyle(0xf6c684, 0.03).fillRect(640 - 110, y0 + 50, 220, 36);
-    // Fade into the existing floor at the bright painted edge (~432–436)
-    for (let i = 0; i < 8; i++) {
-      floor.fillStyle(0x0a1628, 0.35 - i * 0.04);
-      floor.fillRect(x0, y1 - 10 + i, W, 2);
-    }
-    // North edge of this ledge is the chasm lip — already drawn on `lips`.
+    floor.fillStyle(0x000000, 0.18).fillRect(x0, y0, 160, solidEnd - y0);
+    floor.fillStyle(0x000000, 0.18).fillRect(x1 - 160, y0, 160, solidEnd - y0);
   }
 
   private startPitPapers() {
@@ -571,11 +575,11 @@ export class GameScene extends Phaser.Scene {
       paper.name = 'hub-pit-paper';
       const draw = (a: number) => {
         paper.clear();
-        paper.fillStyle(0xe8dcc4, a);
-        paper.fillRoundedRect(-7, -5, 14, 10, 1);
-        paper.lineStyle(1, 0xc4b496, a * 0.8);
-        paper.strokeRoundedRect(-7, -5, 14, 10, 1);
-        paper.lineStyle(1, 0x8a7a62, a * 0.35);
+        paper.fillStyle(0x5a6c7a, a * 0.52);
+        paper.fillRoundedRect(-6, -4, 12, 8, 1);
+        paper.lineStyle(1, 0x7b92a2, a * 0.45);
+        paper.strokeRoundedRect(-6, -4, 12, 8, 1);
+        paper.lineStyle(1, 0x354450, a * 0.3);
         paper.lineBetween(-4, -2, 4, -2);
         paper.lineBetween(-3, 1, 3, 1);
       };

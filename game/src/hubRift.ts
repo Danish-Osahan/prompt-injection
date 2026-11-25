@@ -30,29 +30,45 @@ export function drawRiftDetail(s: Scene) {
     const sim = s.add.image(0, 384, 'hub_rift_south').setOrigin(0).setDepth(-932); sim.name = 'hub-rift-south'; s.objs.push(sim);
   }
   const rendered = s.textures.exists('hub_rift');
-  // Subtle slow-drifting cold fog ribbons inside the deep chasm (polygon wisps, never circles).
-  const fog = s.add.graphics().setDepth(-954); fog.name = 'hub-rift-fog'; s.objs.push(fog);
-  const wisps = [
-    { x: 260, y: 318, w: 220, h: 16, vx: 6.5, a: 0.07 },
-    { x: 780, y: 334, w: 260, h: 18, vx: -5.0, a: 0.06 },
-    { x: 520, y: 356, w: 190, h: 14, vx: 3.8, a: 0.05 },
+  // Multi-depth slow drifting cold fog sheets/ribbons (parallax, low-alpha polygons, never circles).
+  // Depths -956, -952, -944 sit in front of the far cliff (-960) and behind falling Noor (-940), south lip (-932), bridge (123).
+  const fogLayers: { g: Phaser.GameObjects.Graphics; k: number }[] = [];
+  const fogDefs = [
+    { depth: -956, k: 0.05, col: 0x163248, sheets: [
+      { x: 220, y: 326, w: 360, h: 28, vx: 2.4, a: 0.09 },
+      { x: 760, y: 342, w: 420, h: 32, vx: -2.0, a: 0.08 },
+    ]},
+    { depth: -952, k: 0.11, col: 0x20445c, sheets: [
+      { x: 340, y: 306, w: 280, h: 20, vx: -3.6, a: 0.07 },
+      { x: 840, y: 322, w: 300, h: 22, vx: 3.1, a: 0.065 },
+      { x: 560, y: 356, w: 260, h: 18, vx: 2.2, a: 0.055 },
+    ]},
+    { depth: -944, k: 0.18, col: 0x2c5670, sheets: [
+      { x: 180, y: 288, w: 220, h: 14, vx: 4.8, a: 0.05 },
+      { x: 640, y: 298, w: 240, h: 15, vx: -4.2, a: 0.05 },
+      { x: 980, y: 312, w: 200, h: 13, vx: 3.9, a: 0.045 },
+    ]},
   ];
-  const drawFog = () => {
-    if (!fog.active) return;
-    fog.clear();
-    const tt = s.t;
-    for (const w of wisps) {
-      const cx = 180 + ((w.x + tt * w.vx) % 920 + 920) % 920;
-      const alpha = w.a * (0.75 + 0.25 * Math.sin(tt * 0.7 + w.x));
-      for (let i = 0; i < 3; i++) {
-        const s = 1 - i * 0.24, hh = w.h * s, ww = w.w * s, yy = w.y + (w.h - hh) * 0.5;
-        fog.fillStyle(0x244a62, alpha * 0.45);
-        poly(fog, [[cx - ww * 0.5, yy], [cx + ww * 0.5, yy - 1], [cx + ww * 0.38, yy + hh], [cx - ww * 0.42, yy + hh]]);
+  for (const ld of fogDefs) {
+    const fg = s.add.graphics().setDepth(ld.depth); fg.name = `hub-rift-fog-${-ld.depth}`; s.objs.push(fg);
+    fogLayers.push({ g: fg, k: ld.k });
+    const drawLayer = () => {
+      if (!fg.active) return;
+      fg.clear();
+      const tt = s.t;
+      for (const w of ld.sheets) {
+        const cx = 140 + ((w.x + tt * w.vx) % 1000 + 1000) % 1000;
+        const alpha = w.a * (0.78 + 0.22 * Math.sin(tt * 0.55 + w.x * 0.01));
+        for (let i = 0; i < 4; i++) {
+          const sc = 1 - i * 0.2, hh = w.h * sc, ww = w.w * sc, yy = w.y + (w.h - hh) * 0.5;
+          fg.fillStyle(ld.col, alpha * 0.34);
+          poly(fg, [[cx - ww * 0.5, yy], [cx + ww * 0.5, yy - 1.5], [cx + ww * 0.40, yy + hh], [cx - ww * 0.44, yy + hh]]);
+        }
       }
-    }
-    s.time.delayedCall(60, drawFog);
-  };
-  drawFog();
+      s.time.delayedCall(60, drawLayer);
+    };
+    drawLayer();
+  }
   // Depth: faint cold shafts far down, uneven along the length (not a uniform strip).
   const deep = s.add.graphics().setDepth(-966).setVisible(!rendered); deep.name = 'hub-rift-deep'; s.objs.push(deep);
   for (const c of [{ x: 190, w: 70, a: 0.05 }, { x: 452, w: 46, a: 0.035 }, { x: 905, w: 90, a: 0.045 }, { x: 1110, w: 40, a: 0.03 }]) {
@@ -110,7 +126,7 @@ export function drawRiftDetail(s: Scene) {
   ns.fillStyle(0x6e8fa0, 0.45).fillRect(LANE.x0 + 2, ny - 1, LANE.x1 - LANE.x0 - 4, 1.5);
   ns.fillStyle(0x060a0e, 0.8).fillRect(LANE.x0 + 6, nyStub + 12, LANE.x1 - LANE.x0 - 12, 2);
   ns.lineStyle(1.6, 0x56626c, 0.85); ns.lineBetween(LANE.x0 + 28, nyStub + 20, LANE.x0 + 26, nyStub + 34);
-  return { stubS: stub, stubN: ns };
+  return { stubS: stub, stubN: ns, fogLayers };
 }
 
 /** Bits of floor keep breaking off the lips and falling out of sight. */
@@ -195,7 +211,24 @@ export class RiftSpan {
       const k = (ya - top) / H;
       g.fillStyle(Phaser.Display.Color.GetColor(20 + 16 * k, 44 + 24 * k, 64 + 26 * k), 1).fillRect(L, ya, R - L, yb - ya + 0.5);
     }
-    for (const gx of [L + 19, L + 38, L + 58, L + 77]) g.lineStyle(1, 0x2c5470, 0.35).lineBetween(gx, y0 + 2, gx, bot - 2);
+    // Diagonal tile seams matching the surrounding hub floor perspective (vpX = 640, vpY = 40)
+    const vpX = 640, vpY = 40;
+    const clipSeg = (xa: number, ya: number, xb: number, yb: number) => {
+      let t0 = 0, t1 = 1;
+      const dx = xb - xa, dy = yb - ya;
+      for (const [p, q] of [[-dx, xa - (L + 2)], [dx, (R - 2) - xa], [-dy, ya - (y0 + 2)], [dy, (bot - 2) - ya]]) {
+        if (Math.abs(p) < 1e-6) { if (q < 0) return; }
+        else { const r = q / p; if (p < 0) { if (r > t1) return; if (r > t0) t0 = r; } else { if (r < t0) return; if (r < t1) t1 = r; } }
+      }
+      if (t0 < t1) g.lineBetween(xa + t0 * dx, ya + t0 * dy, xa + t1 * dx, ya + t1 * dy);
+    };
+    g.lineStyle(1, 0x2c5874, 0.42);
+    for (let i = -3; i <= 3; i++) {
+      const tx = vpX + i * 96, bx = vpX + (tx - vpX) * ((bot - vpY) / (top - vpY));
+      clipSeg(tx, top, bx, bot);
+      const tx2 = vpX + i * 96 + 48, bx2 = vpX + (tx2 - vpX) * ((top - vpY) / (bot - vpY));
+      clipSeg(bx2, top, tx2, bot);
+    }
     g.fillStyle(0x88b4c8, 0.85).fillRect(L, y0, 2, bot - y0);
     g.fillStyle(0x4a6c80, 0.9).fillRect(R - 2, y0, 2, bot - y0);
     if (this.p > 0.98) g.fillStyle(0x0a121a, 0.9).fillRect(L, top, R - L, 3);

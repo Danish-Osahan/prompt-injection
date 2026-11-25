@@ -192,6 +192,15 @@ async function linger(browser) {
       const deck = await meanLum(page, { x: 180, y: 222, width: 260, height: 14 });
       ok('hub: the gap is a dark chasm with brighter lip edges', pit < 40 && northLip > pit + 8 && southLip > pit + 8, `pit ${pit.toFixed(1)} north ${northLip.toFixed(1)} south ${southLip.toFixed(1)}`);
       ok('hub: the far platform is a lit cliff over a dark drop', cliff > pit + 8 && deck > pit + 6 && northLip > pit + 8, `cliff ${cliff.toFixed(1)} deck ${deck.toFixed(1)} pit ${pit.toFixed(1)} north ${northLip.toFixed(1)}`);
+      const midCliff = await lumStats(page, { x: 480, y: 262, width: 320, height: 34 });
+      const midDeep = await meanLum(page, { x: 480, y: 345, width: 320, height: 30 });
+      const fogCheck = await page.evaluate(() => {
+        const s = window.__game.scene.getScene('game');
+        const fogs = s.objs.filter(o => o?.name?.startsWith('hub-rift-fog-')).map(o => o.depth).sort((a, b) => a - b);
+        const south = s.objs.find(o => o?.name === 'hub-rift-south')?.depth;
+        return { fogs, south, parallax: s.chasmParallax.length };
+      });
+      ok('hub: middle rift shows lit strata fading into deep pit + layered parallax fog', midCliff.mean > midDeep + 8 && midCliff.std > 3 && midDeep < 20 && fogCheck.fogs.length === 3 && fogCheck.fogs[2] < -940 && fogCheck.south === -932 && fogCheck.parallax >= 4, `midCliff ${midCliff.mean.toFixed(1)} std ${midCliff.std.toFixed(1)} midDeep ${midDeep.toFixed(1)} fog ${JSON.stringify(fogCheck)}`);
       const stand = await page.evaluate(() => {
         const s = window.__game.scene.getScene('game');
         const inH = (x, y) => s.hazards.some(h => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h);
