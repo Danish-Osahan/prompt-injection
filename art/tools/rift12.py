@@ -40,7 +40,7 @@ def P(sx, sy, k=0.0, off=Vector((0, 0, 0))):
 
 def L3(c): return tuple(((v/255) ** 2.2) for v in c)
 
-def pit_mat(name, rgb, rough=0.93, metal=0.02, noise=0.40, fog_start=-0.25, fog_mid=-2.6, fog_end=-4.7, emit=None, use_vcol=True):
+def pit_mat(name, rgb, rough=0.93, metal=0.02, noise=0.40, fog_start=-0.25, fog_mid=-2.6, fog_end=-4.7, emit=None, use_vcol=True, fog_col=(13, 27, 41)):
     m = bpy.data.materials.new(name); m.use_nodes = True; nt = m.node_tree; ns = nt.nodes; L = nt.links
     bs = ns['Principled BSDF']; bs.inputs['Roughness'].default_value = rough; bs.inputs['Metallic'].default_value = metal
     if 'Specular IOR Level' in bs.inputs: bs.inputs['Specular IOR Level'].default_value = 0.0
@@ -66,7 +66,7 @@ def pit_mat(name, rgb, rough=0.93, metal=0.02, noise=0.40, fog_start=-0.25, fog_
     mr1 = ns.new('ShaderNodeMapRange'); mr1.inputs['From Min'].default_value = fog_start; mr1.inputs['From Max'].default_value = fog_mid
     mr1.inputs['To Min'].default_value = 0.0; mr1.inputs['To Max'].default_value = 1.0; L.new(sep.outputs['Z'], mr1.inputs['Value'])
     pw1 = ns.new('ShaderNodeMath'); pw1.operation = 'POWER'; pw1.inputs[1].default_value = 0.85; L.new(mr1.outputs['Result'], pw1.inputs[0])
-    fog_em = ns.new('ShaderNodeEmission'); fog_em.inputs['Color'].default_value = (*L3((13, 27, 41)), 1); fog_em.inputs['Strength'].default_value = 1.0
+    fog_em = ns.new('ShaderNodeEmission'); fog_em.inputs['Color'].default_value = (*L3(fog_col), 1); fog_em.inputs['Strength'].default_value = 1.0
     ms1 = ns.new('ShaderNodeMixShader'); L.new(pw1.outputs['Value'], ms1.inputs['Fac']); L.new(bs.outputs['BSDF'], ms1.inputs[1]); L.new(fog_em.outputs['Emission'], ms1.inputs[2])
     # Stage 2: cold fog -> near-black bottom
     mr2 = ns.new('ShaderNodeMapRange'); mr2.inputs['From Min'].default_value = fog_mid * 0.72; mr2.inputs['From Max'].default_value = fog_end
@@ -104,7 +104,7 @@ def box_pts(name, pts_list, mat, cols=(1.0, 1.0)):
 # Materials: far cliff fades gradually so mid-pit strata stay readable in cold fog before turning black at the bottom
 wall_n = pit_mat('wall_n', (96, 114, 132), rough=0.95, noise=0.45, fog_start=-0.30, fog_mid=-3.2, fog_end=-5.2, emit=((10, 22, 34), 0.07))
 strata_m = pit_mat('strata', (106, 124, 140), rough=0.92, noise=0.42, fog_start=-0.25, fog_mid=-3.1, fog_end=-5.0, emit=((12, 24, 36), 0.06))
-wall_side = pit_mat('wall_side', (82, 98, 114), rough=0.94, noise=0.35, fog_start=-0.10, fog_mid=-1.8, fog_end=-3.2)
+wall_side = pit_mat('wall_side', (66, 82, 98), rough=0.94, noise=0.35, fog_start=-0.05, fog_mid=-0.75, fog_end=-1.45, fog_col=(4, 9, 15))
 lip_face = pit_mat('lip_face', (128, 146, 162), rough=0.86, noise=0.38, fog_start=-0.10, fog_mid=-1.5, fog_end=-2.5, emit=((24, 44, 60), 0.16))
 pilaster_m = pit_mat('pilaster', (96, 114, 132), rough=0.92, noise=0.36, fog_start=-0.30, fog_mid=-2.9, fog_end=-4.8, emit=((10, 20, 30), 0.08))
 south_mat = pit_mat('south_mat', (58, 74, 88), rough=0.84, noise=0.30, emit=((24, 46, 62), 0.12), use_vcol=False)
@@ -130,7 +130,7 @@ bm_th.to_mesh(me_th); bm_th.free(); o_th = bpy.data.objects.new('throat', me_th)
 # 1. Receding North cliff backing + West/East converging walls (corners exact at X0/X1 so no gaps)
 ks = [0.0, 0.06, 0.14, 0.24, 0.36, 0.50, 0.64, 0.78, 0.86]
 k_shade_n = lambda k: max(0.0, (1.0 - min(1.0, k / 0.82)) ** 1.35)
-k_shade_s = lambda k: max(0.0, (1.0 - min(1.0, k / 0.58)) ** 1.65)
+k_shade_s = lambda k: max(0.0, (1.0 - min(1.0, k / 0.46)) ** 1.8)
 n_xs = [X0 + (X1 - X0) * i / 48 for i in range(49)]
 rows_n, cols_n = [], []
 for k in ks:
@@ -154,7 +154,7 @@ for k in ks:
     rw, cw, re_, ce = [], [], [], []
     for iy, y in enumerate(s_ys):
         yt = (y - NY) / (SY - NY)
-        sh = k_shade_s(k) * max(0.04, (1.0 - yt * 0.88))
+        sh = k_shade_s(k) * max(0.02, (1.0 - yt * 0.95))
         rw.append(P(X0, y, k, E * (random.uniform(-0.015, 0.015) if (k > 0 and 0 < iy < len(s_ys) - 1) else 0))); cw.append(sh)
         re_.append(P(X1, y, k, -E * (random.uniform(-0.015, 0.015) if (k > 0 and 0 < iy < len(s_ys) - 1) else 0))); ce.append(sh)
     rows_w.append(rw); cols_w.append(cw); rows_e.append(re_); cols_e.append(ce)
