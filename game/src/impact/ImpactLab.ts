@@ -765,6 +765,7 @@ export class ImpactLab {
     this.draining = false;
     this.lampOn = false;
     this.carrying = true;
+    try { (this.s as unknown as { markTut: (id: string) => void }).markTut('take'); } catch { /* */ }
     if (this.lure) this.lure.hidden = false;
     this.lure?.setCarrying(true);
     if (this.lampSpr) {

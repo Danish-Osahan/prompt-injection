@@ -47,7 +47,6 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     walk: [R(80, 150, 1120, 530)],
     walls: [],  // old mid-room rail walls removed; the chasm hazard is the gap
     props: [
-      { x: 590, y: 366, w: 100, h: 34, color: 0x1c3450, label: 'doorframe' },
       { x: 300, y: 322, w: 8, h: 44, color: 0x5a7080, top: 0x78e4e8 },                      // rail post beside the gap
       { x: 300, y: 322, w: 120, h: 4, color: 0x5a7080 },
       { x: 80, y: 40, w: 1120, h: 110, color: 0x081020, top: 0x0c1830 },
@@ -55,12 +54,10 @@ export const ROOMS: Record<RoomId, RoomDef> = {
       { x: 80, y: 400, w: 520, h: 34, color: 0x13233a, top: 0x1c3450 },
       { x: 680, y: 400, w: 520, h: 34, color: 0x13233a, top: 0x1c3450 },
       { x: 930, y: 530, w: 150, h: 60, color: 0x1a2c44, top: 0x28405e, solid: true },       // Fern's desk
-      { x: 240, y: 470, w: 40, h: 40, color: 0x3a3020, glow: 0xf6c684 },                     // the lamp
     ],
     plates: [
-      { id: 'h_lamp', words: ['LAMP', 'IS', 'OPEN'], slot: 2, x: 300, y: 560, sx: 256, sy: 556, kind: 'rule', cap: 'A small lamp keeps watch. It is {}.', code: 'lamp.state' },
-      { id: 'h_door', words: ['DOOR', 'IS', 'SHUT'], slot: 2, x: 640, y: 530, sx: 640, sy: 430, kind: 'rule', cap: 'The door is {}. It would rather you stayed.', code: 'door.state' },
-      { id: 'h_gap', words: ['GAP', 'IS', 'WIDE'], slot: -1, x: 430, y: 430, sx: 360, sy: 336, kind: 'fixed', cap: 'The floor gives up here. The gap is WIDE.', code: 'gap.width', val: 'WIDE' },
+      { id: 'h_lamp', words: ['LAMP', 'ON', 'FLOOR'], slot: 2, x: 256, y: 600, sx: 256, sy: 548, kind: 'rule', cap: 'A floor lamp keeps watch. It stands on {}.', code: 'lamp.stands_on' },
+      { id: 'h_rift', words: ['HERE', 'IS', 'VOID'], slot: 2, x: 640, y: 450, sx: 640, sy: 420, kind: 'rule', cap: 'Etched into the broken edge: HERE IS {}.', code: 'rift.here' },
       { id: 'h_fern', words: ['FERN'], slot: -1, x: 1005, y: 640, sx: 1005, sy: 470, kind: 'secret', code: 'fern.awake', val: 'true', cap: 'Fern, at her desk. She was always here first.', text: 'SHE NEVER SLEPT. SHE WAS WAITING FOR GOOD MORNING.' },
       { id: 'h_exit', words: ['EXIT', 'IS', 'NOOR\u2019S'], slot: -1, x: 640, y: 185, sx: 640, sy: 96, kind: 'fixed', cap: "A door that knows your name. EXIT is NOOR'S.", code: 'exit.owner', val: 'NOOR' },
     ],

@@ -205,7 +205,7 @@ async function linger(browser) {
       ok('hub: chasm collision matches the pit, lips are standable', stand.northWalk && stand.northSafe && stand.pitHazard && stand.southWalk && stand.southSafe && stand.pitH >= 140, JSON.stringify(stand));
       const ledge = await lumStats(page, { x: 200, y: 430, width: 220, height: 50 });
       const pitVar = await lumStats(page, { x: 100, y: 330, width: 90, height: 40 });
-      ok('hub: the south ledge under the door is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
+      ok('hub: the south ledge by the rift is tiled floor, not a flat wall', ledge.std > 5 && ledge.mean > pitVar.mean + 4, `ledge mean ${ledge.mean.toFixed(1)} std ${ledge.std.toFixed(1)} pit mean ${pitVar.mean.toFixed(1)}`);
       await pi(page, 'playGapPan');
       s = await waitFor(page, s => s.gapPan === 'playing' && s.camMid && s.camMid.zoom > 1.3 && s.camMid.y < 370, 5000);
       ok('hub: first arrival pans the camera to the gap', s.gapPan === 'playing' && s.camMid.y < 370 && s.camMid.zoom > 1.15, JSON.stringify(s.camMid));
@@ -510,12 +510,13 @@ async function desktop(browser) {
   const backCopy = await page.evaluate(() => window.__pi.state().refl);
   ok('hub: back-facing copy stays inside the glass pane', !!(backCopy) && backCopy.visible && backCopy.inside === true, JSON.stringify(backCopy));
 
-  // HUB: SHUT door blocks the threshold; Noor can still stand in front of it
-  const doorBlock = await page.evaluate(() => {
+  // HUB: no door. The far rift face is solid everywhere until FLOOR is written into the lane.
+  const riftBlock = await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
-    return { shut: !s.flags.door, inDoor: s.canStand(640, 450), inFront: s.canStand(640, 580) };
+    const doorObjs = s.children.list.filter(o => /door/i.test(o.name || '') && o.visible && o.alpha > 0.05).length;
+    return { span: s.flags.span, faceL: s.canStand(300, 262), faceLane: s.canStand(640, 262), faceR: s.canStand(1000, 262), lip: s.canStand(640, 430), north: s.canStand(640, 236), doorPanel: !!(s.fgImgs.door_panel && s.fgImgs.door_panel.visible), doorObjs, word: s.riftWord && s.riftWord.word };
   });
-  ok('hub: SHUT door blocks the threshold', doorBlock.shut && doorBlock.inDoor === false && doorBlock.inFront === true, JSON.stringify(doorBlock));
+  ok('hub: no door; the far rift face blocks crossing everywhere before the swap', !riftBlock.span && !riftBlock.faceL && !riftBlock.faceLane && !riftBlock.faceR && riftBlock.lip && riftBlock.north && !riftBlock.doorPanel && riftBlock.doorObjs === 0 && riftBlock.word === 'VOID', JSON.stringify(riftBlock));
 
   // E advances dialogue (complete, then close) and must not also inspect a nearby plate
   await pi(page, 'skipGapPan');
@@ -556,7 +557,7 @@ async function desktop(browser) {
   ok('dialogue: second E closes a cutscene line', !s.talking && !(s.dialogueProg && s.dialogueProg.busy), JSON.stringify(s.dialogueProg));
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); s.busy = false; try { s.dialogue?.clear(); } catch {} });
 
-  // HUB: Caret is trapped in the SHUT door slit, jumps on approach, can grab OPEN at range
+  // HUB: the Caret blinks at the end of the etched word. Only holding E takes it (no F, no walk-up auto-claim).
   await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
     try { s.dialogue?.clear(); } catch {}
@@ -564,51 +565,75 @@ async function desktop(browser) {
   });
   let caretMode = await pi(page, 'trapCaret');
   s = await st(page);
-  ok('hub: the Caret is trapped in the SHUT door slit', s.caret && s.caret.mode === 'trapped' && s.caret.visible && Math.abs(s.caret.x - 640) < 40 && s.caret.y > 430 && s.caret.y < 520, `mode ${caretMode} ${JSON.stringify(s.caret)}`);
-  await pi(page, 'teleport', 640, 500); await sleep(350);
-  s = await waitFor(page, s => s.caret && s.caret.owned && s.caret.mode === 'follow', 4000);
-  ok('hub: close approach makes the Caret jump to her hand', !!(s.caret && s.caret.owned && (s.caret.mode === 'follow' || s.caret.mode === 'jumping')), JSON.stringify(s.caret));
+  ok('hub: the Caret is trapped at the end of the etched rift word', s.caret && s.caret.mode === 'trapped' && s.caret.visible && Math.abs(s.caret.x - 672) < 30 && s.caret.y > 400 && s.caret.y < 460, `mode ${caretMode} ${JSON.stringify(s.caret)}`);
+  await pi(page, 'teleport', 690, 470); await sleep(700);
+  s = await st(page);
+  ok('hub: walking up to the Caret does not claim it', s.caret.mode === 'trapped' && !s.caret.owned, JSON.stringify(s.caret));
+  await page.keyboard.press('f'); await sleep(300); s = await st(page);
+  ok('single take key: F never claims the Caret', s.caret.mode === 'trapped' && !s.caret.owned, JSON.stringify(s.caret));
+  s = await st(page);
+  ok('hub: the Caret take chip is E, verb take', !!(s.caretChip && s.caretChip.visible && s.caretChip.key === 'E' && s.caretChip.verb === 'take'), JSON.stringify(s.caretChip));
+  await page.keyboard.down('e'); s = await waitFor(page, s => s.caret && s.caret.owned, 3000); await page.keyboard.up('e');
+  ok('hub: holding E takes the Caret', !!(s.caret && s.caret.owned), JSON.stringify(s.caret));
+  s = await waitFor(page, s => s.caret && s.caret.mode === 'follow', 3000);
+  const cursors = await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    const marks = s.children.list.filter(o => o === s.caretMark && o.visible && o.alpha > 0.1).length;
+    const sprite = s.caret && s.caret.visible && s.caret.alpha > 0.1 && s.caret.willRender(s.cameras.main) ? 1 : 0;
+    const glyphs = s.children.list.filter(o => o.type === 'Text' && o.visible && o.alpha > 0.1 && /^[|I\u2502]$/.test(o.text || '')).length;
+    return { marks, sprite, glyphs, total: marks + sprite + glyphs };
+  });
+  ok('one cursor: exactly one Caret visual on screen after the take', cursors.total === 1 && cursors.marks === 1, JSON.stringify(cursors));
   await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
     try { s.dialogue?.clear(); } catch {}
     s.busy = false; s.hand = null;
-    const p = s.plateById('h_lamp');
-    if (p) p.setOpts({ selected: false });
   });
-  await pi(page, 'teleport', 520, 580); await sleep(80);
-  const sent = await pi(page, 'sendCaret', 'h_lamp');
-  s = await waitFor(page, s => (s.steal && s.steal.held && s.steal.held.word === 'OPEN') || (s.hand && s.hand.word === 'OPEN'), 4000);
-  ok('hub: sending the Caret grabs OPEN at range', !!(s.steal && s.steal.held && s.steal.held.word === 'OPEN') || !!(s.hand && s.hand.word === 'OPEN'), `sent ${sent} steal ${JSON.stringify(s.steal && s.steal.held)} hand ${JSON.stringify(s.hand)}`);
-  await page.evaluate(() => {
-    const s = window.__game.scene.getScene('game');
-    try { s.dialogue?.clear(); } catch {}
-    s.busy = false;
-    try { s.stealPlay?.snapHeld(); } catch {}
-    s.hand = null;
-  });
+  await pi(page, 'teleport', 380, 590); await sleep(80);
+  const sent = await pi(page, 'sendCaret', 'h_lamp'); await sleep(700);
+  s = await st(page);
+  ok('single take key: sending the Caret with F never takes a word', !(s.steal && s.steal.held) && !s.hand && s.plates.h_lamp.words === 'LAMP ON FLOOR', `sent ${sent} steal ${JSON.stringify(s.steal && s.steal.held)} lamp ${s.plates.h_lamp.words}`);
+  await page.keyboard.press('f'); await sleep(400); s = await st(page);
+  ok('single take key: F at the lamp does not take FLOOR', !(s.steal && s.steal.held) && s.plates.h_lamp.words === 'LAMP ON FLOOR', `${JSON.stringify(s.steal && s.steal.held)} ${s.plates.h_lamp.words}`);
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; s.caretMode = 'follow'; });
 
-  // HUB: take OPEN from the lamp, throw at the door
-  await sleep(400);
+  // HUB: before the swap, dashing at the rift anywhere drops her (the far face is solid)
+  for (const x of [300, 640, 1000]) {
+    await pi(page, 'teleport', x, 430); await sleep(300);
+    await input.move(0, -1); await sleep(30); await input.press('dash'); await sleep(450); await input.stop(); s = await st(page);
+    ok(`hub: dash at x=${x} cannot cross the rift before the swap`, s.player.y > 250 || s.dying, `y ${Math.round(s.player.y)} dying ${s.dying}`);
+    await waitFor(page, s => !s.dying, 3000); await sleep(200);
+  }
+
+  // HUB: take FLOOR from under the lamp (E hold), throw it at the etched VOID (F): a span writes itself across
+  await sleep(300);
   if (s.cutscene) { await page.keyboard.down('x'); await sleep(900); await page.keyboard.up('x'); await sleep(200); }
-  await pi(page, 'teleport', 256, 556); await sleep(150);
-  const hub = await steal(page, 'h_lamp', 'h_door');
-  s = await waitFor(page, s => s.flags.door, 4000);
-  ok('hub: take OPEN from the lamp, throw it at the door', s.flags.door && s.plates.h_door.words === 'DOOR IS OPEN' && s.plates.h_lamp.words === 'LAMP IS SHUT', `${s.plates.h_door.words} / ${s.plates.h_lamp.words} ${JSON.stringify(hub)}`);
-  ok('hub: door throw is the checkpoint', s.save.checkpoint.plate === 'h_door');
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await pi(page, 'teleport', 300, 600); await sleep(150);
+  await page.keyboard.down('e'); s = await waitFor(page, s => !!(s.steal && s.steal.held), 3000); await page.keyboard.up('e');
+  ok('hub: holding E at the lamp takes FLOOR', !!(s.steal && s.steal.held && s.steal.held.word === 'FLOOR'), JSON.stringify(s.steal && s.steal.held));
+  await pi(page, 'teleport', 640, 500); await sleep(150);
+  await page.keyboard.press('f');
+  s = await waitFor(page, s => s.flags.span, 4000);
+  ok('hub: F throws FLOOR into the rift word; HERE IS FLOOR', s.flags.span && s.plates.h_rift.words === 'HERE IS FLOOR' && s.plates.h_lamp.words === 'LAMP ON VOID', `${s.plates.h_rift.words} / ${s.plates.h_lamp.words}`);
+  ok('hub: the FLOOR swap is the checkpoint', s.save.checkpoint.plate === 'h_rift');
+  await sleep(1000);
   await still1(page, 'hub-door-open');
   await shot(page, 'desktop-04-hub-door');
-  await pi(page, 'teleport', 640, 560); await sleep(200);
-  await input.move(0, -1); await sleep(500); await input.stop(); s = await st(page);
-  ok('hub: walk through the open door', s.player.y < 530 && s.player.y > 404 && !s.dying, `y ${Math.round(s.player.y)} dying ${s.dying}`);
   const deaths0 = s.save.deaths;
+  await pi(page, 'teleport', 300, 430); await sleep(200);
   await input.move(0, -1); s = await waitFor(page, s => s.dying, 3000); await input.stop();
-  ok('hub: walking into the gap kills (UNDO)', s.dying);
+  ok('hub: walking into the rift beside the span still kills (UNDO)', s.dying);
   await shot(page, 'desktop-05-undo');
   s = await waitFor(page, s => !s.dying && s.lastRespawnMs > 0, 3000);
-  ok('hub: respawn under 1s at checkpoint, door stays open', s.lastRespawnMs > 0 && s.lastRespawnMs < 1000 && s.flags.door && s.save.deaths === deaths0 + 1, `${Math.round(s.lastRespawnMs)}ms door ${s.flags.door} y ${Math.round(s.player.y)}`);
-  await pi(page, 'teleport', 640, 430); await sleep(400);
-  await input.move(0, -1); await sleep(30); await input.press('dash'); await sleep(250); await input.stop(); s = await st(page);
-  ok('hub: dash crosses the gap', !s.dying && s.player.y < 250, `y ${Math.round(s.player.y)} dying ${s.dying}`);
+  ok('hub: respawn under 1s at checkpoint, span stays', s.lastRespawnMs > 0 && s.lastRespawnMs < 1000 && s.flags.span && s.save.deaths === deaths0 + 1, `${Math.round(s.lastRespawnMs)}ms span ${s.flags.span} y ${Math.round(s.player.y)}`);
+  await pi(page, 'teleport', 300, 430); await sleep(300);
+  await input.move(0, -1); await sleep(30); await input.press('dash'); await sleep(450); await input.stop(); s = await st(page);
+  ok('hub: after the swap, dashing off the span still cannot cross', s.player.y > 250 || s.dying, `y ${Math.round(s.player.y)} dying ${s.dying}`);
+  await waitFor(page, s => !s.dying, 3000); await sleep(200);
+  await pi(page, 'teleport', 640, 440); await sleep(300);
+  await input.move(0, -1); await sleep(1100); await input.stop(); s = await st(page);
+  ok('hub: walking the FLOOR span crosses the rift', !s.dying && s.player.y < 250, `y ${Math.round(s.player.y)} dying ${s.dying}`);
   await input.move(0, -1); s = await waitFor(page, s => s.room === 'corridor', 4000); await input.stop();
   ok('hub: north exit leads to the Dark Corridor', s.room === 'corridor');
   s = await st(page);
@@ -852,9 +877,9 @@ async function mobile(browser) {
   ok('mobile: READ button reads', s.save.lore.includes('o_coffee'));
   // hub drag-swap on touch
   await pi(page, 'goto', 'hub'); await sleep(200); await pi(page, 'skipGapPan'); await sleep(500);
-  await pi(page, 'read', 'h_lamp'); await pi(page, 'teleport', 640, 560); await sleep(1300); s = await st(page);
-  const shutChip = s.chips.find(c => c.id === 'h_door' && c.where === 'cap');
-  ok('mobile: caption shows SHUT as a chip; touch buttons sit above the caption bar', !!shutChip && s.handChip.y < 626, JSON.stringify(s.chips));
+  await pi(page, 'read', 'h_lamp'); await pi(page, 'teleport', 640, 480); await sleep(1300); s = await st(page);
+  const shutChip = s.chips.find(c => c.id === 'h_rift' && c.where === 'cap');
+  ok('mobile: caption shows VOID as a chip; touch buttons sit above the caption bar', !!shutChip && s.handChip.y < 626, JSON.stringify(s.chips));
   const cdp = await ctx.newCDPSession(page);
   const toPage = (x, y) => page.evaluate(([x, y]) => { const s = window.__game.scale; const b = s.canvasBounds; return { x: b.left + x / s.displayScale.x, y: b.top + y / s.displayScale.y }; }, [x, y]);
   const a = await toPage(s.handChip.x, s.handChip.y), b = await toPage(shutChip.x, shutChip.y);
@@ -863,7 +888,7 @@ async function mobile(browser) {
   await shot(page, 'mobile-02-hub-drag');
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }); await sleep(300);
   s = await st(page);
-  ok('mobile: drag the word chip onto SHUT opens the door', s.flags.door, s.plates.h_door.words);
+  ok('mobile: drag FLOOR onto VOID writes the span', s.flags.span, s.plates.h_rift.words);
   // global fix: after a touch drag-swap the page must not be panned and the HUD must sit fully inside the canvas
   const geo = await page.evaluate(() => { const c = document.querySelector('canvas').getBoundingClientRect(); const sc = window.__game.scene.getScene('game'); const b = sc.hud.path.getBounds(); return { sx: window.scrollX, vv: window.visualViewport ? window.visualViewport.offsetLeft : 0, cl: c.left, cw: c.width, hx: b.x, hv: sc.hud.path.visible && sc.hud.title.visible }; });
   ok('mobile: HUD not clipped after a touch drag-swap (no page pan, HUD inside the canvas)', geo.sx === 0 && geo.vv === 0 && geo.cl >= 0 && geo.hx >= 20 && geo.hv, JSON.stringify(geo));

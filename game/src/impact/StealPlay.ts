@@ -19,11 +19,14 @@ const OPP: Record<string, string> = {
   WET: 'DRY', DRY: 'WET',
   TOGETHER: 'APART', APART: 'TOGETHER',
   WEAK: 'TORN', TORN: 'WEAK',
+  FLOOR: 'VOID', VOID: 'FLOOR',
 };
 
 const STICKS: Record<string, string[]> = {
-  OPEN: ['h_door', 'o_door'],
-  SHUT: ['h_door', 'o_door', 'h_lamp'],
+  OPEN: ['o_door'],
+  SHUT: ['o_door'],
+  FLOOR: ['h_rift', 'h_lamp'],
+  VOID: ['h_rift', 'h_lamp'],
   ON: ['c_light'],
   OFF: ['c_switch', 'c_light'],
   QUICK: ['c_dummy', 'c_clock'],
@@ -51,7 +54,7 @@ export const STEAL_ROOMS: RoomId[] = ['hub', 'corridor', 'archive', 'arena'];
 interface Link { src: string; quality: string; dst: string }
 
 const LINKS: Partial<Record<RoomId, Link[]>> = {
-  hub: [{ src: 'h_lamp', quality: 'OPEN', dst: 'h_door' }],
+  hub: [{ src: 'h_lamp', quality: 'FLOOR', dst: 'h_rift' }],
   corridor: [
     { src: 'c_switch', quality: 'ON', dst: 'c_light' },
     { src: 'c_clock', quality: 'QUICK', dst: 'c_dummy' },
@@ -147,6 +150,8 @@ export class StealPlay {
       this.throwAt();
       return;
     }
+    // The trapped Caret owns E while Noor stands at it (one take action, one target).
+    if (this.s.caretClaimable()) { this.peelT = 0; this.lure?.setHold(0); return; }
     const near = this.nearTakeable();
     if (near && f.interactHeld && !this.held) {
       this.peelT += dt;
@@ -184,6 +189,7 @@ export class StealPlay {
     this.lure?.setCarrying(true);
     this.spawnOrb();
     sfx('steal');
+    this.s.markTut('take');
     this.s.evaluate(false);
     return true;
   }
@@ -366,7 +372,7 @@ export class StealPlay {
     this.setPlate(dest, word);
     this.lastApply = { from, word, onto: dest, prev };
     logSwap(this.s.save, { placed: word, removed: prev, room: this.s.room.id, plate: dest, t: Date.now() });
-    if (dest === 'h_door' && word === 'OPEN') this.s.setCheckpoint(p);
+    if (dest === 'h_rift' && word === 'FLOOR') this.s.setCheckpoint(p);
   }
 
   private revertLast() {
@@ -420,7 +426,7 @@ export class StealPlay {
     this.clearOrb();
     const h = this.handOff();
     // Small code-drawn core in the palm — not the spark-orb starburst.
-    const g = this.s.add.ellipse(this.s.x + h.x, this.s.y + h.y, 14, 10, 0x7ec8e3, 0.85)
+    const g = this.s.add.rectangle(this.s.x + h.x, this.s.y + h.y, 10, 10, 0x7ec8e3, 0.85).setAngle(45)
       .setDepth(this.s.y + 28).setBlendMode(Phaser.BlendModes.ADD);
     this.s.objs.push(g); this.orb = g;
   }

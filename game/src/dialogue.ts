@@ -55,7 +55,7 @@ const OFFICE_SOURCES: Source[] = [
 ];
 
 const HUB_SOURCES: Source[] = [
-  { id: 'hub_lamp', x: 256, y: 530, kind: 'lamp' },
+  { id: 'hub_lamp', x: 256, y: 452, kind: 'lamp' },
   { id: 'hub_desk', x: 1005, y: 500, kind: 'monitor' },
   { id: 'hub_glass', x: 313, y: 90, kind: 'monitor' },
   { id: 'hub_table', x: 200, y: 500, kind: 'monitor' },

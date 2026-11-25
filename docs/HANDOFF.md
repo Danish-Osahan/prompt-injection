@@ -1,5 +1,40 @@
 # HANDOFF
 
+## 2026-11-25 — No door: the rift is the puzzle; one take key; one cursor; corridor sentinel
+
+Danishpreet's notes: E and F could both take power; two cursors on screen; the corridor dummy and UI looked boring; the hub door made no sense when you could dash the rift anywhere; and he couldn't tell the hub lamp was a lamp.
+
+### One take action (E, hold)
+- Every take is **hold E** (0.4 s): a word from a source, a word back off a target, and the Caret itself. The first take chip reads `E HOLD TO TAKE`. After the first take it reads `E TAKE`.
+- **F never takes or claims.** F throws a held word. With the Caret owned and a foe in range, F sends the Caret at that foe. `caretSendTarget()` only looks at foes now, and `sendCaret()` no longer reads or takes a plate.
+- The Caret no longer claims itself when you walk up to it or when the door opens. You hold E at it, like any other take. StealPlay hands E to the Caret while Noor stands at it.
+
+### One cursor
+- The second, pale cursor was the `caret_idle` sprite drawn under the code-drawn cyan I-beam in follow mode. The sprite is now only a position/visibility anchor (`willRender → false`). The I-beam is the one Caret on screen, including mid-jump. The cyan `|` glyph that used to blink on a Caret-marked foe is gone too.
+
+### Hub: no door, the rift is the puzzle
+- The door panel, its shadow and spill, the door stoop, the old offset bridge stubs and the coral SHUT plate are gone. The room always uses the open plate.
+- The far rift face is solid (`dyn.riftL/riftR/riftLane`, y 248–284). Dashing anywhere just stops against it and drops you (UNDO).
+- `HERE IS VOID` is etched in flickering letters on a broken stub in the south lip (x 592–688). No floating tag. Before the take, the Caret blinks at the end of the word.
+- The floor lamp stands on a painted `FLOOR` stencil (`LAMP ON FLOOR`). Hold E to take FLOOR, then F to throw it at VOID. A FLOOR span writes itself across the lane, tile row by tile row. Only the lane opens (`riftLane` cleared). `onHubSpan()` exempts it from the pit hazard and from void depth sorting. Off the span is still a fall. The lamp is left hovering over a hole, flickering (`LAMP ON VOID`). The swap is the checkpoint, and U / E-peel undoes it.
+- Mobile caption drag works the same way: FLOOR onto VOID.
+- Rift look: a ragged north underside with hanging chunks and rebar, bites in the south lip with cold top light and cracks, floating slab fragments at a few depths, uneven deep cold shafts, and debris that keeps breaking off the lips and falling out of sight (`src/hubRift.ts`).
+
+### Lamp
+- The painted desk lamp overlay (`fg_hub_lamp`) is hidden. In its place is a code-drawn standing floor lamp at (256, 574): weighted base, pole, angled fabric shade lit from inside, a warm cone out of the shade, and a trapezoid floor pool set by the shade (no disc). It has the same E chip as every other source.
+
+### Corridor
+- The sentinel dummy is a tailor's form cut from a blank claim template: misregistered sheets, label stubs, redaction bars and staples, on an iron stand. Its head is an empty `[NAME]` form field. When QUICK wakes it, the field fills in with **NOOR** in red ink and the head twitches. Asleep, it tilts slowly. When hit, it staggers back on its stand, the print slips sideways and the paper flares white. It is code-drawn, with no circles. It moved to y 384 so it no longer sits over the wall clock.
+- The yellow corner-bracket marks painted into both corridor plates were inpainted out. They read as debug UI.
+- All chips and progressive hints share one designed key-cap style: a bevelled cap with a lit top edge, an uppercase letter-spaced verb on a dark glass plate, and a thin hold bar (`ui/InteractChip.ts`). HUD hints render through the same chip, and `text` stays as hidden state for tests.
+- The palm "held word" core is a small diamond, not an ellipse.
+
+Stills (not in the repo): `/workspace/l2k-hub-rift(-2x).png` (before the swap, full view), `/workspace/l2k-hub-take(-2x).png` (Caret take, single cursor, hold chip), `/workspace/l2k-hub-lamp(-2x).png`, `/workspace/l2k-hub-owned(-2x).png`, `/workspace/l2k-hub-bridge(-2x).png` (after the swap, crossing), `/workspace/l2k-corridor-dummy(-2x).png`, `/workspace/l2k-corridor-awake(-2x).png`, `/workspace/l2k-corridor-take(-2x).png`.
+
+Playtest adds: no door and a solid far face before the swap; dash at x=300/640/1000 can't cross; walking up to the Caret doesn't claim it; F neither claims the Caret nor takes FLOOR; holding E takes the Caret and FLOOR; exactly one Caret visual; FLOOR→VOID writes the span; you can walk across the span; walking or dashing off the span still falls.
+
+Weak spots: the span reads a little like a ladder from above; the melee slash is still a crescent arc (transient); the north stub and hanging chunks are flat code shapes, not rendered geometry; the painted cyan floor light below the lane (the old door spill) remains; the sentinel is readable but small at 1x.
+
 ## 2026-11-24 — Dialogue mash, Esc skip, F throw (office)
 
 Three Level 1 bugs, one pass. Worked in a separate worktree so the audio work on main was not touched.

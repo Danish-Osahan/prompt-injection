@@ -1,5 +1,14 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-25 — Door removed; the rift is the puzzle; lamp redesign
+
+- **No door.** The near-slab door, its glow and stoop are gone, and the room always uses the open plate.
+- **Crossing.** The far face of the rift is a solid collider along its whole length, so a dash anywhere drops you. `HERE IS VOID` is etched on a broken stub in the south lip. Take FLOOR from under the floor lamp (hold E) and throw it at VOID (F), and a FLOOR span writes itself across that one lane. Off the span is still a fall.
+- **Caret.** It blinks at the end of the etched word. You take it by holding E, the same take as everything else. F never claims it, and walking up to it doesn't either.
+- **Lamp.** Standing floor lamp with a fabric shade, warm cone and a trapezoid pool, and a painted FLOOR stencil at its base. After the take it hovers over a hole and flickers.
+- **Rift look.** Ragged lit edges, hanging chunks and rebar, floating slabs at several depths, uneven deep shafts, and falling debris.
+- Stills: `/workspace/l2k-hub-rift-2x.png`, `/workspace/l2k-hub-take-2x.png`, `/workspace/l2k-hub-bridge-2x.png`, `/workspace/l2k-hub-lamp-2x.png`.
+
 ## 2026-11-24 — Recorded hub ambience (v2)
 
 The hub bed is now a treated recording of a large empty hall with wind at the windows (Tonmeister88, CC0), layered with a howling corridor draft (Kinoton, CC0) that swells as Noor approaches the gap. Sparse distant slams, metal creaks, paper and a muffled murmur. Crossfades from the office HVAC bed and into the concrete corridor. Preview: `/workspace/audio-previews-v2/hub.mp3`.
