@@ -1729,7 +1729,7 @@ export class GameScene extends Phaser.Scene {
       for (let i = 0; i < m[1]; i++) this.motes.push({ x: m[0].x + Math.random() * m[0].w, y: m[0].y + Math.random() * m[0].h, vx: (Math.random() - 0.5) * 6, vy: -2 - Math.random() * 5, a: 0.15 + Math.random() * 0.25, ph: Math.random() * 6 });
     }
     if (id === 'hub') {   // the mirror copies Noor a beat late (or, with the toy, a beat early)
-      this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(1).setTint(0xd0e4ec).setAlpha(0.88).setRotation(0).setDepth(-997).setVisible(false);
+      this.refl = this.add.sprite(0, 0, 'noor_idle').setOrigin(96 / 192, 160 / 192).setScale(1).setTint(0xd0e4ec).setAlpha(0.88).setRotation(0).setDepth(201).setVisible(false);
       const maskG = this.add.graphics().setScrollFactor(1).setVisible(false).setDepth(-10000);
       maskG.fillStyle(0xffffff, 1).fillRect(HUB_GLASS.x, HUB_GLASS.y, HUB_GLASS.w, HUB_GLASS.h);
       this.refl.setMask(maskG.createGeometryMask());
@@ -2261,7 +2261,7 @@ export class GameScene extends Phaser.Scene {
       if (vis && !this.copyWasVis) this.copyGlintT = 0.55;
       this.copyWasVis = vis;
       if (!this.copyGlint) {
-        const g = this.add.graphics().setDepth(-996);
+        const g = this.add.graphics().setDepth(202);
         try { g.setBlendMode(Phaser.BlendModes.ADD); } catch { /* */ }
         this.copyGlint = g; this.objs.push(g);
       }

@@ -102,8 +102,8 @@ def box_pts(name, pts_list, mat, cols=(1.0, 1.0)):
     o = bpy.data.objects.new(name, me); sc.collection.objects.link(o); o.data.materials.append(mat); return o
 
 # Materials: far cliff fades gradually so mid-pit strata stay readable in cold fog before turning black at the bottom
-wall_n = pit_mat('wall_n', (96, 114, 132), rough=0.95, noise=0.45, fog_start=-0.30, fog_mid=-3.2, fog_end=-5.2, emit=((10, 22, 34), 0.07))
-strata_m = pit_mat('strata', (106, 124, 140), rough=0.92, noise=0.42, fog_start=-0.25, fog_mid=-3.1, fog_end=-5.0, emit=((12, 24, 36), 0.06))
+wall_n = pit_mat('wall_n', (96, 114, 132), rough=0.95, noise=0.45, fog_start=-0.30, fog_mid=-4.4, fog_end=-6.0, emit=((10, 22, 34), 0.07))
+strata_m = pit_mat('strata', (106, 124, 140), rough=0.92, noise=0.42, fog_start=-0.20, fog_mid=-4.5, fog_end=-6.05, emit=((14, 28, 40), 0.08))
 wall_side = pit_mat('wall_side', (66, 82, 98), rough=0.94, noise=0.35, fog_start=-0.05, fog_mid=-0.75, fog_end=-1.45, fog_col=(4, 9, 15))
 lip_face = pit_mat('lip_face', (128, 146, 162), rough=0.86, noise=0.38, fog_start=-0.10, fog_mid=-1.5, fog_end=-2.5, emit=((24, 44, 60), 0.16))
 pilaster_m = pit_mat('pilaster', (96, 114, 132), rough=0.92, noise=0.36, fog_start=-0.30, fog_mid=-2.9, fog_end=-4.8, emit=((10, 20, 30), 0.08))
@@ -129,7 +129,7 @@ bm_th.to_mesh(me_th); bm_th.free(); o_th = bpy.data.objects.new('throat', me_th)
 
 # 1. Receding North cliff backing + West/East converging walls (corners exact at X0/X1 so no gaps)
 ks = [0.0, 0.06, 0.14, 0.24, 0.36, 0.50, 0.64, 0.78, 0.86]
-k_shade_n = lambda k: max(0.0, (1.0 - min(1.0, k / 0.82)) ** 1.35)
+k_shade_n = lambda k: max(0.0, (1.0 - min(1.0, k / 0.90)) ** 1.15)
 k_shade_s = lambda k: max(0.0, (1.0 - min(1.0, k / 0.46)) ** 1.8)
 n_xs = [X0 + (X1 - X0) * i / 48 for i in range(49)]
 rows_n, cols_n = [], []
@@ -164,42 +164,50 @@ PIT_OBJS.append(mesh_strips('wall_east', rows_e, cols_e, wall_side))
 # 2. Fractured rock / broken-floor strata across the ENTIRE far cliff (especially the middle!)
 #    Each stratum is a broken series of protruding angled ledges (top face catches overhead light,
 #    underside drops into shadow) following perspective toward V, getting thinner and dimmer with depth.
+# Relief on a receding cliff face (thin lit top edges, not protruding shelves).
+# Blocks get smaller and tighter toward V; readable to ~75-80% of the shaft (k≈0.78) before near-black.
 strata_defs = [
-    # (k_top, k_bot, protrusion_min, protrusion_max, gap_chance, vcol)
-    (0.075, 0.118, 0.055, 0.125, 0.14, 0.92),
-    (0.145, 0.195, 0.045, 0.110, 0.18, 0.78),
-    (0.225, 0.278, 0.038, 0.095, 0.20, 0.62),
-    (0.320, 0.372, 0.030, 0.080, 0.22, 0.46),
-    (0.430, 0.482, 0.022, 0.062, 0.24, 0.31),
-    (0.555, 0.605, 0.016, 0.045, 0.26, 0.18),
+    # (k_top, k_bot, protrusion_min, protrusion_max, gap_chance, vcol, wmin, wmax, gap_px)
+    (0.055, 0.095, 0.016, 0.036, 0.12, 0.95, 34, 78, 10),
+    (0.115, 0.150, 0.014, 0.030, 0.13, 0.84, 30, 68, 9),
+    (0.175, 0.208, 0.012, 0.026, 0.14, 0.73, 26, 58, 8),
+    (0.240, 0.270, 0.010, 0.022, 0.15, 0.62, 22, 50, 7),
+    (0.310, 0.338, 0.009, 0.019, 0.16, 0.52, 18, 42, 6),
+    (0.385, 0.410, 0.008, 0.016, 0.17, 0.43, 16, 36, 6),
+    (0.460, 0.483, 0.006, 0.014, 0.18, 0.35, 13, 30, 5),
+    (0.535, 0.555, 0.005, 0.012, 0.19, 0.36, 11, 25, 5),
+    (0.605, 0.623, 0.004, 0.010, 0.20, 0.30, 9, 21, 4),
+    (0.670, 0.686, 0.003, 0.008, 0.22, 0.24, 8, 18, 4),
+    (0.730, 0.744, 0.003, 0.007, 0.24, 0.19, 7, 15, 3),
+    (0.785, 0.796, 0.002, 0.006, 0.26, 0.15, 6, 13, 3),
+    (0.830, 0.840, 0.002, 0.005, 0.28, 0.11, 5, 11, 3),
 ]
-for idx, (kt, kb, pmin, pmax, gch, vc) in enumerate(strata_defs):
+for idx, (kt, kb, pmin, pmax, gch, vc, wmin, wmax, gpx) in enumerate(strata_defs):
     x = X0 + 2.0
     while x < X1 - 2.0:
-        w = min(random.uniform(38, 92), (X1 - 2.0) - x)
+        w = min(random.uniform(wmin, wmax), (X1 - 2.0) - x)
         if random.random() < gch:
-            x += w * 0.65; continue
-        # Vary top/bottom k slightly per broken rock block so strata never look like uniform shelves
-        kt_l = max(0.04, kt + random.uniform(-0.014, 0.014))
-        kt_r = max(0.04, kt + random.uniform(-0.014, 0.014))
-        kb_l = min(0.75, kb + random.uniform(-0.012, 0.014))
-        kb_r = min(0.75, kb + random.uniform(-0.012, 0.014))
+            x += w * 0.55; continue
+        kt_l = max(0.04, kt + random.uniform(-0.008, 0.008))
+        kt_r = max(0.04, kt + random.uniform(-0.008, 0.008))
+        kb_l = min(0.82, kb + random.uniform(-0.006, 0.008))
+        kb_r = min(0.82, kb + random.uniform(-0.006, 0.008))
         jut_l = random.uniform(pmin, pmax); jut_r = random.uniform(pmin, pmax)
-        # Top quad slopes slightly forward/down to catch overhead light; bottom quad tucks back into cliff
+        # Thin lit bevel along the wall (catches overhead light) then the face tucks back into the cliff.
         top_q = [
-            P(x, NY, kt_l, N * 0.04),
-            P(x + w, NY, kt_r, N * 0.04),
-            P(x + w, NY, kt_r + 0.012, -N * jut_r),
-            P(x, NY, kt_l + 0.012, -N * jut_l),
+            P(x, NY, kt_l, N * 0.02),
+            P(x + w, NY, kt_r, N * 0.02),
+            P(x + w, NY, kt_r + 0.006, -N * jut_r),
+            P(x, NY, kt_l + 0.006, -N * jut_l),
         ]
         bot_q = [
-            P(x, NY, kb_l, N * 0.04),
-            P(x + w, NY, kb_r, N * 0.04),
-            P(x + w, NY, kb_r, -N * (jut_r * 0.35)),
-            P(x, NY, kb_l, -N * (jut_l * 0.35)),
+            P(x, NY, kb_l, N * 0.02),
+            P(x + w, NY, kb_r, N * 0.02),
+            P(x + w, NY, kb_r, -N * (jut_r * 0.2)),
+            P(x, NY, kb_l, -N * (jut_l * 0.2)),
         ]
-        PIT_OBJS.append(box_pts(f'stratum_{idx}', [top_q, bot_q], strata_m, (vc, vc * 0.55)))
-        x += w + random.uniform(4, 16)
+        PIT_OBJS.append(box_pts(f'stratum_{idx}', [top_q, bot_q], strata_m, (vc, vc * 0.45)))
+        x += w + random.uniform(gpx * 0.5, gpx * 1.4)
 
 # 3. Perspective-converging vertical fracture ribs / concrete pilasters down the far cliff (including center!)
 for px in (128, 240, 356, 472, 560, 640, 720, 812, 924, 1040, 1152):
@@ -282,7 +290,7 @@ def light_aim(kind, loc, target, energy, col, size=1.0):
     o.rotation_euler = d.to_track_quat('-Z', 'Y').to_euler(); return o
 
 # High grazing overhead light shining down onto the strata top bevels across the whole width
-light_aim('AREA', unproj(640, 390, 3.2), unproj(640, 290, -1.5), 760, (0.72, 0.88, 1.0), size=11.0)
+light_aim('AREA', unproj(640, 400, 3.4), unproj(640, 320, -2.6), 820, (0.72, 0.88, 1.0), size=12.0)
 # Angled key from upper-left-front so pilasters & fractured strata show clear 3D relief
 light_aim('SUN', (0, 0, 5), (-0.38, 0.80, -0.82), 1.6, (0.74, 0.88, 1.0))
 # Gentle rim on the near south lip

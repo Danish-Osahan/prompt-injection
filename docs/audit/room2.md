@@ -1,5 +1,12 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-26 — Deeper receding cliff strata + glass copy in front of the north occlude
+
+- **Far cliff.** 13 irregular strata tiers plus vertical fissure ribs now run down the full-width north wall to `k ≈ 0.84` (about 75–80% of the visible shaft) before near-black. Blocks shrink and tighten toward `(640, 392, -6.4)`. Protrusion is a thin lit bevel, so the face reads as a wall dropping away rather than an overhang of shelves. Fog falloff starts later so the lower tiers stay readable.
+- **Parallax fog.** Same three depths (`-956 / -952 / -944`), slightly brighter / higher alpha, still soft polygonal sheets.
+- **Glass copy.** `hubNorthOcclude` (depth 200) was covering the north pane and hiding `this.refl` (was `-997`). The copy and glint now draw at `201` / `202`, still masked to `HUB_GLASS`. Mid-dash Noor stays at `-940`, behind the occlude. New check: the copy actually paints into the pane.
+- **Stills:** `/workspace/l6r-hub-rift.png`, `/workspace/l6r-hub-bridge.png`, `/workspace/l6r-mirror.png`.
+
 ## 2026-11-25 (d) — Far cliff strata across the middle + parallax fog + bridge floor grain
 
 - **Middle far cliff (`art/tools/rift12.py`).** Added fractured rock/broken-floor strata and vertical fissure ribs across the entire far cliff face (`x 80..1200`, `k 0.075..0.605`) lit from above and receding into cold fog and near-black at the bottom (`y > 350`).

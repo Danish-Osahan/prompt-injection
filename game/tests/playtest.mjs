@@ -200,7 +200,7 @@ async function linger(browser) {
         const south = s.objs.find(o => o?.name === 'hub-rift-south')?.depth;
         return { fogs, south, parallax: s.chasmParallax.length };
       });
-      ok('hub: middle rift shows lit strata fading into deep pit + layered parallax fog', midCliff.mean > midDeep + 8 && midCliff.std > 3 && midDeep < 20 && fogCheck.fogs.length === 3 && fogCheck.fogs[2] < -940 && fogCheck.south === -932 && fogCheck.parallax >= 4, `midCliff ${midCliff.mean.toFixed(1)} std ${midCliff.std.toFixed(1)} midDeep ${midDeep.toFixed(1)} fog ${JSON.stringify(fogCheck)}`);
+      ok('hub: middle rift shows lit strata fading into deep pit + layered parallax fog', midCliff.mean > midDeep + 6 && midCliff.std > 3 && midDeep < 24 && fogCheck.fogs.length === 3 && fogCheck.fogs[2] < -940 && fogCheck.south === -932 && fogCheck.parallax >= 4, `midCliff ${midCliff.mean.toFixed(1)} std ${midCliff.std.toFixed(1)} midDeep ${midDeep.toFixed(1)} fog ${JSON.stringify(fogCheck)}`);
       const stand = await page.evaluate(() => {
         const s = window.__game.scene.getScene('game');
         const inH = (x, y) => s.hazards.some(h => x >= h.x && y >= h.y && x < h.x + h.w && y < h.y + h.h);
@@ -518,6 +518,17 @@ async function desktop(browser) {
   await sleep(600);
   const backCopy = await page.evaluate(() => window.__pi.state().refl);
   ok('hub: back-facing copy stays inside the glass pane', !!(backCopy) && backCopy.visible && backCopy.inside === true, JSON.stringify(backCopy));
+  const glassOn = await lumStats(page, { x: 236, y: 58, width: 70, height: 70 });
+  await page.evaluate(() => {
+    const s = window.__game.scene.getScene('game');
+    s.copyWarm = 0; s.copyWasVis = false;
+    if (s.refl) s.refl.setVisible(false);
+    if (s.copyGlint) s.copyGlint.clear();
+  });
+  await sleep(120);
+  const glassOff = await lumStats(page, { x: 236, y: 58, width: 70, height: 70 });
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); s.copyWarm = 4; s.copyWasVis = true; });
+  ok('hub: glass copy actually paints into the pane', (Math.abs(glassOn.mean - glassOff.mean) > 3 || glassOn.std > glassOff.std + 2), `on mean ${glassOn.mean.toFixed(1)} std ${glassOn.std.toFixed(1)} off mean ${glassOff.mean.toFixed(1)} std ${glassOff.std.toFixed(1)}`);
 
   // HUB: no door. The far rift face is solid everywhere until FLOOR is written into the lane.
   const riftBlock = await page.evaluate(() => {

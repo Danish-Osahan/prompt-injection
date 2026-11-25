@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-26 — Deeper cliff strata + hub glass copy restored
+
+Built on `a6d6776` after Danishpreet approved the next pass and reported that the hub mirror was no longer showing a reflection.
+
+**Rift (`art/tools/rift12.py` → `fg/hub_rift.png`):**
+- Extended the far-cliff fractured-rock / broken-floor strata from 6 tiers to 13, readable to about 75–80% of the shaft (`k ≈ 0.84`) before near-black. Blocks get smaller and tighter toward the vanishing point `(640, 392, -6.4)`.
+- Cut the ledge protrusion so it reads as a wall dropping away (thin lit top bevels, not shelves). Pushed material fog later (`fog_mid ≈ -4.5`, `fog_end ≈ -6.0`) so the lower tiers stay faintly visible.
+- Raised the drifting fog slightly (`hubRift.ts` sheet alpha / colour) so the mist is easier to see, still low-alpha polygons, no circles or rings.
+
+**Mirror:** The delayed glass copy of Noor (`this.refl`) was still being created and the existing state checks passed, but it never painted. Cause: the mid-dash north-wall occlude (`hubNorthOcclude`, depth 200, cropped to `y = 0..248`, added in `11dacf0` and kept through the recent rift work) is a full plate copy that covers the north glass. The copy sat at depth `-997`, behind that overlay. Fix: draw the copy and its glint just in front of the occlude (depths `201` / `202`), still masked to the pane, so mid-dash Noor at `-940` stays hidden behind the wall. New playtest: `hub: glass copy actually paints into the pane` (pixel lum in the left of the glass with the copy on vs off).
+
+**Stills:** `/workspace/l6r-hub-rift.png`, `/workspace/l6r-hub-bridge.png`, `/workspace/l6r-mirror.png`.
+
 ## 2026-11-25 (d) — Hub rift middle strata & parallax fog pass
 
 Built on `283b37b` after feedback that the middle span of the pit still read mostly flat black:

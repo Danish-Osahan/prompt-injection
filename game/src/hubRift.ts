@@ -34,19 +34,19 @@ export function drawRiftDetail(s: Scene) {
   // Depths -956, -952, -944 sit in front of the far cliff (-960) and behind falling Noor (-940), south lip (-932), bridge (123).
   const fogLayers: { g: Phaser.GameObjects.Graphics; k: number }[] = [];
   const fogDefs = [
-    { depth: -956, k: 0.05, col: 0x163248, sheets: [
-      { x: 220, y: 326, w: 360, h: 28, vx: 2.4, a: 0.09 },
-      { x: 760, y: 342, w: 420, h: 32, vx: -2.0, a: 0.08 },
+    { depth: -956, k: 0.05, col: 0x1c4a66, sheets: [
+      { x: 220, y: 326, w: 360, h: 28, vx: 2.4, a: 0.15 },
+      { x: 760, y: 324, w: 420, h: 24, vx: -2.0, a: 0.13 },
     ]},
-    { depth: -952, k: 0.11, col: 0x20445c, sheets: [
-      { x: 340, y: 306, w: 280, h: 20, vx: -3.6, a: 0.07 },
-      { x: 840, y: 322, w: 300, h: 22, vx: 3.1, a: 0.065 },
-      { x: 560, y: 356, w: 260, h: 18, vx: 2.2, a: 0.055 },
+    { depth: -952, k: 0.11, col: 0x2a6080, sheets: [
+      { x: 340, y: 306, w: 280, h: 20, vx: -3.6, a: 0.12 },
+      { x: 840, y: 322, w: 300, h: 22, vx: 3.1, a: 0.11 },
+      { x: 560, y: 318, w: 260, h: 18, vx: 2.2, a: 0.10 },
     ]},
-    { depth: -944, k: 0.18, col: 0x2c5670, sheets: [
-      { x: 180, y: 288, w: 220, h: 14, vx: 4.8, a: 0.05 },
-      { x: 640, y: 298, w: 240, h: 15, vx: -4.2, a: 0.05 },
-      { x: 980, y: 312, w: 200, h: 13, vx: 3.9, a: 0.045 },
+    { depth: -944, k: 0.18, col: 0x3a7894, sheets: [
+      { x: 180, y: 288, w: 220, h: 14, vx: 4.8, a: 0.09 },
+      { x: 640, y: 298, w: 240, h: 15, vx: -4.2, a: 0.09 },
+      { x: 980, y: 312, w: 200, h: 13, vx: 3.9, a: 0.08 },
     ]},
   ];
   for (const ld of fogDefs) {
