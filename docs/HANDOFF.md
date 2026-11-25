@@ -1,5 +1,19 @@
 # HANDOFF
 
+## 2026-11-25 (c) — Hub rift pitfall depth pass
+
+Danishpreet's and review feedback on `d8eda2b`: the hub rift read like a flat wall of grey horizontal slabs facing the camera rather than a drop.
+
+**Rift (`art/tools/rift12.py`, `game/src/hubRift.ts`, `game/src/game.ts`):**
+- Replaced the stacked horizontal slab rows with a true perspective-converging shaft extruded from the exact room rim (`x 80..1200, ny 248, sy 404`) toward a deep vanishing throat (`V = unproj(640, 392, -6.4)`).
+- Visible thickness + subtle cool rim light on both broken concrete lips; far cliff face drops away along vertical concrete pilasters that narrow into cold slate fog and near-black abyss.
+- Side walls converge steeply inward and fall into shadow beneath the near overhang (`pit` lum ~12.3 vs `northLip` ~92.5, `cliff` ~30.5, `southLip` ~63.2).
+- Near south lip renders as its own pass (`fg/hub_rift_south.png`, depth `-932`) over the pit (`fg/hub_rift.png`, depth `-960`) so falling Noor (`-940`) drops behind the near edge.
+- Sparse, scale-graded falling concrete chunks + hanging cables; three soft feathered cold fog ribbons drifting slowly across the chasm; falling debris converges slightly toward the vanishing point as it shrinks and fades.
+- `RiftSpan` bridge updated with a deeper east underside face (`11 px`) and a two-layer drop shadow cast across the upper cliff wall and down into the abyss.
+- Collision, puzzle logic, and all 264 playtest checks remain unchanged and passing (`264/264`).
+- Stills: `/workspace/l4r-hub-rift.png`, `/workspace/l4r-hub-rift-close-2x.png`, `/workspace/l4r-hub-bridge.png`, `/workspace/l4r-hub-bridge-close-2x.png`.
+
 ## 2026-11-25 (b) — The Caret's job, the corridor guard, Blender chasm, re-rendered corridor
 
 Danishpreet's notes on `6bba1d2`:

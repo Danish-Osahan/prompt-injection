@@ -26,7 +26,33 @@ export function drawRiftDetail(s: Scene) {
   if (s.textures.exists('hub_rift')) {
     const im = s.add.image(0, 236, 'hub_rift').setOrigin(0).setDepth(-960); im.name = 'hub-rift-render'; s.objs.push(im);
   }
+  if (s.textures.exists('hub_rift_south')) {
+    const sim = s.add.image(0, 384, 'hub_rift_south').setOrigin(0).setDepth(-932); sim.name = 'hub-rift-south'; s.objs.push(sim);
+  }
   const rendered = s.textures.exists('hub_rift');
+  // Subtle slow-drifting cold fog ribbons inside the deep chasm (polygon wisps, never circles).
+  const fog = s.add.graphics().setDepth(-954); fog.name = 'hub-rift-fog'; s.objs.push(fog);
+  const wisps = [
+    { x: 260, y: 318, w: 220, h: 16, vx: 6.5, a: 0.07 },
+    { x: 780, y: 334, w: 260, h: 18, vx: -5.0, a: 0.06 },
+    { x: 520, y: 356, w: 190, h: 14, vx: 3.8, a: 0.05 },
+  ];
+  const drawFog = () => {
+    if (!fog.active) return;
+    fog.clear();
+    const tt = s.t;
+    for (const w of wisps) {
+      const cx = 180 + ((w.x + tt * w.vx) % 920 + 920) % 920;
+      const alpha = w.a * (0.75 + 0.25 * Math.sin(tt * 0.7 + w.x));
+      for (let i = 0; i < 3; i++) {
+        const s = 1 - i * 0.24, hh = w.h * s, ww = w.w * s, yy = w.y + (w.h - hh) * 0.5;
+        fog.fillStyle(0x244a62, alpha * 0.45);
+        poly(fog, [[cx - ww * 0.5, yy], [cx + ww * 0.5, yy - 1], [cx + ww * 0.38, yy + hh], [cx - ww * 0.42, yy + hh]]);
+      }
+    }
+    s.time.delayedCall(60, drawFog);
+  };
+  drawFog();
   // Depth: faint cold shafts far down, uneven along the length (not a uniform strip).
   const deep = s.add.graphics().setDepth(-966).setVisible(!rendered); deep.name = 'hub-rift-deep'; s.objs.push(deep);
   for (const c of [{ x: 190, w: 70, a: 0.05 }, { x: 452, w: 46, a: 0.035 }, { x: 905, w: 90, a: 0.045 }, { x: 1110, w: 40, a: 0.03 }]) {
@@ -56,7 +82,7 @@ export function drawRiftDetail(s: Scene) {
     x += w;
   }
   // South lip: bites taken out of the edge, lit cold from above, cracks running back into the slab.
-  const sl = s.add.graphics().setDepth(-934); sl.name = 'hub-rift-southbreak'; s.objs.push(sl);
+  const sl = s.add.graphics().setDepth(-934).setVisible(!rendered); sl.name = 'hub-rift-southbreak'; s.objs.push(sl);
   for (let x = x0; x < x1;) {
     const w = 18 + r() * 40;
     if (x + w > LANE.x0 - 6 && x < LANE.x1 + 6) { x += w; continue; }
@@ -77,11 +103,13 @@ export function drawRiftDetail(s: Scene) {
   stub.fillStyle(0x0c141a, 0.9);
   poly(stub, [[LANE.x0 + 6, sy - 26], [LANE.x0 + 30, sy - 18], [LANE.x0 + 58, sy - 30], [LANE.x1 - 6, sy - 22], [LANE.x1 - 8, sy - 18], [LANE.x0 + 8, sy - 20]]);
   stub.lineStyle(1.6, 0x56626c, 0.85); stub.lineBetween(LANE.x0 + 22, sy - 22, LANE.x0 + 19, sy - 36); stub.lineBetween(LANE.x1 - 24, sy - 24, LANE.x1 - 20, sy - 38);
+  const nyStub = rendered ? ny + 10 : foot - 2;
   const ns = s.add.graphics().setDepth(122); ns.name = 'hub-rift-stub-north'; s.objs.push(ns);
-  ns.fillStyle(0x1e2e3a, 1);
-  poly(ns, [[LANE.x0, foot - 2], [LANE.x1, foot - 2], [LANE.x1 - 4, foot + 16], [LANE.x0 + 40, foot + 24], [LANE.x0 + 4, foot + 12]]);
-  ns.fillStyle(0x060a0e, 0.8).fillRect(LANE.x0 + 6, foot + 10, LANE.x1 - LANE.x0 - 12, 2);
-  ns.lineStyle(1.6, 0x56626c, 0.85); ns.lineBetween(LANE.x0 + 28, foot + 18, LANE.x0 + 26, foot + 32);
+  ns.fillStyle(0x243442, 1);
+  poly(ns, [[LANE.x0, ny - 1], [LANE.x1, ny - 1], [LANE.x1 - 4, nyStub + 18], [LANE.x0 + 40, nyStub + 26], [LANE.x0 + 4, nyStub + 14]]);
+  ns.fillStyle(0x6e8fa0, 0.45).fillRect(LANE.x0 + 2, ny - 1, LANE.x1 - LANE.x0 - 4, 1.5);
+  ns.fillStyle(0x060a0e, 0.8).fillRect(LANE.x0 + 6, nyStub + 12, LANE.x1 - LANE.x0 - 12, 2);
+  ns.lineStyle(1.6, 0x56626c, 0.85); ns.lineBetween(LANE.x0 + 28, nyStub + 20, LANE.x0 + 26, nyStub + 34);
   return { stubS: stub, stubN: ns };
 }
 
@@ -102,7 +130,7 @@ export function startRiftDebris(s: Scene) {
     if (!g.active) return;
     g.clear();
     for (const d of ds) {
-      d.vy += 260 * 0.033; d.y += d.vy * 0.033; d.x += d.vx * 0.033;
+      d.vy += 260 * 0.033; d.y += d.vy * 0.033; d.x += d.vx * 0.033 + (640 - d.x) * 0.015;
       const fall = Math.max(0, d.y - d.y0);
       const k = Math.max(0, 1 - fall / 120);
       if (k <= 0.02) { Object.assign(d, spawn()); continue; }
@@ -148,23 +176,30 @@ export class RiftSpan {
     const g = this.g; g.clear(); if (this.p <= 0.001) return;
     const top = RIFT.ny - 2, bot = RIFT.sy, H = bot - top, L = LANE.x0, R = LANE.x1;
     const y0 = bot - H * this.p;
-    // shadow the slab throws down the far face, then the slab's thickness on its east edge (the side the camera sees)
-    g.fillStyle(0x000000, 0.35).fillRect(L + 6, y0 + 10, R - L - 2, bot - y0 - 6);
-    g.fillStyle(0x0b1620, 1); poly(g, [[R, y0], [R + 7, y0 + 9], [R + 7, bot + 6], [R, bot]]);
-    // one continuous deck: lighter where it meets the south floor, sinking darker toward the far lip (no rows, no steps)
+    // Deep drop shadow cast down onto the north cliff wall and into the abyss below
+    const shTop = Math.max(top + 4, y0 + 8), shBot = Math.min(bot - 2, bot + 8);
+    g.fillStyle(0x000000, 0.48 * this.p);
+    poly(g, [[R + 2, shTop], [R + 22, shTop + 6], [R + 26, shBot - 10], [R + 4, shBot - 10]]);
+    g.fillStyle(0x000000, 0.34 * this.p);
+    poly(g, [[L + 8, shTop + 4], [R + 30, shTop + 10], [R + 32, shBot - 6], [L + 12, shBot - 10]]);
+    // Visible underside/front structural thickness (east side face + leading underside beam)
+    g.fillStyle(0x0b1620, 1); poly(g, [[R, y0], [R + 11, y0 + 12], [R + 11, bot + 8], [R, bot]]);
+    g.fillStyle(0x142636, 0.9); poly(g, [[R + 1, y0 + 2], [R + 5, y0 + 6], [R + 5, bot + 4], [R + 1, bot]]);
+    if (this.p < 0.999) {
+      g.fillStyle(0x0d1b28, 1); poly(g, [[L, y0], [R, y0], [R + 11, y0 + 12], [L + 8, y0 + 12]]);
+    }
+    // One continuous concrete/tile deck: lighter where it meets the south floor, darker over the deep void
     const bands = 14;
     for (let i = 0; i < bands; i++) {
       const ya = y0 + (bot - y0) * i / bands, yb = y0 + (bot - y0) * (i + 1) / bands;
-      const k = (ya - top) / H;   // 0 far, 1 near
-      g.fillStyle(Phaser.Display.Color.GetColor(18 + 14 * k, 40 + 22 * k, 58 + 26 * k), 1).fillRect(L, ya, R - L, yb - ya + 0.5);
+      const k = (ya - top) / H;
+      g.fillStyle(Phaser.Display.Color.GetColor(20 + 16 * k, 44 + 24 * k, 64 + 26 * k), 1).fillRect(L, ya, R - L, yb - ya + 0.5);
     }
-    // grain runs along the span (north-south), like the room's floor boards turned to cross
     for (const gx of [L + 19, L + 38, L + 58, L + 77]) g.lineStyle(1, 0x2c5470, 0.35).lineBetween(gx, y0 + 2, gx, bot - 2);
-    // lit edges + the far end resting on the north lip
-    g.fillStyle(0x7aa4b8, 0.7).fillRect(L, y0, 1.5, bot - y0); g.fillStyle(0x3a5a6c, 0.8).fillRect(R - 1.5, y0, 1.5, bot - y0);
+    g.fillStyle(0x88b4c8, 0.85).fillRect(L, y0, 2, bot - y0);
+    g.fillStyle(0x4a6c80, 0.9).fillRect(R - 2, y0, 2, bot - y0);
     if (this.p > 0.98) g.fillStyle(0x0a121a, 0.9).fillRect(L, top, R - L, 3);
-    // the edge being written right now glows warm
-    if (this.p < 0.999) { g.fillStyle(0xf2dcb0, 0.85).fillRect(L, y0, R - L, 2); g.fillStyle(0xf2dcb0, 0.25).fillRect(L, y0 + 2, R - L, 5); }
+    if (this.p < 0.999) { g.fillStyle(0xf2dcb0, 0.9).fillRect(L, y0, R - L, 2.2); g.fillStyle(0xf2dcb0, 0.28).fillRect(L, y0 + 2, R - L, 5); }
   }
 }
 

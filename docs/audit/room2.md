@@ -1,5 +1,15 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-25 (c) — Pitfall perspective, lips, fast depth fade, bridge shadow
+
+- **Perspective shaft (`art/tools/rift12.py`).** Instead of horizontal slab shelves facing the ortho camera, the north, west, and east shaft walls extrude along perspective rays from the exact screen rim (`x 80..1200, ny 248, sy 404`) toward a vanishing throat at `(640, 392, -6.4)`.
+  - Vertical concrete pilasters along the far wall and recessed ribs along the side walls converge steeply inward.
+  - Lighting and depth shaders fall off fast from cool room-lit top lips and upper pilasters into cold blue-slate fog (`-954` slow drifting polygonal mist ribbons) and near-black at the bottom (`pit` mean lum ~12.3 vs `cliff` ~30.5 and `northLip` ~92.5).
+  - Debris is sparse (5 chunks scaled down with depth, 3 thin cables) with no slab rows.
+- **Lips & occlusion.** `fg/hub_rift.png` sits at `-960`; `fg/hub_rift_south.png` (broken bevel + subtle cool rim light) sits at `-932` (code-drawn straight south lip bars hidden when rendered), so mid-drop Noor (`-940`) falls behind the near lip. North lane stub joins seamlessly to the north lip.
+- **Bridge (`RiftSpan`).** Keeps the single continuous deck, now with an `11 px` structural east underside face and a two-layer drop shadow cast onto the far cliff wall and down into the pit.
+- **Stills:** `/workspace/l4r-hub-rift.png`, `/workspace/l4r-hub-rift-close-2x.png`, `/workspace/l4r-hub-bridge.png`, `/workspace/l4r-hub-bridge-close-2x.png`.
+
 ## 2026-11-25 (b) — Blender chasm, solid bridge, lamp base, no door glow
 
 - **Chasm.** `art/tools/rift12.py` renders the rift with the room camera (ortho 8.4, pitch 38, yaw -30) as an RGBA layer (`fg/hub_rift.png`, depth -960) that lands 1:1 between the lips.

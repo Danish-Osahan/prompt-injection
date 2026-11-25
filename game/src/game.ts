@@ -446,12 +446,13 @@ export class GameScene extends Phaser.Scene {
     }
 
     const lips = this.add.graphics().setDepth(-936); lips.name = 'hub-chasm-lips'; this.objs.push(lips);
-    // Near (south) slab: a short flat lip where the floor ends.
-    lips.fillStyle(0x000000, 0.85).fillRect(X0, SY - 8, W, 5);
-    lips.fillStyle(0x1a2834, 1).fillRect(X0, SY - 5, W, 5);
-    lips.fillStyle(0x4a6878, 1).fillRect(X0, SY - 2, W, 3);
-    lips.fillStyle(0xc8dce0, 0.55).fillRect(X0, SY - 2, W, 1.2);
-    this.scuffLip(lips, X0, X1, SY - 1);
+    if (!rendered) {
+      lips.fillStyle(0x000000, 0.85).fillRect(X0, SY - 8, W, 5);
+      lips.fillStyle(0x1a2834, 1).fillRect(X0, SY - 5, W, 5);
+      lips.fillStyle(0x4a6878, 1).fillRect(X0, SY - 2, W, 3);
+      lips.fillStyle(0xc8dce0, 0.55).fillRect(X0, SY - 2, W, 1.2);
+      this.scuffLip(lips, X0, X1, SY - 1);
+    }
     lips.fillStyle(0x05080c, 1).fillRect(WL, SY - 8, X0 - WL + 2, 14);
     lips.fillStyle(0x05080c, 1).fillRect(X1 - 2, SY - 8, WR - X1 + 2, 14);
 
