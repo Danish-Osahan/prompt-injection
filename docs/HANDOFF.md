@@ -1,5 +1,59 @@
 # HANDOFF
 
+## 2026-11-25 (b) — The Caret's job, the corridor guard, Blender chasm, re-rendered corridor
+
+Danishpreet's notes on `6bba1d2`:
+- The Caret's purpose was unclear; it just stuck to whatever he shot bolts at.
+- The corridor dummy had no reason to exist, and its dialogue was confusing.
+- The rift still read as a band, and the bridge looked like stairs.
+- The door glow was still painted on the floor, and the sentinel was small and drawn in code.
+- The lamp base was a black blob.
+- The corridor props didn't belong in the room.
+
+**Caret: one job.** It opens guarded things for writing. Full design in `docs/caret.md`.
+- F sends it into a guarded thing (Level 1: the corridor guard, `GUARDED = ['c_dummy']`). The thing's hidden line prints onto it, and the Caret parks at the end of the line until a word lands.
+- Words thrown at a locked line bounce off. Bolts and melee never touch the Caret: `caretBoltDest` returns the plain aim point, and the "cursor aims" hint is cut.
+- F does nothing at anything else.
+
+**Corridor guard** (`docs/audit/room3.md`):
+- It stands in front of the exit, QUICK. It swipes when Noor is close and sidesteps her hits.
+- First sight triggers two Fern lines in boxes and the `F  WRITE INTO IT` chip.
+- The Caret opens `GUARD IS QUICK`. Take STILL from the stopped clock and throw it in. The STILL guard freezes and tears under the TYPE combo, and the exit opens.
+- It is rendered in Blender (`art/tools/sentinel12.py`) at about 150 px tall.
+- Every corridor line now goes through a named, portrait box. The floating "IT ISN'T AWAKE." text is gone.
+
+**Corridor props.** The real corridor scene was edited and re-rendered (`rooms7.py` / `rooms8.py`), then graded and mask-merged into `corridor_{dark,lit}{,_bleed}.jpg`, with the original renders kept under `art/render/rooms12c`.
+- The lamp is now a fluorescent wall fitting.
+- The umbrella, bucket and drip ring, tape, mat and boxes are gone.
+- Fern's note is an index card.
+- New: blank `[NAME]` staff portraits and an EXIT sign, which has a buzz loop and replaces the old drip loop.
+
+**Hub** (`docs/audit/room2.md`):
+- The Blender chasm layer replaces the code band (`art/tools/rift12.py` → `fg/hub_rift.png`).
+- The bridge is one solid deck with no rows.
+- The lamp plinth is lit, and the door glow is patched out.
+
+**Playtest:** 264/264. New checks:
+- the guard's line is hidden at first, and hits on the QUICK guard do nothing;
+- a word bounces off the locked line;
+- the first-use hint;
+- F opens the line;
+- a named box speaks at the open-line moment;
+- the Caret stays parked until a word lands;
+- bolts never move the Caret;
+- STILL lands and the Caret comes home;
+- the floating "IT ISN'T AWAKE." text is gone;
+- the STILL guard tears;
+- sending the Caret at a non-guarded thing is refused.
+
+**Weak spots:**
+- The chasm is a static render; only the debris moves.
+- The guard is one rendered pose; hits and the freeze are code tweens.
+- The moth loop over the lamp reads as a pale scrap.
+- A painted desk ghost still shows behind the hub lamp.
+- The clock is still round.
+- The Draft in the arena does not use the Caret yet.
+
 ## 2026-11-25 — No door: the rift is the puzzle; one take key; one cursor; corridor sentinel
 
 Danishpreet's notes: E and F could both take power; two cursors on screen; the corridor dummy and UI looked boring; the hub door made no sense when you could dash the rift anywhere; and he couldn't tell the hub lamp was a lamp.

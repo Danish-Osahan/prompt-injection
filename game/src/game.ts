@@ -96,6 +96,9 @@ export interface Enemy {
 }
 interface Prompt { id: string; kb: string; touch: string; text: Phaser.GameObjects.Text; chip?: InteractChip; done: () => boolean }
 
+/** Things that hide their words until the Caret goes in (Level 1: the corridor guard). */
+const GUARDED = ['c_dummy'];
+
 export class GameScene extends Phaser.Scene {
   save!: Save;
   ctl!: Controls;
@@ -109,6 +112,9 @@ export class GameScene extends Phaser.Scene {
   caretMode: 'hidden' | 'trapped' | 'jumping' | 'follow' | 'travel' | 'sent' = 'hidden';
   caretOwned = false;
   caretSentAt = 0;
+  /** Plate the Caret is parked in, holding its line open for the next word (the Caret's job). */
+  caretWriting?: string;
+  private guardLine: string | null = null;
   private caretBox?: Phaser.GameObjects.Graphics;
   private caretMark?: Phaser.GameObjects.Graphics;
   private hubNorthOcclude: Record<string, Phaser.GameObjects.Image> = {};
@@ -137,7 +143,7 @@ export class GameScene extends Phaser.Scene {
   lineToast?: Phaser.GameObjects.Container;
   hudHidden = false;
   darkness: Phaser.GameObjects.Image | null = null;
-  flags = { span: false, lit: false, drained: false, bridge: false, quick: false, dry: false, apart: false };
+  flags = { span: false, lit: false, drained: false, bridge: false, still: false, dry: false, apart: false };
   roomVis: Record<string, Phaser.GameObjects.GameObject> = {};
   art = false; bg: Record<string, Phaser.GameObjects.Image> = {};
   subQueue: { who: string; line: string; ms: number }[] = []; subBusy = false;
@@ -403,7 +409,9 @@ export class GameScene extends Phaser.Scene {
     this.scuffLip(cliff, X0, X1, NY - 2);
 
     // Flat front face: horizontal strata / expansion joints, no rounded wrap lighting.
-    const bands = [0x3a5464, 0x2e4454, 0x243848, 0x1c303e, 0x162830];
+    // art-v12: with the Blender chasm loaded, the render's own lit slab edge is the face (no code bands, no cables).
+    const rendered = this.textures.exists('hub_rift');
+    const bands = rendered ? [] : [0x3a5464, 0x2e4454, 0x243848, 0x1c303e, 0x162830];
     for (let i = 0; i < bands.length; i++) {
       const y = NY + (FACE * i) / bands.length;
       const h = Math.ceil(FACE / bands.length) + 1;
@@ -411,21 +419,19 @@ export class GameScene extends Phaser.Scene {
       cliff.fillStyle(0x0a1218, 0.35).fillRect(X0, y + h - 1, W, 1);
     }
     // Vertical expansion joints (flat slab, not fluting that can read as a pipe).
-    for (let x = X0 + 40; x < X1; x += 160) {
+    for (let x = X0 + 40; x < X1 && !rendered; x += 160) {
       cliff.fillStyle(0x0c141c, 0.45).fillRect(x, NY + 1, 2, FACE - 2);
     }
     // Hard shadow under the face, then the void.
-    cliff.fillStyle(0x000000, 0.7).fillRect(X0, FOOT - 3, W, 5);
-    cliff.fillStyle(0x000000, 1).fillRect(X0, FOOT, W, 8);
+    if (!rendered) { cliff.fillStyle(0x000000, 0.7).fillRect(X0, FOOT - 3, W, 5); cliff.fillStyle(0x000000, 1).fillRect(X0, FOOT, W, 8); }
 
     // Side returns: short notches into the inner wall, blended, not square cutouts.
     cliff.fillStyle(0x05080c, 1).fillRect(WL, NY, X0 - WL + 2, SY - NY + 4);
     cliff.fillStyle(0x05080c, 1).fillRect(X1 - 2, NY, WR - X1 + 2, SY - NY + 4);
-    cliff.fillStyle(0x1a303c, 1).fillRect(X0, NY, 8, FACE);
-    cliff.fillStyle(0x1a303c, 1).fillRect(X1 - 8, NY, 8, FACE);
+    if (!rendered) { cliff.fillStyle(0x1a303c, 1).fillRect(X0, NY, 8, FACE); cliff.fillStyle(0x1a303c, 1).fillRect(X1 - 8, NY, 8, FACE); }
 
     // Cables hang in the void (behind a mid-dash Noor).
-    const cableG = this.add.graphics().setDepth(-944); cableG.name = 'hub-chasm-cables'; this.objs.push(cableG);
+    const cableG = this.add.graphics().setDepth(-944).setVisible(!rendered); cableG.name = 'hub-chasm-cables'; this.objs.push(cableG);
     const cables = [
       { x: 132, drop: 110, bow: 10 }, { x: 268, drop: 128, bow: -9 },
       { x: 404, drop: 100, bow: 8 }, { x: 812, drop: 122, bow: 12 },
@@ -1044,7 +1050,7 @@ export class GameScene extends Phaser.Scene {
       this.dyn.dark = { x: 600, y: 330, w: 24, h: 140 };
       // steal path: no READ / code-vision prompt
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
-      this.spawnEnemy('dummy', 1110, 384);
+      this.spawnEnemy('dummy', 1160, 446);
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
     if (id === 'archive') {
@@ -1139,15 +1145,12 @@ export class GameScene extends Phaser.Scene {
       this.addPrompt('move', 0, 0, 'WASD  move', 'drag  to move', () => this.moved > 80);
     }
     this.addPrompt('throw', 0, 0, 'F  throw', 'TAP  throw', () => this.hintThrowDone(), () => this.holdingQuality());
-    this.addPrompt('caretSend', 0, 0, 'F  send the cursor', 'TAP  send the cursor',
+    this.addPrompt('caretSend', 0, 0, 'F  write into it', 'TAP  write into it',
       () => this.caretSendOnce || this.save.tutorials.includes('caretSend'),
-      () => this.caretOwned && !this.hand && this.caretMode === 'follow' && !!this.caretSendTarget());
-    this.addPrompt('caretAim', 0, 0, 'HOLD J  the cursor aims', 'HOLD TYPE  the cursor aims',
-      () => this.selectN > 0 || this.save.tutorials.includes('caretAim') || this.save.tutorials.includes('select'),
-      () => this.caretOwned && this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
+      () => this.caretOwned && this.caretMode === 'follow' && !!this.caretSendTarget());
     this.addPrompt('attack', 0, 0, 'J  attack', 'TAP  attack',
       () => this.didAttack,
-      () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick)));
+      () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.still)));
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash,
       () => this.enemies.some(e => !e.dead));
@@ -1224,12 +1227,48 @@ export class GameScene extends Phaser.Scene {
     fig.add([head, flash]);
     fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash);
   }
+  /** art-v12: the Blender-rendered Sentinel (tailor's form of blank claim sheets, iron stand, blank ID-card head).
+   *  The game prints the name on the card: NOOR in red while it guards, greyed once it is STILL. */
+  drawSentinel(fig: Phaser.GameObjects.Container) {
+    const S = 0.45;
+    const img = this.add.image(0, 0, 'sentinel').setOrigin(83 / 165, 418 / 467).setScale(S);
+    const head = this.add.container(0, -380 * S);
+    const lab = this.add.text(0, 1, 'NOOR', { fontFamily: 'IBM Plex Mono', fontSize: '12px', fontStyle: '700', color: '#b8342c' }).setOrigin(0.5);
+    head.add(lab);
+    const flash = this.add.rectangle(0, -95, 64, 190, 0xffffff, 0).setOrigin(0.5);
+    // its line, printed on a strip across the chest: hidden until the Caret opens it
+    const strip = this.add.container(0, -104).setVisible(false);
+    const sbg = this.add.rectangle(0, 0, 10, 15, 0xe6dfcd, 1).setStrokeStyle(1, 0x5a5446, 0.9);
+    const stx = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '11px', fontStyle: 'bold', color: '#1a1c22' }).setOrigin(0.5);
+    strip.add([sbg, stx]);
+    fig.add([img, head, strip, flash]);
+    fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
+  }
+  /** Print (or type out) the guard's line on its chest strip; returns the strip's right end in world space. */
+  setGuardLine(text: string | null, type = false) {
+    const e = this.enemies.find(n => n.kind === 'dummy'); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
+    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined; if (!strip) return;
+    const stx = fig!.getData('stripText') as Phaser.GameObjects.Text, sbg = fig!.getData('stripBg') as Phaser.GameObjects.Rectangle;
+    this.guardLine = text;
+    if (!text) { strip.setVisible(false); return; }
+    strip.setVisible(true);
+    const fit = (s: string) => { stx.setText(s); sbg.setSize(Math.max(10, stx.width + 10), 15); sbg.setOrigin(0.5); };
+    this.tweens.killTweensOf(stx);
+    if (!type) { fit(text); return; }
+    fit(text); const full = text; const o = { n: 0 };
+    this.tweens.add({ targets: o, n: full.length, duration: 520, onUpdate: () => stx.setText(full.slice(0, Math.round(o.n))), onComplete: () => stx.setText(full) });
+  }
+  guardLineEnd() {
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
+    const sbg = fig?.getData('stripBg') as Phaser.GameObjects.Rectangle | undefined;
+    return e ? { x: e.x + (sbg ? sbg.width / 2 : 40) + 6, y: e.y - 104 } : null;
+  }
   /** The empty field fills with her name when the sentinel wakes; empties again if it sleeps. */
   setDummyAwake(e: Enemy, on: boolean) {
     const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined;
     const lab = fig?.getData('label') as Phaser.GameObjects.Text | undefined;
     if (!lab) return;
-    lab.setText(on ? 'NOOR' : '[NAME]').setColor(on ? '#b8342c' : '#7a6a58').setFontSize(on ? 12 : 10);
+    lab.setText('NOOR').setColor(on ? '#b8342c' : '#6a6458');
   }
   drawScribble(body: Phaser.GameObjects.Graphics) {
     body.lineStyle(4, 0x0c0e1e, 1);
@@ -1325,7 +1364,10 @@ export class GameScene extends Phaser.Scene {
     const g = this.add.container(x, y); const body = this.add.graphics(); g.add(body);
     const sh: Phaser.GameObjects.Shape | null = kind === 'draft' ? null : kind === 'dummy' ? this.add.rectangle(2, 2, 50, 6, 0, 0.45) : this.add.ellipse(0, 0, kind === 'note' ? 16 : 40, 10, 0, 0.4); if (sh) g.addAt(sh, 0);
     const hp = { dummy: 6, scribble: 3, note: 1, draft: DRAFT.hp, redline: 5, stapler: 6 }[kind];
-    if (kind === 'dummy') { const fig = this.add.container(0, 0).setScale(1.2); g.remove(body); fig.add(body); g.add(fig); g.setData('fig', fig); this.drawPaperDummy(body, fig); }
+    if (kind === 'dummy') {
+      const fig = this.add.container(0, 0); g.remove(body); fig.add(body); g.add(fig); g.setData('fig', fig);
+      if (this.textures.exists('sentinel')) this.drawSentinel(fig); else { fig.setScale(1.2); this.drawPaperDummy(body, fig); }
+    }
     if (kind === 'scribble') this.drawScribble(body);
     if (kind === 'note') { body.fillStyle(0xf2dc6a, 1).fillRect(-9, -28, 18, 18); body.fillStyle(0xd8c050, 1).fillRect(-9, -14, 18, 4); body.lineStyle(1, 0x6a5a28, 0.45).lineBetween(-6, -22, 5, -22).lineBetween(-6, -17, 3, -17); }
     if (kind === 'draft') this.drawDraft(g, body);
@@ -1346,7 +1388,13 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: e.g, rotation: { from: 0.16 * sgn * Math.min(2, dmg), to: 0 }, duration: 520, ease: 'Elastic.easeOut' });
       return;
     }
-    if (e.kind === 'dummy' && !this.flags.quick) { if (!this.roomVis.dummyMsg) { this.roomVis.dummyMsg = this.floorText(e.x, e.y - 110, "IT ISN'T AWAKE.", C.dim, 16, 1600); this.time.delayedCall(1800, () => delete this.roomVis.dummyMsg); } return; }
+    if (e.kind === 'dummy' && !this.flags.still) {   // the guard is QUICK: it reads every blow and steps out of it
+      const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined; const sgn = Math.sign(kx || (e.x - this.x) || 1);
+      if (fig) { this.tweens.killTweensOf(fig); fig.setX(0); this.tweens.add({ targets: fig, x: { from: -10 * sgn, to: 0 }, duration: 240, ease: 'Back.easeOut' }); }
+      sfx('hit');
+      if (!this.save.seen.includes('guardDodge')) { this.save.seen.push('guardDodge'); this.say('fern', "It's quicker than you. Hitting it won't work.", 2600, { box: true }); this.say('fern', 'Change what it is first.', 2000, { box: true }); }
+      return;
+    }
     if (e.kind === 'draft' && this.fight) dmg = this.fight.modify(e, dmg);
     if (e.kind === 'scribble' && this.flags.dry) { dmg *= 2; this.floorText(e.x, e.y - 70, 'CRACK x2', C.ok, 13, 500); }
     if (e.kind === 'scribble' && e.wet) { dmg *= 1.5; this.floorText(e.x, e.y - 86, 'MELT', C.cyan, 13, 500); }
@@ -1370,7 +1418,7 @@ export class GameScene extends Phaser.Scene {
       e.dead = true; this.combat?.onKill(e, 'combo'); this.save.defeated.push(e.kind === 'note' ? 'note' + e.phase : e.kind);
       this.tweens.killTweensOf(e.g); e.flash?.clear();
       this.paperDrift(e);
-      if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'Good. It woke up.', 2200); }
+      if (e.kind === 'dummy') { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); this.say('fern', 'It tore. The exit is open.', 2400, { box: true }); }
       if (e.kind === 'draft') { this.time.delayedCall(2400, () => { this.plateById('r_line')?.setVisibleState(!this.save.lines.includes('r_line')); this.ambState(); }); this.dyn.arenaDoor = null; this.say('noor', '...So did I.', 2200); }
       writeSave(this.save);
     }
@@ -1391,8 +1439,8 @@ export class GameScene extends Phaser.Scene {
       if (this.combat && (e as Enemy & { gb?: string }).gb) { continue; }  // CombatGreybox owns AI
       if (e.kind === 'dummy') {
         const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined, head = fig?.getData('head') as Phaser.GameObjects.Container | undefined;
-        if (head) head.setRotation(this.flags.quick ? (Math.sin(this.t * 11 + e.phase) > 0.95 ? 0.16 : 0) : 0.1 * Math.sin(this.t * 0.55));
-        if (!this.flags.quick) { e.state = 'idle'; e.g.setRotation(0); }
+        if (head) head.setRotation(this.flags.still ? -0.22 : (Math.sin(this.t * 11 + e.phase) > 0.95 ? 0.16 : 0.04 * Math.sin(this.t * 1.7)));
+        if (this.flags.still || (d > 190 && e.state === 'idle')) { if (this.flags.still) { e.state = 'idle'; e.g.setRotation(0); } }
         else {
           const wind = (e.swipeN ?? 0) === 0 ? 1.15 : 0.8;
           if (e.state === 'idle' && e.t <= 0) { e.state = 'windup'; e.t = wind; }
@@ -1587,16 +1635,20 @@ export class GameScene extends Phaser.Scene {
       if (f.lit) help('lamp');
       if (f.lit && !was.lit && !initial) {
         this.playScribbleBirth(560, 400);
-        this.say('fern', 'Complaints. People typed so many, they grew teeth.', 2800);
-        this.time.delayedCall(3000, () => this.say('fern', 'Left you a note. Down there.', 2000));
+        this.say('fern', 'Complaints. People typed so many, they grew teeth.', 2800, { box: true });
+        this.time.delayedCall(3000, () => this.say('fern', 'I left you a note on the wall.', 2000, { box: true }));
       }
-      f.quick = w('c_dummy') === 'QUICK';
-      if (f.quick) help('dummy');
-      { const dd = this.enemies.find(e => e.kind === 'dummy'); if (dd) this.setDummyAwake(dd, f.quick); }
-      if (f.quick && !was.quick && !initial) {
+      f.still = w('c_dummy') === 'STILL';
+      if (f.still) help('dummy');
+      if (this.save.seen.includes('guardOpen')) this.plateById('c_dummy')?.setVisibleState(true);
+      { const gp = this.plateById('c_dummy'); const gl = gp?.visible ? gp.words.join(' ') : null; if (initial || gl !== this.guardLine) this.setGuardLine(gl); }
+      { const dd = this.enemies.find(e => e.kind === 'dummy'); if (dd) this.setDummyAwake(dd, !f.still); }
+      if (f.still && !was.still && !initial) {
         const d = this.enemies.find(e => e.kind === 'dummy' && !e.dead);
-        if (d) { d.swipeN = 0; d.state = 'idle'; d.t = 0.35; this.setDummyAwake(d, true); }
-        this.say('fern', 'J to type. Dash through the swipe.', 2600);
+        if (d) { d.state = 'idle'; d.t = 0.5; this.setDummyAwake(d, false); }
+        this.caretWriting = undefined; if (this.caretMode === 'sent') { this.caretSentAt = this.t - 3.4; }
+        this.say('fern', "It's still now. Still paper tears.", 2400, { box: true });
+        this.say('fern', 'J to strike.', 1600, { box: true });
       }
     }
     if (id === 'archive') {
@@ -1707,8 +1759,8 @@ export class GameScene extends Phaser.Scene {
     }
     if (id === 'hub') { for (const a of A('clock')) { const fwd = w('h_clock') === 'FORWARD'; a.dir = fwd ? -1 : 1; a.speed = fwd ? 3 : 1; } }
     if (id === 'corridor') {
-      const toBucket = w('c_moth') === 'DRIP';
-      for (const a of A('moth')) { this.tweens.killTweensOf(a.spr); this.tweens.add({ targets: a.spr, x: a.ox + (toBucket ? 364 : 0), y: a.oy + (toBucket ? 70 : 0), duration: initial ? 0 : 1600, ease: 'Sine.easeInOut' }); }
+      const toExit = w('c_moth') === 'OUT';
+      for (const a of A('moth')) { this.tweens.killTweensOf(a.spr); this.tweens.add({ targets: a.spr, x: a.ox + (toExit ? 800 : 0), y: a.oy + (toExit ? -80 : 0), duration: initial ? 0 : 2200, ease: 'Sine.easeInOut' }); }
     }
     if (id === 'archive') {
       const sunk = w('a_duck') !== 'AFLOAT';
@@ -1857,6 +1909,7 @@ export class GameScene extends Phaser.Scene {
 
   setupCaretForRoom(id: string) {
     this.caretBox?.destroy(); this.caretBox = undefined;
+    if (id === 'corridor' && !this.save.seen.includes('caret')) this.save.seen.push('caret');   // the Caret always leaves the hub with her
     const owned = this.save.seen.includes('caret');
     this.caretOwned = owned;
     if (id === 'hub' && !owned) { this.placeTrappedCaret(); return; }
@@ -1906,50 +1959,53 @@ export class GameScene extends Phaser.Scene {
           targets: this.caret, x: h.x, y: h.y, scale: 0.45, duration: 280, ease: 'Back.easeOut',
           onComplete: () => {
             this.caretMode = 'follow';
-            this.say('fern', "That's yours. It's where your next word goes.", 2600, { box: true });
-            this.say('fern', 'It took everything you wrote. Not that.', 2600);
+            this.say('fern', "That's your cursor. They took your words, not that.", 2600, { box: true });
+            this.say('fern', 'Some things hide their words. Send it in, and you can write there.', 3000, { box: true });
           },
         });
       },
     });
   }
 
-  /** Nearest stealable plate (or live foe) in facing range for F-send. */
-  caretSendTarget(): { x: number; y: number; plate?: Plate; enemy?: Enemy } | null {
-    if (!this.caretOwned) return null;
-    const v = this.dirVec();
-    const R = 420;
-    type Hit = { x: number; y: number; d: number; plate?: Plate; enemy?: Enemy };
-    let best: Hit | null = null;
-    const consider = (x: number, y: number, extra: Partial<Hit>) => {
-      const dx = x - this.x, dy = y - this.y, d = Math.hypot(dx, dy);
-      if (d < 40 || d > R) return;
-      const dot = (dx * v.x + dy * v.y) / (d || 1);
-      if (dot < 0.15 && d > 160) return;
-      const score = d - dot * 40;
-      if (!best || score < best.d) best = { x, y, d: score, ...extra };
-    };
-    // F never takes: the Caret is only sent at foes. Words are taken with E (hold).
-    for (const e of this.enemies) {
-      if (e.dead) continue;
-      if (e.kind === 'dummy' && !this.flags.quick) continue;
-      consider(e.x, e.y - 24, { enemy: e });
-    }
-    return best;
+  /** The Caret's one job: it goes into a thing that hides its words and opens its line for writing.
+   *  Level 1 has one such thing, the corridor guard (c_dummy, hidden until the Caret opens it). */
+  caretSendTarget(any = false): { x: number; y: number; plate?: Plate; enemy?: Enemy } | null {
+    if (!this.caretOwned || this.room?.id !== 'corridor') return null;
+    const p = this.plateById('c_dummy'); const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+    if (!p || !e || p.visible) return null;
+    if (!any && Math.hypot(e.x - this.x, e.y - this.y) > 460) return null;
+    return { x: e.x + 40, y: e.y - 96, plate: p, enemy: e };
   }
 
+  /** F: the Caret flies into the guard, and the guard's hidden line types itself out under it. */
   sendCaret(to?: { x: number; y: number; plate?: Plate; enemy?: Enemy } | null) {
     if (!this.caretOwned || this.caretMode === 'trapped') return false;
     const tgt = to ?? this.caretSendTarget();
-    const dest = tgt ?? (() => { const v = this.dirVec(); return { x: this.x + v.x * 140, y: this.y + v.y * 140 }; })();
-    this.guideCaretTo(dest.x, dest.y, () => {
+    if (!tgt || !tgt.plate || !GUARDED.includes(tgt.plate.def.id) || tgt.plate.visible) return false;   // nothing else hides its words
+    this.guideCaretTo(tgt.x, tgt.y, () => {
       this.caretSendOnce = true;
       if (!this.save.tutorials.includes('caretSend')) this.save.tutorials.push('caretSend');
-      const plate = tgt && 'plate' in tgt ? tgt.plate : undefined;
-      this.caretMode = plate ? 'follow' : 'sent';
-      this.caretSentAt = this.t;
+      this.caretMode = 'sent'; this.caretSentAt = this.t;
+      this.openGuardedLine(tgt.plate!);
     });
     return true;
+  }
+
+  openGuardedLine(p: Plate) {
+    this.caretWriting = p.def.id;
+    if (!this.save.seen.includes('guardOpen')) this.save.seen.push('guardOpen');
+    p.setVisibleState(true); this.setGuardLine(p.words.join(' '), true);
+    sfx('swap'); this.cameras.main.shake(120, 0.003);
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+    const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined; const fl = fig?.getData('flash') as Phaser.GameObjects.Rectangle | undefined;
+    if (fl) { this.tweens.killTweensOf(fl); fl.setFillStyle(0x1afff0, 1).setAlpha(0.35); this.tweens.add({ targets: fl, alpha: 0, duration: 420 }); }
+    if (!this.save.seen.includes('guardOpenSaid')) {
+      this.save.seen.push('guardOpenSaid');
+      this.say('noor', "My cursor's in it. I can see its line.", 2400, { box: true });
+      this.say('fern', 'GUARD IS QUICK. Give it a slower word.', 2600, { box: true });
+    }
+    try { writeSave(this.save); } catch { /* */ }
+    this.evaluate(false);
   }
 
   /** Visibly move the Caret to a point, then run onArrive. */
@@ -1969,12 +2025,9 @@ export class GameScene extends Phaser.Scene {
 
   /** Where a typed bolt should land: the Caret, sent to the target first. */
   caretBoltDest(fallback: { x: number; y: number }) {
-    if (!this.caretOwned) return fallback;
-    const e = this.aimTarget(BEAM_R);
-    const dest = e ? { x: e.x, y: e.y - 28 } : (this.caretMode === 'sent' ? { x: this.caret.x, y: this.caret.y } : fallback);
-    if (Math.hypot(dest.x - this.caret.x, dest.y - this.caret.y) > 12) this.guideCaretTo(dest.x, dest.y);
-    return dest;
+    return fallback;   // bolts never touch the Caret: its only job is writing into guarded things
   }
+
 
   updateCaret(dt: number, held = false, control = false) {
     if (!this.caret) return;
@@ -1998,6 +2051,11 @@ export class GameScene extends Phaser.Scene {
     if (this.caretMode === 'sent') {
       // Hide the pale sprite; the code-drawn I-beam is the parked cursor.
       this.caret.setDepth(3600).setAlpha(0);
+      if (this.caretWriting) {   // parked in the guard's line, blinking where the next word goes
+        const p = this.plateById(this.caretWriting); const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+        if (!p || !e || this.flags.still) this.caretWriting = undefined;
+        else { const q = this.guardLineEnd(); if (q) this.caret.setPosition(q.x, q.y + 8); this.caretSentAt = this.t; }
+      }
       if (this.t - this.caretSentAt > 4) { this.caret.setAlpha(1); this.caretMode = 'follow'; }
       this.drawCaretMark();
       return;
@@ -2242,7 +2300,7 @@ export class GameScene extends Phaser.Scene {
     const f = this.flags, h = this.hand;
     if (this.room.id === 'hub' && !f.span) return h ? 'h_rift' : 'h_lamp';
     if (this.room.id === 'corridor' && !f.lit) return h ? 'c_light' : 'c_switch';
-    if (this.room.id === 'corridor' && !f.quick) return h ? 'c_dummy' : 'c_clock';
+    if (this.room.id === 'corridor' && !f.still) return !this.plateById('c_dummy')?.visible ? 'c_dummy' : h ? 'c_dummy' : 'c_clock';
     if (this.room.id === 'archive' && !f.drained) return h ? 'a_water' : 'a_drawer';
     if (this.room.id === 'archive' && !f.bridge) return h ? 'a_bridge' : 'a_stairs';
     return null;
@@ -2625,6 +2683,12 @@ export class GameScene extends Phaser.Scene {
       const sendTo = this.caretSendTarget();
       if (sendTo && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.sendCaret(sendTo);
     }
+    // First sight of the guard: the Caret's job, said once, in one line each, by a named speaker.
+    if (this.room?.id === 'corridor' && control && this.x > 840 && !this.save.seen.includes('guardIntro') && this.caretSendTarget()) {
+      this.save.seen.push('guardIntro');
+      this.say('fern', 'That guard blocks the exit. It hides its words.', 2600, { box: true });
+      this.say('fern', 'Send your cursor in. Then you can write on it.', 2600, { box: true });
+    }
     this.darkness?.setPosition(this.x, this.y - 30);
 
     if (control && f.interact && !this.composer) {
@@ -2663,7 +2727,7 @@ export class GameScene extends Phaser.Scene {
 
   typeAttack() {
     if (this.swingT > 0) return;
-    if (this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.quick))) this.didAttack = true;
+    if (this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.still))) this.didAttack = true;
     this.combo = this.comboT > 0 ? (this.combo % 3) + 1 : 1;
     const hit = this.combo; this.comboT = 0.55; this.swingT = hit === 3 ? 0.32 : 0.22;
     // art-v11: auto-aim at the nearest enemy in range (turn to it, small step in if it is just out of reach)
@@ -2858,7 +2922,7 @@ export class GameScene extends Phaser.Scene {
       introMail: !!this.intro?.mailOpen?.(),
       introCursor: this.intro?.cursorState?.() ?? null,
       caretChip: this.caretChip ? { visible: this.caretChip.isShown(), key: this.caretChip.currentKey(), verb: this.caretChip.currentVerb() } : null,
-      caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible },
+      caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible, writing: this.caretWriting ?? null },
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
@@ -2924,10 +2988,7 @@ export class GameScene extends Phaser.Scene {
       forceMailHold: () => this.intro?.forceHold?.() ?? false,
       forceDraftCursor: () => this.intro?.forceCursor?.() ?? false,
       sendCaret: (id?: string) => {
-        if (id === 'dummy' || id === 'enemy') {
-          const e = this.enemies.find(en => !en.dead);
-          if (e) return this.sendCaret({ x: e.x, y: e.y - 24, enemy: e });
-        }
+        if (id === 'dummy' || id === 'guard') return this.sendCaret(this.caretSendTarget(true));
         if (id) {
           const p = this.plateById(id);
           if (p) return this.sendCaret({ x: p.def.sx, y: p.def.sy, plate: p });
@@ -2953,7 +3014,7 @@ export class GameScene extends Phaser.Scene {
       invuln: (s: number) => { this.iframes = s; },
       perfectDodge: (src: string) => { this.iframes = 0.3; this.dashT = 0.15; this.dashStartAt = this.t; return this.hurtNoor(src); },
       press: (a: 'root') => this.ctl.trigger(a),
-      damageAll: () => { for (const e of this.enemies) if (!e.dead) { if (e.kind === 'dummy' && !this.flags.quick) continue; this.hurtEnemy(e, 99, 0, 0); } },
+      damageAll: () => { for (const e of this.enemies) if (!e.dead) { if (e.kind === 'dummy' && !this.flags.still) continue; this.hurtEnemy(e, 99, 0, 0); } },
       combat: (k: string, a?: string, b?: string) => {
         const c = this.combat; if (!c) return false;
         if (k === 'ink') { c.ink = Number(a); return c.ink; }

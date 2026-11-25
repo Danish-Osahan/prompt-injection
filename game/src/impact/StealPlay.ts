@@ -57,7 +57,7 @@ const LINKS: Partial<Record<RoomId, Link[]>> = {
   hub: [{ src: 'h_lamp', quality: 'FLOOR', dst: 'h_rift' }],
   corridor: [
     { src: 'c_switch', quality: 'ON', dst: 'c_light' },
-    { src: 'c_clock', quality: 'QUICK', dst: 'c_dummy' },
+    { src: 'c_clock', quality: 'STILL', dst: 'c_dummy' },
   ],
   archive: [
     { src: 'a_drawer', quality: 'LOW', dst: 'a_water' },
@@ -147,6 +147,8 @@ export class StealPlay {
     const f = this.s.ctl.read();
     if (this.keyU && Phaser.Input.Keyboard.JustDown(this.keyU)) this.undo();
     if (this.held && this.keyF && Phaser.Input.Keyboard.JustDown(this.keyF)) {
+      // A guarded thing has no line to throw at yet: F sends the Caret in first, the word stays in hand.
+      if (this.s.caretMode === 'follow' && this.s.caretSendTarget()) { this.s.sendCaret(); return; }
       this.throwAt();
       return;
     }
@@ -339,6 +341,7 @@ export class StealPlay {
       const e = this.s.enemies[+dest.slice(3)];
       return !!e && (ENEMY_COUNTER[word] ?? []).includes(e.kind);
     }
+    const p = this.s.plateById(dest); if (p && !p.visible) return false;   // a hidden (guarded) line can't be written until the Caret opens it
     return (STICKS[word] ?? []).includes(dest);
   }
 

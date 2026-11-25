@@ -82,17 +82,17 @@ export const LINGER: Record<RoomId, Linger> = {
   corridor: {
     plates: [
       toy('c_moth', ['MOTH', 'WANTS', 'LAMP'], 360, 250, 430, 350, 'A moth keeps the lamp company. It wants the {}.', 'moth.wants'),
-      toy('c_bucket', ['BUCKET', 'WANTS', 'DRIP'], 724, 330, 724, 362, 'A bucket under a slow leak. It wants the {}.', 'bucket.wants'),
-      look('c_umbrella', 486, 312, 486, 362, 'An umbrella, bone dry, in a corridor with no weather.', 'umbrella.wet', 'FALSE'),
-      look('c_tape', 834, 425, 834, 446, 'Tape on the floor where a desk used to be. It left in a hurry.', 'desk.owner', '"kabir"'),
-      look('c_drip', 724, 300, 690, 400, 'Something upstairs is leaking, one patient drop at a time.', 'leak.source', '"floor 3"'),
+      toy('c_exit', ['EXIT', 'WANTS', 'OUT'], 1173, 186, 1110, 236, 'An EXIT sign over the only way on. It wants {}.', 'exit.wants'),
+      look('c_frames', 566, 276, 566, 362, 'Three staff portraits. Nobody filled in the faces.', 'staff.faces', '"[NAME]"'),
+      look('c_door', 1210, 330, 1180, 600, 'The exit. No handle on this side, just a guard.', 'exit.handle', 'NONE'),
+      look('c_scuff', 940, 430, 930, 460, 'Scuffs on the floor, in a line. Something paced here for years.', 'guard.route', '"door -> door"'),
       line('c_line', 236, 256, 248, 300, L('c_line')),
       line('c_line2', 500, 420, 510, 430, L('c_line2')),
       line('c_line3', 1080, 500, 1070, 520, L('c_line3')),
     ],
     idle: ['In the dark you can hear the building think. Mostly about you.', 'The moth has moved an inch to the left. It calls this progress.'],
     all: { say: 'You touched everything in a dark corridor. Brave, or just lonely.', code: 'corridor.length', val: '"longer than yesterday"', sx: 640, sy: 290 },
-    toy: 'The moth goes to the bucket. The bucket looks up at the lamp. Nothing drips upward.', toyBack: 'The moth remembers the lamp. The bucket stops hoping.',
+    toy: 'The moth heads for the exit. The sign glows a little warmer.', toyBack: 'The moth comes back to the lamp. The sign goes back to waiting.',
   },
   archive: {
     plates: [

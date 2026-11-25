@@ -21,8 +21,14 @@ const poly = (g: Phaser.GameObjects.Graphics, pts: number[][]) => g.fillPoints(p
 export function drawRiftDetail(s: Scene) {
   const { x0, x1, ny, face, sy } = RIFT; const foot = ny + face;
   const r = rng(4471);
+  // art-v12: the chasm itself is a Blender render (storeys of slab, ceiling void and rebar sinking into cold fog),
+  // composited 1:1 under the lips. The code keeps only the south-lip bites, the lane stubs and the falling debris.
+  if (s.textures.exists('hub_rift')) {
+    const im = s.add.image(0, 236, 'hub_rift').setOrigin(0).setDepth(-960); im.name = 'hub-rift-render'; s.objs.push(im);
+  }
+  const rendered = s.textures.exists('hub_rift');
   // Depth: faint cold shafts far down, uneven along the length (not a uniform strip).
-  const deep = s.add.graphics().setDepth(-966); deep.name = 'hub-rift-deep'; s.objs.push(deep);
+  const deep = s.add.graphics().setDepth(-966).setVisible(!rendered); deep.name = 'hub-rift-deep'; s.objs.push(deep);
   for (const c of [{ x: 190, w: 70, a: 0.05 }, { x: 452, w: 46, a: 0.035 }, { x: 905, w: 90, a: 0.045 }, { x: 1110, w: 40, a: 0.03 }]) {
     for (let i = 0; i < 7; i++) {
       deep.fillStyle(0x2a5a6a, c.a * (1 - i / 7));
@@ -30,7 +36,7 @@ export function drawRiftDetail(s: Scene) {
     }
   }
   // Floating broken slabs at different depths: lit top edge, dark mass, smaller + dimmer as they recede.
-  const slabs = s.add.graphics().setDepth(-958); slabs.name = 'hub-rift-slabs'; s.objs.push(slabs);
+  const slabs = s.add.graphics().setDepth(-958).setVisible(!rendered); slabs.name = 'hub-rift-slabs'; s.objs.push(slabs);
   for (const f of [{ x: 236, y: 330, w: 64, k: 1 }, { x: 812, y: 318, w: 44, k: 0.7 }, { x: 1010, y: 352, w: 30, k: 0.45 }, { x: 390, y: 362, w: 22, k: 0.35 }]) {
     const h = 9 * f.k + 4;
     slabs.fillStyle(0x0d151c, 1);
@@ -39,7 +45,7 @@ export function drawRiftDetail(s: Scene) {
     slabs.lineStyle(1, 0x3a4650, 0.5 * f.k).lineBetween(f.x - 6, f.y + h, f.x - 8, f.y + h + 9 * f.k);
   }
   // North face: a ragged broken underside with hanging chunks and rebar, not a ruler line.
-  const nf = s.add.graphics().setDepth(121); nf.name = 'hub-rift-northbreak'; s.objs.push(nf);
+  const nf = s.add.graphics().setDepth(121).setVisible(!rendered); nf.name = 'hub-rift-northbreak'; s.objs.push(nf);
   for (let x = x0; x < x1;) {
     const w = 14 + r() * 34, d = 3 + r() * (r() < 0.2 ? 22 : 10);
     if (x + w > LANE.x0 - 4 && x < LANE.x1 + 4) { x += w; continue; }
@@ -140,25 +146,25 @@ export class RiftSpan {
   }
   draw() {
     const g = this.g; g.clear(); if (this.p <= 0.001) return;
-    const top = RIFT.ny - 2, bot = RIFT.sy, H = bot - top;
-    const rows = 9, rh = H / rows;
-    const shown = this.p * rows;
-    for (let i = 0; i < rows; i++) {
-      const k = Phaser.Math.Clamp(shown - i, 0, 1); if (k <= 0) break;
-      const y1 = bot - i * rh, y0 = y1 - rh;
-      const inset = (1 - k) * 18;
-      // underside thickness so it reads as a solid slab hanging over nothing
-      g.fillStyle(0x0a1622, k).fillRect(LANE.x0 + 2 + inset, y1 - 1, LANE.x1 - LANE.x0 - 4 - inset * 2, 6);
-      g.fillStyle(0x173850, k).fillRect(LANE.x0 + inset, y0, LANE.x1 - LANE.x0 - inset * 2, rh);
-      if (i % 3 === 0) g.lineStyle(1, 0x2a5a78, 0.45 * k).lineBetween(LANE.x0 + inset, y0, LANE.x1 - inset, y0);
-      g.lineStyle(1, 0x2a5a78, 0.3 * k).lineBetween(LANE.x0 + 32, y0, LANE.x0 + 32, y1); g.lineBetween(LANE.x1 - 32, y0, LANE.x1 - 32, y1);
-      // the freshly written edge glows warm for a beat
-      const fresh = Phaser.Math.Clamp(shown - i, 0, 2) < 1.6 ? 0.6 * k : 0.12;
-      g.fillStyle(0xf2dcb0, fresh * 0.5).fillRect(LANE.x0 + inset, y0, LANE.x1 - LANE.x0 - inset * 2, 1.5);
+    const top = RIFT.ny - 2, bot = RIFT.sy, H = bot - top, L = LANE.x0, R = LANE.x1;
+    const y0 = bot - H * this.p;
+    // shadow the slab throws down the far face, then the slab's thickness on its east edge (the side the camera sees)
+    g.fillStyle(0x000000, 0.35).fillRect(L + 6, y0 + 10, R - L - 2, bot - y0 - 6);
+    g.fillStyle(0x0b1620, 1); poly(g, [[R, y0], [R + 7, y0 + 9], [R + 7, bot + 6], [R, bot]]);
+    // one continuous deck: lighter where it meets the south floor, sinking darker toward the far lip (no rows, no steps)
+    const bands = 14;
+    for (let i = 0; i < bands; i++) {
+      const ya = y0 + (bot - y0) * i / bands, yb = y0 + (bot - y0) * (i + 1) / bands;
+      const k = (ya - top) / H;   // 0 far, 1 near
+      g.fillStyle(Phaser.Display.Color.GetColor(18 + 14 * k, 40 + 22 * k, 58 + 26 * k), 1).fillRect(L, ya, R - L, yb - ya + 0.5);
     }
-    // lit side edges + shadow down the sides
-    g.fillStyle(0x6a8a98, 0.5 * this.p).fillRect(LANE.x0, bot - shown * rh, 1.5, shown * rh);
-    g.fillStyle(0x6a8a98, 0.5 * this.p).fillRect(LANE.x1 - 1.5, bot - shown * rh, 1.5, shown * rh);
+    // grain runs along the span (north-south), like the room's floor boards turned to cross
+    for (const gx of [L + 19, L + 38, L + 58, L + 77]) g.lineStyle(1, 0x2c5470, 0.35).lineBetween(gx, y0 + 2, gx, bot - 2);
+    // lit edges + the far end resting on the north lip
+    g.fillStyle(0x7aa4b8, 0.7).fillRect(L, y0, 1.5, bot - y0); g.fillStyle(0x3a5a6c, 0.8).fillRect(R - 1.5, y0, 1.5, bot - y0);
+    if (this.p > 0.98) g.fillStyle(0x0a121a, 0.9).fillRect(L, top, R - L, 3);
+    // the edge being written right now glows warm
+    if (this.p < 0.999) { g.fillStyle(0xf2dcb0, 0.85).fillRect(L, y0, R - L, 2); g.fillStyle(0xf2dcb0, 0.25).fillRect(L, y0 + 2, R - L, 5); }
   }
 }
 
@@ -179,9 +185,12 @@ export class HubLamp {
   private drawBody(dy: number) {
     const { x, y } = LAMP; const g = this.body; g.clear();
     const by = y + dy;
-    g.fillStyle(0x000000, this.onFloor ? 0.35 : 0).fillRect(x - 20, y + 1, 40, 4);
-    g.fillStyle(0x2a2420, 1); poly(g, [[x - 17, by], [x + 17, by], [x + 13, by - 6], [x - 13, by - 6]]);
-    g.fillStyle(0x6a5a48, 1).fillRect(x - 13, by - 6, 26, 1.5);
+    g.fillStyle(0x000000, this.onFloor ? 0.3 : 0).fillRect(x - 19, y + 1, 40, 3);
+    // weighted plinth: lit top face (warm, from the shade above), brass rim, mid-tone front face
+    g.fillStyle(0x5a4a3a, 1); poly(g, [[x - 16, by], [x + 16, by], [x + 16, by - 5], [x - 16, by - 5]]);
+    g.fillStyle(0xb89a6e, 1); poly(g, [[x - 16, by - 5], [x + 16, by - 5], [x + 11, by - 11], [x - 11, by - 11]]);
+    g.fillStyle(0xe8c890, 0.9).fillRect(x - 16, by - 5.5, 32, 1.2);
+    g.fillStyle(0x2a2218, 1).fillRect(x - 2.5, by - 12, 5, 3);
     g.fillStyle(0x3a322a, 1).fillRect(x - 1.5, by - 104, 3, 98);
     g.fillStyle(0x8a7a62, 0.6).fillRect(x - 1.5, by - 104, 1, 98);
     // shade: angled trapezoid, lit from inside
@@ -216,8 +225,11 @@ export class HubLamp {
     const g = this.hole; g.clear();
     if (!on) {
       const { x, y } = LAMP;
-      g.fillStyle(0x000000, 1); poly(g, [[x - 30, y - 4], [x - 8, y - 9], [x + 22, y - 6], [x + 32, y + 4], [x + 10, y + 11], [x - 24, y + 8]]);
-      g.fillStyle(0x6a8a98, 0.45).fillRect(x - 26, y - 6, 30, 1);
+      const hole = [[x - 30, y - 4], [x - 8, y - 9], [x + 22, y - 6], [x + 32, y + 4], [x + 10, y + 11], [x - 24, y + 8]];
+      g.fillStyle(0x0a1620, 1); poly(g, hole);
+      g.fillStyle(0x1e3a48, 0.9); poly(g, [[x - 22, y - 2], [x - 6, y - 6], [x + 18, y - 4], [x + 24, y + 2], [x - 18, y + 1]]);
+      g.fillStyle(0x03060a, 1); poly(g, [[x - 18, y + 2], [x + 22, y + 3], [x + 8, y + 9], [x - 16, y + 7]]);
+      g.lineStyle(1, 0x8ab4c4, 0.7); g.beginPath(); g.moveTo(hole[0][0], hole[0][1]); for (const [px, py] of hole.slice(1, 4)) g.lineTo(px, py); g.strokePath();
     }
   }
   update() {

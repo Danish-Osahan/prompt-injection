@@ -222,18 +222,18 @@ export const ROOMART: Record<string, RoomArt> = {
   ],
   "amb": [
    {
-    "name": "drip",
+    "name": "exit",
     "state": "dark",
-    "file": "rooms/amb/corridor_dark_drip.png",
-    "x": 705,
-    "y": 332,
-    "w": 38,
-    "h": 103,
-    "frames": 10,
-    "fps": 8,
-    "baseY": 346,
+    "file": "rooms/amb/corridor_dark_exit.png",
+    "x": 1138,
+    "y": 166,
+    "w": 72,
+    "h": 36,
+    "frames": 8,
+    "fps": 6,
+    "baseY": 200,
     "mode": "loop",
-    "key": "amb_corridor_dark_drip"
+    "key": "amb_corridor_dark_exit"
    },
    {
     "name": "moth",
@@ -263,19 +263,20 @@ export const ROOMART: Record<string, RoomArt> = {
     "mode": "still",
     "key": "amb_corridor_dark_line"
    },
+
    {
-    "name": "drip",
+    "name": "exit",
     "state": "lit",
-    "file": "rooms/amb/corridor_lit_drip.png",
-    "x": 705,
-    "y": 332,
-    "w": 38,
-    "h": 103,
-    "frames": 10,
-    "fps": 8,
-    "baseY": 346,
+    "file": "rooms/amb/corridor_lit_exit.png",
+    "x": 1138,
+    "y": 166,
+    "w": 72,
+    "h": 36,
+    "frames": 8,
+    "fps": 6,
+    "baseY": 200,
     "mode": "loop",
-    "key": "amb_corridor_lit_drip"
+    "key": "amb_corridor_lit_exit"
    },
    {
     "name": "moth",

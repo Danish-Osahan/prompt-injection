@@ -20,6 +20,8 @@ export class BootScene extends Phaser.Scene {
       for (const m of a.amb ?? []) this.load.spritesheet(m.key, `assets/${m.file}`, { frameWidth: m.w, frameHeight: m.h });
       a.bridge?.frames.forEach((f, i) => this.load.image(`bridge_${i}`, `assets/${f}`));
     }
+    // art-v12 Blender layers: the corridor Sentinel and the hub rift chasm
+    this.load.image('sentinel', 'assets/rooms/fg/sentinel.png'); this.load.image('hub_rift', 'assets/rooms/fg/hub_rift.png');
     // art-v9 office test level (perspective layers, variants, close-ups)
     const O = OFFICE9, A = (f: string) => `assets/${f}`;
     this.load.image('o9_back', A(O.back)); this.load.image('o9_mid', A(O.mid));

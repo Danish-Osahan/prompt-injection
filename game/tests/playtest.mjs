@@ -592,7 +592,7 @@ async function desktop(browser) {
   await pi(page, 'teleport', 380, 590); await sleep(80);
   const sent = await pi(page, 'sendCaret', 'h_lamp'); await sleep(700);
   s = await st(page);
-  ok('single take key: sending the Caret with F never takes a word', !(s.steal && s.steal.held) && !s.hand && s.plates.h_lamp.words === 'LAMP ON FLOOR', `sent ${sent} steal ${JSON.stringify(s.steal && s.steal.held)} lamp ${s.plates.h_lamp.words}`);
+  ok('single take key: sending the Caret with F never takes a word (and only guarded things accept it)', sent === false && !(s.steal && s.steal.held) && !s.hand && s.plates.h_lamp.words === 'LAMP ON FLOOR' && !(s.save.seen || []).includes('guardOpen'), `sent ${sent} steal ${JSON.stringify(s.steal && s.steal.held)} lamp ${s.plates.h_lamp.words}`);
   await page.keyboard.press('f'); await sleep(400); s = await st(page);
   ok('single take key: F at the lamp does not take FLOOR', !(s.steal && s.steal.held) && s.plates.h_lamp.words === 'LAMP ON FLOOR', `${JSON.stringify(s.steal && s.steal.held)} ${s.plates.h_lamp.words}`);
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; s.caretMode = 'follow'; });
@@ -639,7 +639,7 @@ async function desktop(browser) {
   s = await st(page);
   ok('audio: corridor room switches to corridor ambience', s.ambience === 'corridor', `amb ${s.ambience}`);
 
-  // CORRIDOR: switch ON → lamp, clock QUICK → dummy, then attack
+  // CORRIDOR: switch ON → lamp; Caret opens the guard's line; clock STILL → guard; tear it
   await sleep(400); await shot(page, 'desktop-06-corridor-dark');
   s = await st(page);
   ok('corridor: Fern note hidden in the dark', !s.plates.c_note.visible);
@@ -651,49 +651,44 @@ async function desktop(browser) {
   await still1(page, 'corridor-lamp-on');
   await stillL1(page, 'corridor');
   await shot(page, 'desktop-08-corridor-lit');
-  await pi(page, 'teleport', 1110, 560); await sleep(100);
+  // The guard: its line is hidden; the Caret's one job is to go in and open it for writing.
+  s = await st(page);
+  ok('corridor: the guard stands in front of the exit, its line hidden', !s.plates.c_dummy.visible && s.enemies.some(e => e.kind === 'dummy' && e.x > 1100) && s.caret.owned, JSON.stringify({ vis: s.plates.c_dummy.visible, owned: s.caret.owned }));
+  await pi(page, 'teleport', 1080, 560); await sleep(100);
   for (let i = 0; i < 3; i++) { await page.keyboard.press('j'); await sleep(260); }
   s = await st(page); const dummy0 = s.enemies.find(e => e.kind === 'dummy');
-  ok('corridor: Paper Dummy ignores hits while still', dummy0.hp === 6 && dummy0.state === 'idle');
+  ok('corridor: hits do nothing to the QUICK guard', dummy0.hp === 6 && !dummy0.dead, `hp ${dummy0.hp}`);
   await pi(page, 'teleport', 1110, 202); await sleep(120);
   await steal(page, 'c_clock', 'c_dummy');
-  s = await waitFor(page, s => s.flags.quick, 3000);
-  ok('corridor: take QUICK from the clock, throw it at the dummy', s.flags.quick && s.plates.c_dummy.words === 'DUMMY IS QUICK');
-  await page.evaluate(() => {
-    const s = window.__game.scene.getScene('game');
-    try { s.dialogue?.clear(); } catch {}
-    s.busy = false;
-    if (!s.caretOwned) s.claimCaret(true);
-  });
-  await sleep(200);
-  const aimHp0 = (await st(page)).enemies.find(e => e.kind === 'dummy')?.hp;
-  const aimBeams0 = (await st(page)).beamN;
-  await pi(page, 'teleport', 1040, 530); await sleep(60);
-  await pi(page, 'sendCaret', 'dummy'); await sleep(400);
-  await page.evaluate(() => {
-    const s = window.__game.scene.getScene('game');
-    try { s.dialogue?.clear(); } catch {}
-    s.busy = false;
-  });
-  s = await waitFor(page, s => !!(s.caret && s.caret.mode === 'sent') && (
-    !!(s.prompts || []).some(p => /cursor aims/.test(p)) ||
-    (s.save.tutorials || []).includes('caretAim') ||
-    (s.save.tutorials || []).includes('select')
-  ), 4000);
-  const reach = Math.hypot((s.caret?.x ?? 0) - s.player.x, (s.caret?.y ?? 0) - s.player.y);
-  ok('corridor: parked Caret reaches across the alcove', s.caret && s.caret.mode === 'sent' && reach > 160, `mode ${s.caret && s.caret.mode} reach ${reach.toFixed(0)} caret ${s.caret && Math.round(s.caret.x)},${s.caret && Math.round(s.caret.y)} player ${Math.round(s.player.x)},${Math.round(s.player.y)}`);
-  ok('corridor: the cursor-aims hint shows once', !!(s.prompts || []).some(p => /cursor aims/.test(p)) || (s.save.tutorials || []).includes('caretAim') || (s.save.tutorials || []).includes('select'), `prompts ${(s.prompts || []).join(' | ')} tut ${(s.save.tutorials || []).join(',')}`);
-  await pi(page, 'teleport', 1110, 390); await sleep(120);
   s = await st(page);
-  ok('corridor: E take is hidden while the Caret is aimed at the dummy', !(s.lureChip && s.lureChip.visible && s.lureChip.verb === 'take'), JSON.stringify(s.lureChip));
-  await pi(page, 'fireBeam', 1); await sleep(500);
+  ok('corridor: a word thrown at the locked guard bounces off (no line to write on yet)', !s.flags.still && s.plates.c_dummy.words === 'GUARD IS QUICK' && s.plates.c_clock.words === 'CLOCK IS STILL', `${s.plates.c_dummy.words} / ${s.plates.c_clock.words}`);
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await pi(page, 'teleport', 960, 450); await sleep(150);
   s = await st(page);
-  const dummyAim = s.enemies.find(e => e.kind === 'dummy');
-  ok('corridor: a bolt aimed by the Caret hits the woken dummy', !!(dummyAim && dummyAim.hp < aimHp0) && s.beamN > aimBeams0, `hp ${aimHp0} -> ${dummyAim && dummyAim.hp} beams ${aimBeams0} -> ${s.beamN}`);
-  await pi(page, 'teleport', 1110, 390); await input.move(0, -1); await sleep(30); await input.stop();
+  ok('corridor: the first-use hint is F, write into it', !!(s.prompts || []).some(p => /write into it/.test(p)), (s.prompts || []).join(' | '));
+  await page.keyboard.press('f');
+  s = await waitFor(page, s => s.plates.c_dummy.visible && s.caret.mode === 'sent', 3000);
+  ok('corridor: F sends the Caret into the guard and its line opens (GUARD IS QUICK)', s.plates.c_dummy.visible && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && s.plates.c_dummy.words === 'GUARD IS QUICK', JSON.stringify(s.caret));
+  s = await waitFor(page, s => s.dialogueBoxes >= 1, 2500);
+  ok('corridor: the Caret open-line moment is spoken by a named speaker in a box', s.dialogueBoxes >= 1, `boxes ${s.dialogueBoxes}`);
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await sleep(4400); s = await st(page);
+  ok('corridor: the Caret stays parked in the open line until a word lands', s.caret.mode === 'sent' && s.caret.writing === 'c_dummy', JSON.stringify(s.caret));
+  const cx0 = s.caret.x, cy0 = s.caret.y, beams0 = s.beamN;
+  await pi(page, 'fireBeam', 1); await sleep(450); s = await st(page);
+  ok('corridor: bolts never move or use the Caret', s.beamN > beams0 && Math.hypot(s.caret.x - cx0, s.caret.y - cy0) < 6, `caret ${cx0},${cy0} -> ${s.caret.x},${s.caret.y}`);
+  await pi(page, 'teleport', 1110, 202); await sleep(120);
+  await steal(page, 'c_clock', 'c_dummy');
+  s = await waitFor(page, s => s.flags.still, 3000);
+  ok('corridor: take STILL from the stopped clock, write it into the open line: GUARD IS STILL', s.flags.still && s.plates.c_dummy.words === 'GUARD IS STILL' && s.plates.c_clock.words === 'CLOCK IS QUICK', `${s.plates.c_dummy.words} / ${s.plates.c_clock.words}`);
+  s = await waitFor(page, s => s.caret.mode === 'follow', 3000);
+  ok('corridor: the Caret comes home once the word lands', s.caret.mode === 'follow' && !s.caret.writing, JSON.stringify(s.caret));
+  ok('corridor: no floating unattributed lines (IT ISN\u2019T AWAKE is gone)', !(await page.evaluate(() => window.__game.scene.getScene('game').children.list.some(o => o.type === 'Text' && /ISN.T AWAKE/.test(o.text || '')))));
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await pi(page, 'teleport', 1110, 470); await input.move(1, 0); await sleep(30); await input.stop();
   let swings = 0; for (let i = 0; i < 30; i++) { s = await st(page); if (s.enemies[0].dead) break; await page.keyboard.press('j'); swings++; await sleep(230); if (swings === 2) await shot(page, 'desktop-09-dummy-fight'); }
   s = await st(page);
-  ok('corridor: TYPE combo defeats the woken dummy', s.enemies[0].dead, `${swings} swings, hp ${s.hp}`);
+  ok('corridor: the STILL guard tears under the TYPE combo', s.enemies[0].dead, `${swings} swings, hp ${s.hp}`);
   await pi(page, 'teleport', 1150, 420); await input.move(1, 0); s = await waitFor(page, s => s.room === 'archive', 4000); await input.stop();
   ok('corridor: alcove exit opens -> Flooded Archive', s.room === 'archive');
 

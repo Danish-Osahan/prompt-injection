@@ -287,24 +287,29 @@ def P_corridor():
     # switch housing in the niche (SWITCH IS ..), with a tiny LED
     on_wall(190, 220, 192, 218, 230, srgb('swbox', (52, 62, 76), rough=0.4, metal=0.5), eps=0.03, name='switch')
     on_wall(203, 207, 198, 202, 230, emit_mat('led', (120, 228, 232) if lit else (240, 128, 116), 3.0), eps=0.04)
-    # ceiling lamp on a wall bracket (LIGHT IS ..)
-    on_wall(356, 364, 262, 300, 330, srgb('arm', (60, 66, 76), metal=0.7), eps=0.03, name='lamparm')
-    lp = unproj(360, 330); n = away(360, 330); hz = zpx(330 - 258)
-    bpy.ops.mesh.primitive_cone_add(vertices=20, radius1=0.16, radius2=0.05, depth=0.12, location=(lp.x - n.x*0.18, lp.y - n.y*0.18, hz)); sh = bpy.context.object
-    sh.data.materials.append(srgb('shade', (40, 44, 52), rough=0.4, metal=0.5))
-    bpy.ops.mesh.primitive_circle_add(vertices=20, radius=0.15, fill_type='NGON', location=(lp.x - n.x*0.18, lp.y - n.y*0.18, hz - 0.06))
-    bpy.context.object.data.materials.append(emit_mat('bulbc', (255, 210, 150), 4.0 if lit else 0.05))
+    # art-v12: LIGHT IS .. is a wall-mounted fluorescent fitting (long steel housing, opal diffuser, two short brackets):
+    # the one light every corporate corridor has. Off = grey opal; lit = warm-white tube glow.
+    hm = srgb('lhouse', (58, 64, 74), rough=0.35, metal=0.7)
+    on_wall(318, 402, 262, 272, 330, hm, eps=0.10, name='lamphouse')
+    on_wall(322, 398, 270, 278, 330, emit_mat('ltube', (255, 226, 180), 5.0 if lit else 0.04) if lit else srgb('lopal', (120, 126, 134), rough=0.6), eps=0.13, name='lampdiff')
+    for bx in (330, 390): on_wall(bx - 3, bx + 3, 258, 266, 330, hm, eps=0.05)
     # Fern's sticky note on the wall + the wall clock in the alcove
-    on_wall(845, 875, 290, 312, 330, img_mat('fnote', TX6+'sticky_49.png', emit=0.3 if lit else 0.02), eps=0.02, name='note')
+    # art-v12: Fern's note is an off-white index card held by two strips of tape (was a bright yellow square)
+    on_wall(842, 878, 286, 312, 330, img_mat('fnote', T5+'../tex/fern_card12.png', emit=0.22 if lit else 0.015), eps=0.02, name='note')
+    for tx0 in (846, 868): on_wall(tx0, tx0 + 8, 283, 289, 330, srgb('ntape', (196, 190, 168), rough=0.8), eps=0.025)
+    # three blank 'employee' frames along the wall: the faces were never filled in
+    fr = srgb('pframe', (34, 38, 46), rough=0.4, metal=0.5); pp = img_mat('pblank', T5+'../tex/portrait12.png', emit=0.12 if lit else 0.01)
+    for fx in (500, 566, 632):
+        on_wall(fx, fx + 40, 252, 300, 330, fr, eps=0.02, name='pframe'); on_wall(fx + 4, fx + 36, 256, 296, 330, pp, eps=0.03, name='pblank')
+    # EXIT sign over the alcove door
+    on_wall(1146, 1200, 176, 194, 220, srgb('exbox', (24, 30, 34)), eps=0.03, name='exitbox')
+    on_wall(1149, 1197, 179, 191, 220, img_mat('exitsign', T5+'../tex/exit12.png', emit=2.4 if lit else 1.2), eps=0.035, name='exitsign')
     cp = unproj(1110, 220); n = away(1110, 220); cz = zpx(220 - 165)
     bpy.ops.mesh.primitive_cylinder_add(vertices=32, radius=0.16, depth=0.04, location=(cp.x - n.x*0.03, cp.y - n.y*0.03, cz), rotation=(R(90), 0, math.atan2(RIGHT.y, RIGHT.x)))
     bpy.context.object.data.materials.append(img_mat('clockf', TX6+'clock_0312.png', emit=0.25 if lit else 0.03))
-    # the dummy alcove: a training mat + a coat rack of paper + exit door frame on the east
-    kp('rugRectangle', 1110, 480, 90, s=1.0, val=0.22, sat=0.2)
+    # the guard alcove: just the exit door frame on the east (art-v12: mat and boxes removed)
     dm = srgb('edoor', (20, 30, 46), metal=0.4)
     door = [post_at(1214, 360, 120, dm, 0.06), post_at(1214, 480, 120, dm, 0.06)]
-    for sx in (1040, 1180):
-        kp('cardboardBoxOpen', sx, 610, 15, s=1.0, val=0.4)
     # path tiles beyond the dark (glow only when lit)
     # art-v8: the old cyan path tiles are gone; the lit state guides with light pools only
     if lit:

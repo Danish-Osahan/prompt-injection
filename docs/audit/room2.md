@@ -1,5 +1,15 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-25 (b) — Blender chasm, solid bridge, lamp base, no door glow
+
+- **Chasm.** `art/tools/rift12.py` renders the rift with the room camera (ortho 8.4, pitch 38, yaw -30) as an RGBA layer (`fg/hub_rift.png`, depth -960) that lands 1:1 between the lips.
+  - It shows a cross-section of the building: five storeys of broken floor slab, hanging ceiling tiles, cut rebar, ducts, and recessed interior walls with holes through to darkness.
+  - It all sinks into cold fog with depth. Slab chunks hang at several depths, and the far lip carries a cyan safety strip.
+  - The code-drawn shafts, slabs, north underside, cables and flat face bands are hidden while the render is loaded. The south-lip bites, lane stubs and falling debris stay.
+- **Bridge.** One continuous deck with no tile rows: shaded light near and dark far, grain running along the span, a lit west edge, a thickness face on the east side, and a shadow on the far face. The writing edge glows warm while it materialises.
+- **Lamp.** The base is a weighted plinth with a lit top face and a brass rim (it was a black blob). After FLOOR is taken, the hole is a cracked opening with a lit rim, not a black blot.
+- **Door glow.** The painted cyan floor glow below the lane (the old door spill) is patched out of `hub_open_bleed.jpg`.
+
 ## 2026-11-25 — Door removed; the rift is the puzzle; lamp redesign
 
 - **No door.** The near-slab door, its glow and stoop are gone, and the room always uses the open plate.

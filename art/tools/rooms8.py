@@ -101,22 +101,7 @@ def L_hub():
 # ---------------- CORRIDOR ----------------
 def L_corridor():
     lit = STATE == 'lit'
-    # a mop bucket under a slow drip (ambient), an umbrella that has never met weather, tape marks where a desk was dragged out
-    bm = srgb('bucket', (70, 96, 120), rough=0.4); q = unproj(724, 344)
-    bpy.ops.mesh.primitive_cylinder_add(vertices=20, radius=0.12, depth=0.2, location=(q.x, q.y, 0.1)); bk = bpy.context.object; bk.data.materials.append(bm)
-    wq = srgb('bwater', (30, 50, 66), rough=0.05); bpy.ops.mesh.primitive_circle_add(vertices=20, radius=0.11, fill_type='NGON', location=(q.x, q.y, 0.17)); bpy.context.object.data.materials.append(wq)
-    dm = emit_mat('drip', (190, 225, 240), 0.5); rmat = emit_mat('dring', (150, 200, 220), 0.9)
-    d0 = drop('drop', 724, 344, 0.9, 0.026, dm); r0 = ring('dripring', 724, 344, 0.172, 0.05, rmat, 0.008)   # art-v9: bigger drop + ring
-    def drip_pose(k, N=10):
-        if k < 7: d0.hide_render = False; d0.location.z = 0.9 - (0.9 - 0.18)*(k/6)**2; r0.hide_render = True
-        else: d0.hide_render = True; r0.hide_render = False; s = 0.6 + (k - 7)*0.7; r0.scale = (s, s, 1)
-    amb('drip', [d0, r0], 10, drip_pose, 346, 8)
-    um = srgb('umb', (40, 44, 70), rough=0.5); uq = unproj(486, 334)
-    bpy.ops.mesh.primitive_cone_add(vertices=8, radius1=0.04, radius2=0.012, depth=0.55, location=(uq.x, uq.y, 0.3), rotation=(R(-12), R(8), 0)); bpy.context.object.data.materials.append(um)
-    bpy.ops.mesh.primitive_torus_add(major_radius=0.03, minor_radius=0.008, location=(uq.x, uq.y + 0.04, 0.6), rotation=(R(90), 0, R(SCR_RZ))); bpy.context.object.data.materials.append(srgb('umbh', (120, 90, 60)))
-    tape = srgb('tape', (200, 180, 90), rough=0.8)
-    for (x, y, w, h) in ((770, 398, 28, 4), (770, 398, 4, 14), (870, 398, 28, 4), (894, 398, 4, 14), (770, 450, 28, 4), (770, 440, 4, 14), (870, 450, 28, 4), (894, 440, 4, 14)):
-        floor_rect(x, y, w, h, tape, z=0.003, solid=0.0)
+    # art-v12: bucket + drip ring, umbrella and floor tape removed (they read as stray primitives)
     # a moth that keeps the lamp company (ambient): pale wings, a little self-lit so it reads in the dark too
     mm = emit_mat('moth', (230, 220, 196), 0.9 if not lit else 1.1); body, wings = moth_mesh(mm)
     lp = unproj(360, 330); n = away(360, 330); cen = Vector((lp.x - n.x*0.25, lp.y - n.y*0.25, zpx(330 - 262)))
