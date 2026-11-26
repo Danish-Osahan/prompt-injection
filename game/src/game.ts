@@ -51,6 +51,32 @@ const tellBox = (g: Phaser.GameObjects.Graphics, x: number, y: number, r: number
     g.lineBetween(px, py, px, py - dy * 10);
   }
 };
+/** Etched takeable word under the corridor clock, same family as the hub VOID / FLOOR stencils. */
+class ClockWord {
+  t: Phaser.GameObjects.Text; sh: Phaser.GameObjects.Text; word = 'STILL'; cueT = 0;
+  constructor(private s: GameScene, public x: number, public y: number) {
+    const st = { fontFamily: 'JetBrains Mono', fontSize: '16px', fontStyle: 'bold', color: '#bfe9ee' };
+    this.sh = s.add.text(x + 1, y + 2, 'STILL', { ...st, color: '#02060a' }).setOrigin(0.5).setDepth(y - 1).setAlpha(0.9);
+    this.t = s.add.text(x, y, 'STILL', st).setOrigin(0.5).setDepth(y);
+    this.t.setLetterSpacing(4); this.sh.setLetterSpacing(4);
+    this.t.name = 'corridor-clock-word'; s.objs.push(this.sh, this.t);
+  }
+  set(w: string) {
+    this.word = w;
+    this.t.setText(w); this.sh.setText(w);
+    this.t.setColor(w === 'STILL' ? '#bfe9ee' : '#c4a56a');
+  }
+  cue() { this.cueT = 3.2; }
+  update() {
+    const tt = this.s.t;
+    const base = this.word === 'STILL' ? 0.78 + 0.16 * Math.sin(tt * 2.1) : 0.7;
+    const cue = this.cueT > 0 ? 0.2 + 0.2 * Math.sin(tt * 8) : 0;
+    if (this.cueT > 0) this.cueT -= 1 / 60;
+    this.t.setAlpha(Math.min(1, base + cue));
+    this.t.x = this.x + (this.cueT > 0 && Math.sin(tt * 19) > 0.96 ? 1 : 0);
+  }
+}
+
 /** Inner rect of the hub north-wall glass, inside the bezel. */
 const HUB_GLASS: Rect = { x: 226, y: 50, w: 178, h: 90 };
 
@@ -92,6 +118,7 @@ export interface Enemy {
   practice?: boolean;   // art-v11: the office's stuffed practice dummy (takes hits forever, never fights back)
   wet?: boolean;        // archive Scribbles melted by WET from the cooler
   swipeN?: number;      // paper dummy: first swipe is the slow tutorial tell
+  dodgeN?: number;
   flash?: Phaser.GameObjects.Graphics; pinT?: number; rootG?: Phaser.GameObjects.Graphics;
 }
 interface Prompt { id: string; kb: string; touch: string; text: Phaser.GameObjects.Text; chip?: InteractChip; done: () => boolean }
@@ -128,6 +155,7 @@ export class GameScene extends Phaser.Scene {
   extraWalk: Record<string, Rect | null> = {};
   hazards: Rect[] = [];
   riftWord?: RiftWord; riftSpan?: RiftSpan; hubLamp?: HubLamp; caretChip?: InteractChip; caretHoldT = 0;
+  clockWord?: ClockWord; dummyDodges = 0;
   busy = false; composer: { words: string[]; i: number; ui: Phaser.GameObjects.Container } | null = null;
   dying = false; deathAt = 0; lastRespawnMs = -1; undoShown = 0;
   stuck = 0; hintOn = false; hintObj: Phaser.GameObjects.Container | null = null; hintUsed = false; hintPulseT = 0;
@@ -883,7 +911,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.glassRain?.destroy(); this.glassRain = null;
-    this.amb = []; this.toyFx = {}; this.refl = null; this.hubCopyBounds = null; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
+    this.amb = []; this.toyFx = {}; this.refl = null; this.hubCopyBounds = null; this.clockWord = undefined; this.dummyDodges = 0; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
     this.darkness = null; this.litImg = null; this.bridgeImg = null; this.bridgeTw = null; this.fgImgs = {}; this.hintObj = null; this.hintOn = false; this.stuck = 0; this.hintUsed = false; this.subQueue = []; this.subBusy = false;
@@ -1056,6 +1084,9 @@ export class GameScene extends Phaser.Scene {
       // steal path: no READ / code-vision prompt
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
       this.spawnEnemy('dummy', 1160, 446);
+      this.dummyDodges = 0;
+      this.clockWord = new ClockWord(this, 1128, 200);
+      this.clockWord.set(this.plateById('c_clock')?.slotWord ?? 'STILL');
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
     if (id === 'archive') {
@@ -1242,9 +1273,10 @@ export class GameScene extends Phaser.Scene {
     head.add(lab);
     const flash = this.add.rectangle(0, -95, 64, 190, 0xffffff, 0).setOrigin(0.5);
     // its line, printed on a strip across the chest: hidden until the Caret opens it
-    const strip = this.add.container(0, -104).setVisible(false);
-    const sbg = this.add.rectangle(0, 0, 10, 15, 0xe6dfcd, 1).setStrokeStyle(1, 0x5a5446, 0.9);
-    const stx = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '11px', fontStyle: 'bold', color: '#1a1c22' }).setOrigin(0.5);
+    const strip = this.add.container(-24, -108).setVisible(false);
+    const sbg = this.add.rectangle(0, 0, 10, 18, 0xe6dfcd, 1).setStrokeStyle(1, 0x5a5446, 0.95);
+    const stx = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: '#1a1c22' }).setOrigin(0.5);
+    stx.setLetterSpacing(1);
     strip.add([sbg, stx]);
     fig.add([img, head, strip, flash]);
     fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
@@ -1257,7 +1289,7 @@ export class GameScene extends Phaser.Scene {
     this.guardLine = text;
     if (!text) { strip.setVisible(false); return; }
     strip.setVisible(true);
-    const fit = (s: string) => { stx.setText(s); sbg.setSize(Math.max(10, stx.width + 10), 15); sbg.setOrigin(0.5); };
+    const fit = (s: string) => { stx.setText(s); sbg.setSize(Math.max(10, stx.width + 24), 18); sbg.setOrigin(0.5); };
     this.tweens.killTweensOf(stx);
     if (!type) { fit(text); return; }
     fit(text); const full = text; const o = { n: 0 };
@@ -1265,8 +1297,27 @@ export class GameScene extends Phaser.Scene {
   }
   guardLineEnd() {
     const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
+    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined;
     const sbg = fig?.getData('stripBg') as Phaser.GameObjects.Rectangle | undefined;
-    return e ? { x: e.x + (sbg ? sbg.width / 2 : 40) + 6, y: e.y - 104 } : null;
+    const ox = strip ? strip.x : 0;
+    return e ? { x: e.x + ox + (sbg ? sbg.width / 2 : 44) + 16, y: e.y - 108 } : null;
+  }
+  /** A short smear-dash: afterimages of the sentinel (no circles) then a snap to (nx, ny). */
+  dummyDash(e: Enemy, nx: number, ny: number, dur = 0.08) {
+    const img = e.g.getData('fig') as Phaser.GameObjects.Container | undefined;
+    const src = this.textures.exists('sentinel') ? 'sentinel' : null;
+    for (let i = 0; i < 3; i++) {
+      const gx = e.x + (nx - e.x) * (i / 5), gy = e.y + (ny - e.y) * (i / 5);
+      const ghost = src
+        ? this.add.image(gx, gy, src).setOrigin(83 / 165, 418 / 467).setScale(0.45).setAlpha(0.46 - i * 0.1).setTint(0xb8d4e4).setDepth((e.y) - 2)
+        : this.add.rectangle(gx, gy - 70, 36, 120, 0xb8d4e4, 0.22).setDepth(e.y - 2);
+      this.objs.push(ghost);
+      this.tweens.add({ targets: ghost, alpha: 0, x: gx - (nx - e.x) * 0.2, duration: 280 + i * 70, onComplete: () => ghost.destroy() });
+    }
+    const tox = e.hx + Phaser.Math.Clamp(nx - e.hx, -64, 36);
+    const toy = e.hy + Phaser.Math.Clamp(ny - e.hy, -28, 36);
+    this.tweens.add({ targets: e, x: tox, y: toy, duration: Math.max(50, dur * 1000), ease: 'Cubic.easeOut' });
+    if (img) { this.tweens.killTweensOf(img); img.setX(0); this.tweens.add({ targets: img, x: { from: (e.x - tox) * 0.4, to: 0 }, duration: 120, ease: 'Cubic.easeOut' }); }
   }
   /** The empty field fills with her name when the sentinel wakes; empties again if it sleeps. */
   setDummyAwake(e: Enemy, on: boolean) {
@@ -1393,11 +1444,17 @@ export class GameScene extends Phaser.Scene {
       this.tweens.add({ targets: e.g, rotation: { from: 0.16 * sgn * Math.min(2, dmg), to: 0 }, duration: 520, ease: 'Elastic.easeOut' });
       return;
     }
-    if (e.kind === 'dummy' && !this.flags.still) {   // the guard is QUICK: it reads every blow and steps out of it
-      const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined; const sgn = Math.sign(kx || (e.x - this.x) || 1);
-      if (fig) { this.tweens.killTweensOf(fig); fig.setX(0); this.tweens.add({ targets: fig, x: { from: -10 * sgn, to: 0 }, duration: 240, ease: 'Back.easeOut' }); }
+    if (e.kind === 'dummy' && !this.flags.still) {   // QUICK: untouchable — it darts out of the blow with a smear
+      const sgn = Math.sign(kx || (e.x - this.x) || 1) || 1;
+      this.dummyDash(e, e.x + sgn * 54, e.y - 8, 0.07);
+      e.dodgeN = (e.dodgeN ?? 0) + 1; this.dummyDodges++;
       sfx('hit');
-      if (!this.save.seen.includes('guardDodge')) { this.save.seen.push('guardDodge'); this.say('fern', "It's quicker than you. Hitting it won't work.", 2600, { box: true }); this.say('fern', 'Change what it is first.', 2000, { box: true }); }
+      if (!this.save.seen.includes('guardDodge')) {
+        this.save.seen.push('guardDodge');
+        this.say('fern', "It's quicker than you. Hitting it won't work.", 2600, { box: true });
+        if (this.plateById('c_dummy')?.visible) this.say('fern', 'Take STILL from the clock.', 2200, { box: true });
+        else this.say('fern', 'Send your cursor in first.', 2000, { box: true });
+      }
       return;
     }
     if (e.kind === 'draft' && this.fight) dmg = this.fight.modify(e, dmg);
@@ -1444,16 +1501,40 @@ export class GameScene extends Phaser.Scene {
       if (this.combat && (e as Enemy & { gb?: string }).gb) { continue; }  // CombatGreybox owns AI
       if (e.kind === 'dummy') {
         const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined, head = fig?.getData('head') as Phaser.GameObjects.Container | undefined;
-        if (head) head.setRotation(this.flags.still ? -0.22 : (Math.sin(this.t * 11 + e.phase) > 0.95 ? 0.16 : 0.04 * Math.sin(this.t * 1.7)));
-        if (this.flags.still || (d > 190 && e.state === 'idle')) { if (this.flags.still) { e.state = 'idle'; e.g.setRotation(0); } }
-        else {
-          const wind = (e.swipeN ?? 0) === 0 ? 1.15 : 0.8;
-          if (e.state === 'idle' && e.t <= 0) { e.state = 'windup'; e.t = wind; }
-          if (e.state === 'windup') { tellBox(fl, e.x, e.y - 28, 95, hex(C.coral), 0.55 + 0.45 * (1 - e.t / wind)); e.g.setRotation(-0.3 * (1 - e.t / wind)); if (e.t <= 0) { e.state = 'swipe'; e.t = 0.25; e.swipeN = (e.swipeN ?? 0) + 1; if (d < 95) this.hurtNoor('swipe'); } }
-          else if (e.state === 'swipe') { e.g.setRotation(0.5); if (e.t <= 0) { e.state = 'recover'; e.t = (e.swipeN ?? 1) === 1 ? 1.25 : 0.9; } }
-          else if (e.state === 'recover' || e.state === 'stun') { e.g.setRotation(0); if (e.t <= 0) { e.state = 'idle'; e.t = 1.4; } }
+        if (this.flags.still) {
+          if (head) head.setRotation(-0.22);
+          e.state = 'idle'; e.g.setRotation(0);
+          e.x += (e.hx - e.x) * Math.min(1, dt * 8); e.y += (e.hy - e.y) * Math.min(1, dt * 8);
+        } else {
+          if (head) head.setRotation(Math.sin(this.t * 22 + e.phase) > 0.88 ? 0.22 : 0.05 * Math.sin(this.t * 9));
+          const close = d < 230;
+          if (e.state === 'idle' && e.t <= 0) {
+            if (close) { e.state = 'windup'; e.t = (e.swipeN ?? 0) === 0 ? 0.95 : 0.20; e.g.setRotation(-0.18); }
+            else {
+              const dir = (Math.sin(this.t * 7 + e.phase) >= 0 ? 1 : -1);
+              this.dummyDash(e, e.hx + dir * (20 + Math.random() * 22), e.hy + (Math.random() - 0.5) * 10, 0.06);
+              e.t = 0.28 + Math.random() * 0.22;
+            }
+          }
+          if (e.state === 'windup') {
+            e.g.setRotation(-0.28 * (1 - e.t / 0.95));
+            if (e.t <= 0) {
+              e.state = 'lunge'; e.t = 0.14; e.swipeN = (e.swipeN ?? 0) + 1;
+              e.tx = dx / d; e.ty = dy / d;
+              this.dummyDash(e, e.x + e.tx * 70, e.y + e.ty * 46, 0.12);
+            }
+          } else if (e.state === 'lunge') {
+            e.g.setRotation(0.35);
+            if (d < 58) this.hurtNoor('shove');
+            if (e.t <= 0) { e.state = 'recover'; e.t = 0.22; }
+          } else if (e.state === 'recover' || e.state === 'stun') {
+            e.g.setRotation(0);
+            e.x += (e.hx - e.x) * Math.min(1, dt * 10); e.y += (e.hy - e.y) * Math.min(1, dt * 10);
+            if (e.t <= 0) { e.state = 'idle'; e.t = close ? 0.35 : 0.45; e.x = e.hx; e.y = e.hy; }
+          }
+          e.x = e.hx + Phaser.Math.Clamp(e.x - e.hx, -64, 36);
+          e.y = e.hy + Phaser.Math.Clamp(e.y - e.hy, -28, 36);
         }
-        e.x = e.hx + Phaser.Math.Clamp(e.x - e.hx, -30, 30); e.y = e.hy + Phaser.Math.Clamp(e.y - e.hy, -30, 30);
       }
       if (e.kind === 'scribble') {
         e.body.setAlpha(e.wet ? 0.55 : this.flags.dry ? 0.65 : 1);
@@ -1644,6 +1725,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(3000, () => this.say('fern', 'I left you a note on the wall.', 2000, { box: true }));
       }
       f.still = w('c_dummy') === 'STILL';
+      this.clockWord?.set(w('c_clock') ?? 'STILL');
       if (f.still) help('dummy');
       if (this.save.seen.includes('guardOpen')) this.plateById('c_dummy')?.setVisibleState(true);
       { const gp = this.plateById('c_dummy'); const gl = gp?.visible ? gp.words.join(' ') : null; if (initial || gl !== this.guardLine) this.setGuardLine(gl); }
@@ -1652,7 +1734,7 @@ export class GameScene extends Phaser.Scene {
         const d = this.enemies.find(e => e.kind === 'dummy' && !e.dead);
         if (d) { d.state = 'idle'; d.t = 0.5; this.setDummyAwake(d, false); }
         this.caretWriting = undefined; if (this.caretMode === 'sent') { this.caretSentAt = this.t - 3.4; }
-        this.say('fern', "It's still now. Still paper tears.", 2400, { box: true });
+        this.say('fern', "It's STILL now. Still paper tears.", 2400, { box: true });
         this.say('fern', 'J to strike.', 1600, { box: true });
       }
     }
@@ -2007,7 +2089,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.save.seen.includes('guardOpenSaid')) {
       this.save.seen.push('guardOpenSaid');
       this.say('noor', "My cursor's in it. I can see its line.", 2400, { box: true });
-      this.say('fern', 'GUARD IS QUICK. Give it a slower word.', 2600, { box: true });
+      this.say('fern', 'GUARD IS QUICK. The clock has STILL.', 2600, { box: true });
+      this.say('fern', 'Hold E on the clock. Then F to throw STILL at it.', 2800, { box: true });
+      this.clockWord?.cue();
     }
     try { writeSave(this.save); } catch { /* */ }
     this.evaluate(false);
@@ -2679,7 +2763,7 @@ export class GameScene extends Phaser.Scene {
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     this.updateCaret(dt, !!f.interactHeld, !!control);
-    this.riftWord?.update(); this.hubLamp?.update();
+    this.riftWord?.update(); this.hubLamp?.update(); this.clockWord?.update();
     // Only consume F when the Caret is owned AND a send target is in range.
     // JustDown is per-Key and shared with ImpactLab / StealPlay / OfficeExplore,
     // so calling it earlier used to swallow the Level 1 spark throw.
@@ -2692,7 +2776,7 @@ export class GameScene extends Phaser.Scene {
     if (this.room?.id === 'corridor' && control && this.x > 840 && !this.save.seen.includes('guardIntro') && this.caretSendTarget()) {
       this.save.seen.push('guardIntro');
       this.say('fern', 'That guard blocks the exit. It hides its words.', 2600, { box: true });
-      this.say('fern', 'Send your cursor in. Then you can write on it.', 2600, { box: true });
+      this.say('fern', 'Press F. Send your cursor in.', 2200, { box: true });
     }
     this.darkness?.setPosition(this.x, this.y - 30);
 
@@ -2944,7 +3028,8 @@ export class GameScene extends Phaser.Scene {
         return { visible: this.refl.visible, x: this.refl.x, y: this.refl.y, a: this.refl.alpha, sx: this.refl.scaleX, sy: this.refl.scaleY, rot: this.refl.rotation, flipX: this.refl.flipX, bounds: b, pane: g, inside };
       })() : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
-      enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0 })),
+      enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0, dodgeN: e.dodgeN ?? 0 })),
+      dummyDodges: this.dummyDodges, clockWord: this.clockWord?.word ?? null,
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
       intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.find(o => typeof (o as Phaser.GameObjects.Text).text === 'string') as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,

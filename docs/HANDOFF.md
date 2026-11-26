@@ -1,5 +1,18 @@
 # HANDOFF
 
+## 2026-11-26 — Corridor: name STILL, etch the clock, make QUICK feel quick
+
+Danishpreet playtested the corridor guard on `dfbd5de`. He agreed the remaining rift and mirror weak spots can wait. The new notes: Fern told him to type SLOW, but there is no SLOW in the room, and the dummy was not fast, so QUICK did not make sense.
+
+**Hint.** Every corridor line was checked against the real verbs (hold E to take, F to send the Caret, F to throw). Fern now names STILL, says it is on the clock, and tells you how to use it, in short boxed lines. Nothing tells the player to type, and SLOW is not mentioned. After the Caret opens the line: "GUARD IS QUICK. The clock has STILL." / "Hold E on the clock. Then F to throw STILL at it." While the line is locked, a failed hit is "Send your cursor in first." Once it is open: "Take STILL from the clock." Intro: "Press F. Send your cursor in." After the swap: "It's STILL now. Still paper tears." / "J to strike."
+
+**Clock word.** `STILL` is etched under the stopped clock in the alcove, JetBrains Mono, letter-spaced, cyan (gold after it becomes QUICK), same family as VOID and FLOOR. No mounted plate, no rings. Fern's line cues a short flicker on the glyph.
+
+**QUICK / STILL.** While QUICK, the guard smear-dashes with sentinel afterimages, sidesteps hits and bolts, and makes short lunges that are hard to walk around, still blocking the exit. After STILL lands it eases home, drops its head, greys the NOOR card, and becomes hittable. The chest strip sits left of the alcove door so `GUARD IS QUICK` / `GUARD IS STILL` and the parked Caret stay fully readable.
+
+**Playtest.** New checks: the QUICK guard dodges hits; Fern names STILL on the clock and does not say SLOW; the clock word is etched in the room; STILL freezes the guard. Stills (not in the repo): `/workspace/l7c-fern-hint.png`, `/workspace/l7c-clock-word.png`, `/workspace/l7c-guard-quick.png`, `/workspace/l7c-guard-still.png`.
+
+
 ## 2026-11-26 — Deeper cliff strata + hub glass copy restored
 
 Built on `a6d6776` after Danishpreet approved the next pass and reported that the hub mirror was no longer showing a reflection.

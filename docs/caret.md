@@ -21,11 +21,11 @@
 **How the player learns it.**
 1. Hub: holding E at the end of the etched rift word takes the Caret. Fern (box): "That's your cursor. They took your words, not that." Then: "Some things hide their words. Send it in, and you can write there."
 2. Corridor, forced first use: the guard blocks the only exit.
-   - When Noor gets near, Fern says: "That guard blocks the exit. It hides its words." Then: "Send your cursor in. Then you can write on it." The chip reads `F  WRITE INTO IT`.
-   - Hitting the guard does nothing: it's QUICK and sidesteps. Fern says once: "It's quicker than you. Hitting it won't work." Then: "Change what it is first."
-   - Throwing at it bounces off.
-   - F sends the Caret in. `GUARD IS QUICK` prints across its chest with a cyan flash and a small shake. Noor: "My cursor's in it. I can see its line." Fern: "GUARD IS QUICK. Give it a slower word."
-   - Take STILL from the stopped clock (`CLOCK IS STILL`, hold E), so the clock now reads QUICK, and throw it (F) into the open line. The guard reads `GUARD IS STILL`, freezes with its head dropped, and its name card greys out. Fern: "It's still now. Still paper tears." Then: "J to strike."
+   - When Noor gets near, Fern says: "That guard blocks the exit. It hides its words." Then: "Press F. Send your cursor in." The chip reads `F  WRITE INTO IT`.
+   - Hitting the QUICK guard does nothing: it smear-dashes out of the blow. Fern says once: "It's quicker than you. Hitting it won't work." Then, if the line is still locked: "Send your cursor in first." If the Caret is already in: "Take STILL from the clock."
+   - Throwing at it bounces off until the line is open.
+   - F sends the Caret in. `GUARD IS QUICK` prints across its chest with a cyan flash and a small shake, and the Caret parks at the end of the strip. Noor: "My cursor's in it. I can see its line." Fern: "GUARD IS QUICK. The clock has STILL." Then: "Hold E on the clock. Then F to throw STILL at it."
+   - STILL is etched under the stopped clock (same style as the rift VOID). Hold E to take it — the clock then reads QUICK in gold — and throw it (F) into the open line. The guard reads `GUARD IS STILL`, eases home, drops its head, and its name card greys out. Fern: "It's STILL now. Still paper tears." Then: "J to strike."
    - The STILL guard tears under the TYPE combo, and the exit opens. Fern: "It tore. The exit is open."
 
 **Visible effect every time.** The Caret flies in, the line types out with a cyan flash and a small shake, and the Caret parks blinking at the end of the line. It returns to Noor when the word lands.
