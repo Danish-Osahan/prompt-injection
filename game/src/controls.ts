@@ -10,6 +10,8 @@ export type InputKind = 'kb' | 'touch';
 export class Controls {
   last: InputKind;
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
+  /** Set by the scene while the Caret is inside a guarded line: arrow keys steer it instead of Noor. */
+  steerArrows = false;
   private onEsc?: (ev: KeyboardEvent) => void;
   private joyId: number | null = null;
   private joyBase = { x: 0, y: 0 };
@@ -81,8 +83,9 @@ export class Controls {
 
   read(): Frame {
     const k = this.keys;
-    let mx = (k.D.isDown || k.RIGHT.isDown ? 1 : 0) - (k.A.isDown || k.LEFT.isDown ? 1 : 0);
-    let my = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
+    const ar = !this.steerArrows;   // while the Caret is in a line, arrows steer it and WASD still walks
+    let mx = (k.D.isDown || (ar && k.RIGHT.isDown) ? 1 : 0) - (k.A.isDown || (ar && k.LEFT.isDown) ? 1 : 0);
+    let my = (k.S.isDown || (ar && k.DOWN.isDown) ? 1 : 0) - (k.W.isDown || (ar && k.UP.isDown) ? 1 : 0);
     if (mx === 0 && my === 0 && Math.hypot(this.joyVec.x, this.joyVec.y) > 0.2) { mx = this.joyVec.x; my = this.joyVec.y; }
     const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
     const p = this.pressed;

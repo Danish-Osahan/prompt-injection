@@ -169,6 +169,11 @@ export class GameScene extends Phaser.Scene {
   caretMode: 'hidden' | 'trapped' | 'jumping' | 'follow' | 'travel' | 'sent' = 'hidden';
   caretOwned = false;
   caretSentAt = 0;
+  /** Which word of the guarded line the Caret sits on (0 = first). Only the selected word can be replaced. */
+  caretSel = 0;
+  caretPickedQuick = false;
+  caretNoDashSaid = false;
+  caretHover = -1;
   /** Plate the Caret is parked in, holding its line open for the next word (the Caret's job). */
   caretWriting?: string;
   private guardLine: string | null = null;
@@ -177,6 +182,7 @@ export class GameScene extends Phaser.Scene {
   private hubNorthOcclude: Record<string, Phaser.GameObjects.Image> = {};
   private caretSendOnce = false;
   private caretKeyF?: Phaser.Input.Keyboard.Key;
+  private caretKeys?: { L: Phaser.Input.Keyboard.Key; R: Phaser.Input.Keyboard.Key; Q: Phaser.Input.Keyboard.Key };
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
   dashT = 0; dashCd = 0; dashVec = { x: 0, y: 1 }; iframes = 0; sinceDash = 9; didDash = false; didAttack = false; hintThrowArmed = false;
   combo = 0; comboT = 0; swingT = 0; hitStopT = 0; trailT = 0; bsT = 0; bsHit = new Set<Enemy>();
@@ -286,6 +292,7 @@ export class GameScene extends Phaser.Scene {
     this.ctl = new Controls(this);
     this.ctl.onKindChange = () => this.refreshPrompts();
     this.caretKeyF = this.input.keyboard?.addKey('F');
+    { const kb = this.input.keyboard; if (kb) this.caretKeys = { L: kb.addKey('LEFT'), R: kb.addKey('RIGHT'), Q: kb.addKey('Q') }; }
     bindSfxScene(this); installAudioUnlock(); unlockAudio();
     bindMusicScene(this);
     this.makeTextures();
@@ -991,7 +998,6 @@ export class GameScene extends Phaser.Scene {
     this.noor.on('animationcomplete', (a: Phaser.Animations.Animation) => { if (/^noor_(attack|dash|type|combo|peel|throw|release|charge_in)/.test(a.key)) this.noor.play(`noor_idle_${this.dir}`); });
     this.caret = this.add.sprite(0, 0, 'caret_idle').setScale(0.45).setOrigin(0.5, 0.83).play('caret_idle_S').setVisible(false); this.objs.push(this.caret);
     // One Caret on screen: the sprite is only a position/visibility anchor, the I-beam mark is what you see.
-    (this.caret as unknown as { willRender: () => boolean }).willRender = () => false;
     const cp = this.save.checkpoint;
     const spawn = fromLoad && cp.room === id ? cp : r.spawn;
     this.x = spawn.x; this.y = spawn.y; this.unstick(); this.hp = MAX_HP; this.dashCd = 0; this.dashT = 0; this.iframes = 0; this.moved = 0;
@@ -1214,12 +1220,15 @@ export class GameScene extends Phaser.Scene {
     this.addPrompt('caretSend', 0, 0, 'F  write into it', 'TAP  write into it',
       () => this.caretSendOnce || this.save.tutorials.includes('caretSend'),
       () => this.caretOwned && this.caretMode === 'follow' && !!this.caretSendTarget());
+    this.addPrompt('caretPick', 0, 0, '\u2190 \u2192  move cursor', 'TAP  a word',
+      () => this.caretPickedQuick,
+      () => this.caretInLine() && this.caretSel !== (this.plateById('c_dummy')?.def.slot ?? 2));
     this.addPrompt('attack', 0, 0, 'J  attack', 'TAP  attack',
       () => this.didAttack,
       () => this.enemies.some(e => !e.dead && (e.kind !== 'dummy' || this.flags.still)));
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash,
-      () => this.enemies.some(e => !e.dead));
+      () => this.enemies.some(e => !e.dead) && !this.caretOut());
     this.addPrompt('letter', 0, 0, 'E  read', 'TAP  read',
       () => this.letterRead,
       () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
@@ -1304,11 +1313,18 @@ export class GameScene extends Phaser.Scene {
     const flash = this.add.rectangle(0, -95, 64, 190, 0xffffff, 0).setOrigin(0.5);
     // its line, printed on a strip across the chest: hidden until the Caret opens it
     const strip = this.add.container(-24, -108).setVisible(false);
+    // Before the Caret goes in: a faint redacted strip, no words, no rings.
+    const hint = this.add.container(-24, -108).setAlpha(0.8);
+    { const hb = this.add.rectangle(0, 0, 150, 16, 0xe6dfcd, 0.9).setStrokeStyle(1, 0x5a5446, 0.7);
+      const ht = this.add.text(0, 0, '\u2588\u2588\u2588\u2588\u2588 \u2588\u2588 \u2588\u2588\u2588\u2588\u2588', { fontFamily: 'JetBrains Mono', fontSize: '12px', color: '#141418' }).setOrigin(0.5);
+      hb.setSize(ht.width + 20, 16); hb.setOrigin(0.5); hint.add([hb, ht]); }
     const sbg = this.add.rectangle(0, 0, 10, 18, 0xe6dfcd, 1).setStrokeStyle(1, 0x5a5446, 0.95);
+    const ssel = this.add.rectangle(0, 0, 10, 16, 0x7fb8e8, 0.85).setOrigin(0.5).setVisible(false);
     const stx = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: '#1a1c22' }).setOrigin(0.5);
     stx.setLetterSpacing(1);
-    strip.add([sbg, stx]);
-    fig.add([img, head, strip, flash]);
+    strip.add([sbg, ssel, stx]);
+    fig.add([img, head, hint, strip, flash]);
+    fig.setData('hint', hint); fig.setData('stripSel', ssel);
     fig.setData('img', img); fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
   }
   /** Print (or type out) the guard's line on its chest strip; returns the strip's right end in world space. */
@@ -1317,6 +1333,8 @@ export class GameScene extends Phaser.Scene {
     const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined; if (!strip) return;
     const stx = fig!.getData('stripText') as Phaser.GameObjects.Text, sbg = fig!.getData('stripBg') as Phaser.GameObjects.Rectangle;
     this.guardLine = text;
+    const hint = fig!.getData('hint') as Phaser.GameObjects.Container | undefined;
+    hint?.setVisible(!text && !e!.dead);
     if (!text) { strip.setVisible(false); return; }
     strip.setVisible(true);
     const fit = (s: string) => { stx.setText(s); sbg.setSize(Math.max(10, stx.width + 24), 18); sbg.setOrigin(0.5); };
@@ -1324,6 +1342,38 @@ export class GameScene extends Phaser.Scene {
     if (!type) { fit(text); return; }
     fit(text); const full = text; const o = { n: 0 };
     this.tweens.add({ targets: o, n: full.length, duration: 520, onUpdate: () => stx.setText(full.slice(0, Math.round(o.n))), onComplete: () => stx.setText(full) });
+  }
+  /** World box of word i on the guard's chest strip (monospace, so char width is uniform). */
+  guardWordBox(i: number): { x: number; y: number; w: number; lx: number } | null {
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
+    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined;
+    const p = this.plateById('c_dummy');
+    if (!e || !strip || !p) return null;
+    const words = p.words; const full = words.join(' ');
+    const stx = fig!.getData('stripText') as Phaser.GameObjects.Text;
+    const cw = stx && stx.text.length === full.length && stx.width > 0 ? stx.width / full.length : 9;   // monospace: measured per char
+    const start = words.slice(0, i).reduce((n, w) => n + w.length + 1, 0);
+    const lx = -full.length * cw / 2 + (start + words[i].length / 2) * cw;
+    return { x: e.x + strip.x + lx, y: e.y + strip.y, w: words[i].length * cw, lx };
+  }
+  /** The Caret is inside the guard's line, choosing a word. */
+  caretInLine() { return this.caretMode === 'sent' && this.caretWriting === 'c_dummy' && !this.flags.still; }
+  /** The Caret is away from Noor (flying or inside something): no dash. */
+  caretOut() { return this.caretOwned && (this.caretMode === 'travel' || (this.caretMode === 'sent' && !!this.caretWriting)); }
+  /** Move the selection along the line. */
+  caretSelect(i: number) {
+    const p = this.plateById('c_dummy'); if (!p || !this.caretInLine()) return;
+    const n = Phaser.Math.Clamp(i, 0, p.words.length - 1);
+    if (n !== this.caretSel) { this.caretSel = n; sfx('impact_whoosh', 0.2); }
+    if (n === p.def.slot) this.caretPickedQuick = true;
+  }
+  /** F / Q / Esc with nothing in hand: the Caret comes home and the line closes again. */
+  recallCaret() {
+    if (!this.caretWriting && this.caretMode !== 'sent') return false;
+    this.caretWriting = undefined; this.caretMode = 'follow'; this.caret?.setAlpha(1);
+    sfx('impact_whoosh', 0.35);
+    this.evaluate(false);
+    return true;
   }
   guardLineEnd() {
     const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
@@ -1515,7 +1565,7 @@ export class GameScene extends Phaser.Scene {
       if (!this.save.seen.includes('guardDodge')) {
         this.save.seen.push('guardDodge');
         this.say('fern', "It's quicker than you. Hitting it won't work.", 2600, { box: true });
-        if (this.plateById('c_dummy')?.visible) this.say('fern', 'Take STILL from the clock.', 2200, { box: true });
+        if (this.caretInLine()) this.say('fern', 'Put your cursor on QUICK. Throw STILL.', 2400, { box: true });
         else this.say('fern', 'Send your cursor in first.', 2000, { box: true });
       }
       return;
@@ -1573,7 +1623,7 @@ export class GameScene extends Phaser.Scene {
           const im = fig?.getData('img') as Phaser.GameObjects.Image | undefined; if (im && e.state !== 'stun') im.setX(Math.sin(this.t * 83 + e.phase) * 1.6);
           const close = d < 230;
           if (e.state === 'idle' && e.t <= 0) {
-            if (close) { e.state = 'windup'; e.t = (e.swipeN ?? 0) === 0 ? 0.95 : 0.20; e.g.setRotation(-0.18); }
+            if (close) { e.state = 'windup'; e.t = (e.swipeN ?? 0) === 0 ? 0.95 : this.caretOut() ? 0.5 : 0.20; /* no dash while the Caret is out: a slower, readable tell */ e.g.setRotation(-0.18); }
             else {
               const dir = (Math.sin(this.t * 7 + e.phase) >= 0 ? 1 : -1);
               this.dummyDash(e, e.hx + dir * (20 + Math.random() * 22), e.hy + (Math.random() - 0.5) * 10, 0.06);
@@ -1791,7 +1841,8 @@ export class GameScene extends Phaser.Scene {
       f.still = w('c_dummy') === 'STILL';
       this.clockWord?.set(w('c_clock') ?? 'STILL', !!this.stealPlay?.held && this.stealPlay.held.from === 'c_clock', w('c_dummy') === 'STILL');
       if (f.still) help('dummy');
-      if (this.save.seen.includes('guardOpen')) this.plateById('c_dummy')?.setVisibleState(true);
+      // The line shows only while the Caret is inside (or once it's solved).
+      this.plateById('c_dummy')?.setVisibleState(this.caretWriting === 'c_dummy' || f.still);
       { const gp = this.plateById('c_dummy'); const gl = gp?.visible ? gp.words.join(' ') : null; if (initial || gl !== this.guardLine) this.setGuardLine(gl); }
       { const dd = this.enemies.find(e => e.kind === 'dummy'); if (dd) this.setDummyAwake(dd, !f.still); }
       if (f.still && !was.still && !initial) {
@@ -2031,6 +2082,9 @@ export class GameScene extends Phaser.Scene {
       this.objs.push(this.caretMark);
     }
     const g = this.caretMark; g.clear();
+    // The original rendered Caret sprite (caret_idle / caret_move) is the one visible cursor again;
+    // the code-drawn cyan I-beam is retired. Kept as an empty graphics so old references stay safe.
+    g.setVisible(false); return;
     if (!this.caret || !this.caret.visible || this.caretMode === 'hidden') { g.setVisible(false); return; }
     const parked = this.caretMode === 'sent' || this.caretMode === 'travel' || this.caretMode === 'trapped';
     if (!parked && this.caretMode !== 'follow' && this.caretMode !== 'jumping') { g.setVisible(false); return; }
@@ -2143,18 +2197,18 @@ export class GameScene extends Phaser.Scene {
   }
 
   openGuardedLine(p: Plate) {
-    this.caretWriting = p.def.id;
+    this.caretWriting = p.def.id; this.caretSel = 0;
     if (!this.save.seen.includes('guardOpen')) this.save.seen.push('guardOpen');
     p.setVisibleState(true); this.setGuardLine(p.words.join(' '), true);
     sfx('swap'); this.cameras.main.shake(120, 0.003);
     const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
     const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined; const fl = fig?.getData('flash') as Phaser.GameObjects.Rectangle | undefined;
-    if (fl) { this.tweens.killTweensOf(fl); fl.setFillStyle(0x1afff0, 1).setAlpha(0.35); this.tweens.add({ targets: fl, alpha: 0, duration: 420 }); }
+    if (fl) { this.tweens.killTweensOf(fl); fl.setFillStyle(0xf2f6ff, 1).setAlpha(0.35); this.tweens.add({ targets: fl, alpha: 0, duration: 420 }); }
     if (!this.save.seen.includes('guardOpenSaid')) {
       this.save.seen.push('guardOpenSaid');
       this.say('noor', "My cursor's in it. I can see its line.", 2400, { box: true });
-      this.say('fern', 'GUARD IS QUICK. The clock has STILL.', 2600, { box: true });
-      this.say('fern', 'Hold E on the clock. Then F to throw STILL at it.', 2800, { box: true });
+      this.say('fern', 'Arrow keys move your cursor. Put it on QUICK.', 2600, { box: true });
+      this.say('fern', 'Then take STILL from the clock. F throws it in.', 2800, { box: true });
       this.clockWord?.cue();
     }
     try { writeSave(this.save); } catch { /* */ }
@@ -2202,18 +2256,34 @@ export class GameScene extends Phaser.Scene {
     }
     if (!this.caret.visible) { this.drawCaretMark(); return; }
     if (this.caretMode === 'sent') {
-      // Hide the pale sprite; the code-drawn I-beam is the parked cursor.
-      this.caret.setDepth(3600).setAlpha(0);
-      if (this.caretWriting) {   // parked in the guard's line, blinking where the next word goes
-        const p = this.plateById(this.caretWriting); const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
-        if (!p || !e || this.flags.still) this.caretWriting = undefined;
-        else { const q = this.guardLineEnd(); if (q) this.caret.setPosition(q.x, q.y + 8); this.caretSentAt = this.t; }
+      // The rendered Caret itself sits in the line, on the selected word, blinking softly.
+      this.caret.setDepth(3600).setAlpha(0.7 + 0.3 * (Math.sin(this.t * 7) > -0.3 ? 1 : 0));
+      const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+      const ssel = (e?.g.getData('fig') as Phaser.GameObjects.Container | undefined)?.getData('stripSel') as Phaser.GameObjects.Rectangle | undefined;
+      if (this.caretWriting) {
+        const p = this.plateById(this.caretWriting);
+        if (!p || !e || this.flags.still) { this.caretWriting = undefined; this.caretSentAt = Math.min(this.caretSentAt, this.t - 3.4); }
+        else {
+          const b = this.guardWordBox(this.caretSel);
+          if (b) {
+            // The Caret stands on the strip right above the selected word (sprite origin is its foot,
+            // glyph bottom ~18 frame px below it). Small enough to clear the head card.
+            const tx = b.x, ty = b.y - 16 + Math.sin(this.t * 5) * 1.5;
+            this.caret.setScale(0.36);
+            this.caret.x += (tx - this.caret.x) * Math.min(1, dt * 18); this.caret.y += (ty - this.caret.y) * Math.min(1, dt * 18);
+            ssel?.setVisible(true).setPosition(b.lx, 0).setSize(b.w + 6, 16).setOrigin(0.5);
+          }
+          this.caretSentAt = this.t;
+        }
       }
+      if (!this.caretWriting) ssel?.setVisible(false);
       if (this.t - this.caretSentAt > 4) { this.caret.setAlpha(1); this.caretMode = 'follow'; }
       this.drawCaretMark();
       return;
     }
     if (this.caretMode === 'follow') {
+      if (this.caret.scale !== 0.45) this.caret.setScale(0.45);
+      { const e = this.enemies.find(n => n.kind === 'dummy'); ((e?.g.getData('fig') as Phaser.GameObjects.Container | undefined)?.getData('stripSel') as Phaser.GameObjects.Rectangle | undefined)?.setVisible(false); }
       if (this.overHubVoid()) {
         this.caret.setVisible(false);
         this.drawCaretMark();
@@ -2682,6 +2752,7 @@ export class GameScene extends Phaser.Scene {
   // ---------- main loop ----------
   update(_t: number, dms: number) {
     const dt = Math.min(dms / 1000, 0.05);
+    this.ctl.steerArrows = this.caretInLine();
     const f: Frame = this.ctl.read();
     if (this.cutscene?.id === 'end') {
       if (f.pause || f.attack) { f.pause = false; backToTitle(this); }
@@ -2702,6 +2773,8 @@ export class GameScene extends Phaser.Scene {
       this.cutscene.skip();
       f.pause = false;
     }
+    // Esc while the Caret is inside a line calls it home instead of opening the menu.
+    if (f.pause && !this.paused && this.caretInLine() && !this.busy) { this.recallCaret(); f.pause = false; }
     if (f.pause && !this.dying) this.togglePause();
     if (this.paused) return;
     if (!this.labMode) {
@@ -2743,6 +2816,11 @@ export class GameScene extends Phaser.Scene {
     }
     const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
+    if (control && f.dash && this.caretOut()) {
+      f.dash = false;   // the cost of sending the Caret: Noor walks, but can't dash until it's home
+      this.floorText(this.x, this.y - 70, 'CURSOR OUT', C.inkBright, 14, 900);
+      if (!this.caretNoDashSaid) { this.caretNoDashSaid = true; this.say('fern', "No dashing while your cursor's out. F with empty hands calls it back.", 3000, { box: true }); }
+    }
     if (control && f.dash && this.dashCd <= 0 && this.dashT <= 0) {
       const v = Math.hypot(mx, my) > 0.1 ? { x: mx, y: my } : this.dirVec();
       const l = Math.hypot(v.x, v.y) || 1; this.dashVec = { x: v.x / l, y: v.y / l };
@@ -2836,7 +2914,22 @@ export class GameScene extends Phaser.Scene {
         && !this.impactLab?.carrying && !this.explore?.carrying && !this.composer && control) {
       const sendTo = this.caretSendTarget();
       if (sendTo && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.sendCaret(sendTo);
+      else if (this.caretInLine() && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.recallCaret();   // empty hands: F calls it home
     }
+    // Inside the guard's line: arrows (or the mouse) move the Caret word to word; Q calls it home.
+    if (this.caretInLine() && !this.dying && !this.transitioning && !this.clar?.modal && this.caretKeys) {   // works while Fern talks
+      if (Phaser.Input.Keyboard.JustDown(this.caretKeys.L)) this.caretSelect(this.caretSel - 1);
+      if (Phaser.Input.Keyboard.JustDown(this.caretKeys.R)) this.caretSelect(this.caretSel + 1);
+      if (Phaser.Input.Keyboard.JustDown(this.caretKeys.Q) && !this.stealPlay?.held) this.recallCaret();
+      const ptr = this.input.activePointer; const wp = ptr ? this.cameras.main.getWorldPoint(ptr.x, ptr.y) : null;
+      const pw = this.plateById('c_dummy');
+      if (wp && pw && ptr.getDistance() >= 0) {
+        let hov = -1;
+        for (let i = 0; i < pw.words.length; i++) { const b = this.guardWordBox(i); if (b && Math.abs(wp.x - b.x) <= b.w / 2 + 4 && Math.abs(wp.y - b.y) <= 14) hov = i; }
+        if (hov >= 0 && hov !== this.caretHover) this.caretSelect(hov);
+        this.caretHover = hov;
+      }
+    } else if (this.caretKeys) { Phaser.Input.Keyboard.JustDown(this.caretKeys.Q); }
     // First sight of the guard: the Caret's job, said once, in one line each, by a named speaker.
     if (this.room?.id === 'corridor' && control && this.x > 840 && !this.save.seen.includes('guardIntro') && this.caretSendTarget()) {
       this.save.seen.push('guardIntro');
@@ -3076,7 +3169,7 @@ export class GameScene extends Phaser.Scene {
       introMail: !!this.intro?.mailOpen?.(),
       introCursor: this.intro?.cursorState?.() ?? null,
       caretChip: this.caretChip ? { visible: this.caretChip.isShown(), key: this.caretChip.currentKey(), verb: this.caretChip.currentVerb() } : null,
-      caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible, writing: this.caretWriting ?? null },
+      caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible, writing: this.caretWriting ?? null, sel: this.caretSel, inLine: this.caretInLine(), out: this.caretOut() },
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
@@ -3151,6 +3244,8 @@ export class GameScene extends Phaser.Scene {
         return this.sendCaret();
       },
       claimCaret: () => { this.claimCaret(true); return this.caretMode; },
+      selectWord: (i: number) => { this.caretSelect(i); return this.caretSel; },
+      recallCaret: () => this.recallCaret(),
       trapCaret: () => { this.placeTrappedCaret(); return this.caretMode; },
       fireBeam: (c?: number) => { this.fireBeam(c ?? 1); return this.beamN; },
       clar: (k: string, a?: string) => { const c = this.clar; if (!c) return false; if (k === 'tap') return c.openPicker(a ?? 'o_door'); if (k === 'pick') return c.choose(); if (k === 'close') { c.closeAll(); return true; } if (k === 'card') { const p = this.plateById(a ?? ''); return p ? c.openCard(p) : false; } if (k === 'blocked') { const [x, y] = (a ?? '0,0').split(',').map(Number); return c.blocked(x, y); } return false; },

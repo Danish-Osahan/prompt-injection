@@ -1,5 +1,16 @@
 # Room 3 audit — The Dark Corridor
 
+## 2026-11-26 (c) — The Caret picks the word; old Caret sprite back
+
+Playtest of `3d1a220`: "I took the word, pressed F and the word swap happened, the Caret was not used at all."
+
+- **Selection.** The guard shows a faint redacted strip until the Caret is inside. F sends the Caret in and `GUARD IS QUICK` types out, with the Caret standing on GUARD. ←/→ (or mouse hover) moves the Caret word to word, and the selected word is highlighted. Only QUICK takes STILL. GUARD and IS bounce with a one-line reason from Fern, and STILL goes back to the clock.
+- **Recall.** F with empty hands, Q or Esc brings the Caret home, and the line hides again.
+- **Cost.** No dash while the Caret is out (`CURSOR OUT` tag, plus one Fern line). Walking still works. The guard's repeat wind-up is 0.5s while the Caret is out (it was 0.20s) so it stays fair.
+- **Visual.** The cyan code-drawn I-beam is retired. The original rendered Caret sprite (`caret_idle`/`caret_move`, commit 951d156, visible until 6bba1d2 hid it) is the one cursor again. The open-line flash is pale, not cyan.
+- **Playtest.** `tests/corridor_softlock.mjs` now covers ten orders: A–G updated to pick QUICK, plus H (GUARD and IS bounce, then retry), I (recall with F, Q and Esc, then resend) and J (no dash while out, walking works, dash back after recall). Each order ends with the exit open. The main playtest checks that the Caret starts on GUARD and that the arrows select QUICK without moving Noor.
+- **Stills (not in the repo):** `/workspace/l9c-guard-hidden.png`, `/workspace/l9c-caret-select.png`, `/workspace/l9c-guard-still.png`, `/workspace/l9c-fern-teach.png` (and `-2x`).
+
 ## 2026-11-26 (b) — Soft lock fixed, time recorder, freeze pose
 
 - **Soft lock.** F pressed twice quickly while the Caret was still flying in sent STILL at the guard *enemy*; the QUICK dodge ate it, the clock stayed on QUICK and nothing could retake the word. QUICK/STILL no longer target the dummy; F during the Caret flight is ignored; a throw at an open line always lands (any range); a throw at a shut line bounces back to the clock with a Fern line; a clock stuck on QUICK with nothing in hand resets to STILL after 1.6 s. The clock only shows QUICK once STILL has landed on the guard.

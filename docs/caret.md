@@ -1,31 +1,49 @@
 # The Caret: one job
 
-**What it is.** Noor's stolen write-cursor: the blinking I-beam that was hers before the system took her words. The game shows only one, the cyan I-beam.
+**What it is.** Noor's stolen write-cursor. It's the rendered pale I-beam with small eyes (`assets/sprites/caret_idle.png` / `caret_move.png`, from the first commit). It is the only cursor on screen. The cyan code-drawn I-beam (added in 11dacf0) is gone, and `drawCaretMark` now always hides.
 
-**Its job.** Some things hide their words. The Caret goes inside one of these things and opens its line so Noor can write on it.
-- Ordinary things show their words, and Noor takes and throws them without the Caret: E (hold) takes a word, F throws it.
-- A guarded thing shows no line until the Caret is inside it.
-- Throwing a word at a guarded thing before then bounces off; there is nothing to write on yet.
+**Its job.** Some things hide their words. The Caret goes inside one, and only there can Noor see the line and choose which word to change.
+- Ordinary things show their words. Noor takes and throws them without the Caret: hold E to take a word, press F to throw it.
+- A guarded thing shows no words until the Caret is inside, just a faint redacted strip (`█████ ██ █████`). There are no rings.
+- While the Caret is inside, the full line shows. The Caret stands on one word, and that word is highlighted like a text selection.
+- Only the selected word can be replaced, and only if it's the word that can change. Any other selection bounces the throw with a short reason, and the word goes home to where it came from.
+- When the Caret leaves, the line hides again, unless it's solved.
 
-**Controls.**
-- F with empty hands, while a guarded thing is in range: the Caret flies in. The line types itself onto the thing (a printed strip on the corridor guard: `GUARD IS QUICK`), and the Caret parks blinking at the end of it, where the next word will go.
-- F while holding a word next to a still-locked guarded thing: the Caret goes in first and the word stays in hand. The next F throws the word.
-- When the word lands, the Caret comes home to Noor.
+**Controls (corridor guard).**
+| Input | Effect |
+|---|---|
+| F, empty hands, guard in range (460px) | The Caret flies in. `GUARD IS QUICK` types onto the chest strip. The Caret lands on GUARD, the first word. |
+| F, holding a word, line shut | The Caret goes in first and the word stays in hand. |
+| ← / → (or mouse hover over a word, or tap on touch) | Move the Caret word to word. The arrows don't move Noor while the Caret is inside; WASD still walks. |
+| F, holding a word, Caret inside | Throw. If QUICK is selected, it becomes `GUARD IS STILL`. If GUARD or IS is selected, the throw bounces, Fern gives the reason, and STILL returns to the clock. |
+| F (empty hands) / Q / Esc, Caret inside | Recall: the Caret comes home and the line hides again. Esc recalls instead of opening the menu while the Caret is inside. |
+| SPACE while the Caret is out | No dash. A `CURSOR OUT` tag shows, and Fern explains once. Walking still works. |
 
-**What it never does.**
-- It never takes words (E does that).
-- It never aims or carries bolts or melee. Combat doesn't use it at all; the old "the cursor aims" hint and bolt routing are gone.
-- It never sticks to things as a marker.
-- Sending it at anything that isn't guarded does nothing (`GUARDED = ['c_dummy']` in `game.ts`).
+**Cost.** While the Caret is out (flying in, or inside a line), Noor can't dash. To keep that fair, the guard's repeat swipe wind-up goes from 0.20s to 0.5s while the Caret is out, so you can walk out of the reach of a readable tell. The first swipe was already 0.95s.
 
-**How the player learns it.**
-1. Hub: holding E at the end of the etched rift word takes the Caret. Fern (box): "That's your cursor. They took your words, not that." Then: "Some things hide their words. Send it in, and you can write there."
-2. Corridor, forced first use: the guard blocks the only exit.
-   - When Noor gets near, Fern says: "That guard blocks the exit. It hides its words." Then: "Press F. Send your cursor in." The chip reads `F  WRITE INTO IT`.
-   - Hitting the QUICK guard does nothing: it smear-dashes out of the blow. Fern says once: "It's quicker than you. Hitting it won't work." Then, if the line is still locked: "Send your cursor in first." If the Caret is already in: "Take STILL from the clock."
-   - Throwing at it bounces off until the line is open (STILL goes back to the clock; Fern: "Its line is shut. Send your cursor in first."). F while the Caret is still flying in is ignored and the word stays in hand.
-   - F sends the Caret in. `GUARD IS QUICK` prints across its chest with a cyan flash and a small shake, and the Caret parks at the end of the strip. Noor: "My cursor's in it. I can see its line." Fern: "GUARD IS QUICK. The clock has STILL." Then: "Hold E on the clock. Then F to throw STILL at it."
-   - STILL is etched under the stopped clock (same style as the rift VOID). Hold E to take it (the clock word dims while it is in hand and turns gold QUICK only once it has landed), and throw it (F) into the open line. With the line open and the Caret in, the throw always lands on the guard, at any range; QUICK cannot dodge it. If the word is ever lost, the clock resets to STILL by itself. The guard reads `GUARD IS STILL`, eases home, drops its head, and its name card greys out. Fern: "It's STILL now. Still paper tears." Then: "J to strike."
-   - The STILL guard tears under the TYPE combo, and the exit opens. Fern: "It tore. The exit is open."
+**Soft-lock protections (unchanged).** F mashed while the Caret is in flight is ignored and the word stays in hand. A throw at the open line can't be dodged or missed from any range. A missed or bounced word returns to the clock. If the clock shows QUICK while nothing is held and the guard isn't STILL, it resets to STILL after 1.6s. Wrong-word bounces use the same return path, so they can't strand STILL.
 
-**Visible effect every time.** The Caret flies in, the line types out with a cyan flash and a small shake, and the Caret parks blinking at the end of the line. It returns to Noor when the word lands.
+**Fern's teaching lines (named boxes with portraits).**
+1. Near the guard: "That guard blocks the exit. It hides its words." / "Press F. Send your cursor in."
+2. Caret lands: Noor: "My cursor's in it. I can see its line." / Fern: "Arrow keys move your cursor. Put it on QUICK." / "Then take STILL from the clock. F throws it in."
+3. Wrong word (once per word): "GUARD is what it is. Can't cut that." or "IS just joins words. Can't cut that." / "Move onto QUICK. STILL is back on the clock."
+4. First blocked dash: "No dashing while your cursor's out. F with empty hands calls it back."
+5. Hitting the QUICK guard: "It's quicker than you. Hitting it won't work." / "Send your cursor in first." (line shut) or "Put your cursor on QUICK. Throw STILL." (Caret inside)
+6. STILL lands: "It's STILL now. Still paper tears." / "J to strike." Then after the tear: "It tore. The exit is open."
+
+**What it never does.** It never takes words (E does). It never aims bolts or melee. It never sticks to things as a marker. Sending it at anything that isn't guarded does nothing (`GUARDED = ['c_dummy']`).
+
+## How this scales to multi-word lines (design only, not built)
+
+A guarded line is a sentence, and the Caret's selection is the verb's object. The thrown word replaces whatever word is selected, and each word slot decides what happens when it's replaced:
+
+```
+DOOR IS LOCKED AND LOUD
+ 0   1    2     3   4
+```
+- Each slot is marked as `name` (DOOR: never replaceable, same reason as GUARD), `joint` (IS, AND: never replaceable, "just joins words"), or `state` (LOCKED, LOUD: replaceable).
+- Different cuts give different results. Throwing QUIET onto LOUD gives `DOOR IS LOCKED AND QUIET`: the door stays locked, but you can sneak past the room's listener. Throwing OPEN onto LOCKED gives `DOOR IS OPEN AND LOUD`: the door opens, but it alarms and wakes the room. The player picks the outcome by picking the word.
+- Data shape: plate `words[]` plus `slots: { [i]: 'name' | 'joint' | 'state' }` and per-slot `STICKS` (which words each state slot accepts). The current single `def.slot` is the one-state-slot case of this. `compatible(word, dest)` would check `slots[caretSel] === 'state' && sticksAt(dest, caretSel).includes(word)`. `evaluate()` reads each slot by index.
+- Bounce reasons come from the slot kind (name/joint/state-but-wrong-word), so new rooms get readable failures for free.
+- Selection stays one word at a time (←/→). Longer lines don't need any new input.
+- The cost (no dash while out) and the recall rule (F empty / Q / Esc) carry over unchanged. In later rooms, recalling to dodge and then re-sending becomes part of the fight rhythm.

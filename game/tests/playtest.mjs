@@ -604,7 +604,7 @@ async function desktop(browser) {
     const glyphs = s.children.list.filter(o => o.type === 'Text' && o.visible && o.alpha > 0.1 && /^[|I\u2502]$/.test(o.text || '')).length;
     return { marks, sprite, glyphs, total: marks + sprite + glyphs };
   });
-  ok('one cursor: exactly one Caret visual on screen after the take', cursors.total === 1 && cursors.marks === 1, JSON.stringify(cursors));
+  ok('one cursor: exactly one Caret visual on screen after the take', cursors.total === 1 && cursors.sprite === 1, JSON.stringify(cursors));
   await page.evaluate(() => {
     const s = window.__game.scene.getScene('game');
     try { s.dialogue?.clear(); } catch {}
@@ -698,7 +698,7 @@ async function desktop(browser) {
   ok('corridor: F sends the Caret into the guard and its line opens (GUARD IS QUICK)', s.plates.c_dummy.visible && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && s.plates.c_dummy.words === 'GUARD IS QUICK', JSON.stringify(s.caret));
   s = await waitFor(page, s => s.dialogueBoxes >= 1, 2500);
   ok('corridor: the Caret open-line moment is spoken by a named speaker in a box', s.dialogueBoxes >= 1, `boxes ${s.dialogueBoxes}`);
-  const fernHint = await waitFor(page, s => /STILL/.test((s.dialogueProg && s.dialogueProg.full) || '') && /clock/i.test((s.dialogueProg && s.dialogueProg.full) || ''), 5000);
+  const fernHint = await waitFor(page, s => /STILL/.test((s.dialogueProg && s.dialogueProg.full) || '') && /clock/i.test((s.dialogueProg && s.dialogueProg.full) || ''), 9000);
   const hintLine = (fernHint.dialogueProg && fernHint.dialogueProg.full) || '';
   ok('corridor: Fern names STILL on the clock (no SLOW)', /STILL/.test(hintLine) && /clock/i.test(hintLine) && !/SLOW/.test(hintLine) && s.plates.c_clock.words.includes('STILL'), hintLine || JSON.stringify(fernHint.dialogueProg));
   ok('corridor: the clock word is etched in the room', fernHint.clockWord === 'STILL' || s.clockWord === 'STILL', `clockWord ${fernHint.clockWord || s.clockWord}`);
@@ -711,6 +711,10 @@ async function desktop(browser) {
   const stillOnGuard = !!(dummyAim && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && Math.hypot(s.caret.x - dummyAim.x, s.caret.y - (dummyAim.y - 108)) < 90);
   ok('corridor: bolts never move or use the Caret', s.beamN > beams0 && stillOnGuard, `beam ${s.beamN} caret ${JSON.stringify(s.caret)} dummy ${dummyAim && dummyAim.x},${dummyAim && dummyAim.y}`);
   await pi(page, 'teleport', 1110, 202); await sleep(120);
+  ok('corridor: the Caret starts on the first word (GUARD), not on QUICK', s.caret.sel === 0 && s.caret.inLine, JSON.stringify(s.caret));
+  const p0 = (await st(page)).player;
+  await page.keyboard.press('ArrowRight'); await sleep(80); await page.keyboard.press('ArrowRight'); await sleep(150);
+  { const s0 = await st(page); ok('corridor: arrow keys walk the Caret onto QUICK, Noor stays put', s0.caret.sel === 2 && Math.hypot(s0.player.x - p0.x, s0.player.y - p0.y) < 4, `sel ${s0.caret.sel} at ${Math.round(s0.player.x)},${Math.round(s0.player.y)} from ${Math.round(p0.x)},${Math.round(p0.y)}`); }
   await steal(page, 'c_clock', 'c_dummy');
   s = await waitFor(page, s => s.flags.still, 3000);
   ok('corridor: take STILL from the stopped clock, write it into the open line: GUARD IS STILL', s.flags.still && s.plates.c_dummy.words === 'GUARD IS STILL' && s.plates.c_clock.words === 'CLOCK IS QUICK', `${s.plates.c_dummy.words} / ${s.plates.c_clock.words}`);

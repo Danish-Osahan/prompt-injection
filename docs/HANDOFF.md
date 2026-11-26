@@ -1,5 +1,28 @@
 # HANDOFF
 
+## 2026-11-26 (c) — The Caret picks the word; the original Caret sprite is back
+
+Danishpreet on `3d1a220`: "I took the word, pressed F and the word swap happened, the Caret was not used at all." He approved the redesign and asked for the previous Caret look instead of the cyan one, with one cursor only.
+
+**Flow (corridor guard, `game.ts` + `impact/StealPlay.ts`).**
+- Hidden: the guard shows a faint redacted strip (`█████ ██ █████`). No words, no rings.
+- F sends the Caret in, `GUARD IS QUICK` types out, and the Caret stands on GUARD with that word highlighted (`caretSel = 0`).
+- ←/→ (mouse hover or tap also works) moves it word to word (`caretSelect`). While the Caret is inside, `Controls.steerArrows` stops the arrows from moving Noor; WASD still walks. Steering also works while Fern is talking.
+- F with STILL in hand: `StealPlay.compatible` accepts `c_dummy` only when `caretInLine()` and `caretSel === def.slot` (QUICK). GUARD and IS bounce with a floor tag (`GUARD won't take STILL`) and one Fern reason per word, and STILL goes home to the clock through the existing `returnTo` path.
+- Recall (`recallCaret`): F with empty hands, Q, or Esc (Esc recalls instead of pausing while the Caret is inside). The line hides again: `c_dummy` is visible only while `caretWriting === 'c_dummy'` or STILL has landed.
+- Cost (`caretOut()`): no dash while the Caret is flying in or inside. A `CURSOR OUT` tag shows, and Fern explains once. The SPACE dash hint is hidden meanwhile. To keep it fair, the guard's repeat swipe wind-up is 0.5s while the Caret is out (it was 0.20s).
+- All soft-lock protections remain (mash during flight, can't-miss throw, bounce returns, clock self-heal).
+
+**Caret visual.** The cyan code-drawn I-beam (`drawCaretMark`, cyan since 11dacf0) now always hides. The original rendered sprite `caret_idle`/`caret_move` (pale I-beam with small eyes, commit 951d156; it was the visible Caret until 6bba1d2 set `willRender = () => false`) renders again. Inside a line it scales to 0.36 and stands on the strip above the selected word. The open-line flash is pale, not cyan. The playtest "one cursor" check now expects exactly one visible sprite and zero marks.
+
+**Fern.** "Arrow keys move your cursor. Put it on QUICK." / "Then take STILL from the clock. F throws it in." The full list, and how this scales to `DOOR IS LOCKED AND LOUD`, is in `docs/caret.md`.
+
+**Tests.** `tests/corridor_softlock.mjs` has ten orders: A–G now pick QUICK with real arrow keys, plus H (wrong word: GUARD then IS bounce, then QUICK), I (recall with F, Q and Esc, then resend) and J (no dash while out, walking works, dash back after recall). Hooks: `__pi.selectWord(i)`, `__pi.recallCaret()`; state `caret.sel/inLine/out`.
+
+**Stills (not in the repo):** `/workspace/l9c-guard-hidden.png`, `/workspace/l9c-caret-select.png`, `/workspace/l9c-guard-still.png`, `/workspace/l9c-fern-teach.png` (and `-2x`).
+
+**Weak spots.** The pale sprite over the pale paper body is lower contrast than the cyan mark was. It reads against the dark wall above the strip, but not strongly. Softlock D (far throw) failed once in three runs: F didn't register and STILL stayed in hand, though a second F works. It didn't reproduce in isolation, so it's probably a load flake. Esc recalling instead of pausing while the Caret is inside may surprise some players.
+
 ## 2026-11-26 (b) — Corridor soft lock fixed; time recorder, freeze pose; hub corner/bridge/mirror polish
 
 Danishpreet on `2f7b51c`: "I took the word from the clock, threw it, nothing happened, then the clock has QUICK and I'm stuck." A real soft lock.

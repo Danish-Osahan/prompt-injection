@@ -86,6 +86,7 @@ export class StealPlay {
   private lastApply: { from: string; word: string; onto: string; prev: string } | null = null;
   private fernSaid = false;
   private bounceSaid = false;
+  private wrongSaid = new Set<string>();
   private healT = 0;
   private lastLink: Link | null = null;
 
@@ -344,6 +345,13 @@ export class StealPlay {
       this.fx.fire({ tier: 'light', x: tx, y: ty, dir: { x: tx - this.s.x, y: ty - this.s.y } });
       if (dest === 'fern') {
         if (!this.fernSaid) { this.s.say('fern', 'Not me.', 1600); this.fernSaid = true; }
+      } else if (dest === 'c_dummy' && this.s.caretInLine()) {
+        // Wrong word selected: a short readable reason, and the word goes home to the clock.
+        const gp = this.s.plateById('c_dummy'); const picked = gp?.words[this.s.caretSel] ?? '';
+        const why: Record<string, string> = { GUARD: "GUARD is what it is. Can't cut that.", IS: "IS just joins words. Can't cut that." };
+        const b = this.s.guardWordBox(this.s.caretSel);
+        if (b) this.s.floorText(b.x, b.y - 26, `${picked} won't take ${word}`, '#e8e2d0', 13, 1400);
+        if (!this.wrongSaid.has(picked)) { this.wrongSaid.add(picked); this.s.say('fern', why[picked] ?? `Not ${picked}.`, 2200, { box: true }); this.s.say('fern', `Move onto QUICK. ${word} is back on the clock.`, 2400, { box: true }); }
       } else if (this.s.room.id === 'corridor' && (word === 'STILL') && !this.s.flags.still) {
         if (!this.bounceSaid) { this.bounceSaid = true; this.s.say('fern', this.s.plateById('c_dummy')?.visible ? 'Missed. STILL is back on the clock.' : 'Its line is shut. Send your cursor in first.', 2400, { box: true }); }
       }
@@ -368,6 +376,8 @@ export class StealPlay {
       return !!e && !(e.kind === 'dummy' && !this.s.flags.still) && (ENEMY_COUNTER[word] ?? []).includes(e.kind);
     }
     const p = this.s.plateById(dest); if (p && !p.visible) return false;   // a hidden (guarded) line can't be written until the Caret opens it
+    // A guarded line takes a word only where the Caret is: the selected word, and only the one that can change.
+    if (p && dest === 'c_dummy' && !this.s.flags.still && (!this.s.caretInLine() || this.s.caretSel !== p.def.slot)) return false;
     return (STICKS[word] ?? []).includes(dest);
   }
 
