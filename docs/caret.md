@@ -23,9 +23,9 @@
 2. Corridor, forced first use: the guard blocks the only exit.
    - When Noor gets near, Fern says: "That guard blocks the exit. It hides its words." Then: "Press F. Send your cursor in." The chip reads `F  WRITE INTO IT`.
    - Hitting the QUICK guard does nothing: it smear-dashes out of the blow. Fern says once: "It's quicker than you. Hitting it won't work." Then, if the line is still locked: "Send your cursor in first." If the Caret is already in: "Take STILL from the clock."
-   - Throwing at it bounces off until the line is open.
+   - Throwing at it bounces off until the line is open (STILL goes back to the clock; Fern: "Its line is shut. Send your cursor in first."). F while the Caret is still flying in is ignored and the word stays in hand.
    - F sends the Caret in. `GUARD IS QUICK` prints across its chest with a cyan flash and a small shake, and the Caret parks at the end of the strip. Noor: "My cursor's in it. I can see its line." Fern: "GUARD IS QUICK. The clock has STILL." Then: "Hold E on the clock. Then F to throw STILL at it."
-   - STILL is etched under the stopped clock (same style as the rift VOID). Hold E to take it — the clock then reads QUICK in gold — and throw it (F) into the open line. The guard reads `GUARD IS STILL`, eases home, drops its head, and its name card greys out. Fern: "It's STILL now. Still paper tears." Then: "J to strike."
+   - STILL is etched under the stopped clock (same style as the rift VOID). Hold E to take it (the clock word dims while it is in hand and turns gold QUICK only once it has landed), and throw it (F) into the open line. With the line open and the Caret in, the throw always lands on the guard, at any range; QUICK cannot dodge it. If the word is ever lost, the clock resets to STILL by itself. The guard reads `GUARD IS STILL`, eases home, drops its head, and its name card greys out. Fern: "It's STILL now. Still paper tears." Then: "J to strike."
    - The STILL guard tears under the TYPE combo, and the exit opens. Fern: "It tore. The exit is open."
 
 **Visible effect every time.** The Caret flies in, the line types out with a cyan flash and a small shake, and the Caret parks blinking at the end of the line. It returns to Noor when the word lands.

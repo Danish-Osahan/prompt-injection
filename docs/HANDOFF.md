@@ -1,5 +1,27 @@
 # HANDOFF
 
+## 2026-11-26 (b) — Corridor soft lock fixed; time recorder, freeze pose; hub corner/bridge/mirror polish
+
+Danishpreet on `2f7b51c`: "I took the word from the clock, threw it, nothing happened, then the clock has QUICK and I'm stuck." A real soft lock.
+
+**Root cause.** `StealPlay.pickDest` still counted `QUICK`/`STILL` as words that "counter" the guard enemy. If F was pressed while the Caret was still flying in (the line is hidden for ~0.4 s, and a human taps F twice), the held STILL was routed at the *enemy*, not the plate. `applyTo(en:…)` spent it as a hit, `hurtEnemy` made the QUICK guard dodge it, the clock stayed on QUICK (the take had already flipped it), nothing was in hand, and nothing could retake it. Reproduced with real keys (take, F, F within ~120 ms) in `/workspace/stillscripts/softlock.mjs`.
+
+**Fix (`impact/StealPlay.ts`, `game.ts`).**
+- `QUICK`/`STILL` no longer target the dummy enemy at all; a dummy that is not STILL is never a valid throw target.
+- F while the Caret is travelling is ignored; the word stays in hand.
+- With the line open and the Caret in, a throw at STILL always lands on the guard, from any distance. The guard cannot dodge it.
+- A throw with no open line bounces: STILL goes back to the clock and Fern says "Its line is shut. Send your cursor in first." (or "Missed. STILL is back on the clock.").
+- Recovery (`StealPlay.heal`): clock on QUICK, nothing in hand, guard not STILL → clock resets to STILL after 1.6 s (covers old saves, reloads, hot reload).
+- The clock word now looks atomic: while STILL is in hand it shows a faint ghost, QUICK only appears once STILL has landed on the guard.
+
+**Look.** The round wall clock is replaced (patched out of the baked plate, code-drawn on top) by a staff time recorder: split-flap digits that freeze on `11:47` while STILL and race while QUICK, with a card slot and an LED. STILL sits centred under it. QUICK guard: afterimages now trail whole (card and body together, no detached head), and it shivers. STILL landing: white snap, squash, then it sags forward as one piece, desaturated, name card grey, paper flecks and cyan hold lines fall (no rings). Fixed the lean so the NOOR label stays on its card.
+
+**Hub.** Bottom corners of the rift lifted with an additive cold bounce (`hub-rift-corner-lift`); the glass copy now shows head to near the feet (scale ~0.66, playtest "obvious" threshold lowered 0.8 → 0.6); the code-drawn bridge gets edge/end AO, plank joints, and a west side face.
+
+**Playtest.** New suite `tests/corridor_softlock.mjs` (`ONLY_SOFTLOCK=1 npm run playtest`): real key presses for A take→F→F, B Caret→take→throw, C F mashed during Caret flight, D far throw, E throw during a dodge, F bounce→retry, G recovery; each ends with the guard torn and the exit open.
+
+**Stills (not in the repo):** `/workspace/l8c-guard-quick.png`, `/workspace/l8c-guard-still.png`, `/workspace/l8c-clock.png`, `/workspace/l8c-hub-rift.png`, `/workspace/l8c-hub-bridge.png`, `/workspace/l8c-hub-mirror.png`.
+
 ## 2026-11-26 — Corridor: name STILL, etch the clock, make QUICK feel quick
 
 Danishpreet playtested the corridor guard on `dfbd5de`. He agreed the remaining rift and mirror weak spots can wait. The new notes: Fern told him to type SLOW, but there is no SLOW in the room, and the dummy was not fast, so QUICK did not make sense.

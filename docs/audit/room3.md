@@ -1,5 +1,13 @@
 # Room 3 audit — The Dark Corridor
 
+## 2026-11-26 (b) — Soft lock fixed, time recorder, freeze pose
+
+- **Soft lock.** F pressed twice quickly while the Caret was still flying in sent STILL at the guard *enemy*; the QUICK dodge ate it, the clock stayed on QUICK and nothing could retake the word. QUICK/STILL no longer target the dummy; F during the Caret flight is ignored; a throw at an open line always lands (any range); a throw at a shut line bounces back to the clock with a Fern line; a clock stuck on QUICK with nothing in hand resets to STILL after 1.6 s. The clock only shows QUICK once STILL has landed on the guard.
+- **Clock.** The round wall clock is covered by a staff time recorder (flap digits frozen on `11:47` while STILL, racing while QUICK). `STILL` is etched centred beneath it, left of the EXIT sign.
+- **Guard.** QUICK: whole-body afterimages, shiver. STILL: snap flash, squash, forward sag as one piece, grey card, falling paper flecks and cyan hold lines. No rings.
+- **Playtest.** `tests/corridor_softlock.mjs`, real keys, seven orders, each ends with the exit open.
+- **Stills:** `/workspace/l8c-guard-quick.png`, `/workspace/l8c-guard-still.png`, `/workspace/l8c-clock.png`.
+
 ## 2026-11-26 — Fern names STILL on the clock; QUICK actually feels quick
 
 Playtest of `dfbd5de`: Fern said to type a slower word, but there is no SLOW in the room, and the guard did not feel QUICK — hits were easy to walk around.

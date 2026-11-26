@@ -54,26 +54,56 @@ const tellBox = (g: Phaser.GameObjects.Graphics, x: number, y: number, r: number
 /** Etched takeable word under the corridor clock, same family as the hub VOID / FLOOR stencils. */
 class ClockWord {
   t: Phaser.GameObjects.Text; sh: Phaser.GameObjects.Text; word = 'STILL'; cueT = 0;
+  digits: Phaser.GameObjects.Text; led: Phaser.GameObjects.Rectangle; body: Phaser.GameObjects.Graphics;
+  shown = 'STILL'; private key = ''; private held = false; private frozen = true; private rollT = 0;
+  /** A wall time-recorder (staff punch clock) drawn over the baked round clock: split-flap digits that freeze on STILL. */
   constructor(private s: GameScene, public x: number, public y: number) {
-    const st = { fontFamily: 'JetBrains Mono', fontSize: '16px', fontStyle: 'bold', color: '#bfe9ee' };
+    const cy = y - 40;   // y is where the word sits; the clock body is above it
+    const g = s.add.graphics().setDepth(y - 6); this.body = g;
+    // patch the baked round clock out of the wall (feathered), then mount the recorder
+    for (let i = 0; i < 4; i++) g.fillStyle(0x0e121b, 0.5 + i * 0.16).fillRect(x - 38 + i * 3, cy - 30 + i * 3, 76 - i * 6, 62 - i * 6);
+    g.fillStyle(0x05080c, 0.6).fillRect(x - 27, cy - 16, 56, 38);                   // drop shadow
+    g.fillStyle(0x2b333d, 1).fillRect(x - 28, cy - 18, 56, 38);                     // steel housing
+    g.fillStyle(0x4e5b68, 1).fillRect(x - 28, cy - 18, 56, 2);                      // top bevel
+    g.fillStyle(0x161c23, 1).fillRect(x - 28, cy + 18, 56, 2);                      // bottom lip
+    g.fillStyle(0x06090d, 1).fillRect(x - 22, cy - 13, 44, 16);                     // flap window
+    g.lineStyle(1, 0x5b6773, 0.9).strokeRect(x - 22.5, cy - 13.5, 45, 17);
+    g.fillStyle(0x000000, 0.9).fillRect(x - 15, cy + 8, 30, 4);                     // card slot
+    g.fillStyle(0xe6dfcd, 1).fillRect(x - 6, cy + 4, 12, 7);                        // punched card peeking out
+    g.fillStyle(0x6a6458, 1).fillRect(x - 4, cy + 6, 2, 1).fillRect(x + 1, cy + 6, 2, 1);
+    g.fillStyle(0x6c7782, 1).fillRect(x - 25, cy - 15, 2, 2).fillRect(x + 23, cy - 15, 2, 2).fillRect(x - 25, cy + 15, 2, 2).fillRect(x + 23, cy + 15, 2, 2);
+    this.led = s.add.rectangle(x + 20, cy + 10, 4, 4, 0x6fd0e0, 1).setDepth(y - 5);
+    this.digits = s.add.text(x, cy - 5, '11:47', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: '#7fd6e2' }).setOrigin(0.5).setDepth(y - 4);
+    this.digits.setLetterSpacing(2);
+    const st = { fontFamily: 'JetBrains Mono', fontSize: '15px', fontStyle: 'bold', color: '#bfe9ee' };
     this.sh = s.add.text(x + 1, y + 2, 'STILL', { ...st, color: '#02060a' }).setOrigin(0.5).setDepth(y - 1).setAlpha(0.9);
     this.t = s.add.text(x, y, 'STILL', st).setOrigin(0.5).setDepth(y);
-    this.t.setLetterSpacing(4); this.sh.setLetterSpacing(4);
-    this.t.name = 'corridor-clock-word'; s.objs.push(this.sh, this.t);
+    this.t.setLetterSpacing(3); this.sh.setLetterSpacing(3);
+    this.t.name = 'corridor-clock-word'; s.objs.push(g, this.led, this.digits, this.sh, this.t);
   }
-  set(w: string) {
+  /** w: what the clock's plate says. held: STILL is in Noor's hand. Atomic look: QUICK only shows once it has landed on the guard. */
+  set(w: string, held = false, landed = false) {
     this.word = w;
-    this.t.setText(w); this.sh.setText(w);
-    this.t.setColor(w === 'STILL' ? '#bfe9ee' : '#c4a56a');
+    const shown = held ? 'STILL' : (w === 'QUICK' && !landed ? 'STILL' : w);
+    const key = shown + '|' + held; this.shown = shown;
+    this.held = held; this.frozen = shown === 'STILL';
+    if (key === this.key) return; this.key = key;
+    this.t.setText(shown); this.sh.setText(shown);
+    this.t.setColor(held ? '#5d7b84' : shown === 'STILL' ? '#bfe9ee' : '#c4a56a');
+    this.led.setFillStyle(this.frozen ? 0x6fd0e0 : 0xe0883a, 1);
+    this.digits.setColor(this.frozen ? '#7fd6e2' : '#e0a24a');
   }
   cue() { this.cueT = 3.2; }
   update() {
     const tt = this.s.t;
-    const base = this.word === 'STILL' ? 0.78 + 0.16 * Math.sin(tt * 2.1) : 0.7;
+    const base = this.held ? 0.3 : this.frozen ? 0.8 + 0.14 * Math.sin(tt * 2.1) : 0.7;
     const cue = this.cueT > 0 ? 0.2 + 0.2 * Math.sin(tt * 8) : 0;
     if (this.cueT > 0) this.cueT -= 1 / 60;
     this.t.setAlpha(Math.min(1, base + cue));
     this.t.x = this.x + (this.cueT > 0 && Math.sin(tt * 19) > 0.96 ? 1 : 0);
+    if (this.frozen) { this.digits.setText('11:47').setAlpha(this.held ? 0.35 : 0.9); }
+    else if (tt > this.rollT) { this.rollT = tt + 0.05; this.digits.setText(`${10 + Math.floor(Math.random() * 3)}:${String(Math.floor(Math.random() * 60)).padStart(2, '0')}`).setAlpha(0.85); }
+    this.led.setAlpha(this.frozen ? 1 : (Math.sin(tt * 30) > 0 ? 1 : 0.3));
   }
 }
 
@@ -83,7 +113,7 @@ const HUB_GLASS: Rect = { x: 226, y: 50, w: 178, h: 90 };
 /** Scale and foot position so head+shoulders fit the pane, then texture-crop to the glass. */
 function layoutHubCopy(inGlass: boolean, delayedX: number, flipX: boolean) {
   const g = HUB_GLASS, pad = 4, ox = 96, oy = 160;
-  const body = { w: 116, h: 100, y: 50 };
+  const body = { w: 116, h: 124, y: 46 };   // head to near the feet: she is no longer cut off at the chest
   const sc = Math.min((g.w - pad * 2) / body.w, (g.h - pad * 2) / body.h);
   const half = (body.w / 2) * sc;
   // Sit her in the left of the pane so the baked lamp disc (≈331, 63) stays off her head.
@@ -1085,7 +1115,7 @@ export class GameScene extends Phaser.Scene {
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
       this.spawnEnemy('dummy', 1160, 446);
       this.dummyDodges = 0;
-      this.clockWord = new ClockWord(this, 1128, 200);
+      this.clockWord = new ClockWord(this, 1110, 208);
       this.clockWord.set(this.plateById('c_clock')?.slotWord ?? 'STILL');
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
@@ -1279,7 +1309,7 @@ export class GameScene extends Phaser.Scene {
     stx.setLetterSpacing(1);
     strip.add([sbg, stx]);
     fig.add([img, head, strip, flash]);
-    fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
+    fig.setData('img', img); fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
   }
   /** Print (or type out) the guard's line on its chest strip; returns the strip's right end in world space. */
   setGuardLine(text: string | null, type = false) {
@@ -1306,18 +1336,29 @@ export class GameScene extends Phaser.Scene {
   dummyDash(e: Enemy, nx: number, ny: number, dur = 0.08) {
     const img = e.g.getData('fig') as Phaser.GameObjects.Container | undefined;
     const src = this.textures.exists('sentinel') ? 'sentinel' : null;
-    for (let i = 0; i < 3; i++) {
-      const gx = e.x + (nx - e.x) * (i / 5), gy = e.y + (ny - e.y) * (i / 5);
+    const rot = e.g.rotation;
+    for (let i = 1; i <= 3; i++) {
+      const gx = e.x, gy = e.y;
+      const trail = (e.x - nx) * 0.18 * i;   // trail BEHIND the dash direction, whole body (head card included) in one piece
       const ghost = src
-        ? this.add.image(gx, gy, src).setOrigin(83 / 165, 418 / 467).setScale(0.45).setAlpha(0.46 - i * 0.1).setTint(0xb8d4e4).setDepth((e.y) - 2)
-        : this.add.rectangle(gx, gy - 70, 36, 120, 0xb8d4e4, 0.22).setDepth(e.y - 2);
+        ? this.add.image(e.x + trail, gy + (e.y - ny) * 0.1 * i, src).setOrigin(83 / 165, 418 / 467).setScale(0.45).setRotation(rot).setAlpha(0.46 - i * 0.1).setTint(0x9fc6da).setDepth(e.y - 2 - i * 0.01)
+        : this.add.rectangle(gx, gy - 70, 36, 120, 0xb8d4e4, 0.2).setDepth(e.y - 2);
       this.objs.push(ghost);
-      this.tweens.add({ targets: ghost, alpha: 0, x: gx - (nx - e.x) * 0.2, duration: 280 + i * 70, onComplete: () => ghost.destroy() });
+      this.tweens.add({ targets: ghost, alpha: 0, x: ghost.x + trail * 0.6, duration: 240 + i * 60, onComplete: () => ghost.destroy() });
     }
     const tox = e.hx + Phaser.Math.Clamp(nx - e.hx, -64, 36);
     const toy = e.hy + Phaser.Math.Clamp(ny - e.hy, -28, 36);
     this.tweens.add({ targets: e, x: tox, y: toy, duration: Math.max(50, dur * 1000), ease: 'Cubic.easeOut' });
     if (img) { this.tweens.killTweensOf(img); img.setX(0); this.tweens.add({ targets: img, x: { from: (e.x - tox) * 0.4, to: 0 }, duration: 120, ease: 'Cubic.easeOut' }); }
+  }
+  /** Lean the whole sentinel (stand image, name card, head) together about its feet so nothing detaches. The chest strip follows but stays level. */
+  slumpSentinel(fig: Phaser.GameObjects.Container, a: number) {
+    const img = fig.getData('img') as Phaser.GameObjects.Image | undefined, head = fig.getData('head') as Phaser.GameObjects.Container | undefined, strip = fig.getData('strip') as Phaser.GameObjects.Container | undefined;
+    fig.setData('slumpA', a);
+    if (img) img.setRotation(a);
+    const H = 380 * 0.45;
+    if (head) head.setPosition(Math.sin(a) * H, -Math.cos(a) * H);
+    if (strip) strip.setPosition(-24 + Math.sin(a) * 108, -Math.cos(a) * 108);
   }
   /** The empty field fills with her name when the sentinel wakes; empties again if it sleeps. */
   setDummyAwake(e: Enemy, on: boolean) {
@@ -1325,6 +1366,28 @@ export class GameScene extends Phaser.Scene {
     const lab = fig?.getData('label') as Phaser.GameObjects.Text | undefined;
     if (!lab) return;
     lab.setText('NOOR').setColor(on ? '#b8342c' : '#6a6458');
+    const img = fig?.getData('img') as Phaser.GameObjects.Image | undefined;
+    if (!img || fig!.getData('awake') === on) return;
+    fig!.setData('awake', on);
+    this.tweens.killTweensOf(img);
+    if (on) { img.setTint(0xffffff).setScale(0.45).setX(0); this.slumpSentinel(fig!, 0); this.tweens.killTweensOf(lab); return; }
+    // STILL lands: snap-freeze. A hard white flash, a squash, then it sags forward on its stand, desaturated and heavy.
+    const fl = fig!.getData('flash') as Phaser.GameObjects.Rectangle | undefined;
+    if (fl) { this.tweens.killTweensOf(fl); fl.setFillStyle(0xdff8ff, 1).setAlpha(0.75); this.tweens.add({ targets: fl, alpha: 0, duration: 260 }); }
+    img.setX(0).setScale(0.45 * 1.12, 0.45 * 0.86).setTint(0xdff4ff);
+    const sl = { a: 0 };
+    this.tweens.add({ targets: sl, a: 0.13, duration: 520, ease: 'Back.easeOut', onUpdate: () => { const k = Math.min(1, sl.a / 0.13); this.slumpSentinel(fig!, sl.a); img.setTint(Phaser.Display.Color.GetColor(Math.round(255 - 70 * k), Math.round(255 - 52 * k), Math.round(255 - 36 * k))); img.setScale(0.45 * (1.12 - 0.13 * k), 0.45 * (0.86 + 0.11 * k)); } });
+    // paper flecks shake loose and drop; short cyan hold-lines run down the body, then fade (no rings)
+    for (let i = 0; i < 9; i++) {
+      const px = e.x + (Math.random() - 0.5) * 46, py = e.y - 120 + Math.random() * 70;
+      const f = this.add.rectangle(px, py, 4 + Math.random() * 5, 3 + Math.random() * 3, 0xe8e2d0, 0.9).setAngle(Math.random() * 90).setDepth(e.y + 3); this.objs.push(f);
+      this.tweens.add({ targets: f, y: py + 50 + Math.random() * 40, x: px + (Math.random() - 0.5) * 24, angle: f.angle + 160, alpha: 0, duration: 700 + Math.random() * 400, ease: 'Quad.easeIn', onComplete: () => f.destroy() });
+    }
+    for (let i = 0; i < 5; i++) {
+      const ln = this.add.rectangle(e.x - 26 + i * 13, e.y - 128, 2, 54, 0x9ff3ff, 0.8).setDepth(e.y + 4); this.objs.push(ln);
+      this.tweens.add({ targets: ln, y: e.y - 70, alpha: 0, duration: 500 + i * 70, ease: 'Quad.easeOut', onComplete: () => ln.destroy() });
+    }
+    this.tweens.add({ targets: lab, y: { from: lab.y, to: lab.y + 2 }, duration: 300 });
   }
   drawScribble(body: Phaser.GameObjects.Graphics) {
     body.lineStyle(4, 0x0c0e1e, 1);
@@ -1502,11 +1565,12 @@ export class GameScene extends Phaser.Scene {
       if (e.kind === 'dummy') {
         const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined, head = fig?.getData('head') as Phaser.GameObjects.Container | undefined;
         if (this.flags.still) {
-          if (head) head.setRotation(-0.22);
+          if (head) head.setRotation((fig?.getData('slumpA') ?? 0) + 0.02);
           e.state = 'idle'; e.g.setRotation(0);
           e.x += (e.hx - e.x) * Math.min(1, dt * 8); e.y += (e.hy - e.y) * Math.min(1, dt * 8);
         } else {
           if (head) head.setRotation(Math.sin(this.t * 22 + e.phase) > 0.88 ? 0.22 : 0.05 * Math.sin(this.t * 9));
+          const im = fig?.getData('img') as Phaser.GameObjects.Image | undefined; if (im && e.state !== 'stun') im.setX(Math.sin(this.t * 83 + e.phase) * 1.6);
           const close = d < 230;
           if (e.state === 'idle' && e.t <= 0) {
             if (close) { e.state = 'windup'; e.t = (e.swipeN ?? 0) === 0 ? 0.95 : 0.20; e.g.setRotation(-0.18); }
@@ -1725,7 +1789,7 @@ export class GameScene extends Phaser.Scene {
         this.time.delayedCall(3000, () => this.say('fern', 'I left you a note on the wall.', 2000, { box: true }));
       }
       f.still = w('c_dummy') === 'STILL';
-      this.clockWord?.set(w('c_clock') ?? 'STILL');
+      this.clockWord?.set(w('c_clock') ?? 'STILL', !!this.stealPlay?.held && this.stealPlay.held.from === 'c_clock', w('c_dummy') === 'STILL');
       if (f.still) help('dummy');
       if (this.save.seen.includes('guardOpen')) this.plateById('c_dummy')?.setVisibleState(true);
       { const gp = this.plateById('c_dummy'); const gl = gp?.visible ? gp.words.join(' ') : null; if (initial || gl !== this.guardLine) this.setGuardLine(gl); }
@@ -2763,7 +2827,8 @@ export class GameScene extends Phaser.Scene {
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     this.updateCaret(dt, !!f.interactHeld, !!control);
-    this.riftWord?.update(); this.hubLamp?.update(); this.clockWord?.update();
+    this.riftWord?.update(); this.hubLamp?.update();
+    if (this.clockWord) { this.clockWord.set(this.plateById('c_clock')?.slotWord ?? 'STILL', !!this.stealPlay?.held && this.stealPlay.held.from === 'c_clock', this.flags.still); this.clockWord.update(); }
     // Only consume F when the Caret is owned AND a send target is in range.
     // JustDown is per-Key and shared with ImpactLab / StealPlay / OfficeExplore,
     // so calling it earlier used to swallow the Level 1 spark throw.
@@ -3029,7 +3094,7 @@ export class GameScene extends Phaser.Scene {
       })() : null,
       corridorBars: this.children.list.some(o => o.name === 'pathbars'), plates: Object.fromEntries(this.plates.map(p => [p.def.id, { words: p.words.join(' '), visible: p.visible, focused: p.focused }])),
       enemies: this.enemies.map(e => ({ kind: e.kind, x: e.x, y: e.y, hp: e.hp, dead: e.dead, state: e.state, wet: !!e.wet, swipeN: e.swipeN ?? 0, dodgeN: e.dodgeN ?? 0 })),
-      dummyDodges: this.dummyDodges, clockWord: this.clockWord?.word ?? null,
+      dummyDodges: this.dummyDodges, clockWord: this.clockWord?.word ?? null, clockShown: this.clockWord?.shown ?? null,
       birth: this.birth ? { playing: this.birth.playing, t: this.birth.t } : null,
       prompts: this.prompts.filter(p => p.text.alpha > 0.1).map(p => p.text.text), inputKind: this.ctl.last,
       intro: !!this.intro?.playing, introBeat: this.intro?.beat ?? null, endScreen: !!this.endScreen, endLines: this.endLinesText ?? null, playMs: (this.save.playMs ?? 0) + (this.playAcc || 0), roomCard: (this.roomCard?.list?.find(o => typeof (o as Phaser.GameObjects.Text).text === 'string') as Phaser.GameObjects.Text | undefined)?.text ?? null, hintOn: this.hintOn, stuck: this.stuck, timeScale: this.timeScale, stored: this.stored, perfectN: this.perfectN, pasteN: this.pasteN, selectN: this.selectN, selectHits: this.selectHits, rootN: this.rootN, rootUsed: this.rootUsed, rewriteN: this.rewriteN, cutscene: this.cutscene?.id ?? null,

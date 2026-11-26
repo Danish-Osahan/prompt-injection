@@ -30,6 +30,14 @@ export function drawRiftDetail(s: Scene) {
     const sim = s.add.image(0, 384, 'hub_rift_south').setOrigin(0).setDepth(-932); sim.name = 'hub-rift-south'; s.objs.push(sim);
   }
   const rendered = s.textures.exists('hub_rift');
+  // Bottom corners of the shaft read as pure black: a faint cold bounce from the south lip lifts them (additive, no circles).
+  const cor = s.add.graphics().setDepth(-957).setBlendMode(Phaser.BlendModes.ADD); cor.name = 'hub-rift-corner-lift'; s.objs.push(cor);
+  for (let i = 0; i < 16; i++) {
+    const k = 1 - i / 16, w = 70 + 250 * k, hgt = 14 + 78 * k;
+    cor.fillStyle(0x1d4a62, 0.026);
+    cor.fillRect(RIFT.x0, RIFT.sy - hgt, w, hgt);
+    cor.fillRect(RIFT.x1 - w, RIFT.sy - hgt, w, hgt);
+  }
   // Multi-depth slow drifting cold fog sheets/ribbons (parallax, low-alpha polygons, never circles).
   // Depths -956, -952, -944 sit in front of the far cliff (-960) and behind falling Noor (-940), south lip (-932), bridge (123).
   const fogLayers: { g: Phaser.GameObjects.Graphics; k: number }[] = [];
@@ -229,6 +237,20 @@ export class RiftSpan {
       const tx2 = vpX + i * 96 + 48, bx2 = vpX + (tx2 - vpX) * ((top - vpY) / (bot - vpY));
       clipSeg(bx2, top, tx2, bot);
     }
+    if (this.p > 0.9) {
+      // ambient occlusion: edges and both ends darken, plank joints give the deck a surface, west face mirrors the east one
+      for (let k = 0; k < 7; k++) {
+        g.fillStyle(0x000000, 0.2 - k * 0.026).fillRect(L + 2 + k * 2, y0, 2, bot - y0);
+        g.fillStyle(0x000000, 0.2 - k * 0.026).fillRect(R - 4 - k * 2, y0, 2, bot - y0);
+      }
+      for (let k = 0; k < 8; k++) { g.fillStyle(0x000000, 0.34 - k * 0.04).fillRect(L + 2, top + 3 + k * 2, R - L - 4, 2); }
+      for (let yy = top + 22; yy < bot - 6; yy += 26) {
+        g.fillStyle(0x000000, 0.5).fillRect(L + 3, yy, R - L - 6, 1.5);
+        g.fillStyle(0x7fb4cc, 0.16).fillRect(L + 3, yy + 1.5, R - L - 6, 1);
+      }
+    }
+    g.fillStyle(0x0b1620, 1); poly(g, [[L, y0], [L - 11, y0 + 12], [L - 11, bot + 8], [L, bot]]);
+    g.fillStyle(0x10202e, 0.9); poly(g, [[L - 1, y0 + 2], [L - 5, y0 + 6], [L - 5, bot + 4], [L - 1, bot]]);
     g.fillStyle(0x88b4c8, 0.85).fillRect(L, y0, 2, bot - y0);
     g.fillStyle(0x4a6c80, 0.9).fillRect(R - 2, y0, 2, bot - y0);
     if (this.p > 0.98) g.fillStyle(0x0a121a, 0.9).fillRect(L, top, R - L, 3);

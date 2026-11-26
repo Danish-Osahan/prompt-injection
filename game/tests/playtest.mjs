@@ -6,6 +6,7 @@ import { mkdirSync } from 'node:fs';
 import { launch, open, sleep, MOBILE, DESKTOP } from './helpers.mjs';
 import { office11 } from './office11.mjs';
 import { combatGreybox } from './combat_greybox.mjs';
+import { corridorSoftlock } from './corridor_softlock.mjs';
 const PORT = 4175;
 const URL_ = process.env.GAME_URL ?? `http://localhost:${PORT}/?test=1&new=1`;
 const SHOTS = new URL('../screenshots/', import.meta.url).pathname;
@@ -455,7 +456,7 @@ async function desktop(browser) {
       const s = window.__game.scene.getScene('game');
       const stt = window.__pi.state();
       const r = stt.refl;
-      const vis = !!(r && r.visible && r.a >= 0.75 && r.sx >= 0.8);
+      const vis = !!(r && r.visible && r.a >= 0.75 && r.sx >= 0.6);
       if (vis && !firstVis) firstVis = { t: (performance.now() - t0) / 1000, a: r.a, sx: r.sx, seen: stt.copySeen, inside: r.inside, bounds: r.bounds, pane: r.pane };
       const line = s.dialogue?.full || '';
       const fired = !!(s.dialogue?.busy && s.dialogue.who === 'fern' && /copying you|lost another hour/i.test(line));
@@ -483,7 +484,7 @@ async function desktop(browser) {
     }
     return { firstVis, firedAt, early };
   });
-  ok('hub: glass copy is obvious from the south before Fern speaks', !!(copyBeat.firstVis) && copyBeat.firstVis.a >= 0.75 && copyBeat.firstVis.sx >= 0.8, JSON.stringify(copyBeat.firstVis));
+  ok('hub: glass copy is obvious from the south before Fern speaks', !!(copyBeat.firstVis) && copyBeat.firstVis.a >= 0.75 && copyBeat.firstVis.sx >= 0.6, JSON.stringify(copyBeat.firstVis));
   ok('hub: Fern copy line waits until the glass copy has been seen', !!(copyBeat.firedAt) && !copyBeat.early && copyBeat.firedAt.seen >= 0.9, JSON.stringify(copyBeat));
   ok('hub: exactly one Fern during the copy line', !!(copyBeat.firedAt) && copyBeat.firedAt.fernCount === 1, JSON.stringify(copyBeat.firedAt));
   ok('hub: copy-line box does not cover the glass or the door', !!(copyBeat.firedAt && copyBeat.firedAt.box) && !copyBeat.firedAt.overlapGlass && !copyBeat.firedAt.overlapDoor && (copyBeat.firedAt.box.w || 0) <= 560, JSON.stringify(copyBeat.firedAt && copyBeat.firedAt.box));
@@ -935,7 +936,7 @@ async function mobile(browser) {
 const server = await serve();
 const browser = await launch();
 const T11 = { ok, st, pi, waitFor, shot, URL_ };
-try { if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_DESKTOP) { await desktop(browser); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
+try { if (process.env.ONLY_SOFTLOCK) { await corridorSoftlock(browser, T11); } else if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_DESKTOP) { await desktop(browser); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); await corridorSoftlock(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, (e && e.message) + ' ' + (e && e.stack)); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);

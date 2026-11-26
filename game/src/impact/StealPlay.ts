@@ -44,7 +44,7 @@ const STICKS: Record<string, string[]> = {
 };
 
 const ENEMY_COUNTER: Record<string, string[]> = {
-  QUICK: ['dummy'], STILL: ['dummy'], PAPER: ['dummy', 'scribble', 'stapler'],
+  PAPER: ['dummy', 'scribble', 'stapler'],
   WET: ['scribble'], DRY: ['note', 'scribble'],
   SLOW: ['redline'], WEAK: ['draft'], GLASS: ['dummy', 'stapler', 'redline'],
 };
@@ -85,6 +85,8 @@ export class StealPlay {
   private flying = false;
   private lastApply: { from: string; word: string; onto: string; prev: string } | null = null;
   private fernSaid = false;
+  private bounceSaid = false;
+  private healT = 0;
   private lastLink: Link | null = null;
 
   constructor(private s: GameScene) { this.fx = new ImpactFX(s); }
@@ -144,11 +146,13 @@ export class StealPlay {
       (this.orb as Phaser.GameObjects.Image).setPosition(this.s.x + h.x, this.s.y + h.y);
     }
     if (this.flying) return;
+    this.heal(dt);
     const f = this.s.ctl.read();
     if (this.keyU && Phaser.Input.Keyboard.JustDown(this.keyU)) this.undo();
     if (this.held && this.keyF && Phaser.Input.Keyboard.JustDown(this.keyF)) {
       // A guarded thing has no line to throw at yet: F sends the Caret in first, the word stays in hand.
       if (this.s.caretMode === 'follow' && this.s.caretSendTarget()) { this.s.sendCaret(); return; }
+      if (this.s.caretMode === 'travel') return;   // the Caret is still flying in; the word waits in hand
       this.throwAt();
       return;
     }
@@ -170,6 +174,22 @@ export class StealPlay {
       this.peelT = Math.max(0, this.peelT - dt * 2);
       this.lure?.setHold(near && !this.held ? this.peelT / this.peelNeed : 0);
     }
+  }
+
+  /** Soft-lock guard: if STILL left the clock but never landed (nothing in hand, guard not STILL), it comes back. */
+  private heal(dt: number) {
+    if (this.s.room.id !== 'corridor') { this.healT = 0; return; }
+    const c = this.s.plateById('c_clock'), g = this.s.plateById('c_dummy');
+    const broken = !!c && !this.held && c.slotWord === 'QUICK' && g?.slotWord !== 'STILL';
+    if (!broken) { this.healT = 0; return; }
+    this.healT += dt;
+    if (this.healT < 1.6) return;
+    this.healT = 0;
+    this.setPlate('c_clock', 'STILL');
+    this.lastApply = null;
+    this.s.evaluate(false);
+    this.s.clockWord?.cue();
+    sfx('swap');
   }
 
   take(id?: string): boolean {
@@ -282,6 +302,10 @@ export class StealPlay {
   private pickDest(word: string): string | null {
     const sticks = STICKS[word] ?? [];
     const link = this.links().find(l => l.quality === word);
+    if (link && this.s.room.id === 'corridor' && link.dst === 'c_dummy') {
+      const gp = this.s.plateById('c_dummy');
+      if (gp?.visible && this.s.enemies.some(e => e.kind === 'dummy' && !e.dead)) return 'c_dummy';   // open line + Caret in: it cannot be dodged or missed
+    }
     // Prefer the designed target if in range, else any compatible plate, else a counter-enemy, else miss.
     const cands: { id: string; d: number }[] = [];
     if (link) {
@@ -320,6 +344,8 @@ export class StealPlay {
       this.fx.fire({ tier: 'light', x: tx, y: ty, dir: { x: tx - this.s.x, y: ty - this.s.y } });
       if (dest === 'fern') {
         if (!this.fernSaid) { this.s.say('fern', 'Not me.', 1600); this.fernSaid = true; }
+      } else if (this.s.room.id === 'corridor' && (word === 'STILL') && !this.s.flags.still) {
+        if (!this.bounceSaid) { this.bounceSaid = true; this.s.say('fern', this.s.plateById('c_dummy')?.visible ? 'Missed. STILL is back on the clock.' : 'Its line is shut. Send your cursor in first.', 2400, { box: true }); }
       }
       this.returnTo(from, word);
       this.held = null;
@@ -339,7 +365,7 @@ export class StealPlay {
     if (dest === 'draft' || dest === 'r_guard') return word === 'WEAK' || word === 'PAPER';
     if (dest.startsWith('en:')) {
       const e = this.s.enemies[+dest.slice(3)];
-      return !!e && (ENEMY_COUNTER[word] ?? []).includes(e.kind);
+      return !!e && !(e.kind === 'dummy' && !this.s.flags.still) && (ENEMY_COUNTER[word] ?? []).includes(e.kind);
     }
     const p = this.s.plateById(dest); if (p && !p.visible) return false;   // a hidden (guarded) line can't be written until the Caret opens it
     return (STICKS[word] ?? []).includes(dest);
