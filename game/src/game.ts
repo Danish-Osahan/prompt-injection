@@ -1,5 +1,6 @@
 // Prompt Injection, Phase 1 "After Hours" - session 1 playable build.
 // One scene; rooms are built into a throwaway object list and torn down on transition (no loading screens).
+import { StaffCard, STAFF_RECORDS } from './staffCard';
 import Phaser from 'phaser';
 import tokens from './tokens.json';
 import { Controls, type Frame } from './controls';
@@ -1302,59 +1303,41 @@ export class GameScene extends Phaser.Scene {
     fig.add([head, flash]);
     fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash);
   }
-  /** art-v12: the Blender-rendered Sentinel (tailor's form of blank claim sheets, iron stand, blank ID-card head).
-   *  The game prints the name on the card: NOOR in red while it guards, greyed once it is STILL. */
+  /** art-v12: the Blender-rendered Sentinel (tailor's form of blank claim sheets, iron stand, ID-card head).
+   *  Its head card is a staff record (see staffCard.ts): the line is printed on the card itself,
+   *  ink bars while hidden, NOOR in red while it guards, greyed once it is STILL. */
   drawSentinel(fig: Phaser.GameObjects.Container) {
     const S = 0.45;
     const img = this.add.image(0, 0, 'sentinel').setOrigin(83 / 165, 418 / 467).setScale(S);
     const head = this.add.container(0, -380 * S);
-    const lab = this.add.text(0, 1, 'NOOR', { fontFamily: 'IBM Plex Mono', fontSize: '12px', fontStyle: '700', color: '#b8342c' }).setOrigin(0.5);
-    head.add(lab);
     const flash = this.add.rectangle(0, -95, 64, 190, 0xffffff, 0).setOrigin(0.5);
-    // its line, printed on a strip across the chest: hidden until the Caret opens it
-    const strip = this.add.container(-24, -108).setVisible(false);
-    // Before the Caret goes in: a faint redacted strip, no words, no rings.
-    const hint = this.add.container(-24, -108).setAlpha(0.8);
-    { const hb = this.add.rectangle(0, 0, 150, 16, 0xe6dfcd, 0.9).setStrokeStyle(1, 0x5a5446, 0.7);
-      const ht = this.add.text(0, 0, '\u2588\u2588\u2588\u2588\u2588 \u2588\u2588 \u2588\u2588\u2588\u2588\u2588', { fontFamily: 'JetBrains Mono', fontSize: '12px', color: '#141418' }).setOrigin(0.5);
-      hb.setSize(ht.width + 20, 16); hb.setOrigin(0.5); hint.add([hb, ht]); }
-    const sbg = this.add.rectangle(0, 0, 10, 18, 0xe6dfcd, 1).setStrokeStyle(1, 0x5a5446, 0.95);
-    const ssel = this.add.rectangle(0, 0, 10, 16, 0x7fb8e8, 0.85).setOrigin(0.5).setVisible(false);
-    const stx = this.add.text(0, 0, '', { fontFamily: 'JetBrains Mono', fontSize: '13px', fontStyle: 'bold', color: '#1a1c22' }).setOrigin(0.5);
-    stx.setLetterSpacing(1);
-    strip.add([sbg, ssel, stx]);
-    fig.add([img, head, hint, strip, flash]);
-    fig.setData('hint', hint); fig.setData('stripSel', ssel);
-    fig.setData('img', img); fig.setData('head', head); fig.setData('label', lab); fig.setData('flash', flash); fig.setData('strip', strip); fig.setData('stripText', stx); fig.setData('stripBg', sbg);
+    fig.add([img, head]);
+    const card = new StaffCard(this, fig, STAFF_RECORDS.c_dummy, 'staffcard_c_dummy');
+    fig.add(flash);
+    fig.setData('img', img); fig.setData('head', head); fig.setData('flash', flash); fig.setData('card', card);
   }
-  /** Print (or type out) the guard's line on its chest strip; returns the strip's right end in world space. */
-  setGuardLine(text: string | null, type = false) {
+  guardCard(): StaffCard | undefined {
+    const e = this.enemies.find(n => n.kind === 'dummy'); return (e?.g.getData('fig') as Phaser.GameObjects.Container | undefined)?.getData('card') as StaffCard | undefined;
+  }
+  /** Text objects anywhere inside the guard's rig (the card face is a canvas: this must stay 0 while its line is hidden). */
+  guardRigTextCount(): number {
     const e = this.enemies.find(n => n.kind === 'dummy'); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
-    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined; if (!strip) return;
-    const stx = fig!.getData('stripText') as Phaser.GameObjects.Text, sbg = fig!.getData('stripBg') as Phaser.GameObjects.Rectangle;
-    this.guardLine = text;
-    const hint = fig!.getData('hint') as Phaser.GameObjects.Container | undefined;
-    hint?.setVisible(!text && !e!.dead);
-    if (!text) { strip.setVisible(false); return; }
-    strip.setVisible(true);
-    const fit = (s: string) => { stx.setText(s); sbg.setSize(Math.max(10, stx.width + 24), 18); sbg.setOrigin(0.5); };
-    this.tweens.killTweensOf(stx);
-    if (!type) { fit(text); return; }
-    fit(text); const full = text; const o = { n: 0 };
-    this.tweens.add({ targets: o, n: full.length, duration: 520, onUpdate: () => stx.setText(full.slice(0, Math.round(o.n))), onComplete: () => stx.setText(full) });
+    const walk = (o: Phaser.GameObjects.GameObject): number => o instanceof Phaser.GameObjects.Text ? 1 : o instanceof Phaser.GameObjects.Container ? o.list.reduce((n, k) => n + walk(k), 0) : 0;
+    return fig ? walk(e!.g) : 0;
   }
-  /** World box of word i on the guard's chest strip (monospace, so char width is uniform). */
-  guardWordBox(i: number): { x: number; y: number; w: number; lx: number } | null {
-    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
-    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined;
-    const p = this.plateById('c_dummy');
-    if (!e || !strip || !p) return null;
-    const words = p.words; const full = words.join(' ');
-    const stx = fig!.getData('stripText') as Phaser.GameObjects.Text;
-    const cw = stx && stx.text.length === full.length && stx.width > 0 ? stx.width / full.length : 9;   // monospace: measured per char
-    const start = words.slice(0, i).reduce((n, w) => n + w.length + 1, 0);
-    const lx = -full.length * cw / 2 + (start + words[i].length / 2) * cw;
-    return { x: e.x + strip.x + lx, y: e.y + strip.y, w: words[i].length * cw, lx };
+  /** Print the guard's line on its ID card (null = hidden: ink bars only). STILL re-prints with a wipe. */
+  setGuardLine(text: string | null, _type = false) {
+    const card = this.guardCard(); if (!card) return;
+    this.guardLine = text;
+    const words = text ? text.split(' ') : (this.plateById('c_dummy')?.words ?? card.words);
+    card.show(words, !text ? 'hidden' : words.includes('STILL') ? 'still' : 'open');
+  }
+  /** World box of word i on the guard's card. */
+  guardWordBox(i: number): { x: number; y: number; w: number; h: number } | null {
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+    const card = this.guardCard();
+    if (!e || !card || !this.plateById('c_dummy')) return null;
+    return card.wordBox(i);
   }
   /** The Caret is inside the guard's line, choosing a word. */
   caretInLine() { return this.caretMode === 'sent' && this.caretWriting === 'c_dummy' && !this.flags.still; }
@@ -1376,11 +1359,8 @@ export class GameScene extends Phaser.Scene {
     return true;
   }
   guardLineEnd() {
-    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const fig = e?.g.getData('fig') as Phaser.GameObjects.Container | undefined;
-    const strip = fig?.getData('strip') as Phaser.GameObjects.Container | undefined;
-    const sbg = fig?.getData('stripBg') as Phaser.GameObjects.Rectangle | undefined;
-    const ox = strip ? strip.x : 0;
-    return e ? { x: e.x + ox + (sbg ? sbg.width / 2 : 44) + 16, y: e.y - 108 } : null;
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead); const card = this.guardCard();
+    return e && card ? card.edge() : null;
   }
   /** A short smear-dash: afterimages of the sentinel (no circles) then a snap to (nx, ny). */
   dummyDash(e: Enemy, nx: number, ny: number, dur = 0.08) {
@@ -1401,26 +1381,28 @@ export class GameScene extends Phaser.Scene {
     this.tweens.add({ targets: e, x: tox, y: toy, duration: Math.max(50, dur * 1000), ease: 'Cubic.easeOut' });
     if (img) { this.tweens.killTweensOf(img); img.setX(0); this.tweens.add({ targets: img, x: { from: (e.x - tox) * 0.4, to: 0 }, duration: 120, ease: 'Cubic.easeOut' }); }
   }
-  /** Lean the whole sentinel (stand image, name card, head) together about its feet so nothing detaches. The chest strip follows but stays level. */
+  /** Lean the whole sentinel (stand image, ID card, head) together about its feet so nothing detaches. The card is rig-parented and leans with it. */
   slumpSentinel(fig: Phaser.GameObjects.Container, a: number) {
-    const img = fig.getData('img') as Phaser.GameObjects.Image | undefined, head = fig.getData('head') as Phaser.GameObjects.Container | undefined, strip = fig.getData('strip') as Phaser.GameObjects.Container | undefined;
+    const img = fig.getData('img') as Phaser.GameObjects.Image | undefined, head = fig.getData('head') as Phaser.GameObjects.Container | undefined, card = fig.getData('card') as StaffCard | undefined;
     fig.setData('slumpA', a);
     if (img) img.setRotation(a);
     const H = 380 * 0.45;
     if (head) head.setPosition(Math.sin(a) * H, -Math.cos(a) * H);
-    if (strip) strip.setPosition(-24 + Math.sin(a) * 108, -Math.cos(a) * 108);
+    card?.setLean(a);
   }
   /** The empty field fills with her name when the sentinel wakes; empties again if it sleeps. */
   setDummyAwake(e: Enemy, on: boolean) {
     const fig = e.g.getData('fig') as Phaser.GameObjects.Container | undefined;
-    const lab = fig?.getData('label') as Phaser.GameObjects.Text | undefined;
-    if (!lab) return;
-    lab.setText('NOOR').setColor(on ? '#b8342c' : '#6a6458');
+    const lab = fig?.getData('label') as Phaser.GameObjects.Text | undefined;   // fallback paper dummy only
+    const card = fig?.getData('card') as StaffCard | undefined;
+    if (!lab && !card) return;
+    lab?.setText('NOOR').setColor(on ? '#b8342c' : '#6a6458');
+    card?.setAwake(on);
     const img = fig?.getData('img') as Phaser.GameObjects.Image | undefined;
     if (!img || fig!.getData('awake') === on) return;
     fig!.setData('awake', on);
     this.tweens.killTweensOf(img);
-    if (on) { img.setTint(0xffffff).setScale(0.45).setX(0); this.slumpSentinel(fig!, 0); this.tweens.killTweensOf(lab); return; }
+    if (on) { img.setTint(0xffffff).setScale(0.45).setX(0); this.slumpSentinel(fig!, 0); if (lab) this.tweens.killTweensOf(lab); return; }
     // STILL lands: snap-freeze. A hard white flash, a squash, then it sags forward on its stand, desaturated and heavy.
     const fl = fig!.getData('flash') as Phaser.GameObjects.Rectangle | undefined;
     if (fl) { this.tweens.killTweensOf(fl); fl.setFillStyle(0xdff8ff, 1).setAlpha(0.75); this.tweens.add({ targets: fl, alpha: 0, duration: 260 }); }
@@ -1437,7 +1419,7 @@ export class GameScene extends Phaser.Scene {
       const ln = this.add.rectangle(e.x - 26 + i * 13, e.y - 128, 2, 54, 0x9ff3ff, 0.8).setDepth(e.y + 4); this.objs.push(ln);
       this.tweens.add({ targets: ln, y: e.y - 70, alpha: 0, duration: 500 + i * 70, ease: 'Quad.easeOut', onComplete: () => ln.destroy() });
     }
-    this.tweens.add({ targets: lab, y: { from: lab.y, to: lab.y + 2 }, duration: 300 });
+    if (lab) this.tweens.add({ targets: lab, y: { from: lab.y, to: lab.y + 2 }, duration: 300 });
   }
   drawScribble(body: Phaser.GameObjects.Graphics) {
     body.lineStyle(4, 0x0c0e1e, 1);
@@ -2259,31 +2241,31 @@ export class GameScene extends Phaser.Scene {
       // The rendered Caret itself sits in the line, on the selected word, blinking softly.
       this.caret.setDepth(3600).setAlpha(0.7 + 0.3 * (Math.sin(this.t * 7) > -0.3 ? 1 : 0));
       const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
-      const ssel = (e?.g.getData('fig') as Phaser.GameObjects.Container | undefined)?.getData('stripSel') as Phaser.GameObjects.Rectangle | undefined;
+      const card = this.guardCard();
       if (this.caretWriting) {
         const p = this.plateById(this.caretWriting);
         if (!p || !e || this.flags.still) { this.caretWriting = undefined; this.caretSentAt = Math.min(this.caretSentAt, this.t - 3.4); }
         else {
-          const b = this.guardWordBox(this.caretSel);
-          if (b) {
-            // The Caret stands on the strip right above the selected word (sprite origin is its foot,
-            // glyph bottom ~18 frame px below it). Small enough to clear the head card.
-            const tx = b.x, ty = b.y - 16 + Math.sin(this.t * 5) * 1.5;
-            this.caret.setScale(0.36);
+          // The selected word is reverse-printed on the card; the Caret stands just past the card's
+          // right edge on that word's row (sprite origin is its foot), so it never covers the word.
+          card?.setSel(this.caretSel);
+          const spot = card?.caretSpot(this.caretSel);
+          if (spot) {
+            const tx = spot.x, ty = spot.y + Math.sin(this.t * 5) * 1.2;
+            this.caret.setScale(0.42);
             this.caret.x += (tx - this.caret.x) * Math.min(1, dt * 18); this.caret.y += (ty - this.caret.y) * Math.min(1, dt * 18);
-            ssel?.setVisible(true).setPosition(b.lx, 0).setSize(b.w + 6, 16).setOrigin(0.5);
           }
           this.caretSentAt = this.t;
         }
       }
-      if (!this.caretWriting) ssel?.setVisible(false);
+      if (!this.caretWriting) card?.setSel(-1);
       if (this.t - this.caretSentAt > 4) { this.caret.setAlpha(1); this.caretMode = 'follow'; }
       this.drawCaretMark();
       return;
     }
     if (this.caretMode === 'follow') {
       if (this.caret.scale !== 0.45) this.caret.setScale(0.45);
-      { const e = this.enemies.find(n => n.kind === 'dummy'); ((e?.g.getData('fig') as Phaser.GameObjects.Container | undefined)?.getData('stripSel') as Phaser.GameObjects.Rectangle | undefined)?.setVisible(false); }
+      this.guardCard()?.setSel(-1);
       if (this.overHubVoid()) {
         this.caret.setVisible(false);
         this.drawCaretMark();
@@ -2925,7 +2907,7 @@ export class GameScene extends Phaser.Scene {
       const pw = this.plateById('c_dummy');
       if (wp && pw && ptr.getDistance() >= 0) {
         let hov = -1;
-        for (let i = 0; i < pw.words.length; i++) { const b = this.guardWordBox(i); if (b && Math.abs(wp.x - b.x) <= b.w / 2 + 4 && Math.abs(wp.y - b.y) <= 14) hov = i; }
+        for (let i = 0; i < pw.words.length; i++) { const b = this.guardWordBox(i); if (b && Math.abs(wp.x - b.x) <= b.w / 2 + 3 && Math.abs(wp.y - b.y) <= b.h / 2 + 3) hov = i; }
         if (hov >= 0 && hov !== this.caretHover) this.caretSelect(hov);
         this.caretHover = hov;
       }
@@ -3169,6 +3151,7 @@ export class GameScene extends Phaser.Scene {
       introMail: !!this.intro?.mailOpen?.(),
       introCursor: this.intro?.cursorState?.() ?? null,
       caretChip: this.caretChip ? { visible: this.caretChip.isShown(), key: this.caretChip.currentKey(), verb: this.caretChip.currentVerb() } : null,
+      card: (() => { const c = this.guardCard(); return c ? { ...c.testState(), rigText: this.guardRigTextCount(), boxes: [0, 1, 2].map(i => c.wordBox(i)), spot: c.caretSpot(this.caretSel), edge: c.edge() } : null; })(),
       caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible, writing: this.caretWriting ?? null, sel: this.caretSel, inLine: this.caretInLine(), out: this.caretOut() },
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },

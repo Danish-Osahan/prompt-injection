@@ -9,6 +9,7 @@ async function start() {
     await Promise.all([
       document.fonts.load('700 22px "JetBrains Mono"'), document.fonts.load('500 12px "JetBrains Mono"'),
       document.fonts.load('500 14px "IBM Plex Mono"'), document.fonts.load('400 12px "IBM Plex Mono"'),
+      document.fonts.load('800 24px "Barlow Condensed"'),   // the staff ID cards print in it
     ]);
   } catch { /* fall back to monospace */ }
   const game = new Phaser.Game({

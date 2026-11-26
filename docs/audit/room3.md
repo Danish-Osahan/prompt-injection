@@ -1,5 +1,11 @@
 # Room 3 audit — The Dark Corridor
 
+## 2026-11-26 (d) — Staff ID cards: the guard's line printed on its card
+
+- **Rule (all rooms).** Every enemy is a staff record and wears an ID card in a fixed, big-enough spot; its line (about 4 words) is printed on that card. Config: `STAFF_RECORDS` in `game/src/staffCard.ts` (`{ line, anchor, scale, mount, name, tilt }`). Only the corridor guard is built; the hub has no guarded enemy yet, so nothing in this room changes until one is added.
+- **Corridor guard.** The cream chest label is gone. Hidden = ragged ink bars on the card (no text in the display list); Caret inside = line printed in two rows with the selected word reverse-printed and the pale Caret at the card's edge; STILL = teal re-print with a short wipe, the card leaning with the slumped rig. Font: Barlow Condensed ExtraBold (OFL-1.1).
+- **Stills:** `/workspace/l10-card-hidden.png`, `/workspace/l10-card-select.png`, `/workspace/l10-card-still.png`, `/workspace/l10-card-gameplay-1x.png`.
+
 ## 2026-11-26 (c) — The Caret picks the word; old Caret sprite back
 
 Playtest of `3d1a220`: "I took the word, pressed F and the word swap happened, the Caret was not used at all."

@@ -39,17 +39,28 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
     ok(`softlock ${tag}: the exit opens`, s.room === 'archive', s.room);
   }
 
+  // The guard's line lives on its ID card (staffCard.ts): ink bars while hidden, no Text objects in its rig.
+  const cardHidden = (s) => s.card && s.card.state === 'hidden' && s.card.printed === '' && s.card.rigText === 0 && s.card.visible;
+  const cardInfo = (s) => JSON.stringify(s.card && { state: s.card.state, printed: s.card.printed, sel: s.card.selWord, rigText: s.card.rigText, rot: +s.card.rot.toFixed(3), lean: s.card.lean });
   let page, ctx, errs, s;
   // A. take STILL first, F sends the Caret in (word stays in hand), F throws
   ({ ctx, page, errs } = await fresh());
+  s = await st(page);
+  ok('card A: the guard wears its ID card, parented to the rig, line hidden as ink bars (no text in the display list)', cardHidden(s) && s.card.parented && s.card.rows.join('/') === 'GUARD IS/QUICK', cardInfo(s));
   await take(page); s = await st(page);
   ok('softlock A: E hold takes STILL (the clock does not show QUICK while it is in hand)', s.steal?.held?.word === 'STILL' && s.clockWord === 'QUICK' && s.clockShown === 'STILL', info(s) + ' shown ' + s.clockShown);
   await F(page, 1500); s = await st(page);
   ok('softlock A: F with STILL in hand sends the Caret and keeps the word', s.plates.c_dummy.visible && s.steal?.held?.word === 'STILL' && s.caret.mode === 'sent', info(s));
   ok('softlock A: the Caret lands on the first word, GUARD', s.caret.sel === 0 && s.caret.inLine, JSON.stringify(s.caret));
-  await pick(page); s = await st(page);
+  ok('card A: the open line is printed on the card, GUARD reverse-printed under the Caret', s.card.state === 'open' && s.card.printed === 'GUARD IS QUICK' && s.card.selWord === 'GUARD', cardInfo(s));
+  await pick(page); await sleep(300); s = await st(page);
   ok('softlock A: two right arrows select QUICK', s.caret.sel === 2, JSON.stringify(s.caret));
-  await F(page, 1200); await finish(page, 'A (take, F, pick, F)'); await ctx.close();
+  { const q = s.card.boxes[2], sp = s.card.spot;
+    ok('card A: QUICK is reverse-printed and the Caret stands at the card edge on its row, clear of the word', s.card.selWord === 'QUICK' && Math.hypot(s.caret.x - sp.x, s.caret.y - sp.y) < 8 && s.caret.x - 8 > q.x + q.w / 2 && s.caret.x > s.card.edge.x, cardInfo(s) + ' caret ' + Math.round(s.caret.x) + ',' + Math.round(s.caret.y) + ' spot ' + Math.round(sp.x) + ',' + Math.round(sp.y)); }
+  await F(page, 1200);
+  s = await waitFor(page, s => s.flags.still && s.card && s.card.wipe >= 1, 2500);
+  ok('card A: STILL re-prints in teal on the card (wipe done), the card leans with the slumped rig', s.card.state === 'still' && s.card.printed === 'GUARD IS STILL' && s.card.fresh === 'STILL' && s.card.lean > 0.1 && Math.abs(s.card.rot - (s.card.lean - 0.04)) < 0.01 && !s.card.awake, cardInfo(s));
+  await finish(page, 'A (take, F, pick, F)'); await ctx.close();
 
   // B. Caret first, then take, then throw
   ({ ctx, page } = await fresh());
@@ -94,6 +105,7 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   await clear(page);
   await page.keyboard.press('ArrowRight'); await sleep(150); await take(page); await F(page, 1000); s = await st(page);
   ok('softlock H: STILL thrown at IS bounces too, back on the clock', s.caret.sel === 1 && !s.steal?.held && s.plates.c_clock.words === 'CLOCK IS STILL' && !s.flags.still, info(s));
+  ok('card H: after the bounce the card still reads GUARD IS QUICK with IS reverse-printed', s.card.state === 'open' && s.card.printed === 'GUARD IS QUICK' && s.card.selWord === 'IS', cardInfo(s));
   await clear(page);
   await page.keyboard.press('ArrowRight'); await sleep(150); await take(page); await F(page, 1200); await finish(page, 'H (wrong word, retry)'); await ctx.close();
 
@@ -101,10 +113,12 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   ({ ctx, page } = await fresh());
   await openLine(page); await F(page, 700); s = await st(page);
   ok('softlock I: F with empty hands calls the Caret home and the line hides again', s.caret.mode === 'follow' && !s.plates.c_dummy.visible, info(s));
+  ok('card I: recall puts the ink bars back, no selection and no text left on the card', cardHidden(s) && s.card.sel === -1, cardInfo(s));
   await F(page, 1400); await clear(page); s = await st(page);
   ok('softlock I: F sends it back in', s.caret.inLine && s.plates.c_dummy.visible, info(s));
   await page.keyboard.press('q'); await sleep(500); s = await st(page);
   ok('softlock I: Q calls it home', s.caret.mode === 'follow' && !s.plates.c_dummy.visible, info(s));
+  ok('card I: after Q the card is bars only again', cardHidden(s), cardInfo(s));
   await F(page, 1400); await clear(page); await page.keyboard.press('Escape'); await sleep(500); s = await st(page);
   const paused = await page.evaluate(() => !!window.__game.scene.getScene('game').paused);
   ok('softlock I: Esc calls it home (and does not open the menu)', s.caret.mode === 'follow' && !s.plates.c_dummy.visible && !paused, info(s) + ' paused ' + paused);

@@ -708,7 +708,8 @@ async function desktop(browser) {
   const beams0 = s.beamN;
   await pi(page, 'fireBeam', 1); await sleep(450); s = await st(page);
   const dummyAim = s.enemies.find(e => e.kind === 'dummy');
-  const stillOnGuard = !!(dummyAim && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && Math.hypot(s.caret.x - dummyAim.x, s.caret.y - (dummyAim.y - 108)) < 90);
+  // the Caret stays parked at the guard's ID card, on the selected word's row (staffCard caretSpot)
+  const stillOnGuard = !!(dummyAim && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && s.card && s.card.spot && Math.hypot(s.caret.x - s.card.spot.x, s.caret.y - s.card.spot.y) < 14);
   ok('corridor: bolts never move or use the Caret', s.beamN > beams0 && stillOnGuard, `beam ${s.beamN} caret ${JSON.stringify(s.caret)} dummy ${dummyAim && dummyAim.x},${dummyAim && dummyAim.y}`);
   await pi(page, 'teleport', 1110, 202); await sleep(120);
   ok('corridor: the Caret starts on the first word (GUARD), not on QUICK', s.caret.sel === 0 && s.caret.inLine, JSON.stringify(s.caret));

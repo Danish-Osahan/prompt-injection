@@ -1,5 +1,24 @@
 # HANDOFF
 
+## 2026-11-26 (d) — The guard's line is printed on its staff ID card
+
+Danishpreet on `a2a548e`: the cream label pasted across the guard's body read as a cheap debug label. He reviewed preview directions A–K, chose C (the line printed on the guard's ID card), asked whether it works for every enemy (yes, as a world rule: every enemy is a staff record and wears an ID card), approved `pv-card-guard.png` and asked for the build.
+
+**What changed.**
+- The cream chest strip, its blue selection box and the redacted hint strip are gone, along with the NOOR Text on the head. New `src/staffCard.ts`: `StaffCard` draws the guard's head card as a canvas texture at 4x, shown at 1x (62 x 42 px), as a child of the guard's rig container. It replaces the sentinel's blank head card and is clipped where the pole enters.
+- Hidden: ragged ink bars where the words would be. No letters are drawn, and the guard's rig holds zero Text objects (checked).
+- Caret in the line: the line prints in two rows (`GUARD IS` / `QUICK`), the selected word is reverse-printed, and the pale Caret (scale 0.42) stands just past the card's right edge on that word's row. Mouse hover uses the card's word boxes.
+- STILL lands: STILL re-prints in teal (`rgb(0,70,84)`, darker than the preview for contrast) with a 260 ms print-head wipe and an underline. The card greys its name and leans with the slumping rig (`slumpSentinel` → `card.setLean(a)`).
+- Font: Barlow Condensed ExtraBold (OFL-1.1), loaded in `index.html`/`main.ts`, credited in `CREDITS.md` and `game/CREDITS.md`. The Q tail is printed slightly heavier so it reads as Q at 1x.
+- Per-enemy config `STAFF_RECORDS[id] = { line, anchor, scale, mount, name, tilt }`; only the guard is built (`mount: 'clip'`).
+- Behaviour unchanged: Caret send / select / bounce / recall, no dash while out, all soft-lock protections. `guardWordBox` / `guardLineEnd` now come from the card.
+
+**Tests.** `corridor_softlock.mjs`: the 48 existing checks plus 7 card checks: card parented and hidden as bars with zero rig text; open line printed with GUARD selected; QUICK reverse-printed and the Caret at the card edge clear of the word; STILL re-printed teal with the card leaning; IS selected after a wrong-word bounce; bars back after F and after Q recall. Results: `corridor_softlock` 55/55; full `npm run playtest` 327/327 (zero FAIL). Earlier full runs on this build failed once each on `hub: dash ... cannot cross the rift before the swap` at varying x; the same check also failed on the untouched baseline under load, so it is an existing timing flake, not the card.
+
+**Stills (not in the repo):** `/workspace/l10-card-hidden.png`, `/workspace/l10-card-select.png`, `/workspace/l10-card-still.png` (2x crops around the guard), `/workspace/l10-card-gameplay-1x.png`, plus full frames `/workspace/l10-card-*-full.png`. Still script: `/workspace/stillscripts/card.mjs`.
+
+**Weak spots.** The card face has no scene lighting of its own (baked sheen and edge light only), so it reads a little cleaner than the Blender body. The card is about 1.4x the old blank head card. The Caret is small next to the card at 1x. The other mounts (tape, holder, lanyard) are named in the config but not drawn. The dash afterimages still use the sentinel sprite with its old blank card.
+
 ## 2026-11-26 (c) — The Caret picks the word; the original Caret sprite is back
 
 Danishpreet on `3d1a220`: "I took the word, pressed F and the word swap happened, the Caret was not used at all." He approved the redesign and asked for the previous Caret look instead of the cyan one, with one cursor only.

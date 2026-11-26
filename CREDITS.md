@@ -240,3 +240,9 @@ The first pass used only procedural WebAudio beds. Those read as synthetic, so t
 
 Existing CC0 loops and one-shots (Kenney Interface Sounds, alxl *Rain on Window Loop*, yd *Insistent*, skrjablin *The Final Battle*, rubberduck *100 CC0 SFX*, sinny *old elevator door*) are unchanged and already credited above. Rain stays quiet (0.15, and ducks further under dialogue). Rooms still crossfade in ~1.25 s and duck under dialogue. Combat SFX stay on the SFX bus so they read over the bed.
 
+## Staff ID card print (game, added 26 Nov 2026)
+| Font | Author / copyright | Licence |
+|---|---|---|
+| Barlow Condensed ExtraBold | The Barlow Project Authors (2017), https://github.com/jpt/barlow | OFL-1.1 |
+
+Shipped unmodified as `game/public/assets/fonts/BarlowCondensed-ExtraBold.ttf`, with its licence text in `game/public/assets/fonts/BarlowCondensed-OFL.txt` (from https://github.com/google/fonts/tree/main/ofl/barlowcondensed). Used only for the line printed on enemy staff ID cards (`game/src/staffCard.ts`), because its Q has a tail that survives at 1x. The card face itself is drawn in code (canvas), with no image asset.

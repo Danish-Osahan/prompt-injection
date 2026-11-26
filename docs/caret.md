@@ -4,18 +4,18 @@
 
 **Its job.** Some things hide their words. The Caret goes inside one, and only there can Noor see the line and choose which word to change.
 - Ordinary things show their words. Noor takes and throws them without the Caret: hold E to take a word, press F to throw it.
-- A guarded thing shows no words until the Caret is inside, just a faint redacted strip (`█████ ██ █████`). There are no rings.
-- While the Caret is inside, the full line shows. The Caret stands on one word, and that word is highlighted like a text selection.
+- A guarded thing shows no words until the Caret is inside. Its line is printed on its staff ID card, and while hidden the card carries only ragged ink bars where the words would be (no letters exist anywhere in the display list). There are no rings.
+- While the Caret is inside, the full line prints on the card. The selected word is reverse-printed (a block of ink with the word knocked out), and the Caret stands just past the card's right edge on that word's row, so it never covers the word.
 - Only the selected word can be replaced, and only if it's the word that can change. Any other selection bounces the throw with a short reason, and the word goes home to where it came from.
 - When the Caret leaves, the line hides again, unless it's solved.
 
 **Controls (corridor guard).**
 | Input | Effect |
 |---|---|
-| F, empty hands, guard in range (460px) | The Caret flies in. `GUARD IS QUICK` types onto the chest strip. The Caret lands on GUARD, the first word. |
+| F, empty hands, guard in range (460px) | The Caret flies in. `GUARD IS QUICK` prints on the guard's ID card (rows `GUARD IS` / `QUICK`). The Caret lands on GUARD, the first word. |
 | F, holding a word, line shut | The Caret goes in first and the word stays in hand. |
 | ← / → (or mouse hover over a word, or tap on touch) | Move the Caret word to word. The arrows don't move Noor while the Caret is inside; WASD still walks. |
-| F, holding a word, Caret inside | Throw. If QUICK is selected, it becomes `GUARD IS STILL`. If GUARD or IS is selected, the throw bounces, Fern gives the reason, and STILL returns to the clock. |
+| F, holding a word, Caret inside | Throw. If QUICK is selected, it becomes `GUARD IS STILL`: STILL re-prints in teal on the card with a short print-head wipe (260 ms). If GUARD or IS is selected, the throw bounces, Fern gives the reason, and STILL returns to the clock. |
 | F (empty hands) / Q / Esc, Caret inside | Recall: the Caret comes home and the line hides again. Esc recalls instead of opening the menu while the Caret is inside. |
 | SPACE while the Caret is out | No dash. A `CURSOR OUT` tag shows, and Fern explains once. Walking still works. |
 
@@ -30,6 +30,11 @@
 4. First blocked dash: "No dashing while your cursor's out. F with empty hands calls it back."
 5. Hitting the QUICK guard: "It's quicker than you. Hitting it won't work." / "Send your cursor in first." (line shut) or "Put your cursor on QUICK. Throw STILL." (Caret inside)
 6. STILL lands: "It's STILL now. Still paper tears." / "J to strike." Then after the tear: "It tore. The exit is open."
+
+**The staff ID card (`game/src/staffCard.ts`).** World rule: every enemy is a staff record and wears an ID card in a fixed, big-enough spot; its line (about 4 words, two rows) is printed on it. The card face is a 4x canvas texture shown at 1x (62 x 42 px): PVC grey with a top-lit gradient, magstripe, the line in Barlow Condensed ExtraBold (Q tail printed a little heavier so it reads at 1x), a footer with the name (red while it guards, grey once stopped) and a barcode, a faint diagonal sheen, cool fill from the left, warm lamp on the right edge, a thickness edge, a contact shadow and the mount. The card is a child of the enemy's rig container, so it inherits position, lean and rotation (`setLean`).
+- Config: `STAFF_RECORDS[id] = { line, anchor, scale, mount, name, tilt }`. `mount` is `clip | tape | holder | lanyard`; only the guard (`c_dummy`, `clip`, anchor `(0, -158)`) is built.
+- States: `hidden` (ink bars, `printed === ''`), `open` (line printed, `sel` reverse-printed), `still` (changed word re-printed in teal with a wipe).
+- Hooks: `card.wordBox(i)` (world box per word: mouse hover and floor tags use it), `card.caretSpot(i)` (where the Caret stands), `card.edge()`. Test state: `__pi.state().card` (`state`, `printed`, `selWord`, `fresh`, `wipe`, `rot`, `lean`, `parented`, `rigText` = Text objects inside the guard's rig, must be 0).
 
 **What it never does.** It never takes words (E does). It never aims bolts or melee. It never sticks to things as a marker. Sending it at anything that isn't guarded does nothing (`GUARDED = ['c_dummy']`).
 

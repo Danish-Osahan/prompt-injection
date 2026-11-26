@@ -1,5 +1,11 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-26 (d) — Staff ID cards: the guard's line printed on its card
+
+- **Rule (all rooms).** Every enemy is a staff record and wears an ID card in a fixed, big-enough spot; its line (about 4 words) is printed on that card. Config: `STAFF_RECORDS` in `game/src/staffCard.ts` (`{ line, anchor, scale, mount, name, tilt }`). Only the corridor guard is built; the hub has no guarded enemy yet, so nothing in this room changes until one is added.
+- **Corridor guard.** The cream chest label is gone. Hidden = ragged ink bars on the card (no text in the display list); Caret inside = line printed in two rows with the selected word reverse-printed and the pale Caret at the card's edge; STILL = teal re-print with a short wipe, the card leaning with the slumped rig. Font: Barlow Condensed ExtraBold (OFL-1.1).
+- **Stills:** `/workspace/l10-card-hidden.png`, `/workspace/l10-card-select.png`, `/workspace/l10-card-still.png`, `/workspace/l10-card-gameplay-1x.png`.
+
 ## 2026-11-26 — Deeper receding cliff strata + glass copy in front of the north occlude
 
 - **Far cliff.** 13 irregular strata tiers plus vertical fissure ribs now run down the full-width north wall to `k ≈ 0.84` (about 75–80% of the visible shaft) before near-black. Blocks shrink and tighten toward `(640, 392, -6.4)`. Protrusion is a thin lit bevel, so the face reads as a wall dropping away rather than an overhang of shelves. Fog falloff starts later so the lower tiers stay readable.
