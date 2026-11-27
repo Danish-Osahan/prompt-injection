@@ -71,9 +71,14 @@ const LINKS: Partial<Record<RoomId, Link[]>> = {
 
 const FERN = { x: 1005, y: 545 };
 const NEAR = 130;
+/** Per-source take reach. The corridor clock hangs high on the back wall: its reach covers the floor under it and
+ *  the end of the left hall, so Noor can take STILL whichever order she does things in (Caret in or not). */
+const REACH: Record<string, number> = { c_clock: 190 };
 
 export class StealPlay {
   on = false;
+  private farHoldT = 0;
+  private farSaidAt = -99;
   held: { word: string; from: string } | null = null;
   fx: ImpactFX;
   lure?: OnboardLure;
@@ -174,6 +179,15 @@ export class StealPlay {
     } else {
       this.peelT = Math.max(0, this.peelT - dt * 2);
       this.lure?.setHold(near && !this.held ? this.peelT / this.peelNeed : 0);
+      // Holding E with the Caret in the guard but nothing in reach: point at the clock instead of doing nothing.
+      if (!near && !this.held && f.interactHeld && this.s.caretInLine() && this.s.plateById('c_clock')?.slotWord === 'STILL') {
+        this.farHoldT += dt;
+        if (this.farHoldT > 0.3 && this.s.t - this.farSaidAt > 2.5) {
+          this.farSaidAt = this.s.t;
+          this.s.floorText(this.s.x, this.s.y - 96, 'STILL IS ON THE CLOCK', '#e8e2d0', 13, 1200);
+          this.s.clockWord?.cue();
+        }
+      } else this.farHoldT = 0;
     }
   }
 
@@ -290,7 +304,7 @@ export class StealPlay {
       const p = this.s.plateById(l.src);
       if (!p?.visible || p.slotWord !== l.quality) continue;
       if (l.src === 'a_stairs' && !this.s.flags.drained) continue;
-      const d = Math.hypot(p.def.sx - this.s.x, p.def.sy - this.s.y);
+      const d = Math.hypot(p.def.sx - this.s.x, p.def.sy - this.s.y) - ((REACH[l.src] ?? NEAR) - NEAR);
       if (d < bd) { bd = d; best = l.src; }
     }
     if (!best && this.lastApply) {

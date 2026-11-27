@@ -32,7 +32,7 @@ export type CardState = 'hidden' | 'open' | 'still';
 export const CARD_W = 62, CARD_H = 42;
 const SS = 4;          // the face is drawn at 4x and shown at 1x
 const PAD = 7;         // room for the thickness edge, contact shadow and clip
-const INK = 'rgb(18,22,32)', TEAL = 'rgb(0,70,84)', RED = 'rgb(196,64,56)', GREY = 'rgb(112,110,106)';
+const INK = 'rgb(18,22,32)', TEAL = 'rgb(0,60,72)', TEAL_EDGE = 'rgb(0,38,48)', RED = 'rgb(196,64,56)', GREY = 'rgb(112,110,106)';
 const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const ROWS = [{ top: 8, base: 16.5 }, { top: 19, base: 27.5 }];
 const INNER_L = 4, INNER_R = CARD_W - 4;
@@ -127,7 +127,7 @@ export class StaffCard {
   }
 
   /** Where the Caret stands while word i is selected: just past the card's right edge, on that word's row. */
-  caretSpot(i: number, footDrop = 28): { x: number; y: number } | null {
+  caretSpot(i: number, footDrop = 33): { x: number; y: number } | null {
     const b = this.boxes[i]; if (!b) return null;
     const s = this.rec.scale;
     const m = this.root.getWorldTransformMatrix();
@@ -139,6 +139,12 @@ export class StaffCard {
   edge(): { x: number; y: number } {
     const p = this.root.getWorldTransformMatrix().transformPoint((CARD_W / 2) * this.rec.scale, -CARD_H / 2 * this.rec.scale);
     return { x: p.x, y: p.y };
+  }
+
+  /** A copy of the card for a dash afterimage: same face texture, placed where the card sits in the rig (rig-local). */
+  ghostImage(scene: Phaser.Scene): Phaser.GameObjects.Image {
+    const im = scene.add.image(this.root.x, this.root.y, this.tex.key).setOrigin(this.img.originX, this.img.originY).setScale(this.img.scaleX).setRotation(this.root.rotation);
+    return im;
   }
 
   testState() {
@@ -160,11 +166,18 @@ export class StaffCard {
     // contact shadow + card thickness
     c.save(); c.filter = `blur(${2.2 * s}px)`; c.fillStyle = 'rgba(2,4,8,0.5)'; rr(ox + 1 * s, oy + 2.5 * s, W, H, 2 * s); c.fill(); c.restore();
     c.fillStyle = 'rgb(46,52,60)'; rr(ox + 0.5 * s, oy + 1 * s, W, H, 2 * s); c.fill();
-    // face: PVC card, lit from above, a little dimmer once the guard is stopped
-    const base = this.awake ? [144, 151, 157] : [130, 138, 146];
+    // face: PVC card in the corridor's light, matched to the paper body it is clipped to (sampled from
+    // sentinel.png): the warm lamp keys it from the right like the body's lit faces, the cool fill from the
+    // left matches its shaded faces, and the lower edge falls off toward the shadowed chest. A little
+    // dimmer once the guard is stopped.
+    const base = this.awake ? [146, 141, 133] : [132, 129, 124];
     const col = (k: number) => `rgb(${Math.round(base[0] * k)},${Math.round(base[1] * k)},${Math.round(base[2] * k)})`;
-    const g = c.createLinearGradient(0, oy, 0, oy + H); g.addColorStop(0, col(1.07)); g.addColorStop(1, col(0.92));
+    const g = c.createLinearGradient(ox, 0, ox + W, 0);
+    g.addColorStop(0, 'rgb(118,122,124)'); g.addColorStop(0.35, col(0.98)); g.addColorStop(0.75, col(1.06)); g.addColorStop(1, this.awake ? 'rgb(170,156,136)' : 'rgb(152,142,128)');
     c.fillStyle = g; rr(ox, oy, W, H, 2 * s); c.fill();
+    const fall = c.createLinearGradient(0, oy, 0, oy + H);
+    fall.addColorStop(0, 'rgba(255,248,236,0.07)'); fall.addColorStop(0.45, 'rgba(0,0,0,0)'); fall.addColorStop(1, 'rgba(8,10,16,0.16)');
+    c.fillStyle = fall; rr(ox, oy, W, H, 2 * s); c.fill();
     c.save(); rr(ox, oy, W, H, 2 * s); c.clip();
     // magstripe and top lip
     c.fillStyle = 'rgb(34,38,48)'; c.fillRect(ox, oy + 2.5 * s, W, 3.25 * s);
@@ -206,8 +219,10 @@ export class StaffCard {
           // fresh re-print in teal, revealed by a short wipe with a print-head line
           const reveal = bw * this.wipe;
           c.save(); c.beginPath(); c.rect(x - 1 * s, top - 2 * s, reveal + 1 * s, cap * s + 5 * s); c.clip();
+          // a heavier print than the black words: a dark teal edge thickens every stroke so it holds at 1x
+          c.strokeStyle = TEAL_EDGE; c.lineWidth = 0.55 * s; c.lineJoin = 'round'; c.strokeText(w, x, baseY);
           c.fillStyle = TEAL; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, TEAL);
-          c.fillRect(x, baseY + 1.2 * s, bw, 0.85 * s);
+          c.fillStyle = TEAL_EDGE; c.fillRect(x, baseY + 1.1 * s, bw, 1.1 * s);
           c.restore();
           if (this.wipe < 1) { c.fillStyle = 'rgba(214,248,255,0.85)'; c.fillRect(x + reveal - 0.3 * s, top - 1.5 * s, 0.6 * s, cap * s + 3.5 * s); }
           printed.push(w);
@@ -232,11 +247,18 @@ export class StaffCard {
     const sh = c.createLinearGradient(ox, oy, ox + W * 0.8, oy + H);
     sh.addColorStop(0, 'rgba(235,245,255,0)'); sh.addColorStop(0.40, 'rgba(235,245,255,0)'); sh.addColorStop(0.49, 'rgba(235,245,255,0.13)'); sh.addColorStop(0.58, 'rgba(235,245,255,0)'); sh.addColorStop(1, 'rgba(235,245,255,0)');
     c.fillStyle = sh; c.fillRect(ox, oy, W, H);
-    const wr = c.createLinearGradient(ox + W * 0.78, 0, ox + W, 0); wr.addColorStop(0, 'rgba(246,198,132,0)'); wr.addColorStop(1, 'rgba(246,198,132,0.16)');
+    const wr = c.createLinearGradient(ox + W * 0.82, 0, ox + W, 0); wr.addColorStop(0, 'rgba(246,198,132,0)'); wr.addColorStop(1, 'rgba(246,198,132,0.14)');
     c.fillStyle = wr; c.fillRect(ox, oy, W, H);
-    const cl = c.createLinearGradient(ox, 0, ox + W * 0.18, 0); cl.addColorStop(0, 'rgba(90,170,180,0.10)'); cl.addColorStop(1, 'rgba(90,170,180,0)');
+    const cl = c.createLinearGradient(ox, 0, ox + W * 0.2, 0); cl.addColorStop(0, 'rgba(60,120,140,0.12)'); cl.addColorStop(1, 'rgba(60,120,140,0)');
     c.fillStyle = cl; c.fillRect(ox, oy, W, H);
+    // the clip shades the face just above it (contact occlusion, as the body's plates shade each other)
+    const ao = c.createRadialGradient(ox + W / 2, oy + H, 0, ox + W / 2, oy + H, 10 * s);
+    ao.addColorStop(0, 'rgba(6,8,12,0.28)'); ao.addColorStop(1, 'rgba(6,8,12,0)');
+    c.fillStyle = ao; c.fillRect(ox, oy, W, H);
     c.restore();
+    // lit right edge, shaded left edge: the card's own thickness picks up the lamp like the body's plate edges
+    c.fillStyle = 'rgba(248,214,160,0.55)'; c.fillRect(ox + W - 0.7 * s, oy + 2 * s, 0.7 * s, H - 4 * s);
+    c.fillStyle = 'rgba(10,14,20,0.35)'; c.fillRect(ox, oy + 2 * s, 0.6 * s, H - 4 * s);
     // the mount: a small bulldog clip where the pole enters the card
     const cx = ox + (CARD_W / 2) * s, cy = oy + (CARD_H - 2) * s;
     c.fillStyle = 'rgb(40,46,54)'; rr(cx - 4.5 * s, cy, 9 * s, 5.5 * s, 0.8 * s); c.fill();

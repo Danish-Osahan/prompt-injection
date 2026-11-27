@@ -202,7 +202,7 @@ export class Clarity {
     c.add(im); this.cardImg = im;
     const line = this.loreLine(p);
     const t = s.add.text(0, ch / 2 + 36, line, { fontFamily: FONT, fontSize: '23px', fontStyle: '500', color: C.inkBright }).setOrigin(0.5); this.fit(t, cw - 20, 23, 17); c.add(t);
-    c.add(s.add.text(cw / 2, -ch / 2 - 30, s.ctl.last === 'touch' ? 'tap to close' : 'E  close', { fontFamily: FONT, fontSize: '14px', color: C.dim }).setOrigin(1, 0.5));
+    c.add(s.add.text(cw / 2, -ch / 2 - 30, s.ctl.last === 'touch' ? 'tap to close' : 'R  close', { fontFamily: FONT, fontSize: '14px', color: C.dim }).setOrigin(1, 0.5));
     this.card = c; this.cardDim = dim; this.cardT = 0; this.cardFor = p.def.id; this.cardClosing = false; this.modal = 'card'; this.pushCard(0);
     c.setAlpha(0).setScale(0.965); s.tweens.add({ targets: c, alpha: 1, scale: 1, duration: 250, ease: 'Quad.easeOut' }); s.tweens.add({ targets: dim, alpha: 0.72, duration: 250 });
     return true;
@@ -227,20 +227,31 @@ export class Clarity {
   closeAll() { if (this.modal === 'picker') this.closePicker(); else if (this.modal === 'card') this.closeCard(); }
 
   // ---------- input ----------
-  /** E / READ: close what is open, choose in the picker, else the nearest interactable */
+  /** E: take / change a word. Choose in the picker, peel a label, or open the picker on a changeable word. Never reads. */
   interact(): boolean {
     // Steal mode (?impact): E is peel only — never open picker / card / READ
     if (this.s.impactLab?.stealMode || this.s.impactLab?.on) {
       if (this.modal) this.closeAll();
       return false;
     }
-    if (this.modal === 'card') { this.closeCard(); return true; }
+    if (this.modal === 'card') return true;   // a close-up card closes on R (or Esc); E is swallowed, not passed through
     if (this.modal === 'picker') { this.choose(); return true; }
     if (this.s.combat?.handleInteract()) { this.s.markTut('o11peel'); return true; }
     const p = this.nearest(); if (!p) return false;
     if (INTER[p.def.id].tag) return this.openPicker(p.def.id);
+    return false;   // a plain lookable: R reads it
+  }
+  /** R: read. Close the open card, else open the close-up card on the nearest lookable. */
+  read(): boolean {
+    if (this.s.impactLab?.stealMode || this.s.impactLab?.on) { if (this.modal) this.closeAll(); return false; }
+    if (this.modal === 'card') { this.closeCard(); return true; }
+    if (this.modal === 'picker') return false;
+    const p = this.nearest(); if (!p) return false;
+    if (INTER[p.def.id].tag) return false;
     return this.openCard(p);
   }
+  /** The near object is a plain lookable (R), not a changeable word (E). */
+  nearLook() { return !!this.near && !INTER[this.near].tag; }
   nearest(r = 96): Plate | null {
     const s = this.s; let best: Plate | null = null, bd = r;
     for (const p of s.plates) { if (!p.visible || !INTER[p.def.id]) continue; const d = Math.hypot(p.def.x - s.x, p.def.y - s.y); if (d < bd) { bd = d; best = p; } }
@@ -308,7 +319,7 @@ export class Clarity {
       const p = s.plateById(this.near)!;
       if (INTER[this.near].main) t = s.save.tutorials.includes('o11door') ? (kb ? `E  change ${p.slotWord}` : `Tap ${p.slotWord}`) : 'Tap the glowing word.';
       else if (INTER[this.near].tag) t = kb ? `E  change ${p.slotWord}  (optional)` : `Tap ${p.slotWord}  (optional)`;
-      else t = kb ? 'E  look closer' : 'READ  look closer';
+      else t = kb ? 'R  look closer' : 'READ  look closer';
     }
     if (!t && !this.modal && s.moved < 80 && !moving && (s.save.visits.office ?? 1) <= 1) t = kb ? 'WASD to walk' : 'Drag to walk';
     if (s.busy || s.composer || this.modal === 'card') t = '';

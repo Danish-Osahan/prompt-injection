@@ -1,5 +1,11 @@
 # Room 2 audit — The Mirror Office (hub)
 
+## 2026-11-27 — E takes, R reads; Caret-first order; card lighting
+
+- **Keys (all rooms).** E only takes (hold) and advances dialogue. R reads: floor notes (`R READ` chip), letters, wall notes, lookables, close-ups; R closes their cards. Fern's root moved to G. No E-to-read prompt is left.
+- **Hub.** The floor notes here (`h_line*`) read on R; the Caret is still taken by holding E (a take). Nothing guarded in this room yet.
+- **Card (rule).** The staff ID card is lit like the body it hangs on (warm key right, cool fill left, falloff, clip occlusion); a re-printed word is heavier dark teal; the Caret beside it has a dark outline and is a touch larger; dash afterimages carry the card.
+
 ## 2026-11-26 (d) — Staff ID cards: the guard's line printed on its card
 
 - **Rule (all rooms).** Every enemy is a staff record and wears an ID card in a fixed, big-enough spot; its line (about 4 words) is printed on that card. Config: `STAFF_RECORDS` in `game/src/staffCard.ts` (`{ line, anchor, scale, mount, name, tilt }`). Only the corridor guard is built; the hub has no guarded enemy yet, so nothing in this room changes until one is added.

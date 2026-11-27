@@ -349,25 +349,29 @@ async function desktop(browser) {
   await input.stop();
   ok('office: after Fern arrival, a direction plays walk within ~100ms', walked.ok && walked.ms <= 110, `anim ${walked.key} in ${Math.round(walked.ms)}ms`);
 
-  // OFFICE: tap E at the August calendar (look prompt, not the lamp/panel path)
+  // OFFICE: R at the August calendar looks (E never reads; it is the take key)
   await pi(page, 'teleport', 290, 200); await sleep(200);
   try { await page.mouse.click(640, 360); } catch { /* */ }
-  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE');
+  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE'); await sleep(250); s = await st(page);
+  ok('office: tapping E at the calendar does not look (R reads)', !(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), `explore ${JSON.stringify(s.explore)}`);
+  await page.keyboard.down('KeyR'); await sleep(90); await page.keyboard.up('KeyR');
   s = await waitFor(page, s => !!(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), 2500);
-  ok('office: tapping E at the calendar looks and gets a line', !!(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), `explore ${JSON.stringify(s.explore)}`);
+  ok('office: pressing R at the calendar looks and gets a line', !!(s.explore && s.explore.looked && s.explore.looked.includes('calendar')), `explore ${JSON.stringify(s.explore)}`);
   await pi(page, 'teleport', 140, 250); await sleep(400);
   s = await waitFor(page, s => !!(s.explore && s.explore.printer), 2000);
   ok('office: approaching the printer prints the denial letter', !!(s.explore && s.explore.printer), `explore ${JSON.stringify(s.explore)}`);
 
-  // OFFICE: pick up a lost line with real KeyE (works during the dead-lift beat)
-  // Clear any leftover look/printer line so E collects the scrap instead of advancing dialogue.
+  // OFFICE: read a lost line with real KeyR (works during the dead-lift beat); E on it does nothing
+  // Clear any leftover look/printer line first.
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   const nLines = s.save.lines.length;
   await pi(page, 'teleport', 1070, 610); await sleep(250);
   try { await page.mouse.click(640, 360); } catch { /* */ }
-  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE');
+  await page.keyboard.down('KeyE'); await sleep(90); await page.keyboard.up('KeyE'); await sleep(250); s = await st(page);
+  ok('office: tapping E on a lost line does not read it', !s.save.lines.includes('o_line'), `lines ${JSON.stringify(s.save.lines)}`);
+  await page.keyboard.down('KeyR'); await sleep(90); await page.keyboard.up('KeyR');
   s = await waitFor(page, s => !!(s.save && s.save.lines && s.save.lines.includes('o_line')), 2500);
-  ok('office: tapping E on a lost line collects it and updates the HUD', !!(s.save.lines.includes('o_line') && s.save.lines.length === nLines + 1 && String(s.linesHud || '').includes((nLines + 1) + '/18')), `lines ${JSON.stringify(s.save.lines)} hud ${s.linesHud}`);
+  ok('office: pressing R on a lost line reads it and updates the HUD', !!(s.save.lines.includes('o_line') && s.save.lines.length === nLines + 1 && String(s.linesHud || '').includes((nLines + 1) + '/18')), `lines ${JSON.stringify(s.save.lines)} hud ${s.linesHud}`);
 
   // OFFICE: real-keyboard E at the dead lift panel, then hold E at the lamp
   // (not openLift / interact hooks — those hid the broken tap-E path).
@@ -829,9 +833,9 @@ async function desktop(browser) {
   await pi(page, 'bossFreeze', true); await shot(page, 'desktop-16-draft-split');
   await near(); await page.keyboard.press('j'); await sleep(450); s = await st(page);
   ok('arena: hitting the real Draft dispels the fake', !s.boss.fake);
-  await page.keyboard.press('r'); await sleep(100); s = await st(page);
-  ok('move: FERN ROOT pins the Draft', s.rootN === 1 && s.rootUsed && s.boss.pinT > 1.0, `pin ${s.boss.pinT.toFixed(2)} growth ${s.save.fernGrowth}`);
-  await page.keyboard.press('r'); await sleep(100); s = await st(page);
+  await page.keyboard.press('g'); await sleep(100); s = await st(page);
+  ok('move: FERN ROOT (G) pins the Draft', s.rootN === 1 && s.rootUsed && s.boss.pinT > 1.0, `pin ${s.boss.pinT.toFixed(2)} growth ${s.save.fernGrowth}`);
+  await page.keyboard.press('g'); await sleep(100); s = await st(page);
   ok('move: FERN ROOT is once per fight', s.rootN === 1);
   await pi(page, 'kill'); s = await waitFor(page, s => !s.dying && s.lastRespawnMs > 0 && s.boss && s.boss.hp === 36, 3000);
   ok('arena: death restarts the fight at the arena door', s.boss.hp === 36 && !s.boss.split && Math.abs(s.player.y - 660) < 5 && s.boss.guarded, `hp ${s.boss.hp} y ${Math.round(s.player.y)}`);

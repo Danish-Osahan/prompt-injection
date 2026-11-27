@@ -180,6 +180,8 @@ export class GameScene extends Phaser.Scene {
   private guardLine: string | null = null;
   private caretBox?: Phaser.GameObjects.Graphics;
   private caretMark?: Phaser.GameObjects.Graphics;
+  /** four dark copies of the Caret sprite, offset a pixel or two: a crisp outline so the pale Caret reads on pale paper at 1x */
+  private caretEdge: Phaser.GameObjects.Image[] = [];
   private hubNorthOcclude: Record<string, Phaser.GameObjects.Image> = {};
   private caretSendOnce = false;
   private caretKeyF?: Phaser.Input.Keyboard.Key;
@@ -1149,7 +1151,7 @@ export class GameScene extends Phaser.Scene {
         if (this.swapMode) {
           this.addPrompt('rewrite', 0, 0, 'HOLD E AT THE PILLAR, F AT THE DRAFT', 'HOLD E AT THE PILLAR, F AT THE DRAFT', () => this.rewriteN > 0, () => Math.hypot(this.x - 450, this.y - 330) < 200);
           this.addPrompt('select', 0, 0, 'HOLD J, RELEASE: TYPED BEAM', 'HOLD TYPE, RELEASE: BEAM', () => this.selectN > 0, () => !!this.fight && this.fight.real.state !== 'intro');
-          this.addPrompt('root', 0, 0, 'R: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
+          this.addPrompt('root', 0, 0, 'G: FERN ROOT (ONCE PER FIGHT)', 'ROOT: PIN IT (ONCE PER FIGHT)', () => this.rootN > 0, () => !!this.fight && this.fight.split);
         }
       } else { this.plateById('r_guard')?.setVisibleState(false); this.plateById('r_weak')?.setVisibleState(false); }
     }
@@ -1230,22 +1232,17 @@ export class GameScene extends Phaser.Scene {
     this.addPrompt('dash', 0, 0, 'SPACE  dash', 'TAP  dash',
       () => this.didDash,
       () => this.enemies.some(e => !e.dead) && !this.caretOut());
-    this.addPrompt('letter', 0, 0, 'E  read', 'TAP  read',
+    this.addPrompt('letter', 0, 0, 'R  read', 'TAP  read',
       () => this.letterRead,
       () => !!this.explore?.printerFired && !this.letterRead && this.nearPrintedLetter());
-    this.addPrompt('interact', 0, 0, 'E  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract() && !this.nearPrintedLetter());
+    this.addPrompt('interact', 0, 0, 'R  look', 'TAP  look', () => this.hintInteractDone(), () => this.nearHintInteract() && !this.nearPrintedLetter());
   }
   nearHintInteract() {
-    // World chips (E take / E look / E read) already own these spots — don't stack a HUD twin.
+    // World chips (E take / R look / R read) already own these spots — don't stack a HUD twin.
     if (this.nearLostLine()) return false;
     try { if (this.explore?.nearInteract?.()) return false; } catch { /* */ }
-    try { if (this.clar?.near) return true; } catch { /* */ }
-    const lab = this.impactLab;
-    if (lab && !lab.done) {
-      if (!lab.lampReady && Math.hypot(this.x - lab.panelPos.x, this.y - lab.panelPos.y) < 130) return true;
-      if (lab.lampReady && lab.lampAlive && !lab.carrying && Math.hypot(this.x - lab.lampPos.x, this.y - lab.lampPos.y) < 130) return true;
-    }
-    return false;
+    try { if (this.clar?.nearLook()) return true; } catch { /* */ }
+    return false;   // the lift panel / lamp are E (take / try) and carry their own chip; this HUD prompt is R (look) only
   }
   hintInteractDone() {
     const looked = this.explore ? this.explore.state().looked.length : 0;
@@ -1370,9 +1367,17 @@ export class GameScene extends Phaser.Scene {
     for (let i = 1; i <= 3; i++) {
       const gx = e.x, gy = e.y;
       const trail = (e.x - nx) * 0.18 * i;   // trail BEHIND the dash direction, whole body (head card included) in one piece
-      const ghost = src
-        ? this.add.image(e.x + trail, gy + (e.y - ny) * 0.1 * i, src).setOrigin(83 / 165, 418 / 467).setScale(0.45).setRotation(rot).setAlpha(0.46 - i * 0.1).setTint(0x9fc6da).setDepth(e.y - 2 - i * 0.01)
-        : this.add.rectangle(gx, gy - 70, 36, 120, 0xb8d4e4, 0.2).setDepth(e.y - 2);
+      // the afterimage is the whole rig as it looks now: the stand, and the ID card (with its line) over the old blank head
+      const card = img?.getData('card') as StaffCard | undefined;
+      let ghost: Phaser.GameObjects.Container | Phaser.GameObjects.Rectangle;
+      if (src) {
+        const lean = (img?.getData('slumpA') as number | undefined) ?? 0;
+        const body = this.add.image(0, 0, src).setOrigin(83 / 165, 418 / 467).setScale(0.45).setRotation(lean).setTint(0x9fc6da);
+        const parts: Phaser.GameObjects.GameObject[] = [body];
+        if (card) parts.push(card.ghostImage(this).setTint(0xb4d4e4));
+        ghost = this.add.container(e.x + trail, gy + (e.y - ny) * 0.1 * i, parts).setRotation(rot).setAlpha(0.46 - i * 0.1).setDepth(e.y - 2 - i * 0.01);
+        ghost.setData('ghost', true);
+      } else ghost = this.add.rectangle(gx, gy - 70, 36, 120, 0xb8d4e4, 0.2).setDepth(e.y - 2);
       this.objs.push(ghost);
       this.tweens.add({ targets: ghost, alpha: 0, x: ghost.x + trail * 0.6, duration: 240 + i * 60, onComplete: () => ghost.destroy() });
     }
@@ -1722,11 +1727,21 @@ export class GameScene extends Phaser.Scene {
     return best;
   }
 
+  /** E: take. Picks up a swappable word (or drops the held one onto another plate). Never reads. */
   interact() {
     if (this.stealOn()) return false;
     if (this.clar) return this.clar.interact();
     const p = this.nearestPlate(READ_R); if (!p) return false;
     if (this.hand && p.def.slot >= 0 && p.def.id !== this.hand.from) return this.swap(this.hand.from, p.def.id);
+    if (p.def.slot < 0 || p.def.kind === 'look' || p.def.kind === 'line' || p.def.kind === 'lore') return false;   // nothing to take: R reads it
+    return this.read(p);
+  }
+  /** R: read. Notes, lore and lookables; a swappable plate's caption is read without picking its word up. */
+  readNear() {
+    if (this.stealOn()) return false;
+    if (this.clar) return this.clar.read();
+    const p = this.nearestPlate(READ_R); if (!p) return false;
+    if (p.def.slot >= 0 && p.def.kind !== 'look' && p.def.kind !== 'line' && p.def.kind !== 'lore') { this.stuck = 0; if (p.def.toy) this.noteLooked(p); this.setCheckpoint(p); p.pulse(C.lamp); return true; }
     return this.read(p);
   }
   read(p: Plate) {
@@ -2058,6 +2073,25 @@ export class GameScene extends Phaser.Scene {
   /** Noor is close enough to the trapped Caret that E (hold) takes it. */
   caretClaimable() { if (this.caretMode !== 'trapped') return false; const p = this.slitPos(); return Math.hypot(this.x - p.x, this.y - (p.y + 40)) < 110; }
   /** Crisp I-beam (dark outline + cyan), sized to read on a cream clipboard. */
+  /** Keep the Caret's dark outline on the sprite (same frame, scale, alpha), one step below it. */
+  syncCaretEdge() {
+    const c = this.caret;
+    if (!c || !c.active) return;
+    if (this.caretEdge.length !== 4 || this.caretEdge.some(o => !o.active || !o.scene)) {
+      this.caretEdge.forEach(o => { try { o.destroy(); } catch { /* */ } });
+      this.caretEdge = [0, 1, 2, 3].map(() => { const o = this.add.image(0, 0, c.texture.key, c.frame.name).setTint(0x05080c).setVisible(false); this.objs.push(o); return o; });
+    }
+    const on = c.visible && c.alpha > 0.05 && this.caretMode !== 'hidden';
+    const big = this.caretMode === 'sent';
+    const d = big ? 1.6 : 1.2;
+    const offs = [[-d, 0], [d, 0], [0, -d], [0, d + 0.4]];
+    this.caretEdge.forEach((o, i) => {
+      if (!on) { o.setVisible(false); return; }
+      if (o.texture.key !== c.texture.key || o.frame.name !== c.frame.name) o.setTexture(c.texture.key, c.frame.name);
+      o.setVisible(true).setOrigin(c.originX, c.originY).setScale(c.scaleX, c.scaleY).setRotation(c.rotation).setFlipX(c.flipX)
+        .setPosition(c.x + offs[i][0], c.y + offs[i][1]).setAlpha(c.alpha * (big ? 0.9 : 0.7)).setDepth(c.depth - 0.01);
+    });
+  }
   private drawCaretMark() {
     if (!this.caretMark || !this.caretMark.active || !this.caretMark.scene) {
       this.caretMark = this.add.graphics();
@@ -2189,8 +2223,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.save.seen.includes('guardOpenSaid')) {
       this.save.seen.push('guardOpenSaid');
       this.say('noor', "My cursor's in it. I can see its line.", 2400, { box: true });
-      this.say('fern', 'Arrow keys move your cursor. Put it on QUICK.', 2600, { box: true });
-      this.say('fern', 'Then take STILL from the clock. F throws it in.', 2800, { box: true });
+      this.say('fern', '\u2190 \u2192 move your cursor. Put it on QUICK.', 2600, { box: true });
+      if (this.stealPlay?.held?.word === 'STILL') this.say('fern', 'You have STILL. F throws it in.', 2400, { box: true });
+      else this.say('fern', 'Hold E at the clock for STILL. F throws it in.', 2800, { box: true });
       this.clockWord?.cue();
     }
     try { writeSave(this.save); } catch { /* */ }
@@ -2252,7 +2287,7 @@ export class GameScene extends Phaser.Scene {
           const spot = card?.caretSpot(this.caretSel);
           if (spot) {
             const tx = spot.x, ty = spot.y + Math.sin(this.t * 5) * 1.2;
-            this.caret.setScale(0.42);
+            this.caret.setScale(0.5);   // a touch larger than in hand (0.45) so it reads beside the card at 1x
             this.caret.x += (tx - this.caret.x) * Math.min(1, dt * 18); this.caret.y += (ty - this.caret.y) * Math.min(1, dt * 18);
           }
           this.caretSentAt = this.t;
@@ -2282,11 +2317,28 @@ export class GameScene extends Phaser.Scene {
   nearPrintedLetter() {
     return !!this.explore?.printerFired && !!this.explore?.letter && Math.hypot(this.x - 168, this.y - 255) < 90;
   }
-  showLetterCard() {
+  /** A wall note (lore plate with `note`) in a steal room: R reads it on the same paper card as the letter. */
+  nearWallNote(): Plate | null {
+    if (!this.stealOn() || this.room?.id === 'office') return null;   // the office has its own lookables
+    let best: Plate | null = null, bd = READ_R + 20;
+    for (const p of this.plates) {
+      if (!p.visible || !p.def.note || p.def.kind !== 'lore') continue;
+      const d = Math.hypot(p.def.x - this.x, p.def.y - this.y);
+      if (d < bd) { bd = d; best = p; }
+    }
+    return best;
+  }
+  readWallNote(p: Plate) {
+    this.noteLooked(p);
+    if (!this.save.lore.includes(p.def.id)) { this.save.lore.push(p.def.id); recomputeGrowth(this.save); writeSave(this.save); }
+    this.showLetterCard(`${p.def.words.join(' ')}\n\n${p.def.text ?? ''}`);
+    this.letterRead = false;
+  }
+  showLetterCard(note?: string) {
     if (this.lineToast) this.dismissLineToast(true);
     this.letterRead = true;
-    if (!this.save.tutorials.includes('letter')) { this.save.tutorials.push('letter'); writeSave(this.save); }
-    const text = 'CLAIM #4471\nSTATUS:  DENIED\n\nI UNDERSTAND. I\u2019LL HANDLE IT.\n\nCLAIM DENIED.\n\nLEAVE IT TO ME, NOOR.\n\n\u2014 Claims Desk';
+    if (!note && !this.save.tutorials.includes('letter')) { this.save.tutorials.push('letter'); writeSave(this.save); }
+    const text = note ?? 'CLAIM #4471\nSTATUS:  DENIED\n\nI UNDERSTAND. I\u2019LL HANDLE IT.\n\nCLAIM DENIED.\n\nLEAVE IT TO ME, NOOR.\n\n\u2014 Claims Desk';
     const body = this.add.text(0, 4, this.balanceCardText(text, 'IBM Plex Mono', 16, 420), {
       fontFamily: 'IBM Plex Mono', fontSize: '16px', color: '#2c261c',
       align: 'left', lineSpacing: 5,
@@ -2305,7 +2357,7 @@ export class GameScene extends Phaser.Scene {
     paper.fillStyle(0xf3ead4, 1);
     paper.fillTriangle(-W / 2 + 36, -H / 2 - 1, -W / 2 + 52, -H / 2 - 1, -W / 2 + 44, -H / 2 + 8);
     paper.fillTriangle(W / 2 - 70, -H / 2 - 1, W / 2 - 52, -H / 2 - 1, W / 2 - 61, -H / 2 + 7);
-    const hint = this.add.text(0, H / 2 - 14, 'E  close', {
+    const hint = this.add.text(0, H / 2 - 14, this.ctl.last === 'touch' ? 'tap READ to close' : 'R  close', {
       fontFamily: 'JetBrains Mono', fontSize: '13px', color: '#4f4638',
     }).setOrigin(0.5, 1);
     card.add([paper, body, hint]);
@@ -2363,7 +2415,7 @@ export class GameScene extends Phaser.Scene {
     const count = this.add.text(W / 2 - 14, -H / 2 + 12, `${n}/${LINES.length}`, {
       fontFamily: 'IBM Plex Mono', fontSize: '11px', color: '#8a7a62',
     }).setOrigin(1, 0);
-    const hint = this.add.text(0, H / 2 - 14, 'E  close', {
+    const hint = this.add.text(0, H / 2 - 14, this.ctl.last === 'touch' ? 'tap READ to close' : 'R  close', {
       fontFamily: 'JetBrains Mono', fontSize: '13px', color: '#4f4638',
     }).setOrigin(0.5, 1);
     card.add([paper, quote, count, hint]);
@@ -2387,12 +2439,12 @@ export class GameScene extends Phaser.Scene {
       if (p.def.kind !== 'line' || !p.scrap || !p.visible) continue;
       p.scrap.setAlpha(0.72 + 0.28 * Math.sin(this.t * 3.1));
     }
-    const aimingCaret = this.caretOwned && (this.caretMode === 'sent' || this.caretMode === 'travel' || this.atkPending || this.swingT > 0 || this.selecting);
-    const near = this.hudHidden || this.busy || this.paused || this.lineToast || aimingCaret ? null : this.nearLostLine();
+    const quiet = this.hudHidden || this.busy || this.paused || this.lineToast;
+    const near = quiet ? null : this.nearLostLine() ?? this.nearWallNote();   // R reads, so a note's chip never fights the Caret's E / F
     if (this.linePrompt) {
       if (near) {
-        const c = placeChip(near.def.sx, near.def.sy, this.x, this.y, 28, 8);
-        this.linePrompt.show(c.x, c.y, 'take', 0, 'E');
+        const c = near.def.kind === 'line' ? placeChip(near.def.sx, near.def.sy, this.x, this.y, 28, 8) : placeChip(near.def.sx, near.def.sy + 30, this.x, this.y, 30, 8);
+        this.linePrompt.show(c.x, c.y, 'read', 0, 'R');
       } else this.linePrompt.hide();
     }
     for (const a of this.amb) {
@@ -2721,7 +2773,7 @@ export class GameScene extends Phaser.Scene {
     rmT.on('pointerdown', () => { this.setReduceMotion(!this.save.settings?.reduceMotion); this.togglePause(); this.togglePause(); });
     T(620, 206, '  camera holds still: no drift, push-ins or glitch', 12, C.faint, 400, 'IBM Plex Mono');
     T(120, 270, 'controls', 14, C.cyan, 700);
-    T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  read      E  (pick up a word)', '  swap      E at another plate,', '            or drag the word chip', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  rewrite   E a sign in combat: slow-mo', '  root      R (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ?debug in URL'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
+    T(120, 296, ['keyboard / mouse', '  move      WASD / arrows', '  dash      SPACE / SHIFT / K', '  take      hold E  (a word, the cursor)', '  read      R  (notes, letters, things)', '  talk      E  (next line)', '  throw     F  (the word in hand)', '  cursor    F send \u00b7 \u2190 \u2192 pick \u00b7 Q home', '  type      J / left click (3-hit combo)', '  backspace attack during a dash', '  select    hold J / mouse (drag aim)', '  paste     J after a perfect dodge', '  root      G (once per fight)', '  skip      hold X (seen cutscenes)', '  menu      ESC / P', '  debug     ?debug in URL'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     T(620, 296, ['touch', '  move      drag on the left half', '  dash      DASH button', '  read      READ button', '  swap      drag the word chip onto', '            a plate (or READ at it)', '  type      TYPE button', '  backspace TYPE during a dash', '  select    hold TYPE', '  paste     TYPE after a perfect dodge', '  rewrite   READ a sign in combat', '  root      ROOT button', '  skip      hold top-right', '  menu      tap "esc menu"'].join('\n'), 15, C.ink, 400, 'IBM Plex Mono');
     // art-v8 journal: the lost lines, in the order of the floor
     T(120, 548, `unsent.txt  ${this.save.lines.length}/${LINES.length}`, 14, C.lamp, 700);
@@ -2789,13 +2841,15 @@ export class GameScene extends Phaser.Scene {
     if (this.hitStopT > 0) { this.hitStopT -= dt; edt = 0; if (this.hitStopT <= 0) this.noor.anims.resume(); }
     this.selectCd -= dt;
     if (this.composer && (f.attack || f.interact)) this.typeKey();
-    if (this.clar?.modal && f.interact && !this.stealOn()) { this.clar.interact(); f.interact = false; }
-    // E / READ advances dialogue (and closes a letter card) even during cutscenes.
-    // Consume the press so it cannot also inspect, steal, or take a word underneath.
-    if (f.interact && !this.composer && !this.clar?.modal) {
-      if (this.dialogue?.busy) { this.dialogue.advance(); f.interact = false; }
-      else if (this.lineToast) { this.dismissLineToast(); f.interact = false; }
+    const touchRead = this.ctl.last === 'touch';   // touch has one READ button: it sets both E (take / talk) and R (read)
+    if (this.clar?.modal && !this.stealOn()) {
+      if (f.read && this.clar.read()) { f.read = false; if (touchRead) f.interact = false; }
+      if (f.interact) { this.clar.interact(); f.interact = false; }
     }
+    // E advances dialogue even during cutscenes. Consume the press so it cannot also take a word underneath.
+    // R closes a note / letter card. Reading never shares a key with taking (E takes, R reads).
+    if (f.interact && !this.composer && !this.clar?.modal && this.dialogue?.busy) { this.dialogue.advance(); f.interact = false; if (touchRead) f.read = false; }
+    if (f.read && !this.composer && !this.clar?.modal && this.lineToast) { this.dismissLineToast(); f.read = false; if (touchRead) f.interact = false; }
     const control = !this.busy && !this.dying && !this.transitioning && !this.clar?.modal;
     let mx = control ? f.mx : 0, my = control ? f.my : 0;
     if (control && f.dash && this.caretOut()) {
@@ -2840,7 +2894,9 @@ export class GameScene extends Phaser.Scene {
     if (!this.dying) this.unstick();
     const ox = this.x, oy = this.y;
     if (!this.dying) {
-      this.slide(vx * dt, vy * dt);
+      // sub-step long moves (a dash on a slow frame is 40+ px) so thin colliders like the hub rift's far face can't be tunnelled
+      const step = Math.hypot(vx * dt, vy * dt), n = Math.min(12, Math.max(1, Math.ceil(step / 8)));
+      for (let i = 0; i < n; i++) this.slide(vx * dt / n, vy * dt / n);
     }
     this.moved += Math.hypot(this.x - ox, this.y - oy);
     if (!this.dying && this.dashT <= 0 && !this.onHubSpan(this.x, this.y) && this.hazards.some(h => inR(h, this.x, this.y))) {
@@ -2887,6 +2943,7 @@ export class GameScene extends Phaser.Scene {
     tickWindupFx(this);
     this.shadow.setPosition(this.x, this.y + 2).setDepth(this.y - 2);
     this.updateCaret(dt, !!f.interactHeld, !!control);
+    this.syncCaretEdge();
     this.riftWord?.update(); this.hubLamp?.update();
     if (this.clockWord) { this.clockWord.set(this.plateById('c_clock')?.slotWord ?? 'STILL', !!this.stealPlay?.held && this.stealPlay.held.from === 'c_clock', this.flags.still); this.clockWord.update(); }
     // Only consume F when the Caret is owned AND a send target is in range.
@@ -2920,13 +2977,19 @@ export class GameScene extends Phaser.Scene {
     }
     this.darkness?.setPosition(this.x, this.y - 30);
 
-    if (control && f.interact && !this.composer) {
-      if (this.dismissLineToast()) { /* reading-time toast or letter card ate E */ }
+    // R reads: floor notes (lost lines), the printed letter, lookables. E never reads.
+    if (control && f.read && !this.composer) {
+      let readIt = true;
+      if (this.dismissLineToast()) { /* R closes the card it opened */ }
       else if (this.nearPrintedLetter()) this.showLetterCard();
-      else if (this.tryCollectNearLine()) { /* lost-line E wins over lookables and the lamp */ }
-      else if (this.stealOn()) this.explore?.tryTap();
-      else this.interact();
+      else if (this.tryCollectNearLine()) { /* a floor note wins over lookables */ }
+      else if (this.nearWallNote()) this.readWallNote(this.nearWallNote()!);
+      else if (this.stealOn()) readIt = !!this.explore?.tryTap();
+      else readIt = this.readNear();
+      if (readIt && touchRead) f.interact = false;
     }
+    // E takes: in the legacy (non-steal) rooms it picks a word up or swaps it. Steal rooms take on the E hold (StealPlay).
+    if (control && f.interact && !this.composer && !this.stealOn()) this.interact();
     this.words.update(dt, this.stealOn() ? false : f.interactHeld);
     this.drawLitMask();
     this.updateLinger(dt, Math.hypot(this.x - ox, this.y - oy) > 0.5 || Math.hypot(mx, my) > 0.1 || f.interactHeld);

@@ -1,5 +1,36 @@
 # HANDOFF
 
+## 2026-11-27 — Caret-first order, E takes / R reads, card lighting, Caret outline, STILL contrast, card ghosts
+
+Danishpreet playtested `a0c084a` (Noor near the clock, Caret in, card reading GUARD IS QUICK with GUARD selected): "if I send my cursor then I can't take words using E, I have to take words first", and "the letters on the floor also show take using E ... reading letters needs a separate key binding". He also agreed to fix the four card weak spots from the last pass.
+
+**1. Both orders work.** Hold E at the clock takes STILL while the Caret is in the guard (it stays on its word), then ← → pick QUICK and F throws. No code path blocked the take with the Caret in, so the fix targets what a player meets on the way:
+- ↑ / ↓ arrows now walk while the Caret is inside (only ← / → steer it; WASD always walked). Before, an arrow-key player was frozen once the Caret went in and could never reach the clock.
+- The clock's take reach is 190px (`REACH.c_clock` in `StealPlay.ts`; other sources stay 130px), so the end of the left hall under the clock counts. Before, Noor could stand right under the clock (left hall, y 330) and be ~170px from it.
+- Holding E with the Caret in and nothing in reach shows `STILL IS ON THE CLOCK` and cues the clock, instead of doing nothing.
+- F with a word in hand while the Caret is in always throws (StealPlay owns F when a word is held; the recall path needs empty hands). Fern's line after the Caret lands now says "Hold E at the clock for STILL. F throws it in." (or "You have STILL. F throws it in.").
+- Soft-lock protections unchanged: mash-during-flight, undodgeable open-line throw, bounce home, wrong-word bounce, 1.6s clock heal.
+
+**2. E takes, R reads.** New `read` action on R (`controls.ts`); Fern's root moved from R to G. E only takes (hold) and advances dialogue.
+- R reads floor notes (lost lines; chip is now `R READ`), the printed letter, wall notes in steal rooms (Fern's note in the corridor was unreadable before; it now opens on the letter's paper card), office lookables (`R LOOK` / `R READ` chips; `E TAKE LOUD/HOT` stays E), clarity close-ups (`R  look closer`, `R  close`). Note, letter and close-up cards close on R (Esc also closes close-ups); E no longer closes them.
+- Lookables and notes no longer claim E, so E at the office lamp/panel is never eaten by a nearby note. The HUD `R  look` hint only shows near a plain lookable; the lamp/panel keep their own E chip.
+- Touch keeps one READ button: it reads when something readable is near and otherwise holds to take/talk.
+- Updated: prompts (`letter`, `interact`, `root`), the line chip, card hints, Fern's guard line, the pause-menu controls list (take / read / talk / throw / cursor / root G), `game/README.md` controls, `docs/caret.md`. Grepped `src` for every E prompt: the remaining E prompts are takes (lamp, pillar, peel, Caret, `E change` word), dialogue (`E continue`, the dialogue arrow) and legacy hold-E code vision.
+
+**3. Card weak spots.**
+- Lighting: the card face is now lit like the paper body (tones sampled from `sentinel.png`): warm key from the right, cool fill from the left, falloff toward the chest, clip occlusion, lamp-lit right edge and shaded left edge. It no longer reads as a cool flat sticker.
+- Caret: original pale sprite, scale 0.5 beside the card (was 0.42), with a dark outline (four tinted copies offset 1.2–1.6px, `syncCaretEdge`). Clearly visible at 1x on the pale card.
+- STILL: darker teal `rgb(0,60,72)` with a `rgb(0,38,48)` stroke and a heavier underline.
+- Dash afterimages are the stand plus a copy of the live card (`StaffCard.ghostImage`), so the ghosts carry the line instead of the old blank head card.
+
+**Tests.** `corridor_softlock.mjs`: 55 earlier checks plus 21 new. K: Caret first, walk with real keys (D, then ↑ which must walk with the Caret in and leave the selection alone), hold E at the clock, arrows pick QUICK, F throws (Caret never recalled before STILL lands), tear, exit. L: Caret first, take from the end of the left hall (reach), F on GUARD bounces (not a recall), retake, QUICK, F, tear, exit. M: E at the switch doesn't read the floor note beside it, E on the note does nothing, R reads it, E doesn't close the card, R does, then the guard flow. `office11.mjs`: `R  look closer`, E near a plain lookable doesn't open its card, R opens / closes. Results: `corridor_softlock` 76/76 (55 + 21 new), full `npm run playtest` 351/351, zero FAIL.
+
+**Hub dash flake fixed.** `hub: dash ... cannot cross the rift` failed intermittently (also on the untouched baseline). Cause: the rift's far-face colliders are 36px tall and a dash step on a slow frame (dt capped at 0.05s × 900px/s) is 45px, so a dash could tunnel through. Noor's per-frame move is now sub-stepped in ≤8px steps (max 12).
+
+**Stills (not in the repo, `/workspace/l11/`):** `l11-caretfirst-hold.png` / `l11-caretfirst-held.png` (2x: Noor at the clock holding E with the Caret in the guard; STILL in hand with the Caret on QUICK), `l11-caretfirst-held-1x-full.png`, `l11-note-R.png` (2x: `R READ` on the floor note beside the switch's `E HOLD TO TAKE`), `l11-note-card-1x-full.png`, `l11-card-states-1x.png` / `l11-card-states-2x.png` (hidden / Caret on QUICK / STILL), `l11-dash-ghost.png`. Scripts: `/workspace/stillscripts/l11_flow.mjs`, `card11.mjs`.
+
+**Weak spots.** At the clock Noor's sprite overlaps the clock face (she stands at the top of the walkable strip). The `F THROW` hint chip sits under Noor and can overlap the card's lower edge when she stands right above the guard. The card's lighting is baked (it does not follow the lamp's flicker or the dark-hall state beyond the room darkness overlay). The Caret's outline is four sprite copies, not a shader. Touch still has one READ button for both read and take.
+
 ## 2026-11-26 (d) — The guard's line is printed on its staff ID card
 
 Danishpreet on `a2a548e`: the cream label pasted across the guard's body read as a cheap debug label. He reviewed preview directions A–K, chose C (the line printed on the guard's ID card), asked whether it works for every enemy (yes, as a world rule: every enemy is a staff record and wears an ID card), approved `pv-card-guard.png` and asked for the build.

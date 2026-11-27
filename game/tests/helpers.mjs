@@ -42,7 +42,7 @@ export function keyInput(page) {
     kind: 'keyboard',
     async move(dx, dy) { const w = new Set(); if (dx > 0.3) w.add('d'); if (dx < -0.3) w.add('a'); if (dy > 0.3) w.add('s'); if (dy < -0.3) w.add('w'); await set(w); },
     async stop() { await set(new Set()); },
-    async press(btn) { const k = { attack: 'j', dash: 'Space', interact: 'e' }[btn]; await page.keyboard.press(k); },
+    async press(btn) { const k = { attack: 'j', dash: 'Space', interact: 'e', read: 'r', root: 'g' }[btn]; await page.keyboard.press(k); },
     async restart() { await page.keyboard.press('r'); },
   };
 }
@@ -50,7 +50,7 @@ export function keyInput(page) {
 async function touchInput(page) {
   const cdp = await page.context().newCDPSession(page);
   const JOY = { x: 220, y: 500 };
-  const btnPos = { attack: { x: 1182, y: 530 }, dash: { x: 1046, y: 572 }, interact: { x: 1178, y: 392 } };
+  const btnPos = { attack: { x: 1182, y: 530 }, dash: { x: 1046, y: 572 }, interact: { x: 1178, y: 392 }, read: { x: 1178, y: 392 }, root: { x: 1056, y: 456 } };
   let joy = null; // page coords of current joystick finger
   const send = async (type, pts) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: pts });
   return {

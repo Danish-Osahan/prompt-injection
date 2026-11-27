@@ -19,11 +19,16 @@ npm run playtest     # builds must exist; serves dist on :4175, headless desktop
 |---|---|---|
 | Move (8 dir) | WASD / arrows | drag on the left half (virtual stick) |
 | Dash (i-frames, 1 s cooldown) | Space / Shift / K | DASH |
-| Read an object (picks up its word) | E, or click the boxed word in the caption | READ, or tap the boxed word |
-| Swap | E at another object, click a second caption word, or drag a word onto another word | tap a second word, or drag the chip onto it |
-| Code vision (see every line, swap any two; lens secrets) | hold E | hold READ |
+| Take a word / the Caret (hold) | hold E | hold READ |
+| Read (floor notes, letters, wall notes, lookables; close the card) | R | READ |
+| Advance dialogue | E | tap / READ |
+| Throw the word in hand / send the Caret into a guarded thing | F | tap |
+| Caret inside a line: pick a word / call it home | ← → (↑ ↓ and WASD still walk) / F empty-handed, Q, Esc | tap a word |
+| Swap (legacy plate rooms) | E at another object, click a second caption word, or drag a word onto another word | tap a second word, or drag the chip onto it |
+| Code vision (legacy rooms: see every line, swap any two; lens secrets) | hold E | hold READ |
 | TYPE (3-hit combo: slash, slash, stab + blinking `|`) | J / left click | TYPE |
 | BACKSPACE (dash attack, knockback) | attack during/just after a dash | TYPE while dashing |
+| Fern root (once per fight) | G | ROOT |
 | Menu (controls list, new game) | Esc / P | "esc menu" (top right) |
 | Debug overlay (word memory, Fern growth) | ` / F2 | `?debug=1` |
 

@@ -1,4 +1,4 @@
-// Corridor guard soft-lock suite: real key presses (E hold to take, F to send the Caret / throw, J to strike), several orders.
+// Corridor guard soft-lock suite: real key presses (E hold to take, R to read, F to send the Caret / throw, J to strike), several orders.
 // Setup (teleports, lighting the hall) uses the test hooks; the puzzle itself never does.
 import { sleep, DESKTOP } from './helpers.mjs';
 
@@ -137,5 +137,48 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   await page.keyboard.press('Space'); await sleep(60); d0 = await dashState();
   ok('softlock J: dash works again once the Caret is home', d0.did, JSON.stringify(d0));
   await pi(page, 'teleport', 960, 450); await sleep(150); await F(page, 1500); await clear(page); await take(page); await pick(page); await F(page, 1200); await finish(page, 'J (no dash, recall)'); await ctx.close();
+
+  // K. Caret first, then walk to the clock with real keys (D, then the UP arrow, which still walks while the Caret
+  //    is in the line), hold E there, pick QUICK with the arrows, F throws (not a recall).
+  const me = () => page.evaluate(() => { const g = window.__game.scene.getScene('game'); return { x: g.x, y: g.y, held: g.stealPlay?.held?.word ?? null, mode: g.caretMode, sel: g.caretSel, inLine: g.caretInLine(), lines: g.save.lines.slice(), toast: !!g.lineToast }; });
+  ({ ctx, page } = await fresh());
+  await openLine(page); s = await st(page);
+  ok('softlock K: F sends the Caret in first, nothing in hand', s.caret.inLine && !s.steal?.held, info(s));
+  await page.keyboard.down('d'); for (let i = 0; i < 40 && (await me()).x < 1105; i++) await sleep(60); await page.keyboard.up('d');
+  let m0 = await me(); await page.keyboard.down('ArrowUp'); for (let i = 0; i < 50 && (await me()).y > 250; i++) await sleep(60); await page.keyboard.up('ArrowUp'); await sleep(120);
+  let m1 = await me();
+  ok('softlock K: with the Caret in the line, UP walks Noor to the clock and leaves the selection alone', m1.y < m0.y - 100 && m1.inLine && m1.sel === 0, JSON.stringify({ m0, m1 }));
+  await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(200); s = await st(page);
+  ok('softlock K: holding E at the clock takes STILL while the Caret stays in the guard', s.steal?.held?.word === 'STILL' && s.plates.c_clock.words === 'CLOCK IS QUICK' && s.caret.inLine && s.caret.sel === 0, info(s) + ' ' + JSON.stringify(s.caret));
+  await pick(page); s = await st(page);
+  ok('softlock K: arrows still pick QUICK with STILL in hand', s.caret.sel === 2 && s.steal?.held?.word === 'STILL', JSON.stringify(s.caret));
+  await page.keyboard.press('f');
+  { const modes = []; let landed = false; for (let i = 0; i < 40 && !landed; i++) { const q = await me(); const fl = await page.evaluate(() => window.__game.scene.getScene('game').flags.still); modes.push(q.mode); landed = fl; if (!landed) await sleep(50); }
+    const beforeLand = modes.slice(0, -1);
+    ok('softlock K: F with STILL in hand throws it (the Caret is not recalled before it lands)', landed && !beforeLand.includes('follow'), modes.join(',')); }
+  await sleep(400); await finish(page, 'K (Caret first, walk, hold E, pick, F)'); await ctx.close();
+
+  // L. Caret first, taken from the end of the left hall under the clock (the clock's reach covers it), with a
+  //    wrong-word throw in between: STILL bounces home, E takes it again, QUICK, F.
+  ({ ctx, page } = await fresh());
+  await openLine(page); await take(page, 990, 336); s = await st(page);
+  ok('softlock L: E hold at the end of the left hall reaches the clock with the Caret in', s.steal?.held?.word === 'STILL' && s.caret.inLine, info(s));
+  await F(page, 1000); s = await st(page);
+  ok('softlock L: F on GUARD throws and bounces (not a recall), STILL back on the clock, Caret still in', !s.steal?.held && s.plates.c_clock.words === 'CLOCK IS STILL' && s.caret.inLine, info(s));
+  await clear(page); await take(page, 990, 336); await pick(page); await F(page, 1200); await finish(page, 'L (reach, bounce, retake)'); await ctx.close();
+
+  // M. E and R are separate: E at the switch never reads the floor note beside it; R reads it and R closes the card.
+  ({ ctx, page } = await fresh());
+  let m2 = await me();
+  ok('softlock M: holding E at the switch took ON and did not read the floor note beside it', !m2.lines.includes('c_line'), JSON.stringify(m2.lines));
+  await pi(page, 'teleport', 236, 262); await sleep(150); await page.keyboard.down('e'); await sleep(400); await page.keyboard.up('e'); await sleep(200); m2 = await me();
+  ok('softlock M: E on the floor note does nothing', !m2.lines.includes('c_line') && !m2.toast, JSON.stringify(m2));
+  await page.keyboard.press('r'); await sleep(350); m2 = await me();
+  ok('softlock M: R reads the floor note (card open, line kept)', m2.lines.includes('c_line') && m2.toast, JSON.stringify(m2));
+  await page.keyboard.press('e'); await sleep(200); m2 = await me();
+  ok('softlock M: E does not close the note card', m2.toast, JSON.stringify(m2));
+  await page.keyboard.press('r'); await sleep(350); m2 = await me();
+  ok('softlock M: R closes it', !m2.toast, JSON.stringify(m2));
+  await openLine(page); await take(page); await pick(page); await F(page, 1200); await finish(page, 'M (E takes, R reads)'); await ctx.close();
   ok('softlock: zero page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
 }

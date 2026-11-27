@@ -58,19 +58,20 @@ export async function office11(browser, { ok, st, pi, waitFor, shot, URL_ }) {
   ok('office11: a toy (rain) swaps through its own tag + picker', s.plates.o_rain.words === 'RAIN FEELS HAPPY', s.plates.o_rain.words);
   await pi(page, 'clar', 'tap', 'o_photo'); await pi(page, 'clar', 'pick'); await sleep(200); s = await sample();
   ok('office11: a long narrator line still fits one line (shrinks, never wraps)', s.clar.capLines === 1 && s.clar.capW <= 1180 && s.clar.capSize >= 18, `${s.clar.capSize}px ${s.clar.capW}px "${s.clar.caption}"`);
-  // close-up card (E opens, E closes) - no camera zoom anywhere
-  // Narrator lines from the previous swap must be idle, or E would advance dialogue instead of opening the card.
+  // close-up card (R opens, R closes; E only takes / changes words) - no camera zoom anywhere
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
-  await pi(page, 'teleport', 685, 352); await waitFor(page, s => s.clar.near === 'o_kabir' && s.clar.caption === 'E  look closer', 5000);
-  s = await sample(); ok('office11: near an object: "E  look closer"', s.clar.caption === 'E  look closer', s.clar.caption);
+  await pi(page, 'teleport', 685, 352); await waitFor(page, s => s.clar.near === 'o_kabir' && s.clar.caption === 'R  look closer', 5000);
+  s = await sample(); ok('office11: near an object: "R  look closer"', s.clar.caption === 'R  look closer', s.clar.caption);
   await input.press('interact'); await sleep(320); s = await sample();
+  ok('office11: E near a plain lookable does not open its card (E takes, R reads)', !s.clar.card && !s.clar.modal, JSON.stringify({ c: s.clar.card, m: s.clar.modal }));
+  await input.press('read'); await sleep(320); s = await sample();
   ok('office11: inspect opens a framed close-up card in ~0.25 s', s.clar.card === 'o_kabir' && s.clar.cardA > 0.95 && s.clar.modal === 'card', JSON.stringify({ c: s.clar.card, a: s.clar.cardA }));
   ok('office11: the card carries the one lore line (caption strip is empty)', s.clar.caption === '', s.clar.caption);
   await sleep(1500); await shot(page, 'v11c-06-inspect-card');
-  await input.press('interact'); await sleep(320); s = await sample();
-  ok('office11: E closes the card', !s.clar.modal && !s.clar.card, s.clar.modal);
+  await input.press('read'); await sleep(320); s = await sample();
+  ok('office11: R closes the card', !s.clar.modal && !s.clar.card, s.clar.modal);
   await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
-  await pi(page, 'teleport', 232, 636); await waitFor(page, s => s.clar.near === 'o_coffee', 2000); await input.press('interact'); await sleep(300);
+  await pi(page, 'teleport', 232, 636); await waitFor(page, s => s.clar.near === 'o_coffee', 2000); await input.press('read'); await sleep(300);
   s = await st(page); await page.mouse.click(60, 360); await sleep(320); const sc = await st(page);
   ok('office11: a tap / click closes the card too', s.clar.card === 'o_coffee' && !sc.clar.card, `${s.clar.card} -> ${sc.clar.card}`);
   ok('office11: camera stays at plate zoom (no letterbox snap)', zooms.every(z => Math.abs(z - Z) < 0.08) && Math.abs(sc.cam.zoom - Z) < 0.08, [...new Set(zooms.map(z => z.toFixed(4)))].join(','));

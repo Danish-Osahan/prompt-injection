@@ -3,14 +3,14 @@
 // floor-text prompts switch between keyboard and touch wording automatically.
 import Phaser from 'phaser';
 
-export type Action = 'attack' | 'dash' | 'interact' | 'pause' | 'debug' | 'root';
-export interface Frame { mx: number; my: number; attack: boolean; dash: boolean; interact: boolean; pause: boolean; debug: boolean; root: boolean; attackHeld: boolean; skipHeld: boolean; interactHeld: boolean }
+export type Action = 'attack' | 'dash' | 'interact' | 'read' | 'pause' | 'debug' | 'root';
+export interface Frame { mx: number; my: number; attack: boolean; dash: boolean; interact: boolean; read: boolean; pause: boolean; debug: boolean; root: boolean; attackHeld: boolean; skipHeld: boolean; interactHeld: boolean }
 export type InputKind = 'kb' | 'touch';
 
 export class Controls {
   last: InputKind;
   private keys: Record<string, Phaser.Input.Keyboard.Key>;
-  /** Set by the scene while the Caret is inside a guarded line: arrow keys steer it instead of Noor. */
+  /** Set by the scene while the Caret is inside a guarded line: LEFT / RIGHT steer it instead of Noor (UP / DOWN and WASD still walk). */
   steerArrows = false;
   private onEsc?: (ev: KeyboardEvent) => void;
   private joyId: number | null = null;
@@ -18,7 +18,7 @@ export class Controls {
   private joyVec = { x: 0, y: 0 };
   private base: Phaser.GameObjects.Arc;
   private knob: Phaser.GameObjects.Arc;
-  private pressed: Record<Action, boolean> = { attack: false, dash: false, interact: false, pause: false, debug: false, root: false };
+  private pressed: Record<Action, boolean> = { attack: false, dash: false, interact: false, read: false, pause: false, debug: false, root: false };
   private touchUi: Phaser.GameObjects.GameObject[] = [];
   /** Set by the scene while the player drags a word chip, so the stick and click-attack ignore that pointer. */
   uiPointer: number | null = null;
@@ -31,9 +31,9 @@ export class Controls {
 
   constructor(private scene: Phaser.Scene) {
     const kb = scene.input.keyboard!;
-    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,J,K,SPACE,SHIFT,E,ENTER,ESC,P,BACKTICK,F2,R,X') as Record<string, Phaser.Input.Keyboard.Key>;
+    this.keys = kb.addKeys('W,A,S,D,UP,DOWN,LEFT,RIGHT,J,K,SPACE,SHIFT,E,ENTER,ESC,P,BACKTICK,F2,R,G,X') as Record<string, Phaser.Input.Keyboard.Key>;
     const bind = (names: string[], a: Action) => names.forEach(n => this.keys[n].on('down', () => { this.pressed[a] = true; this.setKind('kb'); }));
-    bind(['J', 'ENTER'], 'attack'); bind(['K', 'SPACE', 'SHIFT'], 'dash'); bind(['E'], 'interact'); bind(['ESC', 'P'], 'pause'); bind(['BACKTICK', 'F2'], 'debug'); bind(['R'], 'root');
+    bind(['J', 'ENTER'], 'attack'); bind(['K', 'SPACE', 'SHIFT'], 'dash'); bind(['E'], 'interact'); bind(['R'], 'read'); bind(['ESC', 'P'], 'pause'); bind(['BACKTICK', 'F2'], 'debug'); bind(['G'], 'root');
     kb.on('keydown', () => this.setKind('kb'));
     // Phaser can miss Escape when the canvas is not focused; a window listener keeps skip/pause reliable.
     this.onEsc = (ev: KeyboardEvent) => {
@@ -50,7 +50,8 @@ export class Controls {
       const bg = s.add.circle(b.x, b.y, b.r, 0x04101a, 0.55).setStrokeStyle(2, 0x78e4e8, 0.7).setScrollFactor(0).setDepth(5000);
       const t = s.add.text(b.x, b.y, b.label, { fontFamily: 'JetBrains Mono', fontStyle: 'bold', fontSize: '16px', color: '#B4EEF0' }).setOrigin(0.5).setScrollFactor(0).setDepth(5001);
       bg.setInteractive(new Phaser.Geom.Circle(b.r, b.r, b.r), Phaser.Geom.Circle.Contains);
-      bg.on('pointerdown', (p: Phaser.Input.Pointer) => { this.pressed[id] = true; if (id === 'attack') this.typeBtnId = p.id; if (id === 'interact') this.readBtnId = p.id; this.setKind(p.wasTouch ? 'touch' : this.last); bg.setFillStyle(0x78e4e8, 0.35); });
+      bg.on('pointerdown', (p: Phaser.Input.Pointer) => { this.pressed[id] = true; if (id === 'interact') this.pressed.read = true;   /* touch has one READ button: it reads, or holds to take */
+      if (id === 'attack') this.typeBtnId = p.id; if (id === 'interact') this.readBtnId = p.id; this.setKind(p.wasTouch ? 'touch' : this.last); bg.setFillStyle(0x78e4e8, 0.35); });
       const up = () => { bg.setFillStyle(0x04101a, 0.55); if (id === 'attack') this.typeBtnId = null; if (id === 'interact') this.readBtnId = null; }; bg.on('pointerup', up); bg.on('pointerout', up);
       bg.name = 'btn-' + id;
       this.touchUi.push(bg, t);
@@ -83,14 +84,14 @@ export class Controls {
 
   read(): Frame {
     const k = this.keys;
-    const ar = !this.steerArrows;   // while the Caret is in a line, arrows steer it and WASD still walks
+    const ar = !this.steerArrows;   // while the Caret is in a line, LEFT / RIGHT steer it; UP / DOWN and WASD still walk
     let mx = (k.D.isDown || (ar && k.RIGHT.isDown) ? 1 : 0) - (k.A.isDown || (ar && k.LEFT.isDown) ? 1 : 0);
-    let my = (k.S.isDown || (ar && k.DOWN.isDown) ? 1 : 0) - (k.W.isDown || (ar && k.UP.isDown) ? 1 : 0);
+    let my = (k.S.isDown || k.DOWN.isDown ? 1 : 0) - (k.W.isDown || k.UP.isDown ? 1 : 0);
     if (mx === 0 && my === 0 && Math.hypot(this.joyVec.x, this.joyVec.y) > 0.2) { mx = this.joyVec.x; my = this.joyVec.y; }
     const len = Math.hypot(mx, my); if (len > 1) { mx /= len; my /= len; }
     const p = this.pressed;
     const f: Frame = { mx, my, ...p, attackHeld: k.J.isDown || k.ENTER.isDown || this.mouseHeld || this.typeBtnId !== null, skipHeld: k.X.isDown || this.skipId !== null, interactHeld: k.E.isDown || this.readBtnId !== null };
-    this.pressed = { attack: false, dash: false, interact: false, pause: false, debug: false, root: false };
+    this.pressed = { attack: false, dash: false, interact: false, read: false, pause: false, debug: false, root: false };
     return f;
   }
 }

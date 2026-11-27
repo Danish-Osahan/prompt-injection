@@ -1,4 +1,4 @@
-// Office lookables for Level 1: tap E to look, optional peel of LOUD / HOT, a creepy printer.
+// Office lookables for Level 1: R to look, optional E-hold peel of LOUD / HOT, a creepy printer.
 // Works during the dead-lift beat (word UI is off). Lore follows docs/story; no echo twist.
 import Phaser from 'phaser';
 import type { GameScene } from './game';
@@ -64,10 +64,12 @@ export class OfficeExplore {
     return { looked: Object.keys(this.looked).filter(k => this.looked[k]), carrying: this.carrying, printer: this.printerFired };
   }
 
-  /** True when a lookable should keep E away from the lift panel / lamp. */
+  /** True when a lookable's own E-hold take (LOUD / HOT, after a look) should keep E away from the lift panel / lamp.
+   *  Looking is R, so a plain lookable never claims E. */
   claimingE() {
     if (this.destroyed || this.carrying) return false;
-    return !!this.nearest(this.s.x, this.s.y);
+    const spot = this.nearest(this.s.x, this.s.y);
+    return !!(spot && spot.steal && this.looked[spot.id]);
   }
 
   update(dt: number, f: Frame | null) {
@@ -81,7 +83,7 @@ export class OfficeExplore {
     const useSpot = blocked ? undefined : spot;
     this.updatePrompt(useSpot, blocked);
     const lab = this.s.impactLab;
-    if (lab?.lure && !lab.carrying && !lab.state().draining) lab.lure.hidden = !!useSpot || !!this.s.nearLostLine();
+    if (lab?.lure && !lab.carrying && !lab.state().draining) lab.lure.hidden = this.claimingE();   // R-look chips and the lamp's E-take chip can sit side by side
     this.tickPhones(dt, Math.hypot(x - 696, y - 280) < 140);
     this.tickCarry(dt, f, useSpot, blocked);
     this.tickFlight(dt);
@@ -157,7 +159,7 @@ export class OfficeExplore {
     let c = { x: ax + off.ox, y: ay + off.oy };
     if (spot.id !== 'board') c = placeChip(ax, ay, this.s.x, this.s.y, off.ox, off.oy);
     const verb = stealReady ? `take ${spot.steal}` : (spot.id === 'printer' && this.printerFired ? 'read' : 'look');
-    p.show(c.x, c.y, verb, hold, 'E');
+    p.show(c.x, c.y, verb, hold, stealReady ? 'E' : 'R');   // E takes, R looks / reads
     this.drawSpotGlow(spot, ax, ay, hold);
   }
 
