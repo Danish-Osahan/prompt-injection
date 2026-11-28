@@ -46,6 +46,19 @@ export class InteractChip {
   }
 
   /** hold is 0–1, drawn as a thin bar along the plate (no ring). */
+  /** Axis-aligned box of the drawn plate, from the layout (not getBounds — that can lag a frame). */
+  box() {
+    const kw = Math.max(18, this.letter.width + 10), kh = 18;
+    const vw = this.verb.width + 14;
+    const total = kw + 4 + vw;
+    const ox = this.centered ? -total / 2 + kw / 2 : 0;
+    const x0 = this.root.x + ox - kw / 2;
+    const y0 = this.root.y - kh / 2;
+    const x1 = this.root.x + ox + kw / 2 + 2 + vw;
+    const y1 = this.root.y + 9;
+    return { x0, y0, x1, y1, w: x1 - x0, h: y1 - y0 };
+  }
+
   show(x: number, y: number, verb: string, hold = 0, key = 'E') {
     this.rawVerb = verb;
     const shown = verb === 'take' && !InteractChip.taughtTake ? 'hold to take' : verb;

@@ -22,18 +22,35 @@ export async function archiveSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   const key = async (page, k, ms = 160) => { await page.keyboard.press(k); await sleep(ms); };
   const atDez = (page) => pi(page, 'teleport', 170, 390).then(() => sleep(200));
   const atKeeper = (page) => pi(page, 'teleport', 420, 440).then(() => sleep(350));
-  const openDez = async (page) => { await atDez(page); await key(page, 'f', 700); await clear(page); };
+  // wait until nothing is in motion (no filing fade, no flight), as a player would before pressing again
+  const settle = (page) => waitFor(page, s => !s.archive.filing && s.state === 'play' && ['idle', 'inDez', 'inKeeper', 'carry', 'done'].includes(s.archive.phase), 4000);
+  const openDez = async (page) => { await settle(page); await clear(page); await atDez(page); await key(page, 'f', 100); await waitFor(page, s => s.archive.phase === 'inDez', 2500); await sleep(400); await clear(page); };
   const pick = async (page, n = 2) => { for (let i = 0; i < n; i++) await key(page, 'ArrowRight', 110); await sleep(100); };
   const hold = async (page) => { await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(250); };
-  const takeAsleep = async (page) => { await openDez(page); await pick(page); await hold(page); };
+  const takeAsleep = async (page) => {
+    await openDez(page); await pick(page); await hold(page);
+    s = await waitFor(page, s => s.archive.phase === 'carry' && s.archive.carried === 'ASLEEP', 2000);
+    if (s.archive.carried !== 'ASLEEP') { await openDez(page); await pick(page); await hold(page); await waitFor(page, s => s.archive.carried === 'ASLEEP', 2000); }
+  };
   const untouched = (s) => s.plates.a_dez.words === 'DEZ IS ASLEEP' && s.plates.a_keeper.words === 'KEEPER IS AWAKE';
   async function finish(page, tag, { cross = false } = {}) {
     let s = await st(page);
     if (!s.archive.traded) {
-      if (s.archive.phase !== 'carry') { await key(page, 'q', 900); s = await st(page); if (s.archive.phase !== 'idle') await sleep(900); await takeAsleep(page); }
-      await atKeeper(page); await key(page, 'f', 900); await pick(page); await key(page, 'f', 300);
+      await pi(page, 'archiveAim', 430, 175);   // leftover lamp aim from a filing check must not file Noor mid-trade
+      await settle(page); await clear(page);
+      if (s.archive.phase !== 'carry' || s.archive.carried !== 'ASLEEP') {
+        await key(page, 'q', 900); s = await st(page); if (s.archive.phase !== 'idle') await sleep(900);
+        await takeAsleep(page);
+      }
+      await settle(page); await atKeeper(page); await key(page, 'f', 120);
+      s = await waitFor(page, s => s.archive.phase === 'inKeeper', 3000);
+      if (s.archive.phase !== 'inKeeper') {
+        await takeAsleep(page); await atKeeper(page); await key(page, 'f', 120);
+        s = await waitFor(page, s => s.archive.phase === 'inKeeper', 3000);
+      }
+      await sleep(450); await pick(page); await key(page, 'f', 300);
     }
-    s = await waitFor(page, s => s.archive.traded, 2500);
+    s = await waitFor(page, s => s.archive.traded, 4000);
     ok(`archive softlock ${tag}: the trade still lands (KEEPER IS ASLEEP / DEZ IS AWAKE)`, s.plates.a_keeper.words === 'KEEPER IS ASLEEP' && s.plates.a_dez.words === 'DEZ IS AWAKE' && s.archive.carried === null, info(s));
     s = await waitFor(page, s => s.bridgeDown, 9000);
     ok(`archive softlock ${tag}: the bridge comes down`, s.bridgeDown, info(s));

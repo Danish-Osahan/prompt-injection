@@ -171,8 +171,10 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   for (const [x, y] of [[1100, 400], [1170, 380], [1130, 420]]) {
     await pi(page, 'teleport', x, y); let q = null;
     for (let i = 0; i < 15; i++) { q = await st(page); if (q.lureChip?.visible) break; await sleep(60); }
-    const keep = await page.evaluate(() => window.__game.scene.getScene('game').hintKeepOut()[0] ?? null);
-    const lc = q.lureChip;
+    // read the chip and the card keep-out in the same frame (the QUICK guard moves between separate reads)
+    await sleep(120);
+    const both = await page.evaluate(() => { const g = window.__game.scene.getScene('game'); return { lc: window.__pi.state().lureChip, keep: g.hintKeepOut()[0] ?? null }; });
+    const keep = both.keep, lc = both.lc ?? q.lureChip;
     ok(`GB-4: at (${x},${y}) the F THROW chip shows and never sits on the guard ID card`, !!lc?.visible && /throw/i.test(lc.verb) && offCard({ ...lc, keep }), JSON.stringify({ lc, keep }));
   }
   await ctx.close();

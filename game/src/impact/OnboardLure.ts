@@ -127,24 +127,32 @@ export class OnboardLure {
   }
 
   /** GB-4: the F THROW chip never sits on a staff ID card (or the Caret parked beside it). */
-  private keepOffCards(p: { x: number; y: number }) {
+  private keepOffCards(_p: { x: number; y: number }) {
     const c = this.chip; if (!c) return;
     const keep = (this.s as unknown as { hintKeepOut?: () => { x0: number; y0: number; x1: number; y1: number }[] }).hintKeepOut?.() ?? [];
     if (!keep.length) return;
-    const b = c.root.getBounds(); const dx = b.x - c.root.x, dy = b.y - c.root.y, bw = b.width, bh = b.height;
-    const M = 4;   // margin: the card sways with the guard's rig between frames
+    const b0 = c.box();
+    const dx = b0.x0 - c.root.x, dy = b0.y0 - c.root.y, bw = b0.w, bh = b0.h;
+    const M = 10;   // the QUICK guard's card moves between frames
     const hits = (L: number, T: number) => keep.some(k => L < k.x1 + M && L + bw > k.x0 - M && T < k.y1 + M && T + bh > k.y0 - M);
-    if (!hits(b.x, b.y)) return;
+    if (!hits(b0.x0, b0.y0)) return;
     const k = keep[0];
-    const cands = [[k.x0 + 4, k.y1 + 6], [k.x0 - bw - 6, b.y], [k.x1 + 6, b.y], [k.x0 + 4, k.y0 - bh - 6], [k.x0 + 4, k.y1 + 40]];
+    const cands = [
+      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y1 + 16],
+      [k.x0 - bw - 12, k.y1 + 16],
+      [k.x0 - bw - 12, k.y0],
+      [k.x1 + 12, k.y0],
+      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y0 - bh - 12],
+      [k.x0 - bw - 12, k.y1 + 48],
+      [8, k.y1 + 16],
+    ];
     for (const [L, T] of cands) if (!hits(L, T) && L > 8 && L + bw < 1272 && T > 8 && T + bh < 712) { c.root.setPosition(L - dx, T - dy); return; }
-    void p;
   }
 
   chipState() {
     const shown = !!this.chip?.isShown();
-    const b = shown && this.chip ? this.chip.root.getBounds() : null;
-    return { visible: shown, verb: shown ? (this.chip?.currentVerb() ?? '') : '', key: shown ? (this.chip?.currentKey() ?? '') : '', carrying: this.carrying, box: b ? { x0: b.x, y0: b.y, x1: b.right, y1: b.bottom } : null };
+    const b = shown && this.chip ? this.chip.box() : null;
+    return { visible: shown, verb: shown ? (this.chip?.currentVerb() ?? '') : '', key: shown ? (this.chip?.currentKey() ?? '') : '', carrying: this.carrying, box: b ? { x0: b.x0, y0: b.y0, x1: b.x1, y1: b.y1 } : null };
   }
 
   destroy() {
