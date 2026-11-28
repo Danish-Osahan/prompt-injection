@@ -1,5 +1,15 @@
 # HANDOFF
 
+## 2026-11-28 — GB-5b: Dez's size, visible word selection, archive weak spots
+
+Danishpreet playtested `19e419e`. Fixed: (1) Dez 1.5x Noor tall -> re-rendered at 1.12 scale (about Noor's height), desk collider / card anchor / speaker spot follow; (2) the highlight never moved because `ArchiveRoom.select()` didn't redraw the cards -> `select()` refreshes, `StaffCard.setSel()` draws immediately, selected word is a reverse-print block + cyan underline + cyan flash with the others dimmed, on every StaffCard (guard too); (3) cards 1.35x, fuller Keeper, new asleep-Dez pose/rim light, open-line sign (cyan `OPEN` magstripe + wash + glowing edge + underlines), right half with two records lockers / a warm floor lamp / a box stack (Kenney Furniture Kit, CC0, `art/tools/archive13_props.py`), and a baked relit `archive13_warm.jpg` cross-fade after the trade instead of the multiply rectangle. Details: `docs/audit/archive.md`, `docs/caret.md` ("Word selection must be visible"). `DEZ_REACH` is now 165 (walkable floor ends about x 460), Keeper test spot (480,470).
+
+**Tests.** New per-step highlight checks: `corridor_softlock.mjs` O (guard card) and `archive_softlock.mjs` E (Dez and Keeper cards) press real arrows and assert the drawn selection, `selMoves` and a pixel probe (block + underline on the selected word only) within 60ms. Counts in the final report of the session; `ONLY_ARCHIVE=1` 46/46, `ONLY_SOFTLOCK=1` 133/133.
+
+**Stills (not in the repo, `/workspace/l14-archive/`):** overview, Dez next to the desk, the highlight on two words, the open-line sign, the room after the trade.
+
+**Weak spots.** I could not open Danishpreet's two screenshots; fixes follow his description. Asleep Dez is still seen head and shoulders over the desk (a dim monitor-lit silhouette), not a full figure. The Keeper is fuller but is still a box-headed stilt figure. The new props are small and quiet; the right half is calmer, not busy. Lamp aim settles iteratively under `archiveAim`. The walkable floor limit means Dez's and the Keeper's reach zones are close at x about 460. The warm plate is a cross-fade of two baked renders (no moving light on it).
+
 ## 2026-11-28 — GB-5: the Flooded Archive is one trade (built from the approved plan)
 
 Danishpreet approved `/workspace/l12-next/PROPOSAL.md` as proposed, with the lamp sweep. Built from `7353ccd`.

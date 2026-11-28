@@ -253,6 +253,11 @@ Art:
 - The Keeper (stilts, drawer body, lanyard card, lamp on a pole) is procedural Blender geometry built in `art/tools/archive13.py`; no third-party models. Shipped as `game/public/assets/archive13/keeper_*.png`.
 - The archive plate `rooms/archive13_bleed.jpg` / `archive13_code.jpg`, the graded foregrounds `fg/a13_*.png` and the drip / sheen / line loops `amb/archive13_*.png` are derived in `art/tools/archive13_post.py` (PIL) from the project's own earlier archive render (`archive_H_bleed.jpg`): clutter painted out, regraded, the pool repainted black-teal. No third-party images.
 
+GB-5b additions (28 Nov 2026), all free/CC0, no AI art:
+- `art/tools/archive13_props.py` renders three right-half props from the Kenney *Furniture Kit* (CC0, already credited above): `bookcaseClosedDoors` (the two records lockers, `fg/a13_shelf.png`), `lampSquareFloor` with a warm point light (`fg/a13_lamp.png`) and two stacked `cardboardBoxClosed` (`fg/a13_boxes.png`).
+- Dez is re-rendered smaller (`art/tools/archive13.py`, Kenney *Mini Characters* `character-male-a`, CC0) with new asleep/awake poses and a warm rim light; the Keeper's geometry is fuller (still procedural, no third-party models).
+- `rooms/archive13_warm.jpg` (the plate after the trade, cross-faded in by `archive.ts`) is relit from the project's own archive render in `art/tools/archive13_post.py`; no new third-party source.
+
 Sound (all made by `art/tools/archive13_sound.py`, numpy + ffmpeg):
 | File | Source | Licence |
 |---|---|---|

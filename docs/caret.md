@@ -41,6 +41,10 @@
 
 **What it never does.** It never takes words (E does). It never aims bolts or melee. It never sticks to things as a marker. Sending it at anything that isn't guarded does nothing (`GUARDED = ['c_dummy']`).
 
+## Word selection must be visible (every StaffCard, GB-5b)
+
+With the Caret inside any card (guard, Dez, Keeper), the selected word is drawn as a **reverse-print block** (near-black, word in paper colour) with a **cyan underline and end ticks**, a short cyan flash on each move, and the other words in the open line dimmed. It redraws on every ←/→ press (`StaffCard.setSel` draws immediately; the archive's `select()` also calls `refreshCards()`), including the first press from the landing word. The player never needs the E chip to know which word is selected. No circles, rings or overlay text. In the open-line (ready) state each word gets a cyan underline and the card carries a cyan `OPEN` magstripe. Tests: `corridor_softlock.mjs` O, `archive_softlock.mjs` E (pixel probe per word, `selMoves` per press). Archive cards (Dez, Keeper) are drawn at 1.35x so they read at 1x; DEZ_REACH is 165px.
+
 ## Room 3, the Flooded Archive (GB-5): cards give words too
 
 Two staff records, both on lanyard cards, both hidden: **DEZ IS ASLEEP** (Dez, asleep at his desk) and **KEEPER IS AWAKE** (the stilted Keeper wading the black water with a lamp). The whole room is one trade. Code: `game/src/archive.ts` (`ArchiveRoom`), cards from `staffCard.ts` (`a_dez`, `a_keeper`, mount `lanyard`).
@@ -49,7 +53,7 @@ New rule taught here: **a card can give a word, and the Caret carries it.** In t
 
 | Input | Effect |
 |---|---|
-| F near Dez (175px from his card) | The Caret flies into his card; `DEZ IS / ASLEEP` prints; it lands on DEZ. First time, Fern: "Cards give words too. Take his." |
+| F near Dez (165px from his card) | The Caret flies into his card; `DEZ IS / ASLEEP` prints; it lands on DEZ. First time, Fern: "Cards give words too. Take his." |
 | ← / → inside a card | Select a word (the archive owns F / ← / → / Q in this room; the generic Caret blocks are skipped while `scene.archive` exists). |
 | Hold E (0.4s) on ASLEEP | Takes it. Dez's card shows a dashed gap where ASLEEP was; the Caret comes home with the word on a small chip. The plates do **not** change yet (the carried word is view state). |
 | Hold E on DEZ / IS | Nothing comes off: `A NAME STAYS PUT` / `IS HOLDS THE LINE`. |

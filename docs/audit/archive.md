@@ -1,5 +1,21 @@
 # Room 4 audit — The Flooded Archive
 
+## 2026-11-28 — GB-5b: playtest fixes (Dez's size, visible word selection, weak spots)
+
+Danishpreet playtested `19e419e`: Dez was far too big next to the desk and Noor; with the Caret inside a card, ←/→ only played a sound and the highlight never moved.
+
+- **Root cause of the dead highlight.** `ArchiveRoom.select()` changed the index but never redrew the cards; only the guard path redrew every frame. `select()` now calls `refreshCards()`, and `StaffCard.setSel()` itself redraws immediately (so every card, guard included, is covered).
+- **Highlight.** The selected word is reverse-printed: a near-black block with the word in paper colour and a cyan underline with end ticks, plus a short cyan flash on every move. Unselected words in an open line are dimmed. Ready (open-line) state prints a cyan underline under each word. No circles, rings or floating text.
+- **Dez.** Re-rendered at 1.12 scale (about Noor's height, desk about 123px wide); card anchor, desk collider (`DESK`) and speaker spot follow. While a line is open the speaker's rig is lifted above Noor so she cannot cover the card.
+- **Cards.** Dez's and the Keeper's cards are 1.35x (`STAFF_RECORDS` scale, `CH`), same spot, same ~4-word lines.
+- **Keeper.** Fuller geometry (drawer body, head scale 1.25, index cards), still a stilted box-man.
+- **Asleep Dez.** New head/arm pose, warm rim light, so the silhouette reads against the monitor glow.
+- **Open-line sign.** Cyan magstripe with `OPEN`, cyan wash scaled by the pulse, bold glowing edge (2.2px, blur 13), cyan underlines under each word.
+- **Right half.** Two records lockers on the back wall, one warm floor lamp by the exit (a quiet pool of light baked into the plate), a stack of boxes; all have colliders (`rooms.ts`, GB-5b comment).
+- **Warm-up.** The plate after the trade is a baked, relit `archive13_warm.jpg` cross-faded in over 2.2s (instead of the multiply rectangle).
+- **Reach.** `DEZ_REACH` 175 -> 165 so the Keeper's side of the floor (walkable floor ends about x 460) is outside Dez's reach with the bigger card; test spot for the Keeper is now (480,470).
+- **Tests.** `archive_softlock.mjs` E and `corridor_softlock.mjs` O press real ←/→ and check, within 60ms, that the card's drawn selection equals the new word, `selMoves` increments (not at the clamp), and a pixel probe (`StaffCard.probe`, exposed as `probes` in `testState`) finds the dark block and cyan underline on that word only.
+
 ## 2026-11-28 — GB-5: one trade, the Keeper's lamp (built from the approved plan)
 
 Plan: `/workspace/l12-next/PROPOSAL.md` (approved as proposed, with the lamp sweep). Code: `game/src/archive.ts`; rules in `docs/caret.md` (Room 3 section).
