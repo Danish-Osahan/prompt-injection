@@ -133,20 +133,24 @@ export class OnboardLure {
     if (!keep.length) return;
     const b0 = c.box();
     const dx = b0.x0 - c.root.x, dy = b0.y0 - c.root.y, bw = b0.w, bh = b0.h;
-    const M = 10;   // the QUICK guard's card moves between frames
+    const M = 24;   // the QUICK guard's card leans between the lure update and the next frame
     const hits = (L: number, T: number) => keep.some(k => L < k.x1 + M && L + bw > k.x0 - M && T < k.y1 + M && T + bh > k.y0 - M);
     if (!hits(b0.x0, b0.y0)) return;
     const k = keep[0];
+    const gap = 28;
     const cands = [
-      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y1 + 16],
-      [k.x0 - bw - 12, k.y1 + 16],
-      [k.x0 - bw - 12, k.y0],
-      [k.x1 + 12, k.y0],
-      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y0 - bh - 12],
-      [k.x0 - bw - 12, k.y1 + 48],
-      [8, k.y1 + 16],
+      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y1 + gap],
+      [Phaser.Math.Clamp(k.x0 - bw - 12, 8, 1272 - bw - 8), k.y1 + gap],
+      [Phaser.Math.Clamp(k.x0 - bw - 12, 8, 1272 - bw - 8), k.y0],
+      [Math.min(k.x1 + 12, 1272 - bw - 8), k.y0],
+      [Math.min(k.x0 + 4, 1272 - bw - 8), k.y0 - bh - 16],
+      [Phaser.Math.Clamp(k.x0 - bw - 12, 8, 1272 - bw - 8), k.y1 + 56],
+      [8, k.y1 + gap],
+      [Math.min(k.x0 + 4, 1272 - bw - 8), Math.min(k.y1 + gap, 712 - bh - 8)],
     ];
     for (const [L, T] of cands) if (!hits(L, T) && L > 8 && L + bw < 1272 && T > 8 && T + bh < 712) { c.root.setPosition(L - dx, T - dy); return; }
+    // last resort: pin just under the card, clamped to the screen (better than sitting on it)
+    c.root.setPosition(Phaser.Math.Clamp(k.x0 + 4, 8, 1272 - bw) - dx, Phaser.Math.Clamp(k.y1 + gap, 8, 712 - bh) - dy);
   }
 
   chipState() {
