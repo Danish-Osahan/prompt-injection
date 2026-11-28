@@ -154,7 +154,9 @@ export class StaffCard {
     let ul = 0, n = 0;
     for (let k = 1; k <= 6; k++) { const d = at(b.x + (b.w * k) / 7, b.base + 1.85); n++; if (d[1] > 150 && d[2] > 150 && d[0] < 170 && d[1] - d[0] > 40) ul++; }
     const d0 = at(b.x - 0.9, b.base - 3);
-    return { block: d0[0] < 40 && d0[1] < 44 && d0[2] < 56 && d0[3] > 200, underline: ul >= 4 };
+    // the block is near-black; for the first ~0.3 s a cyan flash sits on it instead (still a clear highlight)
+    const dark = d0[0] < 40 && d0[1] < 44 && d0[2] < 56, flash = d0[1] - d0[0] > 25 && d0[2] - d0[0] > 25;   // any dark-to-cyan blend while the flash fades
+    return { block: (dark || flash) && d0[3] > 200, underline: ul >= 4 };
   }
 
   setBlank(i: number) { if (i !== this.blank) { this.blank = i; this.draw(); } }
@@ -203,7 +205,7 @@ export class StaffCard {
     return {
       state: this.state, printed: this.printed, sel: this.sel, blank: this.blank, blankWord: this.blank >= 0 ? this.words[this.blank] ?? null : null, selWord: this.sel >= 0 ? this.words[this.sel] ?? null : null,
       rows: cardRows(this.words).map(r => r.join(' ')), fresh: this.fresh >= 0 ? this.words[this.fresh] : null, wipe: this.wipe,
-      drawnSel: this.drawnSel, selMoves: this.selMoves, selFlash: this.selFlash, rot: this.root.rotation, lean: this.lean, parented: !!this.root.parentContainer, visible: this.root.visible && this.img.visible,
+      drawnSel: this.drawnSel, selMoves: this.selMoves, selFlash: this.selFlash, probes: this.boxes.map((_, i) => this.probe(i)), rot: this.root.rotation, lean: this.lean, parented: !!this.root.parentContainer, visible: this.root.visible && this.img.visible,
       awake: this.awake, font: FONT,
     };
   }

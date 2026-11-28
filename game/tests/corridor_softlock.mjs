@@ -202,4 +202,18 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   ok('softlock M: R closes it', !m2.toast, JSON.stringify(m2));
   await openLine(page); await take(page); await pick(page); await F(page, 1200); await finish(page, 'M (E takes, R reads)'); await ctx.close();
   ok('softlock: zero page errors', errs.length === 0, errs.slice(0, 3).join(' | '));
+
+  // O. the selection highlight moves visibly on every left/right press on the guard's card too
+  ({ ctx, page } = await fresh());
+  await openLine(page); await sleep(400); s = await st(page);
+  const hlG = (c) => `sel ${c.sel} drawn ${c.drawnSel} moves ${c.selMoves} probes ${c.probes.map(p => (p.block ? 'B' : '-') + (p.underline ? 'U' : '-')).join(' ')}`;
+  const onlyG = (c, i) => c.drawnSel === i && c.probes.every((p, k) => (k === i) === (p.block && p.underline));
+  ok('softlock O: the guard card opens with GUARD highlighted (block + cyan underline on that word only)', onlyG(s.card, 0), hlG(s.card));
+  for (const [k, i] of [['ArrowRight', 1], ['ArrowRight', 2], ['ArrowLeft', 1], ['ArrowLeft', 0]]) {
+    const m0 = (await st(page)).card.selMoves;
+    await page.keyboard.press(k); await sleep(60); s = await st(page);
+    ok(`softlock O: guard card ${k} -> word ${i} highlighted within 60 ms`, onlyG(s.card, i) && s.card.selMoves === m0 + 1 && s.caret.sel === i, hlG(s.card));
+    await sleep(120);
+  }
+  await ctx.close();
 }

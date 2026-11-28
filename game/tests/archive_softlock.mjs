@@ -21,7 +21,7 @@ export async function archiveSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   }
   const key = async (page, k, ms = 160) => { await page.keyboard.press(k); await sleep(ms); };
   const atDez = (page) => pi(page, 'teleport', 170, 390).then(() => sleep(200));
-  const atKeeper = (page) => pi(page, 'teleport', 420, 440).then(() => sleep(350));
+  const atKeeper = (page) => pi(page, 'teleport', 480, 470).then(() => sleep(350));
   // wait until nothing is in motion (no filing fade, no flight), as a player would before pressing again
   const settle = (page) => waitFor(page, s => !s.archive.filing && s.state === 'play' && ['idle', 'inDez', 'inKeeper', 'carry', 'done'].includes(s.archive.phase), 4000);
   const openDez = async (page) => { await settle(page); await clear(page); await atDez(page); await key(page, 'f', 100); await waitFor(page, s => s.archive.phase === 'inDez', 2500); await sleep(400); await clear(page); };
@@ -97,7 +97,7 @@ export async function archiveSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   ok('archive softlock C: filing snaps everything home: no word on the Caret, both cards as they were', s.archive.carried === null && ['idle'].includes(s.archive.phase) && untouched(s) && !s.archive.dezCard.blankWord && s.caret.mode === 'follow', info(s));
   await pi(page, 'archiveAim', 430, 175); await sleep(1500); await clear(page);
   await takeAsleep(page); await atKeeper(page); await key(page, 'f', 900);
-  await pi(page, 'archiveAim', 420, 440); await sleep(2700); s = await st(page);
+  { const pl = (await st(page)).player; await pi(page, 'archiveAim', pl.x, pl.y); } await sleep(2700); s = await st(page);
   ok('archive softlock C: filed while the Caret sits in the Keeper line: recalled, nothing written', s.archive.filedN === 2 && s.archive.phase === 'idle' && s.archive.carried === null && untouched(s) && s.archive.keeperCard.state === 'hidden', info(s));
   await pi(page, 'archiveAim', 430, 175); await sleep(1500); await clear(page);
   await finish(page, 'C (filed)');
@@ -125,4 +125,30 @@ export async function archiveSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   ok('archive softlock D: writing ASLEEP over KEEPER bounces; ASLEEP goes home, nothing is written', s.archive.bounces > b2 && s.archive.carried === null && untouched(s), info(s));
   await finish(page, 'D (wrong words)', { cross: true });
   ok('archive softlock D: no page errors', !errs.length, errs.slice(0, 3).join(' | ')); await ctx.close();
+
+  // E. the selection highlight is visible and moves on EVERY left/right press (Dez's card, then the Keeper's)
+  ({ ctx, page, errs } = await fresh());
+  const hl = (c) => `sel ${c.sel} drawn ${c.drawnSel} moves ${c.selMoves} probes ${c.probes.map(p => (p.block ? 'B' : '-') + (p.underline ? 'U' : '-')).join(' ')}`;
+  const onlyThis = (c, i) => c.drawnSel === i && c.probes.every((p, k) => (k === i) === (p.block && p.underline));
+  await openDez(page); await sleep(500); s = await st(page);
+  ok('archive highlight E: opening Dez\u2019s line highlights DEZ (block + cyan underline on that word only)', onlyThis(s.archive.dezCard, 0), hl(s.archive.dezCard));
+  for (const [k, i, changes] of [['ArrowRight', 1, true], ['ArrowRight', 2, true], ['ArrowRight', 2, false], ['ArrowLeft', 1, true], ['ArrowLeft', 0, true]]) {
+    const m0 = (await st(page)).archive.dezCard.selMoves;
+    await page.keyboard.press(k); await sleep(60); s = await st(page); const c = s.archive.dezCard;
+    ok(`archive highlight E: Dez ${k} -> word ${i} is highlighted within 60 ms${changes ? '' : ' (clamped: stays)'}`, onlyThis(c, i) && c.sel === i && c.selMoves === m0 + (changes ? 1 : 0), hl(c) + ` (moves before ${m0})`);
+    await sleep(150);
+  }
+  { // the edges clamp: pressing past the end changes nothing and the highlight stays on the last word
+    await key(page, 'ArrowRight', 90); await key(page, 'ArrowRight', 90); await key(page, 'ArrowRight', 90); s = await st(page);
+    ok('archive highlight E: past the last word the highlight stays on it', onlyThis(s.archive.dezCard, 2), hl(s.archive.dezCard)); }
+  await hold(page); s = await st(page);
+  ok('archive highlight E: ASLEEP taken after stepping across all words', s.archive.carried === 'ASLEEP', info(s));
+  await atKeeper(page); await key(page, 'f', 100); s = await waitFor(page, s => s.archive.phase === 'inKeeper', 2500); await sleep(500); s = await st(page);
+  ok('archive highlight E: Keeper line opens with KEEPER highlighted', onlyThis(s.archive.keeperCard, 0), hl(s.archive.keeperCard));
+  for (const [k, i] of [['ArrowRight', 1], ['ArrowRight', 2], ['ArrowLeft', 1]]) {
+    await page.keyboard.press(k); await sleep(60); s = await st(page);
+    ok(`archive highlight E: Keeper ${k} -> word ${i} is highlighted within 60 ms`, onlyThis(s.archive.keeperCard, i) && s.archive.sel === i, hl(s.archive.keeperCard) + ' archive.sel ' + s.archive.sel);
+    await sleep(120);
+  }
+  ok('archive highlight E: no page errors', !errs.length, errs.slice(0, 3).join(' | ')); await ctx.close();
 }

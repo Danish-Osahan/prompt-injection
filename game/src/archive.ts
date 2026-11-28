@@ -26,7 +26,7 @@ export const A13_POS = {
   door: { x: 100, y: 420 },       // where filing puts Noor back
 };
 const KS = 0.92;                   // the Keeper at 0.92 of its render: about twice Noor's height
-const DEZ_REACH = 175;             // F sends the Caret into Dez's card from this close (to the card)
+const DEZ_REACH = 165;             // F sends the Caret into Dez's card from this close (to the card)
 const KEEPER_REACH = 320;          // a carried word opens the Keeper's line from this close (to the card)
 const TAKE_HOLD = 0.4;
 const LIGHT_FILE = 1.0;            // seconds in the lamp's light before Noor is filed

@@ -752,7 +752,7 @@ async function desktop(browser) {
   await page.keyboard.press('ArrowRight'); await sleep(90); await page.keyboard.press('ArrowRight'); await sleep(160);
   await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(250); s = await st(page);
   ok('archive: E hold takes ASLEEP off Dez (his card shows the gap, plates unchanged until the trade)', s.archive.carried === 'ASLEEP' && s.archive.phase === 'carry' && s.archive.dezCard.blankWord === 'ASLEEP' && s.plates.a_dez.words === 'DEZ IS ASLEEP', JSON.stringify({ c: s.archive.carried, p: s.archive.phase, b: s.archive.dezCard.blankWord }));
-  await pi(page, 'teleport', 420, 440); await sleep(350); s = await st(page);
+  await pi(page, 'teleport', 480, 470); await sleep(350); s = await st(page);
   ok('archive: the Keeper card shows the open-line sign while a carried word is in range', s.archive.ready && s.archive.keeperCard.state === 'ready', s.archive.keeperCard.state);
   await shot(page, 'desktop-10b-archive-open-line');
   await page.keyboard.press('f'); s = await waitFor(page, s => s.archive.phase === 'inKeeper', 2500);
