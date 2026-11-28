@@ -1,5 +1,19 @@
 # HANDOFF
 
+## 2026-11-28 — GB-4: the clock stays readable, the hint keeps off the card
+
+Danishpreet playtested `fc0eaf2`: Noor covered the clock face when she stood at the clock, and the `F THROW` hint overlapped the bottom of the guard's card.
+
+**1. Clock.** The corridor's right bay now starts at y 300 (was 220; `rooms.ts` corridor `walk`), and the time recorder hangs 40px higher (`new ClockWord(this, 1110, 168, 208)`: word line at 168; the patch over the baked round clock stays at its old place, the wall under the raised recorder is one clean panel). At the top of the floor Noor's head (highest pixel of any walk/idle frame) stays under the `STILL` word, so the face, `11:47` and the word are always clear. Take reach is unchanged (190px from the plate at 202), so the end of the left hall still counts. The guard home spot (1160, 446) is untouched.
+
+**2. Hint vs card.** The one-at-a-time HUD hint chip is placed by `hintSpot()` (`game.ts`): the first of below / shifted left / shifted right / further below / above Noor that doesn't intersect the guard card's keep-out (`StaffCard.bounds(6)`, widened 26px right for the parked Caret). The `F THROW` chip a player meets at the guard after taking STILL first is the steal lure's chip (`OnboardLure`, placed by `placeChip`): it now checks the same keep-out and moves under the card (else left / right / above). Neither chip can sit on the card while the guard is alive. `getTestState().hintChip` and `lureChip.box` report the chip boxes; `hintKeepOut()` the card area.
+
+**Tests.** `corridor_softlock.mjs` K now walks ↑ to the top of the bay (y ≤ 302) and adds two checks: Noor's head under the clock word, and the pick hint off the card. New N: take STILL first, stand at three spots by the guard, the `F THROW` chip shows and stays off the card. Takes in the suite stand at (1110, 302); the main playtest's clock teleports moved to (1110, 302). Results: `corridor_softlock` 82/82 (76 + 6 new), full `npm run playtest` 357/357, zero FAIL.
+
+**Stills (not in the repo, `/workspace/l12-gb4/`):** `gb4-caretfirst-clock-1x-zoom2x.png` (Noor at the top of the bay, Caret in the guard: clock and STILL clear, `← → MOVE CURSOR` under the card), `gb4-caretfirst-held-1x-zoom2x.png` (STILL in hand, QUICK selected, `F THROW` below the card), `gb4-takefirst-1100-400-zoom2x.png` / `gb4-takefirst-1170-380-zoom2x.png` (STILL taken first, `F THROW` under the card), plus the 1x frames. Scripts: `/workspace/stillscripts/gb4_flow.mjs`, `gb4_take.mjs`.
+
+**Next room (GB-5, design only, not built).** Proposal and preview stills for the archive rework are in `/workspace/l12-next/` (not in the repo).
+
 ## 2026-11-27 — Caret-first order, E takes / R reads, card lighting, Caret outline, STILL contrast, card ghosts
 
 Danishpreet playtested `a0c084a` (Noor near the clock, Caret in, card reading GUARD IS QUICK with GUARD selected): "if I send my cursor then I can't take words using E, I have to take words first", and "the letters on the floor also show take using E ... reading letters needs a separate key binding". He also agreed to fix the four card weak spots from the last pass.

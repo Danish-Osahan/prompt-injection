@@ -67,7 +67,7 @@ export const ROOMS: Record<RoomId, RoomDef> = {
   corridor: {
     id: 'corridor', title: 'dark_corridor', path: '~/hub/corridor/', heading: 'INT. CORRIDOR \u2014 NO LIGHTS',
     floor: { base: 0x0a1018, line: 0x121c28, tile: 48 },
-    walk: [R(60, 330, 960, 140), R(140, 230, 130, 100), R(1000, 220, 220, 400)],
+    walk: [R(60, 330, 960, 140), R(140, 230, 130, 100), R(1000, 300, 220, 320)],   // right bay starts at y 300: at the clock Noor's head stays below its face and word
     walls: [],
     props: [
       { x: 60, y: 296, w: 80, h: 34, color: 0x0e1622, top: 0x141e2c },                       // corridor wall

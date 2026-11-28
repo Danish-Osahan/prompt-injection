@@ -1,5 +1,10 @@
 # Room 3 audit — The Dark Corridor
 
+## 2026-11-28 — GB-4: clock clear of Noor, hint clear of the card
+
+- **Clock.** Right bay walk starts at y 300; the time recorder hangs 40px higher (word line 168, patch over the baked clock unchanged). Standing at the clock, Noor's head stays under `STILL`; the face and `11:47` are always readable.
+- **Hint.** The HUD hint chip avoids the guard card (plus the parked Caret beside it): below Noor, else shifted left/right, further below, or above. The steal lure's `F THROW` chip at the guard uses the same keep-out. `F THROW` sits under the card, never on it.
+
 ## 2026-11-27 — E takes, R reads; Caret-first order; card lighting
 
 - **Keys (all rooms).** E only takes (hold) and advances dialogue. R reads: floor notes (`R READ` chip), letters, wall notes, lookables, close-ups; R closes their cards. Fern's root moved to G. No E-to-read prompt is left.

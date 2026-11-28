@@ -141,6 +141,13 @@ export class StaffCard {
     return { x: p.x, y: p.y };
   }
 
+  /** World-space bounding box of the card (corners through the rig transform), padded: UI keep-out. */
+  bounds(pad = 6): { x0: number; y0: number; x1: number; y1: number } {
+    const m = this.root.getWorldTransformMatrix(), s = this.rec.scale;
+    const pts = [[-CARD_W / 2, -CARD_H], [CARD_W / 2, -CARD_H], [-CARD_W / 2, 6], [CARD_W / 2, 6]].map(([x, y]) => m.transformPoint(x * s, y * s));
+    return { x0: Math.min(...pts.map(p => p.x)) - pad, y0: Math.min(...pts.map(p => p.y)) - pad, x1: Math.max(...pts.map(p => p.x)) + pad, y1: Math.max(...pts.map(p => p.y)) + pad };
+  }
+
   /** A copy of the card for a dash afterimage: same face texture, placed where the card sits in the rig (rig-local). */
   ghostImage(scene: Phaser.Scene): Phaser.GameObjects.Image {
     const im = scene.add.image(this.root.x, this.root.y, this.tex.key).setOrigin(this.img.originX, this.img.originY).setScale(this.img.scaleX).setRotation(this.root.rotation);

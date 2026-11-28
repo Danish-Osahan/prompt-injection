@@ -16,6 +16,7 @@
 | F, holding a word, line shut | The Caret goes in first and the word stays in hand. |
 | Hold E at the clock, Caret inside | Takes STILL. The Caret stays in the guard on the word it was on. Both orders work: take first then send, or send first then take. The clock's reach is 190px (other sources 130px), so the end of the left hall under the clock counts. Holding E out of reach with the Caret inside shows `STILL IS ON THE CLOCK` and cues the clock. |
 | ← / → (or mouse hover over a word, or tap on touch) | Move the Caret word to word. ← / → don't move Noor while the Caret is inside; ↑ / ↓ and WASD still walk, so an arrow-key player can reach the clock. |
+| Hints near the guard | The one HUD hint chip (`← → MOVE CURSOR`, `F THROW`, …) is placed off the guard's ID card and the parked Caret: below Noor first, else shifted left/right, further below, or above. The clock hangs above the top of the walkable floor, so Noor never covers its face or word. |
 | F, holding a word, Caret inside | Throw (never a recall while a word is in hand). If QUICK is selected, it becomes `GUARD IS STILL`: STILL re-prints in teal on the card with a short print-head wipe (260 ms). If GUARD or IS is selected, the throw bounces, Fern gives the reason, and STILL returns to the clock. |
 | F (empty hands) / Q / Esc, Caret inside | Recall: the Caret comes home and the line hides again. Esc recalls instead of opening the menu while the Caret is inside. |
 | SPACE while the Caret is out | No dash. A `CURSOR OUT` tag shows, and Fern explains once. Walking still works. |

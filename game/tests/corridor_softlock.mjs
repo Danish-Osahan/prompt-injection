@@ -22,9 +22,10 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
     await waitFor(page, s => s.flags.lit, 4000); await sleep(2200); await clear(page);
     return { ctx, page, errs };
   }
-  const take = async (page, x = 1110, y = 235) => { await pi(page, 'teleport', x, y); await sleep(150); await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(200); };
+  const take = async (page, x = 1110, y = 302) => { await pi(page, 'teleport', x, y); await sleep(150); await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(200); };
   const F = async (page, ms = 1300) => { await page.keyboard.press('f'); await sleep(ms); };
   // Inside the line the Caret starts on GUARD; two right-arrow taps walk it onto QUICK.
+  const offCard = hc => { const k = hc && hc.keep, b = hc && hc.box; return !!(k && b) && !(b.x0 < k.x1 && b.x1 > k.x0 && b.y0 < k.y1 && b.y1 > k.y0); };
   const pick = async (page) => { await page.keyboard.press('ArrowRight'); await sleep(90); await page.keyboard.press('ArrowRight'); await sleep(160); };
   const openLine = async (page) => { await pi(page, 'teleport', 960, 450); await sleep(150); await F(page, 1500); await clear(page); };
   async function finish(page, tag) {
@@ -145,11 +146,16 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
   await openLine(page); s = await st(page);
   ok('softlock K: F sends the Caret in first, nothing in hand', s.caret.inLine && !s.steal?.held, info(s));
   await page.keyboard.down('d'); for (let i = 0; i < 40 && (await me()).x < 1105; i++) await sleep(60); await page.keyboard.up('d');
-  let m0 = await me(); await page.keyboard.down('ArrowUp'); for (let i = 0; i < 50 && (await me()).y > 250; i++) await sleep(60); await page.keyboard.up('ArrowUp'); await sleep(120);
+  let m0 = await me(); await page.keyboard.down('ArrowUp'); { let py = 1e9; for (let i = 0; i < 60; i++) { const q = await me(); if (q.y <= 302 || Math.abs(q.y - py) < 0.5) break; py = q.y; await sleep(60); } } await page.keyboard.up('ArrowUp'); await sleep(120);
   let m1 = await me();
-  ok('softlock K: with the Caret in the line, UP walks Noor to the clock and leaves the selection alone', m1.y < m0.y - 100 && m1.inLine && m1.sel === 0, JSON.stringify({ m0, m1 }));
+  ok('softlock K: with the Caret in the line, UP walks Noor to the clock and leaves the selection alone', m1.y <= 304 && m1.y < m0.y - 40 && m1.inLine && m1.sel === 0, JSON.stringify({ m0, m1 }));
+  { const v = await page.evaluate(() => { const g = window.__game.scene.getScene('game'); const nb = g.noor.getBounds(); const cw = g.clockWord; const db = cw.digits.getBounds(), tb = cw.t.getBounds();
+      return { noorTop: nb.y, digitsBottom: db.bottom, wordBottom: tb.bottom, y: g.y }; });
+    // Noor's 192px frames carry transparent headroom: the highest pixel of any walk/idle frame is 41px under the frame top
+    ok('GB-4: at the top of the floor by the clock, Noor never covers the clock face or its STILL word', v.noorTop + 41 > v.wordBottom, JSON.stringify(v)); }
   await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(200); s = await st(page);
   ok('softlock K: holding E at the clock takes STILL while the Caret stays in the guard', s.steal?.held?.word === 'STILL' && s.plates.c_clock.words === 'CLOCK IS QUICK' && s.caret.inLine && s.caret.sel === 0, info(s) + ' ' + JSON.stringify(s.caret));
+  { const hc = (await st(page)).hintChip; ok('GB-4: the hint under the card (pick) stays off the guard ID card', !hc || offCard(hc), JSON.stringify(hc)); }
   await pick(page); s = await st(page);
   ok('softlock K: arrows still pick QUICK with STILL in hand', s.caret.sel === 2 && s.steal?.held?.word === 'STILL', JSON.stringify(s.caret));
   await page.keyboard.press('f');
@@ -157,6 +163,19 @@ export async function corridorSoftlock(browser, { ok, st, pi, waitFor, URL_ }) {
     const beforeLand = modes.slice(0, -1);
     ok('softlock K: F with STILL in hand throws it (the Caret is not recalled before it lands)', landed && !beforeLand.includes('follow'), modes.join(',')); }
   await sleep(400); await finish(page, 'K (Caret first, walk, hold E, pick, F)'); await ctx.close();
+
+  // N. GB-4: take STILL first, walk up to the guard: the F THROW chip at the guard never sits on its ID card.
+  ({ ctx, page } = await fresh());
+  await take(page); s = await st(page);
+  ok('softlock N: STILL in hand from the clock', s.steal?.held?.word === 'STILL', info(s));
+  for (const [x, y] of [[1100, 400], [1170, 380], [1130, 420]]) {
+    await pi(page, 'teleport', x, y); let q = null;
+    for (let i = 0; i < 15; i++) { q = await st(page); if (q.lureChip?.visible) break; await sleep(60); }
+    const keep = await page.evaluate(() => window.__game.scene.getScene('game').hintKeepOut()[0] ?? null);
+    const lc = q.lureChip;
+    ok(`GB-4: at (${x},${y}) the F THROW chip shows and never sits on the guard ID card`, !!lc?.visible && /throw/i.test(lc.verb) && offCard({ ...lc, keep }), JSON.stringify({ lc, keep }));
+  }
+  await ctx.close();
 
   // L. Caret first, taken from the end of the left hall under the clock (the clock's reach covers it), with a
   //    wrong-word throw in between: STILL bounces home, E takes it again, QUICK, F.

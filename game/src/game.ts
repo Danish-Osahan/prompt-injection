@@ -58,11 +58,15 @@ class ClockWord {
   digits: Phaser.GameObjects.Text; led: Phaser.GameObjects.Rectangle; body: Phaser.GameObjects.Graphics;
   shown = 'STILL'; private key = ''; private held = false; private frozen = true; private rollT = 0;
   /** A wall time-recorder (staff punch clock) drawn over the baked round clock: split-flap digits that freeze on STILL. */
-  constructor(private s: GameScene, public x: number, public y: number) {
+  /** patchY: where the baked round clock sits in the plate (its word line). The recorder can hang higher than that,
+   *  so Noor at the top of the walkable floor never covers its face or word. */
+  constructor(private s: GameScene, public x: number, public y: number, patchY = y) {
     const cy = y - 40;   // y is where the word sits; the clock body is above it
     const g = s.add.graphics().setDepth(y - 6); this.body = g;
     // patch the baked round clock out of the wall (feathered), then mount the recorder
-    for (let i = 0; i < 4; i++) g.fillStyle(0x0e121b, 0.5 + i * 0.16).fillRect(x - 38 + i * 3, cy - 30 + i * 3, 76 - i * 6, 62 - i * 6);
+    const py = patchY - 40;
+    for (let i = 0; i < 4; i++) g.fillStyle(0x0e121b, 0.5 + i * 0.16).fillRect(x - 38 + i * 3, py - 30 + i * 3, 76 - i * 6, 62 - i * 6);
+    if (py !== cy) { g.fillStyle(0x0e121b, 0.92).fillRect(x - 32, cy - 22, 64, py - cy + 4); }   // the wall under the raised recorder stays one clean panel
     g.fillStyle(0x05080c, 0.6).fillRect(x - 27, cy - 16, 56, 38);                   // drop shadow
     g.fillStyle(0x2b333d, 1).fillRect(x - 28, cy - 18, 56, 38);                     // steel housing
     g.fillStyle(0x4e5b68, 1).fillRect(x - 28, cy - 18, 56, 2);                      // top bevel
@@ -1124,7 +1128,7 @@ export class GameScene extends Phaser.Scene {
       this.dyn.alcove = { x: 1190, y: 330, w: 30, h: 160 };
       this.spawnEnemy('dummy', 1160, 446);
       this.dummyDodges = 0;
-      this.clockWord = new ClockWord(this, 1110, 208);
+      this.clockWord = new ClockWord(this, 1110, 168, 208);   // raised 40px over the baked clock: Noor (walk top y 300) never covers it
       this.clockWord.set(this.plateById('c_clock')?.slotWord ?? 'STILL');
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
@@ -1206,13 +1210,32 @@ export class GameScene extends Phaser.Scene {
       } else {
         const show = p.when() && !this.busy && !this.dialogue?.busy && !shown;
         if (show) shown = true;
-        const hx = Phaser.Math.Clamp(Math.round(this.x), 110, 1170);
-        const hy = Math.round(this.y + 46 > 660 ? this.y - 96 : this.y + 46);
         const a = show ? 0.9 * (1 - this.words.codeA) : 0;
-        p.text.setPosition(hx, Phaser.Math.Clamp(hy, 40, 680)).setAlpha(a);
-        if (p.chip) { if (a > 0.05) { const h = splitHint(p.text.text); p.chip.show(hx, Phaser.Math.Clamp(hy, 40, 680) + 10, h.verb, 0, h.key); p.chip.root.setAlpha(a); } else p.chip.hide(); }
+        const spot = this.hintSpot(splitHint(p.text.text));
+        p.text.setPosition(spot.x, spot.y - 10).setAlpha(a);
+        if (p.chip) { if (a > 0.05) { const h = splitHint(p.text.text); p.chip.show(spot.x, spot.y, h.verb, 0, h.key); p.chip.root.setAlpha(a); } else p.chip.hide(); }
       }
     }
+  }
+  /** World boxes a HUD hint chip must never cover: the guard's ID card and the Caret beside it. */
+  hintKeepOut(): { x0: number; y0: number; x1: number; y1: number }[] {
+    const out: { x0: number; y0: number; x1: number; y1: number }[] = [];
+    const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
+    const card = e ? this.guardCard() : undefined;
+    if (card) { const b = card.bounds(6); out.push({ ...b, x1: b.x1 + 26 }); }   // + the Caret's standing room past the right edge
+    return out;
+  }
+  /** Where the one HUD hint chip goes: under Noor, unless that covers a keep-out box; then beside or above her. */
+  hintSpot(h: { key: string; verb: string }) {
+    const shown = h.verb === 'take' && !InteractChip.taughtTake ? 'hold to take' : h.verb;
+    const w = Math.max(18, h.key.length * 8 + 10) + 4 + shown.length * 9.5 + 14, hh = 20;
+    const below = this.y + 46 > 660 ? this.y - 96 : this.y + 46;
+    const cx = Phaser.Math.Clamp(Math.round(this.x), 110, 1170);
+    const cands = [[cx, below + 10], [cx - w / 2 - 40, below + 10], [cx + w / 2 + 40, below + 10], [cx, below + 40], [cx, this.y - 128]];
+    const keep = this.hintKeepOut();
+    const hit = (x: number, y: number) => keep.some(k => x + w / 2 > k.x0 && x - w / 2 < k.x1 && y + hh / 2 > k.y0 && y - hh / 2 < k.y1);
+    for (const [x, y] of cands) { const px = Phaser.Math.Clamp(Math.round(x), 70, 1210), py = Phaser.Math.Clamp(Math.round(y), 50, 690); if (!hit(px, py)) return { x: px, y: py }; }
+    return { x: Phaser.Math.Clamp(cx, 70, 1210), y: Phaser.Math.Clamp(Math.round(below + 10), 50, 690) };
   }
   /** Progressive, one-at-a-time control hints. Move at start; the rest only when first needed. */
   installContextHints() {
@@ -3215,6 +3238,7 @@ export class GameScene extends Phaser.Scene {
       introCursor: this.intro?.cursorState?.() ?? null,
       caretChip: this.caretChip ? { visible: this.caretChip.isShown(), key: this.caretChip.currentKey(), verb: this.caretChip.currentVerb() } : null,
       card: (() => { const c = this.guardCard(); return c ? { ...c.testState(), rigText: this.guardRigTextCount(), boxes: [0, 1, 2].map(i => c.wordBox(i)), spot: c.caretSpot(this.caretSel), edge: c.edge() } : null; })(),
+      hintChip: (() => { const p = this.prompts.find(q => q.chip?.isShown()); if (!p || !p.chip) return null; const r = p.chip.root; const k = this.hintKeepOut()[0] ?? null; const b = r.getBounds(); return { id: p.id, x: r.x, y: r.y, verb: p.chip.currentVerb(), key: p.chip.currentKey(), keep: k, box: { x0: b.x, y0: b.y, x1: b.right, y1: b.bottom } }; })(),
       caret: { mode: this.caretMode, owned: this.caretOwned, x: this.caret?.x ?? 0, y: this.caret?.y ?? 0, visible: !!this.caret?.visible, writing: this.caretWriting ?? null, sel: this.caretSel, inLine: this.caretInLine(), out: this.caretOut() },
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },

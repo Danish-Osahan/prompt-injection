@@ -121,13 +121,29 @@ export class OnboardLure {
       if (nearTgt) {
         const p = placeChip(this.target.x, this.target.y, this.s.x, this.s.y, 34, 6);
         this.chip?.show(p.x, p.y, 'throw', 0, 'F');
+        this.keepOffCards(p);
       } else this.chip?.hide();
     }
   }
 
+  /** GB-4: the F THROW chip never sits on a staff ID card (or the Caret parked beside it). */
+  private keepOffCards(p: { x: number; y: number }) {
+    const c = this.chip; if (!c) return;
+    const keep = (this.s as unknown as { hintKeepOut?: () => { x0: number; y0: number; x1: number; y1: number }[] }).hintKeepOut?.() ?? [];
+    if (!keep.length) return;
+    const b = c.root.getBounds(); const dx = b.x - c.root.x, dy = b.y - c.root.y, bw = b.width, bh = b.height;
+    const hits = (L: number, T: number) => keep.some(k => L < k.x1 && L + bw > k.x0 && T < k.y1 && T + bh > k.y0);
+    if (!hits(b.x, b.y)) return;
+    const k = keep[0];
+    const cands = [[k.x0 + 4, k.y1 + 6], [k.x0 - bw - 6, b.y], [k.x1 + 6, b.y], [k.x0 + 4, k.y0 - bh - 6], [k.x0 + 4, k.y1 + 40]];
+    for (const [L, T] of cands) if (!hits(L, T) && L > 8 && L + bw < 1272 && T > 8 && T + bh < 712) { c.root.setPosition(L - dx, T - dy); return; }
+    void p;
+  }
+
   chipState() {
     const shown = !!this.chip?.isShown();
-    return { visible: shown, verb: shown ? (this.chip?.currentVerb() ?? '') : '', key: shown ? (this.chip?.currentKey() ?? '') : '', carrying: this.carrying };
+    const b = shown && this.chip ? this.chip.root.getBounds() : null;
+    return { visible: shown, verb: shown ? (this.chip?.currentVerb() ?? '') : '', key: shown ? (this.chip?.currentKey() ?? '') : '', carrying: this.carrying, box: b ? { x0: b.x, y0: b.y, x1: b.right, y1: b.bottom } : null };
   }
 
   destroy() {

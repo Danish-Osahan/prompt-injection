@@ -689,7 +689,7 @@ async function desktop(browser) {
   s = await st(page); const dummy0 = s.enemies.find(e => e.kind === 'dummy');
   ok('corridor: hits do nothing to the QUICK guard', dummy0.hp === 6 && !dummy0.dead, `hp ${dummy0.hp}`);
   ok('corridor: the QUICK guard dodges the hits', (dummy0.dodgeN ?? 0) >= 3 || (s.dummyDodges ?? 0) >= 3, `dodgeN ${dummy0.dodgeN} dummyDodges ${s.dummyDodges}`);
-  await pi(page, 'teleport', 1110, 202); await sleep(120);
+  await pi(page, 'teleport', 1110, 302); await sleep(120);
   await steal(page, 'c_clock', 'c_dummy');
   s = await st(page);
   ok('corridor: a word thrown at the locked guard bounces off (no line to write on yet)', !s.flags.still && s.plates.c_dummy.words === 'GUARD IS QUICK' && s.plates.c_clock.words === 'CLOCK IS STILL', `${s.plates.c_dummy.words} / ${s.plates.c_clock.words}`);
@@ -715,7 +715,7 @@ async function desktop(browser) {
   // the Caret stays parked at the guard's ID card, on the selected word's row (staffCard caretSpot)
   const stillOnGuard = !!(dummyAim && s.caret.mode === 'sent' && s.caret.writing === 'c_dummy' && s.card && s.card.spot && Math.hypot(s.caret.x - s.card.spot.x, s.caret.y - s.card.spot.y) < 14);
   ok('corridor: bolts never move or use the Caret', s.beamN > beams0 && stillOnGuard, `beam ${s.beamN} caret ${JSON.stringify(s.caret)} dummy ${dummyAim && dummyAim.x},${dummyAim && dummyAim.y}`);
-  await pi(page, 'teleport', 1110, 202); await sleep(120);
+  await pi(page, 'teleport', 1110, 302); await sleep(120);
   ok('corridor: the Caret starts on the first word (GUARD), not on QUICK', s.caret.sel === 0 && s.caret.inLine, JSON.stringify(s.caret));
   const p0 = (await st(page)).player;
   await page.keyboard.press('ArrowRight'); await sleep(80); await page.keyboard.press('ArrowRight'); await sleep(150);
