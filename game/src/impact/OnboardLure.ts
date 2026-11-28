@@ -132,7 +132,8 @@ export class OnboardLure {
     const keep = (this.s as unknown as { hintKeepOut?: () => { x0: number; y0: number; x1: number; y1: number }[] }).hintKeepOut?.() ?? [];
     if (!keep.length) return;
     const b = c.root.getBounds(); const dx = b.x - c.root.x, dy = b.y - c.root.y, bw = b.width, bh = b.height;
-    const hits = (L: number, T: number) => keep.some(k => L < k.x1 && L + bw > k.x0 && T < k.y1 && T + bh > k.y0);
+    const M = 4;   // margin: the card sways with the guard's rig between frames
+    const hits = (L: number, T: number) => keep.some(k => L < k.x1 + M && L + bw > k.x0 - M && T < k.y1 + M && T + bh > k.y0 - M);
     if (!hits(b.x, b.y)) return;
     const k = keep[0];
     const cands = [[k.x0 + 4, k.y1 + 6], [k.x0 - bw - 6, b.y], [k.x1 + 6, b.y], [k.x0 + 4, k.y0 - bh - 6], [k.x0 + 4, k.y1 + 40]];

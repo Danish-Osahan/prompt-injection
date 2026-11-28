@@ -95,19 +95,19 @@ export const LINGER: Record<RoomId, Linger> = {
     toy: 'The moth heads for the exit. The sign glows a little warmer.', toyBack: 'The moth comes back to the lamp. The sign goes back to waiting.',
   },
   archive: {
+    // GB-5: four short looks, no toys (the room's one word puzzle is the trade)
     plates: [
-      look('a_radio', 180, 182, 180, 240, 'A radio tuned between two stations. It can\u2019t commit either.', 'radio.station', 'BETWEEN'),
-      toy('a_duck', ['DUCK', 'STAYS', 'AFLOAT'], 560, 460, 420, 440, 'A rubber duck, on duty. It stays {}.', 'duck.state'),
-      toy('a_memo', ['MEMO', 'STAYS', 'SUNK'], 620, 556, 420, 566, 'A memo under the water, still legible. It stays {}.', 'memo.state'),
-      look('a_boots', 900, 250, 900, 292, 'Wellies by the wall, lined up neat. Somebody planned for this.', 'boots.owner', '"dez"'),
-      look('a_leak', 700, 120, 860, 220, 'A pipe over the pit, keeping time with drips.', 'pipe.fixed', 'FALSE'),
+      look('a_cabinets', 150, 240, 145, 172, 'Cabinets of intake forms, filed by nobody.', 'cabinets.order', '"none"'),
+      look('a_winch', 396, 420, 428, 352, 'The bridge winch. Worn where one hand always went.', 'winch.owner', '"dez"'),
+      look('a_window', 880, 236, 640, 72, 'A window at street level. Feet pass. Nobody looks down.', 'window.view', '"ankles"'),
+      look('a_pipe', 868, 300, 700, 160, 'A pipe over the water, keeping time.', 'pipe.fixed', 'FALSE'),
       line('a_line', 330, 640, 330, 616, L('a_line')),
-      line('a_line2', 200, 320, 200, 340, L('a_line2')),
+      line('a_line2', 120, 300, 120, 320, L('a_line2')),
       line('a_line3', 1040, 500, 1030, 520, L('a_line3')),
     ],
-    idle: ['Water keeps the only honest record in here. Every step, a ripple.', 'The duck has drifted. It doesn\u2019t explain itself.'],
+    idle: ['Water keeps the only honest record in here.', 'The lamp goes left. The lamp goes right. It has all night.'],
     all: { say: 'Nothing in here was ever thrown away. That was the problem.', code: 'archive.deleted', val: '0', sx: 640, sy: 200 },
-    toy: 'The duck goes down with dignity. The memo comes up for air.', toyBack: 'The duck bobs back up, unbothered. The memo sinks, relieved.',
+    toy: '', toyBack: '',
   },
   arena: {
     plates: [

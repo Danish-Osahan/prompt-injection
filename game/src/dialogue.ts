@@ -14,7 +14,7 @@ const UI_DEPTH = 8200;
 const WRAP = 380;
 const LONG_LINE = 70;
 
-export type SayWho = 'noor' | 'ai' | 'fern' | 'papa' | 'floor' | 'draft';
+export type SayWho = 'noor' | 'ai' | 'fern' | 'papa' | 'floor' | 'draft' | 'dez';
 
 /** Stealable quality tokens. Common English (on, off, up, down, still) stays out.
  *  Ambiguous tokens (open, shut, paper, …) only glow when written as ALL-CAPS quality words. */
@@ -255,7 +255,7 @@ export class Dialogue {
     // Short Noor reactions stay in a bubble even during the hook.
     if (this.s.intro?.playing) return job.who !== 'noor';
     if (job.line.length >= LONG_LINE) return true;
-    if (job.who === 'floor' || job.who === 'papa') return true;
+    if (job.who === 'floor' || job.who === 'papa' || job.who === 'dez') return true;
     if (job.who === 'ai' || job.who === 'draft') {
       // Draft in the arena can use a box so the fight stays readable.
       if (this.s.room?.id === 'arena' || this.s.fight) return true;
@@ -953,6 +953,11 @@ export class Dialogue {
       spr.setOrigin(0.5, 0.45).setScale(0.95);
       this.portraitSpr = spr;
       c.add(spr);
+    } else if (who === 'dez' && s.textures.exists('a13_dez_portrait')) {
+      // Dez: his own head-and-shoulders render (archive13.py), not a crop of anyone else
+      const spr = s.add.image(0, 2, 'a13_dez_portrait').setOrigin(0.5, 0.5);
+      spr.setScale((SIZE - 10) / spr.width);
+      c.add(spr);
     } else if (who === 'papa') {
       const g = s.add.graphics();
       g.fillStyle(col, 0.28).fillEllipse(0, 0, 70, 78);
@@ -973,6 +978,7 @@ export class Dialogue {
     if (who === 'noor') return 'NOOR';
     if (who === 'draft' || who === 'ai') return 'THE DRAFT';
     if (who === 'papa') return 'PAPA';
+    if (who === 'dez') return 'DEZ';
     if (who === 'floor') return 'THE ROOM';
     return 'THE ROOM';
   }
@@ -980,6 +986,7 @@ export class Dialogue {
     if (who === 'fern') return C.fern;
     if (who === 'draft' || who === 'ai') return C.coral;
     if (who === 'papa') return '#F6E6C8';
+    if (who === 'dez') return '#E8C890';
     if (who === 'floor') return C.ink;
     return C.cyan;
   }
@@ -987,6 +994,7 @@ export class Dialogue {
     if (who === 'fern') return 0xe27bd8;
     if (who === 'draft' || who === 'ai') return 0xf08074;
     if (who === 'papa') return 0xf6e6c8;
+    if (who === 'dez') return 0xe8c890;
     return 0x78e4e8;
   }
   private voiceWho(who: SayWho): VoiceWho {
@@ -998,6 +1006,7 @@ export class Dialogue {
   private speakerWorld(who: SayWho) {
     if (who === 'fern' && this.holo) return { x: this.holo.x, y: this.holo.y };
     if (who === 'noor' || who === 'floor') return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };
+    if (who === 'dez' && this.s.archive) return this.s.archive.dezSpot();
     const src = who === 'fern' ? this.fernSource() : null;
     if (src) return { x: src.x, y: src.y };
     return { x: this.s.noor?.x ?? this.s.x, y: this.s.noor?.y ?? this.s.y };

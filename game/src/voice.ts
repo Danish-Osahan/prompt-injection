@@ -1,7 +1,7 @@
 // Procedural per-letter voice blips and the freeze-scene bed. No recordings.
 import { getMasterVolume, getAudioContext, outNode } from './sfx';
 
-export type VoiceWho = 'noor' | 'fern' | 'draft' | 'ai' | 'papa' | 'floor';
+export type VoiceWho = 'noor' | 'fern' | 'draft' | 'ai' | 'papa' | 'floor' | 'dez';
 
 function ac() { return getAudioContext(); }
 function dest() { return outNode() ?? ac()?.destination ?? null; }
@@ -97,6 +97,12 @@ export function voiceBlip(who: VoiceWho, i: number, opts: { question?: boolean; 
     freq = (86 + (i % 4) * 9 + (opts.angry ? 12 : 0)) * (opts.question ? 1.1 : 1);
     dur = 0.07; vol = 0.07;
     noise(a, 0.04, 0.03 * master, t);
+  } else if (who === 'dez') {
+    // Dez: low, slow, a little hoarse (just woken)
+    type = 'triangle';
+    freq = (150 + (i % 3) * 8 + Math.sin(i * 1.3) * 5) * q;
+    dur = 0.06; vol = 0.06;
+    noise(a, 0.03, 0.012 * master, t, 900);
   } else if (who === 'papa') {
     type = 'triangle';
     freq = (190 + (i % 4) * 10) * q;

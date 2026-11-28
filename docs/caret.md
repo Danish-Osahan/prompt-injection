@@ -35,11 +35,34 @@
 
 **The staff ID card (`game/src/staffCard.ts`).** World rule: every enemy is a staff record and wears an ID card in a fixed, big-enough spot; its line (about 4 words, two rows) is printed on it. The card face is a 4x canvas texture shown at 1x (62 x 42 px). It is lit like the paper body it is clipped to (tones sampled from `sentinel.png`): the warm lamp keys it from the right like the body's lit faces, a cool fill from the left matches the shaded faces, the lower edge falls off toward the chest, the clip occludes the face above it, and the thickness edge is lamp-lit on the right and shaded on the left. On it: magstripe, the line in Barlow Condensed ExtraBold (Q tail printed a little heavier so it reads at 1x; a re-printed word is dark teal `rgb(0,60,72)` with a darker `rgb(0,38,48)` stroke and underline so it holds at 1x), a footer with the name (red while it guards, grey once stopped) and a barcode, a faint diagonal sheen, a contact shadow and the mount. The card is a child of the enemy's rig container, so it inherits position, lean and rotation (`setLean`). Dash afterimages are the whole rig: the stand plus a copy of the live card (`card.ghostImage()`), so the ghosts carry the line too.
 - The Caret beside the card is the original pale sprite at scale 0.5 (0.45 in hand), with a dark outline: four `0x05080c`-tinted copies of the same frame offset by 1.2–1.6 px (`syncCaretEdge`), so it reads on the pale card at 1x.
-- Config: `STAFF_RECORDS[id] = { line, anchor, scale, mount, name, tilt }`. `mount` is `clip | tape | holder | lanyard`; only the guard (`c_dummy`, `clip`, anchor `(0, -158)`) is built.
-- States: `hidden` (ink bars, `printed === ''`), `open` (line printed, `sel` reverse-printed), `still` (changed word re-printed in teal with a wipe).
+- Config: `STAFF_RECORDS[id] = { line, anchor, scale, mount, name, tilt }`. `mount` is `clip | tape | holder | lanyard`; built: the guard (`c_dummy`, `clip`, anchor `(0, -158)`) and the archive's `a_dez` / `a_keeper` (`lanyard`).
+- States: `hidden` (ink bars, `printed === ''`), `open` (line printed, `sel` reverse-printed), `still` (changed word re-printed in teal with a wipe), `ready` (the open-line sign: print under thinned bars, cyan wash and glowing edge). `setBlank(word)` draws a dashed gap where a taken word was.
 - Hooks: `card.wordBox(i)` (world box per word: mouse hover and floor tags use it), `card.caretSpot(i)` (where the Caret stands), `card.edge()`. Test state: `__pi.state().card` (`state`, `printed`, `selWord`, `fresh`, `wipe`, `rot`, `lean`, `parented`, `rigText` = Text objects inside the guard's rig, must be 0).
 
 **What it never does.** It never takes words (E does). It never aims bolts or melee. It never sticks to things as a marker. Sending it at anything that isn't guarded does nothing (`GUARDED = ['c_dummy']`).
+
+## Room 3, the Flooded Archive (GB-5): cards give words too
+
+Two staff records, both on lanyard cards, both hidden: **DEZ IS ASLEEP** (Dez, asleep at his desk) and **KEEPER IS AWAKE** (the stilted Keeper wading the black water with a lamp). The whole room is one trade. Code: `game/src/archive.ts` (`ArchiveRoom`), cards from `staffCard.ts` (`a_dez`, `a_keeper`, mount `lanyard`).
+
+New rule taught here: **a card can give a word, and the Caret carries it.** In the corridor the word came from the world (the clock); here it comes from another card, so it rides on the Caret instead of in Noor's hand.
+
+| Input | Effect |
+|---|---|
+| F near Dez (175px from his card) | The Caret flies into his card; `DEZ IS / ASLEEP` prints; it lands on DEZ. First time, Fern: "Cards give words too. Take his." |
+| ← / → inside a card | Select a word (the archive owns F / ← / → / Q in this room; the generic Caret blocks are skipped while `scene.archive` exists). |
+| Hold E (0.4s) on ASLEEP | Takes it. Dez's card shows a dashed gap where ASLEEP was; the Caret comes home with the word on a small chip. The plates do **not** change yet (the carried word is view state). |
+| Hold E on DEZ / IS | Nothing comes off: `A NAME STAYS PUT` / `IS HOLDS THE LINE`. |
+| Carrying, within 320px of the Keeper | **Open-line sign:** the Keeper's card print shows through its ink bars and the card edge glows pale cyan (`CardState 'ready'`). Only a shut line showing this will take the Caret. |
+| F, carrying, sign showing | The Caret flies into the Keeper's card (`KEEPER IS / AWAKE`), lands on KEEPER. A 0.35s grace after landing ignores mashed F. |
+| F on AWAKE | **The trade, atomic:** `a_keeper` becomes KEEPER IS ASLEEP and `a_dez` DEZ IS AWAKE in one `setPlate` pair; AWAKE visibly flies back to Dez's card. Dez wakes ("Monday came. Nobody read it." / "The winch. I've got it."), the Keeper sets its lamp on the water, the room warms, the bridge lowers on Dez's second line (6.5s fallback). |
+| F on KEEPER / IS | `WON'T FIT THERE`; ASLEEP goes home to Dez; the Caret stays in the line. |
+| F, carrying, no sign (out of range) or F with an empty Caret near the Keeper | Bounces off the shut line (`SHUT`), same rule as the corridor; a carried word goes home to Dez. |
+| Q (or Esc) in a card, Q while carrying | Recall: Caret home, a carried word goes back to Dez, both cards hide. Q during a flight is queued and runs on landing. |
+
+**The lamp.** The Keeper sweeps a slow (10s period), narrow light strip across the near floor (additive, masked to the land, no discs or rings). About 1s in the light files Noor: FILED stamp, soft fade back to the doorway, no damage, and everything snaps home (Caret recalled, carried word returned, cards hidden). The doorway column (x < 160) and the shadow behind Dez's desk are always dark. 1.2s grace after a filing.
+
+**Soft-lock guarantees (tested with real keys in `tests/archive_softlock.mjs`):** mashing F at Dez, in flight and in the Keeper line; recall in each phase including mid-flight; filed while carrying and while inside the Keeper line; wrong-word takes, wrong-slot writes, out-of-range and empty-Caret bounces. Every case ends with the trade landing, the bridge down and (A, D) the east exit reached.
 
 ## How this scales to multi-word lines (design only, not built)
 

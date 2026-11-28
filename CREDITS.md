@@ -246,3 +246,20 @@ Existing CC0 loops and one-shots (Kenney Interface Sounds, alxl *Rain on Window 
 | Barlow Condensed ExtraBold | The Barlow Project Authors (2017), https://github.com/jpt/barlow | OFL-1.1 |
 
 Shipped unmodified as `game/public/assets/fonts/BarlowCondensed-ExtraBold.ttf`, with its licence text in `game/public/assets/fonts/BarlowCondensed-OFL.txt` (from https://github.com/google/fonts/tree/main/ofl/barlowcondensed). Used only for the line printed on enemy staff ID cards (`game/src/staffCard.ts`), because its Q has a tail that survives at 1x. The card face itself is drawn in code (canvas), with no image asset.
+
+## GB-5 Flooded Archive (game, added 28 Nov 2026)
+Art:
+- Dez (asleep at his desk, awake, dialogue portrait) is a Blender render of Kenney *Mini Characters* `character-male-a` (CC0, already credited above), posed in `art/tools/archive13.py`, at a desk set from the Kenney *Furniture Kit* (CC0, already credited above). Renders: `art/render/archive13/`, shipped as `game/public/assets/archive13/dez_*.png`.
+- The Keeper (stilts, drawer body, lanyard card, lamp on a pole) is procedural Blender geometry built in `art/tools/archive13.py`; no third-party models. Shipped as `game/public/assets/archive13/keeper_*.png`.
+- The archive plate `rooms/archive13_bleed.jpg` / `archive13_code.jpg`, the graded foregrounds `fg/a13_*.png` and the drip / sheen / line loops `amb/archive13_*.png` are derived in `art/tools/archive13_post.py` (PIL) from the project's own earlier archive render (`archive_H_bleed.jpg`): clutter painted out, regraded, the pool repainted black-teal. No third-party images.
+
+Sound (all made by `art/tools/archive13_sound.py`, numpy + ffmpeg):
+| File | Source | Licence |
+|---|---|---|
+| `ambience/archive13.ogg` | the CC0 cellar room tone by kyles (https://freesound.org/people/kyles/sounds/454170/, already shipped as `ambience/archive.ogg`), low-passed, plus a synthesized 49 Hz submerged hum and synthesized page turns played backwards | CC0 1.0 (base) + synthesized here |
+| `sfx/sfx_keeper_clunk.ogg` | synthesized (stilt knock + muffled slosh) | project original |
+| `sfx/sfx_dez_breath.ogg` | synthesized (filtered noise breath, looped while Dez sleeps, stops when he wakes) | project original |
+| `sfx/sfx_dez_wake.ogg` | synthesized (short caught breath) | project original |
+| `sfx/sfx_filed.ogg` | synthesized (soft stamp + paper slide) | project original |
+
+Dez's voice blips are synthesized live in `game/src/voice.ts` (triangle wave), like the other speakers.

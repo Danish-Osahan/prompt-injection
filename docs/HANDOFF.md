@@ -1,5 +1,27 @@
 # HANDOFF
 
+## 2026-11-28 — GB-5: the Flooded Archive is one trade (built from the approved plan)
+
+Danishpreet approved `/workspace/l12-next/PROPOSAL.md` as proposed, with the lamp sweep. Built from `7353ccd`.
+
+**Story.** Records come here when nobody reads them; Dez (from the office, `BACK MONDAY :)`) was filed down here asleep at his desk. Every line is boxed with the speaker's name and portrait (Dez's portrait is a render of his model; `dialogue.ts` `SayWho` adds `dez`, voice in `voice.ts`). Entry: Fern "Records come here when nobody reads them." / Noor "That's Dez's desk." First Caret in his card: Fern "Cards give words too. Take his." After the trade: Dez "Monday came. Nobody read it." / "The winch. I've got it."
+
+**Puzzle (`game/src/archive.ts`, `ArchiveRoom`).** Two lanyard cards: DEZ IS ASLEEP and KEEPER IS AWAKE. F near Dez sends the Caret in, ←/→ select, hold E on ASLEEP: the Caret carries it (Dez's card shows a dashed gap). Near the Keeper (320px) its card shows the **open-line sign** (`StaffCard` state `ready`: print through thinned bars, cyan wash, glowing edge); F sends the Caret in; select AWAKE, F: one atomic step writes KEEPER IS ASLEEP and DEZ IS AWAKE (AWAKE flies back), both logged to `swapLog`. Dez wakes, the Keeper slumps and sets its lamp on the water, the room warms (multiply overlay), the bridge lowers on Dez's second line (6.5s fallback). F at a shut line bounces (`SHUT`), same as the corridor. Full key table in `docs/caret.md` (Room 3 section).
+
+**The Keeper and its lamp.** Its own Blender figure (`art/tools/archive13.py`: stilts, filing-drawer body with index cards, tilted head, lanyard card, lamp on a pole). The lamp sweeps a narrow angled strip (additive, masked to the land, 14 bands x 5 layers, Dez's desk throws a shadow; no discs or rings) on a 10s cycle. ~1s in it files Noor: FILED, soft fade to the doorway, no damage, everything snaps home. The doorway column and the desk shadow are always dark.
+
+**Removed.** LOW/DOWN chain and its plates, cooler/books/towel/ink and their plates, the note swarm and the Scribble, the duck, boots, cooler, ink, books, notes, towel, the ripple rings and the bright cyan pool (repainted black-teal). Three lights: Dez's desk lamp, the window slit, the Keeper's lamp. `rooms.ts` archive has 2 plates and no enemies; `StealPlay` archive links/sticks and `words.ts` archive state are gone; the old `wetHint` and toy-duck code is removed.
+
+**Art/sound pipeline.** `art/tools/archive13.py` (Dez asleep/awake/portrait from Kenney male-a + Furniture Kit, the Keeper awake/asleep/lantern) → `art/render/archive13/`; `art/tools/archive13_post.py` (plate cleanup + grade, pool, fg, loops, `game/src/archive13art.ts` meta); `art/tools/archive13_sound.py` (bed `ambience/archive13.ogg` on the CC0 cellar tone + synthesized hum, `sfx_keeper_clunk`, `sfx_dez_breath` (stops on wake), `sfx_dez_wake`, `sfx_filed`). Logged in CREDITS.md.
+
+**Also.** `OnboardLure.keepOffCards` keeps a 4px margin round the card (the GB-4 `F THROW` check failed by 0.9px once as the guard swayed). `__pi.archiveAim(x|null, y)` pins the lamp for tests and stills.
+
+**Tests.** New `tests/archive_softlock.mjs` (real keys; A mash F, B recall in every phase incl. mid-flight, C filed while carrying / inside the Keeper line, D wrong-word take, wrong-slot write, out-of-range and empty-Caret bounces; every case ends with the trade and the bridge, A and D reach the arena). Runs in `ONLY_SOFTLOCK=1` (after the corridor suite), `ONLY_ARCHIVE=1`, and the full playtest. The main playtest's archive section is rewritten for the trade. Results: `archive_softlock` 33/33; full `npm run playtest` 388/389 (the archive section 12/12, linger/audio archive checks pass); the one FAIL was `desktop: dash cooldown ~1s` (cd left 0.60 against > 0.6, a timing edge in the office dash check, unrelated to the archive); `ONLY_DESKTOP=1` re-run 141/141.
+
+**Stills (not in the repo, `/workspace/l13-archive/`):** `a13_1x_1_overview.png` (room, Noor in the dark doorway column), `a13_1x_2_lamp_sweep.png` (Noor caught in the strip, tinting before she is filed), `a13_1x_3_take_hold.png` (Caret in Dez's card, hold E on ASLEEP), `a13_1x_4_open_line_sign.png` (carrying ASLEEP, the Keeper's card shows the sign), `a13_1x_4b_in_keeper.png`, `a13_1x_5_after_trade.png` (KEEPER IS ASLEEP, DEZ IS AWAKE, bridge down, lamp on the water), and the same set as `a13_2x_*` (deviceScaleFactor 2). Script: `/workspace/stillscripts/a13_flow.mjs OUT TAG DPR`.
+
+**Weak spots.** Asleep Dez reads as a dark slumped shape at 1x (the portrait carries him in dialogue). The open-line sign is a glow and a print show-through, readable but quiet at 1x. The right half of the room is deliberately empty and dark. The Keeper's lamp anchor moves with the sweep angle, so `archiveAim` settles it iteratively. The warm-up after the trade is a multiply overlay over the whole plate, not relit art. The bridge-lower timing depends on Dez's second line (6.5s fallback if dialogue is skipped).
+
 ## 2026-11-28 — GB-4: the clock stays readable, the hint keeps off the card
 
 Danishpreet playtested `fc0eaf2`: Noor covered the clock face when she stood at the clock, and the `F THROW` hint overlapped the bottom of the guard's card.

@@ -31,14 +31,6 @@ const STICKS: Record<string, string[]> = {
   OFF: ['c_switch', 'c_light'],
   QUICK: ['c_dummy', 'c_clock'],
   STILL: ['c_dummy', 'c_clock'],
-  LOW: ['a_water', 'a_drawer'],
-  HIGH: ['a_water', 'a_drawer'],
-  DOWN: ['a_bridge', 'a_stairs'],
-  UP: ['a_bridge', 'a_stairs'],
-  DRY: ['a_ink', 'a_towel', 'a_notes', 'a_water'],
-  WET: ['a_ink', 'a_towel', 'a_water', 'a_cooler'],
-  APART: ['a_notes'],
-  TOGETHER: ['a_notes', 'a_books'],
   WEAK: ['r_guard', 'r_weak'],
   PAPER: ['c_dummy', 'r_guard'],
 };
@@ -59,13 +51,7 @@ const LINKS: Partial<Record<RoomId, Link[]>> = {
     { src: 'c_switch', quality: 'ON', dst: 'c_light' },
     { src: 'c_clock', quality: 'STILL', dst: 'c_dummy' },
   ],
-  archive: [
-    { src: 'a_drawer', quality: 'LOW', dst: 'a_water' },
-    { src: 'a_stairs', quality: 'DOWN', dst: 'a_bridge' },
-    { src: 'a_towel', quality: 'DRY', dst: 'a_ink' },
-    { src: 'a_books', quality: 'APART', dst: 'a_notes' },
-    { src: 'a_ink', quality: 'WET', dst: 'a_towel' },
-  ],
+  archive: [],   // GB-5: the archive's words move card to card through the Caret (ArchiveRoom), not by E/F throws
   arena: [{ src: 'r_weak', quality: 'WEAK', dst: 'r_guard' }],
 };
 
@@ -286,24 +272,21 @@ export class StealPlay {
     for (const l of ls) {
       const p = this.s.plateById(l.src);
       const d = this.s.plateById(l.dst);
-      if (l.src === 'a_stairs' && !this.s.flags.drained) continue;
       if (p?.visible && p.slotWord === l.quality && d?.slotWord !== l.quality) return l;
     }
     return null;
   }
 
   private canTakeLoose(id: string, word: string) {
-    if (id === 'a_cooler' && word === 'WET') return true;
     return this.links().some(l => l.src === id && l.quality === word);
   }
 
   private nearTakeable(): string | null {
     let best: string | null = null, bd = NEAR;
-    const srcs = [...this.links().map(l => l), { src: 'a_cooler', quality: 'WET', dst: '' }];
+    const srcs = this.links();
     for (const l of srcs) {
       const p = this.s.plateById(l.src);
       if (!p?.visible || p.slotWord !== l.quality) continue;
-      if (l.src === 'a_stairs' && !this.s.flags.drained) continue;
       const d = Math.hypot(p.def.sx - this.s.x, p.def.sy - this.s.y) - ((REACH[l.src] ?? NEAR) - NEAR);
       if (d < bd) { bd = d; best = l.src; }
     }

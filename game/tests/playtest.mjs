@@ -7,6 +7,7 @@ import { launch, open, sleep, MOBILE, DESKTOP } from './helpers.mjs';
 import { office11 } from './office11.mjs';
 import { combatGreybox } from './combat_greybox.mjs';
 import { corridorSoftlock } from './corridor_softlock.mjs';
+import { archiveSoftlock } from './archive_softlock.mjs';
 const PORT = 4175;
 const URL_ = process.env.GAME_URL ?? `http://localhost:${PORT}/?test=1&new=1`;
 const SHOTS = new URL('../screenshots/', import.meta.url).pathname;
@@ -736,59 +737,37 @@ async function desktop(browser) {
   await pi(page, 'teleport', 1150, 420); await input.move(1, 0); s = await waitFor(page, s => s.room === 'archive', 4000); await input.stop();
   ok('corridor: alcove exit opens -> Flooded Archive', s.room === 'archive');
 
-  // ARCHIVE: drawer LOW → water, stairs DOWN → bridge
+  // ARCHIVE (GB-5): one trade between two cards. Take ASLEEP from Dez, write it on the Keeper, AWAKE goes back to Dez.
   await sleep(400); await shot(page, 'desktop-10-archive-flooded');
+  await sleep(1600); await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   s = await st(page);
-  ok('archive: STAIRS GO DOWN is underwater (hidden)', !s.plates.a_stairs.visible);
-  const early = await pi(page, 'steal', 'take', 'a_stairs');
-  ok('archive: order matters, DOWN cannot be taken first', early === false);
-  await pi(page, 'teleport', 100, 594); await sleep(120);
-  const wrong = await steal(page, 'a_drawer', 'a_bridge');
-  s = await st(page);
-  ok('archive: LOW thrown at the bridge rebounds (does not lower it)', !s.flags.bridge, s.plates.a_bridge.words);
-  await pi(page, 'steal', 'undo'); await sleep(200);
-  await steal(page, 'a_drawer', 'a_water');
-  s = await waitFor(page, s => s.flags.drained && s.plates.a_stairs.visible, 4000);
-  ok('archive: take LOW from the drawer, throw it into the water', s.flags.drained && s.plates.a_stairs.visible, `${s.plates.a_water.words} / ${s.plates.a_drawer.words}`);
-  await pi(page, 'teleport', 560, 220); await sleep(120);
-  await steal(page, 'a_stairs', 'a_bridge');
-  s = await waitFor(page, s => s.flags.bridge, 4000);
-  ok('archive: take DOWN from the stairs, throw it at the bridge', s.flags.bridge && s.plates.a_bridge.words === 'BRIDGE IS DOWN', s.plates.a_stairs.words);
-  await sleep(2200);
+  ok('archive: two hidden cards, nothing else to read (DEZ IS ASLEEP / KEEPER IS AWAKE)', !!s.archive && !['a_drawer', 'a_water', 'a_stairs', 'a_bridge', 'a_cooler', 'a_books', 'a_towel', 'a_ink', 'a_notes'].some(k => k in s.plates) && s.plates.a_dez.words === 'DEZ IS ASLEEP' && s.plates.a_keeper.words === 'KEEPER IS AWAKE' && s.archive.dezCard.state === 'hidden' && s.archive.keeperCard.state === 'hidden', Object.keys(s.plates).join(','));
+  ok('archive: no duck, cooler, notes or scribble in the room', !s.enemies.length && !s.amb.some(a => ['duck', 'ripple'].includes(a.name)), `enemies ${s.enemies.length} amb ${s.amb.map(a => a.name).join(',')}`);
+  await pi(page, 'archiveAim', 430, 175);
+  await pi(page, 'teleport', 170, 390); await sleep(250);
+  await page.keyboard.press('f'); s = await waitFor(page, s => s.archive.phase === 'inDez', 2500);
+  ok('archive: F near Dez sends the Caret into his card (it opens)', s.archive.phase === 'inDez' && s.archive.dezCard.state === 'open' && s.caret.mode === 'sent', JSON.stringify({ p: s.archive.phase, c: s.archive.dezCard.state }));
+  { const d = await waitFor(page, s => /Cards give words too/.test((s.dialogueProg && s.dialogueProg.full) || ''), 3000); ok('archive: Fern teaches the take ("Cards give words too. Take his.")', /Cards give words too\. Take his\./.test((d.dialogueProg && d.dialogueProg.full) || ''), (d.dialogueProg && d.dialogueProg.full) || '-'); }
+  await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
+  await page.keyboard.press('ArrowRight'); await sleep(90); await page.keyboard.press('ArrowRight'); await sleep(160);
+  await page.keyboard.down('e'); await sleep(700); await page.keyboard.up('e'); await sleep(250); s = await st(page);
+  ok('archive: E hold takes ASLEEP off Dez (his card shows the gap, plates unchanged until the trade)', s.archive.carried === 'ASLEEP' && s.archive.phase === 'carry' && s.archive.dezCard.blankWord === 'ASLEEP' && s.plates.a_dez.words === 'DEZ IS ASLEEP', JSON.stringify({ c: s.archive.carried, p: s.archive.phase, b: s.archive.dezCard.blankWord }));
+  await pi(page, 'teleport', 420, 440); await sleep(350); s = await st(page);
+  ok('archive: the Keeper card shows the open-line sign while a carried word is in range', s.archive.ready && s.archive.keeperCard.state === 'ready', s.archive.keeperCard.state);
+  await shot(page, 'desktop-10b-archive-open-line');
+  await page.keyboard.press('f'); s = await waitFor(page, s => s.archive.phase === 'inKeeper', 2500);
+  ok('archive: F sends the Caret, carrying ASLEEP, into the Keeper line', s.archive.phase === 'inKeeper' && s.archive.keeperCard.state === 'open', s.archive.phase);
+  await sleep(400); await page.keyboard.press('ArrowRight'); await sleep(90); await page.keyboard.press('ArrowRight'); await sleep(160); await page.keyboard.press('f');
+  s = await waitFor(page, s => s.archive.traded, 2500);
+  ok('archive: F writes ASLEEP over AWAKE; AWAKE goes back to Dez in the same step', s.plates.a_keeper.words === 'KEEPER IS ASLEEP' && s.plates.a_dez.words === 'DEZ IS AWAKE' && s.archive.carried === null, `${s.plates.a_keeper.words} / ${s.plates.a_dez.words}`);
+  { const d = await waitFor(page, s => /Monday came/.test((s.dialogueProg && s.dialogueProg.full) || ''), 5000); ok('archive: Dez wakes and speaks, named, in a box', /Monday came\. Nobody read it\./.test((d.dialogueProg && d.dialogueProg.full) || '') && d.dialogueBoxes >= 1, (d.dialogueProg && d.dialogueProg.full) || '-'); }
+  s = await waitFor(page, s => s.bridgeDown, 9000);
+  ok('archive: Dez lowers the bridge', s.flags.bridge && s.bridgeDown && s.archive.dez === 'a13_dez_awake' && s.archive.keeper === 'a13_keeper_asleep', `bridge ${s.bridgeDown} dez ${s.archive.dez} keeper ${s.archive.keeper}`);
+  await sleep(1200); await page.evaluate(() => { const s = window.__game.scene.getScene('game'); try { s.dialogue?.clear(); } catch {} s.busy = false; });
   await still1(page, 'archive-bridge-down');
   await pi(page, 'teleport', 420, 420); await input.move(1, 0); await sleep(2400); await input.stop(); s = await st(page);
   ok('archive: Noor walks across the bridge', s.player.x > 840, `x ${Math.round(s.player.x)}`);
   await shot(page, 'desktop-11-archive-bridge');
-  const sc0 = s.enemies.find(e => e.kind === 'scribble');
-  const hp0 = sc0 ? sc0.hp : 3;
-  await pi(page, 'teleport', 880, 280); await sleep(160);
-  const si = s.enemies.findIndex(e => e.kind === 'scribble' && !e.dead);
-  await steal(page, 'a_cooler', 'en:' + si);
-  s = await waitFor(page, q => !!(q.enemies.find(e => e.kind === 'scribble') || {}).wet, 3000);
-  const sc1 = s.enemies.find(e => e.kind === 'scribble');
-  ok('archive: WET from the cooler melts the Scribble', !!(sc1 && sc1.wet && sc1.hp < hp0), `wet ${sc1 && sc1.wet} hp ${sc1 && sc1.hp}/${hp0}`);
-  ok('archive: Fern hinted once about the cooler', !!(s.save.seen && s.save.seen.includes('wetHint')), `seen ${(s.save.seen || []).join(',')}`);
-  await pi(page, 'invuln', 60);
-  const maxDiving = async (ms) => { let m = 0; const t0 = Date.now(); while (Date.now() - t0 < ms) { const q = await st(page); m = Math.max(m, q.enemies.filter(e => e.kind === 'note' && (e.state === 'windup' || e.state === 'dive')).length); await pi(page, 'invuln', 60); await sleep(60); } return m; };
-  await pi(page, 'teleport', 1000, 520); const together = await maxDiving(3500);
-  ok('archive: notes still group-dive before APART', together >= 2, `max simultaneous ${together}`);
-  await pi(page, 'teleport', 1170, 560); await sleep(120);
-  await steal(page, 'a_books', 'a_notes');
-  await pi(page, 'teleport', 900, 300); await sleep(1600); await pi(page, 'invuln', 60); s = await st(page);
-  await pi(page, 'teleport', 1000, 520); const apart = await maxDiving(4000); s = await st(page);
-  ok('archive: take APART from the books, throw it at the notes', s.flags.apart && apart === 1, `${s.plates.a_notes.words}, max simultaneous ${apart}`);
-  await pi(page, 'teleport', 1140, 248); await sleep(120);
-  await steal(page, 'a_towel', 'a_ink'); s = await st(page);
-  const sc = s.enemies.find(e => e.kind === 'scribble'); await pi(page, 'teleport', sc.x - 40, sc.y); await input.move(1, 0); await sleep(20); await input.stop(); await page.keyboard.press('j'); await sleep(150); s = await st(page);
-  ok('archive: take DRY from the towel, throw it at the ink', s.flags.dry && s.enemies.find(e => e.kind === 'scribble').hp <= 1, `${s.plates.a_ink.words}, scribble hp ${s.enemies.find(e => e.kind === 'scribble').hp}`);
-  await shot(page, 'desktop-11b-archive-cracks');
-  for (let i = 0; i < 60; i++) {
-    s = await st(page); const es = s.enemies.filter(e => !e.dead); if (!es.length) break;
-    es.sort((a, b) => Math.hypot(a.x - s.player.x, a.y - s.player.y) - Math.hypot(b.x - s.player.x, b.y - s.player.y));
-    await pi(page, 'teleport', es[0].x - 40, es[0].y); await input.move(1, 0); await sleep(20); await input.stop(); await page.keyboard.press('j'); await sleep(200);
-  }
-  s = await st(page);
-  ok('archive: Scribble and sticky-note swarm can be defeated', s.enemies.every(e => e.dead), s.enemies.map(e => `${e.kind}:${e.hp}`).join(' '));
   await pi(page, 'teleport', 1180, 420); await input.move(1, 0); s = await waitFor(page, s => s.room === 'arena', 4000); await input.stop();
   ok('archive: east exit -> Draft arena', s.room === 'arena');
 
@@ -878,7 +857,7 @@ async function desktop(browser) {
   ok('save: reload resumes in the saved room', s.room === 'message' && s.save.phaseComplete, s.room);
   await pi(page, 'goto', 'archive');
   s = await waitFor(page, s => s.room === 'archive' && !s.endScreen && s.cutscene !== 'end' && !s.paused, 8000);
-  ok('save: puzzle progress kept on revisit', s.flags && s.flags.bridge && s.flags.drained);
+  ok('save: puzzle progress kept on revisit (the trade and the bridge)', s.flags && s.flags.bridge && s.plates.a_keeper.words === 'KEEPER IS ASLEEP' && s.plates.a_dez.words === 'DEZ IS AWAKE', `${s.plates.a_keeper && s.plates.a_keeper.words} / ${s.plates.a_dez && s.plates.a_dez.words}`);
   ok('audio: archive room switches to archive ambience', s.ambience === 'archive', `amb ${s.ambience}`);
   if (s.paused) { await page.keyboard.press('Escape'); await sleep(200); }
   await page.keyboard.press('Escape'); await sleep(200); s = await st(page);
@@ -945,7 +924,7 @@ async function mobile(browser) {
 const server = await serve();
 const browser = await launch();
 const T11 = { ok, st, pi, waitFor, shot, URL_ };
-try { if (process.env.ONLY_SOFTLOCK) { await corridorSoftlock(browser, T11); } else if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_DESKTOP) { await desktop(browser); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); await corridorSoftlock(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
+try { if (process.env.ONLY_ARCHIVE) { await archiveSoftlock(browser, T11); } else if (process.env.ONLY_SOFTLOCK) { await corridorSoftlock(browser, T11); await archiveSoftlock(browser, T11); } else if (process.env.ONLY_COMBAT) { await combatGreybox(browser, T11); } else if (process.env.ONLY_DESKTOP) { await desktop(browser); } else if (process.env.ONLY_V11) { await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); } else if (process.env.ONLY_V9) { await office9(browser); } else { if (!process.env.ONLY_LINGER) await desktop(browser); await linger(browser); if (process.env.ONLY_LINGER) { await browser.close(); process.exit(0); } await office11(browser, { ...T11, URL_: URL_ + '&swap=1' }); await combatGreybox(browser, T11); await corridorSoftlock(browser, T11); await archiveSoftlock(browser, T11); if (process.env.V9) await office9(browser); await mobile(browser); } }
 catch (e) { ok('playtest ran without exceptions', false, (e && e.message) + ' ' + (e && e.stack)); }
 finally { await browser.close(); server?.kill(); }
 const fails = results.filter(r => !r.pass);

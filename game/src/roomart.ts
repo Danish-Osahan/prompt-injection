@@ -310,58 +310,24 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "archive": {
   "images": {
-   "H": "rooms/archive_H_bleed.jpg",
-   "L": "rooms/archive_L_bleed.jpg"
+   "base": "rooms/archive13_bleed.jpg"
   },
   "code": {
-   "H": "rooms/archive_H_code.jpg",
-   "L": "rooms/archive_L_code.jpg"
+   "base": "rooms/archive13_code.jpg"
   },
   "fg": [
    {
-    "key": "fg_archive_winch",
+    "key": "fg_a13_winch",
     "name": "winch",
-    "file": "rooms/fg/archive_winch.png",
+    "file": "rooms/fg/a13_winch.png",
     "x": 415,
     "y": 321,
     "baseY": 382
    },
    {
-    "key": "fg_archive_drawer",
-    "name": "drawer",
-    "file": "rooms/fg/archive_drawer.png",
-    "x": 77,
-    "y": 613,
-    "baseY": 670
-   },
-   {
-    "key": "fg_archive_corkboard",
-    "name": "corkboard",
-    "file": "rooms/fg/archive_corkboard.png",
-    "x": 896,
-    "y": 643,
-    "baseY": 676
-   },
-   {
-    "key": "fg_archive_shelf",
-    "name": "shelf",
-    "file": "rooms/fg/archive_shelf.png",
-    "x": 1148,
-    "y": 570,
-    "baseY": 670
-   },
-   {
-    "key": "fg_archive_towel",
-    "name": "towel",
-    "file": "rooms/fg/archive_towel.png",
-    "x": 1171,
-    "y": 257,
-    "baseY": 330
-   },
-   {
-    "key": "fg_archive_exit",
+    "key": "fg_a13_exit",
     "name": "exit",
-    "file": "rooms/fg/archive_exit.png",
+    "file": "rooms/fg/a13_exit.png",
     "x": 1208,
     "y": 256,
     "baseY": 470
@@ -370,50 +336,36 @@ export const ROOMART: Record<string, RoomArt> = {
   "amb": [
    {
     "name": "drip",
-    "state": "H",
-    "file": "rooms/amb/archive_H_drip.png",
-    "x": 638,
-    "y": 170,
-    "w": 124,
-    "h": 84,
-    "frames": 14,
-    "fps": 10,
+    "state": "base",
+    "file": "rooms/amb/archive13_drip.png",
+    "x": 680,
+    "y": 158,
+    "w": 40,
+    "h": 64,
+    "frames": 16,
+    "fps": 8,
     "baseY": 200,
     "mode": "loop",
-    "key": "amb_archive_H_drip"
+    "key": "amb_a13_drip"
    },
    {
-    "name": "duck",
-    "state": "H",
-    "file": "rooms/amb/archive_H_duck.png",
-    "x": 526,
-    "y": 433,
-    "w": 58,
-    "h": 48,
+    "name": "sheen",
+    "state": "base",
+    "file": "rooms/amb/archive13_sheen.png",
+    "x": 490,
+    "y": 250,
+    "w": 300,
+    "h": 150,
     "frames": 12,
-    "fps": 6,
-    "baseY": 471,
+    "fps": 3,
+    "baseY": -1,
     "mode": "loop",
-    "key": "amb_archive_H_duck"
-   },
-   {
-    "name": "memo",
-    "state": "H",
-    "file": "rooms/amb/archive_H_memo.png",
-    "x": 598,
-    "y": 544,
-    "w": 44,
-    "h": 31,
-    "frames": 1,
-    "fps": 1,
-    "baseY": 561,
-    "mode": "still",
-    "key": "amb_archive_H_memo"
+    "key": "amb_a13_sheen"
    },
    {
     "name": "line",
-    "state": "H",
-    "file": "rooms/amb/archive_H_line.png",
+    "state": "base",
+    "file": "rooms/amb/archive13_line.png",
     "x": 306,
     "y": 633,
     "w": 48,
@@ -422,77 +374,21 @@ export const ROOMART: Record<string, RoomArt> = {
     "fps": 1,
     "baseY": 640,
     "mode": "still",
-    "key": "amb_archive_H_line"
-   },
-   {
-    "name": "drip",
-    "state": "L",
-    "file": "rooms/amb/archive_L_drip.png",
-    "x": 641,
-    "y": 170,
-    "w": 121,
-    "h": 182,
-    "frames": 14,
-    "fps": 10,
-    "baseY": 200,
-    "mode": "loop",
-    "key": "amb_archive_L_drip"
-   },
-   {
-    "name": "duck",
-    "state": "L",
-    "file": "rooms/amb/archive_L_duck.png",
-    "x": 527,
-    "y": 435,
-    "w": 56,
-    "h": 45,
-    "frames": 1,
-    "fps": 6,
-    "baseY": 471,
-    "mode": "loop",
-    "key": "amb_archive_L_duck"
-   },
-   {
-    "name": "memo",
-    "state": "L",
-    "file": "rooms/amb/archive_L_memo.png",
-    "x": 598,
-    "y": 544,
-    "w": 44,
-    "h": 31,
-    "frames": 1,
-    "fps": 1,
-    "baseY": 561,
-    "mode": "still",
-    "key": "amb_archive_L_memo"
-   },
-   {
-    "name": "line",
-    "state": "L",
-    "file": "rooms/amb/archive_L_line.png",
-    "x": 306,
-    "y": 633,
-    "w": 48,
-    "h": 13,
-    "frames": 1,
-    "fps": 1,
-    "baseY": 640,
-    "mode": "still",
-    "key": "amb_archive_L_line"
+    "key": "amb_a13_line"
    }
   ],
   "bridge": {
    "x": 382,
    "y": 65,
    "frames": [
-    "rooms/fg/bridge_00.png",
-    "rooms/fg/bridge_01.png",
-    "rooms/fg/bridge_02.png",
-    "rooms/fg/bridge_03.png",
-    "rooms/fg/bridge_04.png",
-    "rooms/fg/bridge_05.png",
-    "rooms/fg/bridge_06.png",
-    "rooms/fg/bridge_07.png"
+    "rooms/fg/a13_bridge_00.png",
+    "rooms/fg/a13_bridge_01.png",
+    "rooms/fg/a13_bridge_02.png",
+    "rooms/fg/a13_bridge_03.png",
+    "rooms/fg/a13_bridge_04.png",
+    "rooms/fg/a13_bridge_05.png",
+    "rooms/fg/a13_bridge_06.png",
+    "rooms/fg/a13_bridge_07.png"
    ]
   }
  },

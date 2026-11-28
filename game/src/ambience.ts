@@ -13,7 +13,7 @@ const BED_SRC: Record<Exclude<AmbId, 'none'>, string> = {
   office: 'assets/ambience/office.ogg',
   hub: 'assets/ambience/hub.ogg',
   corridor: 'assets/ambience/corridor.ogg',
-  archive: 'assets/ambience/archive.ogg',
+  archive: 'assets/ambience/archive13.ogg',   // GB-5: the cellar recording + a submerged hum + backwards page turns
   arena: 'assets/ambience/arena.ogg',
   message: 'assets/ambience/message.ogg',
 };
@@ -33,7 +33,7 @@ const ROOM_SPOTS: Record<Exclude<AmbId, 'none'>, SpotId[]> = {
   office: ['buzz', 'paper', 'creak', 'lift'],
   hub: ['slam', 'creak', 'paper', 'murmur'],
   corridor: ['pipe', 'creak', 'murmur', 'slam'],
-  archive: ['creak', 'paper', 'pipe', 'slam'],
+  archive: ['paper', 'pipe', 'creak'],
   arena: ['boom', 'pipe', 'creak', 'murmur'],
   message: ['murmur', 'buzz', 'paper', 'creak'],
 };

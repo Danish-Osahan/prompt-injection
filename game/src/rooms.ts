@@ -94,31 +94,18 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     floor: { base: 0x0e1820, line: 0x182833, tile: 56 },
     walk: [R(60, 180, 380, 500), R(840, 180, 380, 500)],
     walls: [],
+    // GB-5: three cabinets for shade, Dez's desk (collider set by ArchiveRoom), the winch post. Nothing else on the floor.
     props: [
-      { x: 256, y: 60, w: 14, h: 120, color: 0x3a4c58, top: 0x5a7080 },                      // water pipe + gauge
-      { x: 246, y: 104, w: 34, h: 26, color: 0x2a3a44, top: 0x9ad8f0 },
       { x: 420, y: 330, w: 16, h: 52, color: 0x4a3a2a, top: 0x6a5440 },          // bridge winch post
-      { x: 520, y: 170, w: 80, h: 14, color: 0x18242e },                                     // stairwell wall bracket
-      { x: 962, y: 176, w: 26, h: 30, color: 0x0c0e1e, top: 0x3a4a6a },                      // ink bottle
-      { x: 1176, y: 260, w: 14, h: 70, color: 0x4a4038, top: 0xe6e0d0 },                     // towel rack
-      { x: 900, y: 650, w: 100, h: 26, color: 0x5a4430, top: 0x7a6040 },                     // corkboard
-      { x: 1150, y: 600, w: 50, h: 70, color: 0x26343e, top: 0x34444e },                     // book shelf
       { x: 60, y: 60, w: 1160, h: 120, color: 0x0a121a, top: 0x101c26 },
       { x: 80, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },  // filing cabinets
       { x: 150, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },
-      { x: 70, y: 610, w: 60, h: 60, color: 0x2a3a44, top: 0x3a4c58, solid: true, label: 'drawer' },
       { x: 1100, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },
     ],
+    // Two staff records, both cards (data anchors; ArchiveRoom draws the cards). The only change is one trade.
     plates: [
-      { id: 'a_water', words: ['WATER', 'IS', 'HIGH'], slot: 2, x: 240, y: 260, sx: 268, sy: 150, kind: 'rule', cap: 'The pipe sweats into the dark. The water is {}.', code: 'water.level' },
-      { id: 'a_bridge', words: ['BRIDGE', 'IS', 'UP'], slot: 2, x: 310, y: 470, sx: 430, sy: 360, kind: 'rule', cap: 'A plank bridge, folded like an argument. It is {}.', code: 'bridge.state' },
-      { id: 'a_drawer', words: ['DRAWER', 'IS', 'LOW'], slot: 2, x: 210, y: 610, sx: 100, sy: 594, kind: 'rule', cap: 'A drawer of old intake forms. It is {}.', code: 'drawer.height' },
-      { id: 'a_cooler', words: ['COOLER', 'IS', 'WET'], slot: 2, x: 880, y: 280, sx: 860, sy: 220, kind: 'rule', cap: 'A water cooler, sweating through a paper cup. It is {}.', code: 'cooler.state' },
-      { id: 'a_ink', words: ['INK', 'IS', 'WET'], slot: 2, x: 975, y: 240, sx: 975, sy: 160, kind: 'rule', cap: 'An ink bottle, uncorked for years. It is still {}.', code: 'ink.state' },
-      { id: 'a_towel', words: ['TOWEL', 'IS', 'DRY'], slot: 2, x: 1140, y: 300, sx: 1140, sy: 248, kind: 'rule', cap: 'A towel on a rack. Somehow, it is {}.', code: 'towel.state' },
-      { id: 'a_notes', words: ['NOTES', 'STICK', 'TOGETHER'], slot: 2, x: 950, y: 610, sx: 950, sy: 640, kind: 'rule', cap: 'Sticky notes in a clump. They stick {}.', code: 'notes.stick' },
-      { id: 'a_books', words: ['BOOKS', 'SIT', 'APART'], slot: 2, x: 1150, y: 560, sx: 1170, sy: 560, kind: 'rule', cap: 'Books on a shelf, not speaking. They sit {}.', code: 'books.sit' },
-      { id: 'a_stairs', words: ['STAIRS', 'GO', 'DOWN'], slot: 2, x: 495, y: 600, sx: 560, sy: 220, kind: 'rule', hidden: true, cap: 'Stairs, drowned until now. They go {}.', code: 'stairs.dir' },
+      { id: 'a_dez', words: ['DEZ', 'IS', 'ASLEEP'], slot: 2, x: 262, y: 420, sx: 262, sy: 372, kind: 'rule', hidden: true, cap: 'Dez, filed down here with his desk. He is {}.', code: 'dez.state' },
+      { id: 'a_keeper', words: ['KEEPER', 'IS', 'AWAKE'], slot: 2, x: 676, y: 612, sx: 676, sy: 490, kind: 'rule', hidden: true, cap: 'The Keeper wades the water with a lamp. It is {}.', code: 'keeper.state' },
     ],
     spawn: { x: 100, y: 420 },
     exit: { rect: R(1205, 380, 15, 90), to: 'arena' },

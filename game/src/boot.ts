@@ -21,6 +21,8 @@ export class BootScene extends Phaser.Scene {
       a.bridge?.frames.forEach((f, i) => this.load.image(`bridge_${i}`, `assets/${f}`));
     }
     // art-v12 Blender layers: the corridor Sentinel and the hub rift chasm
+    // GB-5 flooded archive cast (archive13.py renders, 2x)
+    for (const k of ['dez_asleep', 'dez_awake', 'dez_portrait', 'keeper_awake', 'keeper_asleep', 'keeper_lantern']) this.load.image('a13_' + k, `assets/archive13/${k}.png`);
     this.load.image('sentinel', 'assets/rooms/fg/sentinel.png'); this.load.image('hub_rift', 'assets/rooms/fg/hub_rift.png'); this.load.image('hub_rift_south', 'assets/rooms/fg/hub_rift_south.png');
     // art-v9 office test level (perspective layers, variants, close-ups)
     const O = OFFICE9, A = (f: string) => `assets/${f}`;
@@ -53,10 +55,10 @@ export class BootScene extends Phaser.Scene {
     for (const f of FX) this.load.image('fx_' + f, `assets/fx/${f}.png`);
     const LL = ['recess','cab','leaf_l','leaf_r','frame','panel_dead','panel_live','ind_off','ind_on','wall_cover','seam','spill','lamp_on','lamp_off'];
     for (const f of LL) this.load.image('lift_' + f, `assets/fx/lift_layers/${f}.png`);
-    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui', 'sfx_click', 'sfx_rain'];
+    const SFX = ['sfx_whoosh', 'sfx_clank', 'sfx_snap', 'sfx_bounce', 'sfx_padlock', 'sfx_hum', 'sfx_hit_heavy', 'sfx_metal', 'sfx_steal', 'sfx_door_open', 'sfx_door_close', 'sfx_lift', 'sfx_ui', 'sfx_click', 'sfx_rain', 'sfx_keeper_clunk', 'sfx_dez_breath', 'sfx_dez_wake', 'sfx_filed'];
     for (const f of SFX) this.load.audio(f, `assets/sfx/${f}.ogg`);
     const AMB = ['office','hub','hub_wind','corridor','archive','arena','message'];
-    for (const f of AMB) this.load.audio('amb_' + f, `assets/ambience/${f}.ogg`);
+    for (const f of AMB) this.load.audio('amb_' + f, `assets/ambience/${f === 'archive' ? 'archive13' : f}.ogg`);
     for (const f of ['slam','creak','pipe','lift','murmur','boom','paper','buzz']) this.load.audio('ambspot_' + f, `assets/ambience/spots/${f}.ogg`);
     this.load.audio('music_office', 'assets/music/office.ogg');
     this.load.audio('music_tense', 'assets/music/tense.ogg');

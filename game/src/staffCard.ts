@@ -6,7 +6,13 @@ import Phaser from 'phaser';
  * only ragged ink bars; no real text exists anywhere in the display list (the face is a canvas
  * and nothing is drawn as letters until the line opens).
  *
- * Only the corridor guard is implemented. The other mounts are named so later enemies can use them.
+ * The corridor guard wears a clip mount (the card sits where its pole enters). The archive's Keeper and Dez wear
+ * a lanyard mount: the clip is at the top edge and the straps are part of the wearer's art.
+ *
+ * States: hidden (ink bars), open (Caret inside; words printed, one reverse-printed when selected), still (solved,
+ * the changed word re-printed in teal), and ready: the open-line sign. A shut line will take a word only when it
+ * shows this: the bars thin to a grey wash with the print readable under them and the card edge glows pale cyan.
+ * A slot can also be blank (its word was taken out): a dashed gap the width of the word.
  */
 export type StaffMount = 'clip' | 'tape' | 'holder' | 'lanyard';
 export interface StaffRecord {
@@ -26,9 +32,12 @@ export interface StaffRecord {
 export const STAFF_RECORDS: Record<string, StaffRecord> = {
   // the sentinel's head is a blank ID card on its pole; this card replaces it, clipped where the pole enters
   c_dummy: { line: 'GUARD IS QUICK', anchor: { x: 0, y: -158 }, scale: 1, mount: 'clip', name: 'NOOR', tilt: -0.04 },
+  // archive (GB-5): anchors are set by ArchiveRoom from the renders' meta
+  a_keeper: { line: 'KEEPER IS AWAKE', anchor: { x: 0, y: 0 }, scale: 1, mount: 'lanyard', name: 'KEEPER', tilt: 0.02 },
+  a_dez: { line: 'DEZ IS ASLEEP', anchor: { x: 0, y: 0 }, scale: 1, mount: 'lanyard', name: 'DEZ', tilt: -0.05 },
 };
 
-export type CardState = 'hidden' | 'open' | 'still';
+export type CardState = 'hidden' | 'open' | 'still' | 'ready';
 export const CARD_W = 62, CARD_H = 42;
 const SS = 4;          // the face is drawn at 4x and shown at 1x
 const PAD = 7;         // room for the thickness edge, contact shadow and clip
@@ -67,15 +76,21 @@ export class StaffCard {
   /** the words currently drawn as letters on the face ('' while hidden) */
   printed = '';
   lean = 0;
+  /** a slot whose word was taken out (drawn as a dashed gap), -1 for none */
+  blank = -1;
+  /** 0..1 strength of the open-line glow while state is 'ready' */
+  glow = 1;
   private boxes: Box[] = [];
 
   constructor(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, rec: StaffRecord, key: string) {
     this.scene = scene; this.rec = rec;
-    if (rec.mount !== 'clip') console.warn(`staffCard: mount '${rec.mount}' not built yet, using clip`);
+    if (rec.mount !== 'clip' && rec.mount !== 'lanyard') console.warn(`staffCard: mount '${rec.mount}' not built yet, using clip`);
     const tw = (CARD_W + PAD * 2) * SS, th = (CARD_H + PAD * 2) * SS;
     if (scene.textures.exists(key)) scene.textures.remove(key);
     this.tex = scene.textures.createCanvas(key, tw, th)!;
     this.root = scene.add.container(rec.anchor.x, rec.anchor.y);
+    // the anchor is the card's bottom-centre for both mounts (a lanyard card hangs from its top clip, so the
+    // wearer places the anchor CARD_H below the strap point)
     this.img = scene.add.image(0, 0, key)
       .setOrigin((PAD + CARD_W / 2) / (CARD_W + PAD * 2), (PAD + CARD_H) / (CARD_H + PAD * 2))
       .setScale(rec.scale / SS);
@@ -117,6 +132,11 @@ export class StaffCard {
     if (n !== this.sel) { this.sel = n; this.draw(); }
   }
 
+  setBlank(i: number) { if (i !== this.blank) { this.blank = i; this.draw(); } }
+
+  /** the open-line sign's pulse (only redraws on a visible change) */
+  setGlow(g: number) { const q = Math.round(g * 12) / 12; if (q !== this.glow) { this.glow = q; if (this.state === 'ready') this.draw(); } }
+
   /** World box (centre, size) of word i on the card face. */
   wordBox(i: number): { x: number; y: number; w: number; h: number } | null {
     const b = this.boxes[i]; if (!b) return null;
@@ -156,7 +176,7 @@ export class StaffCard {
 
   testState() {
     return {
-      state: this.state, printed: this.printed, sel: this.sel, selWord: this.sel >= 0 ? this.words[this.sel] ?? null : null,
+      state: this.state, printed: this.printed, sel: this.sel, blank: this.blank, blankWord: this.blank >= 0 ? this.words[this.blank] ?? null : null, selWord: this.sel >= 0 ? this.words[this.sel] ?? null : null,
       rows: cardRows(this.words).map(r => r.join(' ')), fresh: this.fresh >= 0 ? this.words[this.fresh] : null, wipe: this.wipe,
       rot: this.root.rotation, lean: this.lean, parented: !!this.root.parentContainer, visible: this.root.visible && this.img.visible,
       awake: this.awake, font: FONT,
@@ -215,8 +235,16 @@ export class StaffCard {
         const bw = m.ws[k];
         this.boxes[idx] = { x: (x - ox) / s, y: R.base - cap - 1, w: bw / s, h: cap + 2.6, row: ri };
         const top = baseY - cap * s;
-        if (this.state === 'hidden') {
+        if (idx === this.blank) {
+          // taken out: a dashed gap the width of the word, on the baseline
+          c.save(); c.strokeStyle = 'rgba(18,22,32,0.55)'; c.lineWidth = 0.6 * s; c.setLineDash([1.6 * s, 1.2 * s]);
+          c.strokeRect(x - 0.8 * s, top - 0.6 * s, bw + 1.6 * s, cap * s + 1.8 * s); c.restore();
+        } else if (this.state === 'hidden') {
           this.inkBar(c, x - 1.4 * s, top - 0.9 * s, bw + 2.8 * s, cap * s + 2.0 * s, idx);
+        } else if (this.state === 'ready') {
+          // the open-line sign: print readable under a thinned grey wash of the bars
+          c.fillStyle = INK; c.globalAlpha = 0.9; c.fillText(w, x, baseY); c.globalAlpha = 1; printed.push(w);
+          c.save(); c.globalAlpha = 0.28; this.inkBar(c, x - 1.4 * s, top - 0.9 * s, bw + 2.8 * s, cap * s + 2.0 * s, idx); c.restore();
         } else if (idx === this.sel) {
           // reverse print: a block of ink, the word knocked out to the card colour
           c.fillStyle = INK; c.fillRect(x - 1.2 * s, top - 1.3 * s, bw + 2.4 * s, cap * s + 3.0 * s);
@@ -240,6 +268,7 @@ export class StaffCard {
       });
     });
     this.printed = this.state === 'hidden' ? '' : printed.join(' ');
+    if (this.state === 'ready') { c.fillStyle = `rgba(170,236,246,${0.16 * this.glow})`; c.fillRect(ox, oy, W, H); }
     // footer: name and a staff-record barcode
     c.font = `800 ${(4.75 / 0.70) * s}px ${FONT}`;
     c.fillStyle = this.awake ? RED : GREY; c.fillText(this.rec.name, ox + INNER_L * s, oy + 37.5 * s);
@@ -266,6 +295,20 @@ export class StaffCard {
     // lit right edge, shaded left edge: the card's own thickness picks up the lamp like the body's plate edges
     c.fillStyle = 'rgba(248,214,160,0.55)'; c.fillRect(ox + W - 0.7 * s, oy + 2 * s, 0.7 * s, H - 4 * s);
     c.fillStyle = 'rgba(10,14,20,0.35)'; c.fillRect(ox, oy + 2 * s, 0.6 * s, H - 4 * s);
+    // open-line sign: a pale cyan edge, brighter on the pulse
+    if (this.state === 'ready') {
+      c.save(); c.shadowColor = `rgba(150,236,250,${0.9 * this.glow})`; c.shadowBlur = 7 * s;
+      c.strokeStyle = `rgba(196,246,252,${0.6 + 0.4 * this.glow})`; c.lineWidth = 1.4 * s; rr(ox - 0.6 * s, oy - 0.6 * s, W + 1.2 * s, H + 1.2 * s, 2.4 * s); c.stroke(); c.restore();
+    }
+    if (this.rec.mount === 'lanyard') {
+      // lanyard mount: a slot punched at the top and a small metal clip through it (the straps are the wearer's)
+      const lx = ox + (CARD_W / 2) * s, ly = oy - 2.4 * s;
+      c.fillStyle = 'rgb(20,24,30)'; rr(lx - 3.2 * s, oy + 0.9 * s, 6.4 * s, 1.3 * s, 0.6 * s); c.fill();
+      c.fillStyle = 'rgb(96,112,122)'; rr(lx - 2.2 * s, ly, 4.4 * s, 4.2 * s, 1.0 * s); c.fill();
+      c.fillStyle = 'rgb(160,176,184)'; c.fillRect(lx - 1.6 * s, ly + 0.5 * s, 3.2 * s, 0.5 * s);
+      this.tex.refresh();
+      return;
+    }
     // the mount: a small bulldog clip where the pole enters the card
     const cx = ox + (CARD_W / 2) * s, cy = oy + (CARD_H - 2) * s;
     c.fillStyle = 'rgb(40,46,54)'; rr(cx - 4.5 * s, cy, 9 * s, 5.5 * s, 0.8 * s); c.fill();

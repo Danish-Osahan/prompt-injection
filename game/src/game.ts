@@ -26,6 +26,7 @@ import { GlassRain } from './rain';
 import { showRoomCard, showEndScreen, backToTitle, flushPlay } from './flow';
 import { loadSettings } from './settings';
 import { StealPlay, STEAL_ROOMS } from './impact/StealPlay';
+import { ArchiveRoom } from './archive';
 import { InteractChip, placeChip, splitHint } from './ui/InteractChip';
 import { RIFT, LANE, LAMP, RiftWord, RiftSpan, HubLamp, drawRiftDetail, startRiftDebris } from './hubRift';
 import { launchAnimatedBolt, playChargeHold, playThrowAttack, tickWindupFx } from './impact/qualityShot';
@@ -187,7 +188,7 @@ export class GameScene extends Phaser.Scene {
   /** four dark copies of the Caret sprite, offset a pixel or two: a crisp outline so the pale Caret reads on pale paper at 1x */
   private caretEdge: Phaser.GameObjects.Image[] = [];
   private hubNorthOcclude: Record<string, Phaser.GameObjects.Image> = {};
-  private caretSendOnce = false;
+  caretSendOnce = false;
   private caretKeyF?: Phaser.Input.Keyboard.Key;
   private caretKeys?: { L: Phaser.Input.Keyboard.Key; R: Phaser.Input.Keyboard.Key; Q: Phaser.Input.Keyboard.Key };
   x = 0; y = 0; dir = 'S'; hp = MAX_HP;
@@ -248,6 +249,9 @@ export class GameScene extends Phaser.Scene {
   impactLab: ImpactLab | null = null;
   explore: OfficeExplore | null = null;
   stealPlay: StealPlay | null = null;
+  /** GB-5 flooded archive controller (Keeper, Dez, lamp sweep, the trade) */
+  archive: ArchiveRoom | null = null;
+  bridgeDown = false;
   /** ?impact=1 — isolated in-memory lab; never touches localStorage. */
   labMode = false;
   swapMode = false;
@@ -955,6 +959,7 @@ export class GameScene extends Phaser.Scene {
     for (const e of this.enemies) e.g.destroy();
     this.objs = []; this.plates = []; this.enemies = []; this.prompts = []; this.dyn = {}; this.extraWalk = {}; this.hazards = []; this.roomVis = {};
     this.glassRain?.destroy(); this.glassRain = null;
+    this.archive?.destroy(); this.archive = null; this.bridgeDown = false;
     this.amb = []; this.toyFx = {}; this.refl = null; this.hubCopyBounds = null; this.clockWord = undefined; this.dummyDodges = 0; this.hist = []; this.motes = []; this.motesG = null; this.moteRect = null; this.idleT = 0; this.idleSaid = false; this.copyWarm = 0; this.copySeen = 0; this.copyGlintT = 0; this.copyWasVis = false; this.hubFern = undefined; this.hubFernGlow = undefined; this.copyGlint = undefined;
     this.impactLab?.stop(); this.impactLab = null; this.explore?.destroy(); this.explore = null; this.stealPlay?.stop(); this.stealPlay = null; this.office = null; this.clar = null; this.vm = null; this.vsaved.length = 0; this.atkPending = false; this.chargeG = null; this.aimG = null;
     { if (this.labMode) this.setupStaticCamera(); else this.setupStaticCamera(); }
@@ -1133,16 +1138,15 @@ export class GameScene extends Phaser.Scene {
       if (s.defeated.includes('dummy')) { this.dyn.alcove = null; this.roomVis.alcove_door?.destroy(); }
     }
     if (id === 'archive') {
-      const pit = this.add.graphics().setDepth(-950).setVisible(!this.art); this.objs.push(pit);
-      pit.fillStyle(0x020406, 1).fillRect(440, 180, 400, 500);
-      pit.lineStyle(1, 0x182833, 1); for (let y = 200; y < 680; y += 40) pit.lineBetween(440, y, 840, y);
-      const water = this.add.rectangle(440, 180, 400, 500, 0x1a4a6a, 0.92).setOrigin(0).setDepth(620).setVisible(!this.art); this.objs.push(water); this.roomVis.water = water;
-      const glint = this.add.graphics().setDepth(621).setVisible(!this.art); this.objs.push(glint); this.roomVis.glint = glint;
-      for (let i = 0; i < 30; i++) glint.lineStyle(1, 0x9ad8f0, 0.25).lineBetween(450 + Math.random() * 360, 190 + Math.random() * 480, 470 + Math.random() * 360, 190 + Math.random() * 480);
-      const bridge = this.add.graphics().setDepth(379).setVisible(!this.art); this.objs.push(bridge); this.roomVis.bridge = bridge;
-      if (!s.defeated.includes('scribble')) this.spawnEnemy('scribble', 1000, 300);
-      for (let i = 0; i < 4; i++) if (!s.defeated.includes('note' + i)) this.spawnEnemy('note', 1040, 560, i);
-      this.drawWaterCooler(860, 236);
+      // GB-5: Dez asleep at his filed desk, the Keeper wading with its lamp. One trade opens the bridge.
+      this.archive = new ArchiveRoom(this);
+      if (!s.seen.includes('a13intro') && !this.archive.traded()) {
+        s.seen.push('a13intro'); writeSave(s);
+        this.time.delayedCall(1100, () => {
+          this.say('fern', 'Records come here when nobody reads them.', 2600, { box: true });
+          this.say('noor', "That's Dez's desk.", 1800, { box: true });
+        });
+      }
     }
     if (id === 'arena') {
       if (!this.art) { const lamp = this.add.image(640, 420, 'pool').setScale(3.2, 2.2).setTint(0xf6c684).setAlpha(0.35).setBlendMode(Phaser.BlendModes.ADD).setDepth(-800); this.objs.push(lamp); }
@@ -1223,6 +1227,7 @@ export class GameScene extends Phaser.Scene {
     const e = this.enemies.find(n => n.kind === 'dummy' && !n.dead);
     const card = e ? this.guardCard() : undefined;
     if (card) { const b = card.bounds(6); out.push({ ...b, x1: b.x1 + 26 }); }   // + the Caret's standing room past the right edge
+    if (this.archive) out.push(...this.archive.cardBounds());
     return out;
   }
   /** Where the one HUD hint chip goes: under Noor, unless that covers a keep-out box; then beside or above her. */
@@ -1360,7 +1365,7 @@ export class GameScene extends Phaser.Scene {
     return card.wordBox(i);
   }
   /** The Caret is inside the guard's line, choosing a word. */
-  caretInLine() { return this.caretMode === 'sent' && this.caretWriting === 'c_dummy' && !this.flags.still; }
+  caretInLine() { return (this.caretMode === 'sent' && this.caretWriting === 'c_dummy' && !this.flags.still) || (!!this.archive && this.archive.inLine()); }
   /** The Caret is away from Noor (flying or inside something): no dash. */
   caretOut() { return this.caretOwned && (this.caretMode === 'travel' || (this.caretMode === 'sent' && !!this.caretWriting)); }
   /** Move the selection along the line. */
@@ -1372,6 +1377,7 @@ export class GameScene extends Phaser.Scene {
   }
   /** F / Q / Esc with nothing in hand: the Caret comes home and the line closes again. */
   recallCaret() {
+    if (this.archive) return this.archive.recall();
     if (!this.caretWriting && this.caretMode !== 'sent') return false;
     this.caretWriting = undefined; this.caretMode = 'follow'; this.caret?.setAlpha(1);
     sfx('impact_whoosh', 0.35);
@@ -1874,21 +1880,15 @@ export class GameScene extends Phaser.Scene {
       }
     }
     if (id === 'archive') {
-      f.drained = ['LOW', 'DOWN'].includes(w('a_water') ?? '');
-      f.bridge = w('a_bridge') === 'DOWN';
-      const dur = initial ? 0 : 900;
-      this.tweens.add({ targets: [this.roomVis.water, this.roomVis.glint], alpha: f.drained ? 0.12 : 0.92, duration: dur });
-      const st = this.plateById('a_stairs');
-      if (st) { st.setVisibleState(f.drained); if (!f.drained && this.hand?.from === 'a_stairs') this.hand = null; }
-      this.extraWalk.bridge = f.bridge ? { x: 430, y: 385, w: 420, h: 70 } : null;
-      const b = this.roomVis.bridge as Phaser.GameObjects.Graphics;
-      if (this.art && this.bridgeImg) this.animBridge(f.bridge, initial);
-      if (this.art) { const want = f.drained ? 'L' : 'H'; for (const [k, im] of Object.entries(this.bg)) { this.tweens.killTweensOf(im); if (initial) im.setAlpha(k === want ? 1 : 0); else this.tweens.add({ targets: im, alpha: k === want ? 1 : 0, duration: 700 }); im.setDepth(k === want ? -999.5 : -1000); } }
-      if (b) { b.clear(); if (f.bridge) { b.fillStyle(0x3a2e22, 1).fillRect(440, 385, 400, 70); b.lineStyle(1, 0x5a4a36, 1); for (let x = 440; x < 840; x += 25) b.lineBetween(x, 385, x, 455); } else { b.fillStyle(0x3a2e22, 1).fillRect(440, 300, 18, 160); b.fillStyle(0x5a4a36, 1).fillRect(440, 300, 18, 8); } }
-      if (f.drained) help('water');
-      if (f.drained && !was.drained && !initial) this.say('floor', 'the water drains. something was under it.', 2200);
+      // GB-5: the bridge is down once KEEPER IS ASLEEP and DEZ IS AWAKE (one atomic trade). Dez lowers it after his line.
+      f.drained = false;
+      f.bridge = w('a_keeper') === 'ASLEEP' && w('a_dez') === 'AWAKE';
+      const down = f.bridge && !(this.archive?.holdBridge);
+      this.extraWalk.bridge = down ? { x: 430, y: 385, w: 420, h: 70 } : null;
+      if (this.art && this.bridgeImg && (initial || down !== this.bridgeDown)) this.animBridge(down, initial);
+      this.bridgeDown = down;
+      if (f.bridge) help('water');
     }
-    if (id === 'archive') { f.dry = w('a_ink') === 'DRY'; f.apart = w('a_notes') === 'APART'; }
     if (id === 'arena' && this.fight) this.fight.setGuardWord(w('r_guard') ?? 'STRONG');
     this.toyEffects(initial);
     this.ambState();
@@ -1961,7 +1961,7 @@ export class GameScene extends Phaser.Scene {
   }
   /** which ambient loops show for the current plate state (corridor dark/lit, archive H/L), collected lines, toy states */
   ambState() {
-    const st = this.room.id === 'corridor' ? (this.flags.lit ? 'lit' : 'dark') : this.room.id === 'archive' ? (this.flags.drained ? 'L' : 'H') : null;
+    const st = this.room.id === 'corridor' ? (this.flags.lit ? 'lit' : 'dark') : null;
     const has = (n: string, s: string) => this.amb.some(a => a.def.name === n && a.def.state === s);
     for (const a of this.amb) {
       let vis = st ? a.def.state === st || (!has(a.def.name, st) && a.def.state === this.amb.find(b => b.def.name === a.def.name)!.def.state) : true;
@@ -1983,11 +1983,6 @@ export class GameScene extends Phaser.Scene {
     if (id === 'corridor') {
       const toExit = w('c_moth') === 'OUT';
       for (const a of A('moth')) { this.tweens.killTweensOf(a.spr); this.tweens.add({ targets: a.spr, x: a.ox + (toExit ? 800 : 0), y: a.oy + (toExit ? -80 : 0), duration: initial ? 0 : 2200, ease: 'Sine.easeInOut' }); }
-    }
-    if (id === 'archive') {
-      const sunk = w('a_duck') !== 'AFLOAT';
-      for (const a of A('duck')) { this.tweens.killTweensOf(a.spr); if (initial) a.spr.setY(a.oy + (sunk ? 16 : 0)).setAlpha(sunk ? 0 : 1); else { a.spr.setVisible(true); this.tweens.add({ targets: a.spr, y: a.oy + (sunk ? 16 : 0), alpha: sunk ? 0 : 1, duration: 1400, ease: 'Quad.easeIn', onComplete: () => this.ambState() }); if (sunk) this.bubbles(a.spr.x + a.def.w / 2, a.oy + a.def.h * 0.7); } }
-      for (const a of A('memo')) { if (!initial && w('a_memo') === 'AFLOAT') { a.spr.setAlpha(0).setY(a.oy + 10); this.tweens.add({ targets: a.spr, alpha: 1, y: a.oy, duration: 1600 }); this.bubbles(a.spr.x + a.def.w / 2, a.oy + a.def.h / 2); } }
     }
     if (id === 'arena') {
       const coldLamp = w('r_lamp') === 'COLD', warmRim = w('r_rim') === 'WARM';
@@ -2295,6 +2290,7 @@ export class GameScene extends Phaser.Scene {
       return;
     }
     if (!this.caret.visible) { this.drawCaretMark(); return; }
+    if (this.caretMode === 'sent' && this.archive) { this.archive.updateCaretSent(dt); this.drawCaretMark(); return; }
     if (this.caretMode === 'sent') {
       // The rendered Caret itself sits in the line, on the selected word, blinking softly.
       this.caret.setDepth(3600).setAlpha(0.7 + 0.3 * (Math.sin(this.t * 7) > -0.3 ? 1 : 0));
@@ -2581,8 +2577,7 @@ export class GameScene extends Phaser.Scene {
     if (this.room.id === 'hub' && !f.span) return h ? 'h_rift' : 'h_lamp';
     if (this.room.id === 'corridor' && !f.lit) return h ? 'c_light' : 'c_switch';
     if (this.room.id === 'corridor' && !f.still) return !this.plateById('c_dummy')?.visible ? 'c_dummy' : h ? 'c_dummy' : 'c_clock';
-    if (this.room.id === 'archive' && !f.drained) return h ? 'a_water' : 'a_drawer';
-    if (this.room.id === 'archive' && !f.bridge) return h ? 'a_bridge' : 'a_stairs';
+    if (this.room.id === 'archive' && this.archive && !this.archive.traded()) return this.archive.holding() ? 'a_keeper' : 'a_dez';
     return null;
   }
   clearHint(resetOn = true) {
@@ -2683,7 +2678,7 @@ export class GameScene extends Phaser.Scene {
     start();
   }
   markSeen(id: string) { if (!this.seenEver.includes(id)) { this.seenEver.push(id); try { localStorage.setItem('pi.seenEver', JSON.stringify(this.seenEver)); } catch { /* */ } } }
-  inCombat() { return (this.room.id === 'arena' && !!this.fight && !this.fight.won) || (this.room.id === 'archive' && this.x > 820 && this.enemies.some(e => !e.dead)); }
+  inCombat() { return this.room.id === 'arena' && !!this.fight && !this.fight.won; }
   /** nearest live enemy within r (the Draft's fake copy counts: it is a valid target) */
   aimTarget(r: number) {
     let best: Enemy | null = null, bd = r;
@@ -2972,14 +2967,16 @@ export class GameScene extends Phaser.Scene {
     // Only consume F when the Caret is owned AND a send target is in range.
     // JustDown is per-Key and shared with ImpactLab / StealPlay / OfficeExplore,
     // so calling it earlier used to swallow the Level 1 spark throw.
-    if (this.caretKeyF && this.caretOwned && !this.hand && !this.stealPlay?.held
+    if (this.caretKeyF && this.caretOwned && !this.hand && !this.stealPlay?.held && !this.archive
         && !this.impactLab?.carrying && !this.explore?.carrying && !this.composer && control) {
       const sendTo = this.caretSendTarget();
       if (sendTo && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.sendCaret(sendTo);
       else if (this.caretInLine() && Phaser.Input.Keyboard.JustDown(this.caretKeyF)) this.recallCaret();   // empty hands: F calls it home
     }
     // Inside the guard's line: arrows (or the mouse) move the Caret word to word; Q calls it home.
-    if (this.caretInLine() && !this.dying && !this.transitioning && !this.clar?.modal && this.caretKeys) {   // works while Fern talks
+    // The archive owns F / arrows / Q / E-hold for its two cards (ArchiveRoom.input).
+    if (this.archive) this.archive.input(dt, !this.dying && !this.transitioning && !this.clar?.modal && !this.busy, !!f.interactHeld);
+    else if (this.caretInLine() && !this.dying && !this.transitioning && !this.clar?.modal && this.caretKeys) {   // works while Fern talks
       if (Phaser.Input.Keyboard.JustDown(this.caretKeys.L)) this.caretSelect(this.caretSel - 1);
       if (Phaser.Input.Keyboard.JustDown(this.caretKeys.R)) this.caretSelect(this.caretSel + 1);
       if (Phaser.Input.Keyboard.JustDown(this.caretKeys.Q) && !this.stealPlay?.held) this.recallCaret();
@@ -2991,7 +2988,7 @@ export class GameScene extends Phaser.Scene {
         if (hov >= 0 && hov !== this.caretHover) this.caretSelect(hov);
         this.caretHover = hov;
       }
-    } else if (this.caretKeys) { Phaser.Input.Keyboard.JustDown(this.caretKeys.Q); }
+    } else if (this.caretKeys && !this.archive) { Phaser.Input.Keyboard.JustDown(this.caretKeys.Q); }
     // First sight of the guard: the Caret's job, said once, in one line each, by a named speaker.
     if (this.room?.id === 'corridor' && control && this.x > 840 && !this.save.seen.includes('guardIntro') && this.caretSendTarget()) {
       this.save.seen.push('guardIntro');
@@ -3021,15 +3018,12 @@ export class GameScene extends Phaser.Scene {
     this.impactLab?.update(dt, f);
     this.explore?.update(dt, f);
     this.stealPlay?.update(dt);
+    this.archive?.update(dt);
     if (this.office) {
       this.office.update(dt, moving || Math.hypot(mx, my) > 0.1, mx, my, control && f.interact);
       if (this.words.codeA > 0.5 && this.words.codeLines.some(l => l.plate.def.id === 'o_monitor')) this.office.claim(false);
     }
     if (this.birth?.playing) this.birth.t += dt;
-    if (this.room.id === 'archive' && this.x > 820 && !this.save.seen.includes('wetHint') && this.enemies.some(e => e.kind === 'scribble' && !e.dead) && !this.busy) {
-      this.save.seen.push('wetHint'); writeSave(this.save);
-      this.say('fern', 'The cooler. Wet paper forgets how to hold a shape.', 2800);
-    }
     this.updateEnemies(edt);
 
     this.fight?.update(dt, edt);
@@ -3243,7 +3237,7 @@ export class GameScene extends Phaser.Scene {
       dashCd: this.dashCd, dashing: this.dashT > 0, iframes: this.iframes, dying: this.dying, undoShown: this.undoShown, lastRespawnMs: this.lastRespawnMs,
       caption: this.words.segs.map(q => q.full).join(''), heading: this.words.heading.text, chips: this.words.chipPositions(), handChip: { x: this.hud.hand.x, y: this.hud.hand.y },
       codeView: this.words.codeA > 0.5, codeLines: this.words.codeLines.map(l => l.objs.map(t => t.text).join('')), noorLine: this.words.codeA > 0.5 ? this.words.noorLine?.text : null, lens: this.words.lensA > 0.5 && !!this.words.secret, secretText: (this.words.secretText?.alpha ?? 0) > 0.5 ? this.words.secretText!.text : null, secrets: this.words.secretsFound(),
-      hand: this.hand, flags: { ...this.flags }, steal: this.stealPlay ? this.stealPlay.state() : null, lureChip: this.stealPlay?.lure?.chipState() ?? null, liftDone: !!this.impactLab?.done, doorOpen: !!this.clar?.doorOpen, lab: this.impactLab ? this.impactLab.state() : null, explore: this.explore ? this.explore.state() : null,
+      hand: this.hand, flags: { ...this.flags }, archive: this.archive ? this.archive.state() : null, bridgeDown: this.bridgeDown, steal: this.stealPlay ? this.stealPlay.state() : null, lureChip: this.stealPlay?.lure?.chipState() ?? null, liftDone: !!this.impactLab?.done, doorOpen: !!this.clar?.doorOpen, lab: this.impactLab ? this.impactLab.state() : null, explore: this.explore ? this.explore.state() : null,
       cam: { x: this.cameras.main.x, y: this.cameras.main.y, w: this.cameras.main.width, h: this.cameras.main.height, zoom: this.cameras.main.zoom, bottom: Math.min(this.cameras.main.y + this.cameras.main.height, this.vm ? 9999 : this.toScreen(640, 720).y), barY: BAR_Y },
       office9: this.office ? this.office.state() : null, clar: this.clar ? this.clar.state() : null, combat: this.combat ? this.combat.state() : null, beamN: this.beamN, beamHits: this.beamHits, attackPending: this.atkPending, sub: this.hud.sub.visible ? this.hud.sub.text : '', captionRows: this.words.rowInfo(),
       amb: this.amb.map(a => ({ name: a.def.name, w: a.def.w, h: a.def.h, state: a.def.state, visible: a.spr.visible, frame: Number(a.spr.frame.name), frames: a.def.frames, dir: a.dir })),
@@ -3268,6 +3262,7 @@ export class GameScene extends Phaser.Scene {
     (window as unknown as { __pi: unknown }).__pi = {
       state: () => this.getTestState(),
       teleport: (x: number, y: number) => { this.x = x; this.y = y; },
+      archiveAim: (x: number | null, y?: number) => { this.archive?.aim(x, y ?? 0); return !!this.archive; },
       canStand: (x: number, y: number) => this.canStand(x, y),
       interact: () => this.interact(),
       read: (id: string) => { const p = this.plateById(id); if (!p || !p.visible) return false; this.x = p.def.x; this.y = p.def.y - 20; return this.read(p); },
