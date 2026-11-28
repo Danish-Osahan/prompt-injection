@@ -93,11 +93,12 @@ def save(sc, name, meta=None):
 
 # ------------------------------------------------------------------ Dez
 DEZ_COL = dict()
-DZS = 1.45
+DZS = float(os.environ.get('DZS', 1.12))
 FILL = float(os.environ.get('FILL', 1.1))
-DZ_Y, DZ_Z = float(os.environ.get('DZ_Y', 0)), float(os.environ.get('DZ_Z', 0.12))
+DZ_Y, DZ_Z = float(os.environ.get('DZ_Y', 0.84)), float(os.environ.get('DZ_Z', -0.03))
 def _v(k, d): return tuple(float(a) for a in os.environ.get(k, d).split(','))
-TORSO = _v('TORSO', '30,0,0'); HEADB = _v('HEADB', '10,0,60'); ARML = _v('ARML', '-90,0,30'); ARMR = _v('ARMR', '-90,0,-30')
+# GB-5b: asleep Dez sits slumped behind his desk, head dropped to one shoulder, glasses and shirt visible (the old pose hid his face behind the monitor)
+TORSO = _v('TORSO', '14,0,0'); HEADB = _v('HEADB', '-22,0,22'); ARML = _v('ARML', '-30,0,-10'); ARMR = _v('ARMR', '-30,0,10')
 def dez_char(loc, rotz, action='idle', frame=0.0):
     h, new = glb(MC + 'character-male-a.glb', loc, rotz)
     for o in new:
@@ -140,24 +141,28 @@ def render_dez(kind):
         light('SUN', (0, 0, 5), 2.0, (0.45, 0.80, 0.92), 6, (R(-60), 0, R(50)), False)
         light('SUN', (0, 0, 5), 0.6, (0.5, 0.55, 0.9), 30, (R(80), 0, R(10)), False)
         save(sc, kind); return
-    # Kenney's mini characters are small next to Noor's model: Dez and his desk render 1.45x so he stands as tall as she does
+    # Kenney's mini characters are small next to Noor's model: Dez and his desk render 1.12x so he stands about as tall as she does (GB-5b: was 1.45, too big)
     W, H = 320, 320
     cam = camera(sc, W, H, (0.05, 0.12, 0.30), ortho=max(W, H) / (PXU * DZS))
     awake = kind == 'dez_awake'
     bulb = desk_set((0, 0, 0), chair_back=0.18 if awake else 0.0, awake=awake)
     archive_light(bulb, 9.0)
+    RIM = float(os.environ.get('RIM', 1.2))
+    if RIM: light('SUN', (0, 0, 5), RIM, (1.0, 0.80, 0.58), 8, (R(-30), R(-25), R(150)), False)   # a warm rim from the lamp side so his shape separates
     if not awake:
         # seated in the chair behind the desk, facing the camera, slumped onto folded arms
-        h, arm, meshes, lm = dez_char((0.11, 0.40 + DZ_Y, DZ_Z), R(0), 'sit', 0.0)
+        h, arm, meshes, lm = dez_char((0.11, DZ_Y, DZ_Z), R(0), 'sit', 0.0)
         bend(arm, 'torso', *TORSO); bend(arm, 'head', *HEADB)
         bend(arm, 'arm-left', *ARML); bend(arm, 'arm-right', *ARMR)
     else:
-        h, arm, meshes, lm = dez_char((0.55, 0.20, 0), R(-70), 'interact-right', 0.45)
+        AWK = _v('AWK', '0.62,0.18,-20')
+        h, arm, meshes, lm = dez_char((AWK[0], AWK[1], 0), R(AWK[2]), 'interact-right', 0.45)
         bend(arm, 'head', -6, 0, 0)
     bpy.context.view_layer.update()
     head = arm.matrix_world @ arm.pose.bones['head'].head
+    fp = AWK if awake else (0.55, 0.20, 0)
     meta = dict(w=W, h=H, desk_front=px(sc, cam, (0.0, 0.0, 0.0)), desk_top=px(sc, cam, (0.0, 0.18, 0.384)), head=px(sc, cam, head),
-                bulb=px(sc, cam, bulb), desk_l=px(sc, cam, (-0.36, 0.0, 0.0)), desk_r=px(sc, cam, (0.36, 0.0, 0.0)), feet=px(sc, cam, (0.55, 0.20, 0)))
+                bulb=px(sc, cam, bulb), desk_l=px(sc, cam, (-0.36, 0.0, 0.0)), desk_r=px(sc, cam, (0.36, 0.0, 0.0)), feet=px(sc, cam, (fp[0], fp[1], 0)))
     save(sc, kind, meta)
 
 # ------------------------------------------------------------------ the Keeper
@@ -171,25 +176,33 @@ def render_keeper(kind):
     slit = mat('slit', (200, 230, 236), 0.4, emit=0.0 if asleep else 1.6, emit_rgb=(170, 220, 230)); string = mat('string', (190, 178, 150), 0.9)
     lany = mat('lany', (70, 92, 104), 0.6)
     root = empty('root')
-    # stilts: two thin iron legs from the water line, an A-frame with knee blocks
+    # stilts: two iron legs on foot plates from the water line, a knee block each, an X-brace and a stout hip bar (GB-5b: fuller)
     for sx in (-1, 1):
-        box('stilt', (sx * 0.10, 0.0, 0.46), (0.024, 0.024, 0.95), iron, (0, R(sx * -4), 0), root)
-        box('knee', (sx * 0.093, -0.01, 0.48), (0.05, 0.05, 0.05), iron, (0, 0, 0), root)
-    box('hipbar', (0, 0, 0.93), (0.30, 0.05, 0.04), iron, (0, 0, 0), root)
+        box('stilt', (sx * 0.11, 0.0, 0.47), (0.052, 0.046, 0.95), iron, (0, R(sx * -4), 0), root, 0.006)
+        box('knee', (sx * 0.10, -0.012, 0.50), (0.085, 0.075, 0.085), iron, (0, 0, 0), root, 0.008)
+        box('foot', (sx * 0.12, -0.01, 0.012), (0.13, 0.12, 0.025), iron, (0, 0, 0), root, 0.006)
+    for sgn in (-1, 1):
+        box('brace', (0, 0.0, 0.30), (0.012, 0.012, 0.36), iron, (0, R(sgn * 34), 0), root)
+    box('hipbar', (0, 0, 0.93), (0.38, 0.09, 0.06), iron, (0, 0, 0), root, 0.008)
     body = empty('body', (0, 0, 0.95), root, (R(16), R(-7), 0) if asleep else (R(-3), 0, 0))
     # torso: three archive boxes, a little out of true, string-tied, with label windows
     z = 0.0
-    for i, (w, h, dx, rz) in enumerate(((0.40, 0.22, 0.0, 2), (0.36, 0.20, 0.012, -4), (0.33, 0.19, -0.01, 3))):
-        b = box('abox%d' % i, (dx, 0, z + h / 2), (w, 0.27, h), kraft if i % 2 == 0 else kraft2, (0, 0, R(rz)), body, 0.006)
-        box('label', (dx - 0.06, -0.137, z + h * 0.58), (0.12, 0.004, 0.06), lab, (0, 0, R(rz)), body)
-        box('lbl_line', (dx - 0.06, -0.140, z + h * 0.58), (0.09, 0.003, 0.006), ink, (0, 0, R(rz)), body)
-        box('hand_hole', (dx + 0.10, -0.137, z + h * 0.62), (0.06, 0.004, 0.022), ink, (0, 0, R(rz)), body)
-        box('tie', (dx, 0, z + h / 2), (0.012, 0.278, h + 0.004), string, (0, 0, R(rz)), body)
+    for i, (w, h, dx, rz) in enumerate(((0.50, 0.24, 0.0, 2), (0.46, 0.22, 0.012, -4), (0.42, 0.20, -0.01, 3))):
+        b = box('abox%d' % i, (dx, 0, z + h / 2), (w, 0.30, h), kraft if i % 2 == 0 else kraft2, (0, 0, R(rz)), body, 0.006)
+        box('label', (dx - 0.06, -0.152, z + h * 0.58), (0.12, 0.004, 0.06), lab, (0, 0, R(rz)), body)
+        box('lbl_line', (dx - 0.06, -0.155, z + h * 0.58), (0.09, 0.003, 0.006), ink, (0, 0, R(rz)), body)
+        box('hand_hole', (dx + 0.10, -0.152, z + h * 0.62), (0.06, 0.004, 0.022), ink, (0, 0, R(rz)), body)
+        box('tie', (dx, 0, z + h / 2), (0.014, 0.308, h + 0.004), string, (0, 0, R(rz)), body)
         z += h
-    box('yoke', (0, 0, z + 0.015), (0.56, 0.06, 0.03), iron, (0, 0, 0), body)
+    box('yoke', (0, 0, z + 0.02), (0.68, 0.09, 0.045), iron, (0, 0, 0), body, 0.008)
+    for sx in (-1, 1):   # a strapped ledger satchel hangs off each shoulder, a hanging apron of file folders below the boxes
+        box('satchel', (sx * 0.33, 0.0, z - 0.17), (0.10, 0.17, 0.24), kraft2, (0, 0, R(sx * 3)), body, 0.006)
+        box('satchel_strap', (sx * 0.33, 0.0, z - 0.04), (0.108, 0.176, 0.016), string, (0, 0, R(sx * 3)), body)
+    box('apron', (0, -0.16, 0.0), (0.40, 0.012, 0.14), lab, (R(8), 0, 0), body)
+    for i in range(5): box('folder', (-0.15 + i * 0.075, -0.168, 0.0), (0.006, 0.012, 0.13), ink, (R(8), 0, 0), body)
     neck = empty('neck', (0, 0, z + 0.03), body, (R(26), 0, R(8)) if asleep else (R(10), 0, 0))
-    box('neckrod', (0, 0, 0.10), (0.024, 0.024, 0.20), iron, (0, 0, 0), neck)
-    head = empty('head', (0, 0, 0.21), neck, (R(-12), 0, 0))
+    box('neckrod', (0, 0, 0.10), (0.042, 0.042, 0.20), iron, (0, 0, 0), neck)
+    head = empty('head', (0, 0, 0.21), neck, (R(-12), 0, 0)); head.scale = (1.25, 1.25, 1.25)
     box('drawer', (0, -0.06, 0.07), (0.27, 0.20, 0.15), oak, (0, 0, 0), head, 0.008)
     box('front', (0, -0.165, 0.07), (0.28, 0.02, 0.16), oak, (0, 0, 0), head, 0.004)
     # an open catalogue drawer: rows of pale index cards stand up out of it (the Keeper's 'hair')
@@ -204,17 +217,17 @@ def render_keeper(kind):
     card_pt = body.matrix_world @ Vector((0, -0.155, z - 0.16))
     # arms: long iron rods. Awake: the right arm (screen left) reaches out to hold the lamp pole; the other hangs.
     for sx in (-1, 1):
-        sh = empty('sh', (sx * 0.27, 0, z), body)
+        sh = empty('sh', (sx * 0.335, 0, z), body)
         if sx < 0 and not asleep:
             sh.rotation_euler = (R(-20), R(48), 0)
         elif sx < 0:
             sh.rotation_euler = (R(-10), R(18), 0)
         else:
             sh.rotation_euler = (0, R(-8), 0)
-        box('upper', (0, 0, -0.17), (0.026, 0.026, 0.34), iron, (0, 0, 0), sh)
+        box('upper', (0, 0, -0.17), (0.048, 0.048, 0.34), iron, (0, 0, 0), sh, 0.006)
         el = empty('el', (0, 0, -0.34), sh, (R(-35), R(0), 0) if sx < 0 and not asleep else (R(8), 0, 0))
-        box('fore', (0, 0, -0.15), (0.022, 0.022, 0.30), iron, (0, 0, 0), el)
-        box('grip', (0, 0, -0.31), (0.04, 0.04, 0.04), iron, (0, 0, 0), el)
+        box('fore', (0, 0, -0.15), (0.042, 0.042, 0.30), iron, (0, 0, 0), el, 0.006)
+        box('grip', (0, 0, -0.31), (0.075, 0.075, 0.075), iron, (0, 0, 0), el, 0.008)
         if sx < 0: hand = empty('hand', (0, 0, -0.31), el)
     archive_light((-0.55, -0.35, 1.0) if not asleep else (-0.25, -0.30, 0.15), 30 if not asleep else 14)
     bpy.context.view_layer.update()

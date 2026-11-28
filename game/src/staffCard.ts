@@ -33,8 +33,8 @@ export const STAFF_RECORDS: Record<string, StaffRecord> = {
   // the sentinel's head is a blank ID card on its pole; this card replaces it, clipped where the pole enters
   c_dummy: { line: 'GUARD IS QUICK', anchor: { x: 0, y: -158 }, scale: 1, mount: 'clip', name: 'NOOR', tilt: -0.04 },
   // archive (GB-5): anchors are set by ArchiveRoom from the renders' meta
-  a_keeper: { line: 'KEEPER IS AWAKE', anchor: { x: 0, y: 0 }, scale: 1, mount: 'lanyard', name: 'KEEPER', tilt: 0.02 },
-  a_dez: { line: 'DEZ IS ASLEEP', anchor: { x: 0, y: 0 }, scale: 1, mount: 'lanyard', name: 'DEZ', tilt: -0.05 },
+  a_keeper: { line: 'KEEPER IS AWAKE', anchor: { x: 0, y: 0 }, scale: 1.35, mount: 'lanyard', name: 'KEEPER', tilt: 0.02 },
+  a_dez: { line: 'DEZ IS ASLEEP', anchor: { x: 0, y: 0 }, scale: 1.35, mount: 'lanyard', name: 'DEZ', tilt: -0.05 },
 };
 
 export type CardState = 'hidden' | 'open' | 'still' | 'ready';
@@ -46,7 +46,7 @@ const FONT = '"Barlow Condensed", "Arial Narrow", sans-serif';
 const ROWS = [{ top: 8, base: 16.5 }, { top: 19, base: 27.5 }];
 const INNER_L = 4, INNER_R = CARD_W - 4;
 
-type Box = { x: number; y: number; w: number; h: number; row: number };
+type Box = { x: number; y: number; w: number; h: number; row: number; base: number };
 
 /** Split a line into two rows, balanced by length (ties keep the longer first row). */
 export function cardRows(words: string[]): string[][] {
@@ -80,6 +80,11 @@ export class StaffCard {
   blank = -1;
   /** 0..1 strength of the open-line glow while state is 'ready' */
   glow = 1;
+  /** 1 -> 0 over 200 ms after the selection moves: the new word's block flashes bright so every step is seen */
+  selFlash = 0;
+  /** the word index actually drawn reverse-printed on the face last draw (-1 none), and how many times the selection has moved */
+  drawnSel = -1;
+  selMoves = 0;
   private boxes: Box[] = [];
 
   constructor(scene: Phaser.Scene, parent: Phaser.GameObjects.Container, rec: StaffRecord, key: string) {
@@ -117,7 +122,7 @@ export class StaffCard {
     this.words = words.slice();
     this.state = state;
     if (state !== 'open') this.sel = -1;
-    this.scene.tweens.killTweensOf(this);
+    this.scene.tweens.killTweensOf(this); this.selFlash = 0;
     if (state === 'still' && prevState !== 'still') {
       const i = words.findIndex((w, k) => prev[k] !== undefined && prev[k] !== w);
       this.fresh = i >= 0 ? i : words.length - 1;
@@ -129,7 +134,27 @@ export class StaffCard {
 
   setSel(i: number) {
     const n = this.state === 'open' ? i : -1;
-    if (n !== this.sel) { this.sel = n; this.draw(); }
+    if (n === this.sel) return;
+    const moved = n >= 0 && this.sel >= 0;
+    this.sel = n;
+    if (n >= 0) this.selMoves++;
+    this.selFlash = n >= 0 ? 1 : 0;
+    this.draw();   // the highlight moves in this very frame
+    if (n >= 0) {
+      this.scene.tweens.killTweensOf(this);
+      this.scene.tweens.add({ targets: this, selFlash: 0, duration: moved ? 220 : 320, ease: 'Quad.easeOut', onUpdate: () => this.draw(), onComplete: () => { this.selFlash = 0; this.draw(); } });
+    }
+  }
+
+  /** Test probe: is word i drawn with the selection block and its cyan underline bar right now? Reads the face canvas. */
+  probe(i: number): { block: boolean; underline: boolean } {
+    const b = this.boxes[i]; if (!b) return { block: false, underline: false };
+    const c = this.tex.getContext(), s = SS, ox = PAD * s, oy = PAD * s;
+    const at = (cx: number, cy: number) => { const d = c.getImageData(Math.round(ox + cx * s), Math.round(oy + cy * s), 1, 1).data; return d; };
+    let ul = 0, n = 0;
+    for (let k = 1; k <= 6; k++) { const d = at(b.x + (b.w * k) / 7, b.base + 1.85); n++; if (d[1] > 150 && d[2] > 150 && d[0] < 170 && d[1] - d[0] > 40) ul++; }
+    const d0 = at(b.x - 0.9, b.base - 3);
+    return { block: d0[0] < 40 && d0[1] < 44 && d0[2] < 56 && d0[3] > 200, underline: ul >= 4 };
   }
 
   setBlank(i: number) { if (i !== this.blank) { this.blank = i; this.draw(); } }
@@ -178,7 +203,7 @@ export class StaffCard {
     return {
       state: this.state, printed: this.printed, sel: this.sel, blank: this.blank, blankWord: this.blank >= 0 ? this.words[this.blank] ?? null : null, selWord: this.sel >= 0 ? this.words[this.sel] ?? null : null,
       rows: cardRows(this.words).map(r => r.join(' ')), fresh: this.fresh >= 0 ? this.words[this.fresh] : null, wipe: this.wipe,
-      rot: this.root.rotation, lean: this.lean, parented: !!this.root.parentContainer, visible: this.root.visible && this.img.visible,
+      drawnSel: this.drawnSel, selMoves: this.selMoves, selFlash: this.selFlash, rot: this.root.rotation, lean: this.lean, parented: !!this.root.parentContainer, visible: this.root.visible && this.img.visible,
       awake: this.awake, font: FONT,
     };
   }
@@ -211,7 +236,7 @@ export class StaffCard {
     c.fillStyle = 'rgba(185,210,220,0.5)'; c.fillRect(ox + 2 * s, oy + 0.4 * s, W - 4 * s, 0.45 * s);
     // layout
     const rows = cardRows(this.words);
-    this.boxes = [];
+    this.boxes = []; this.drawnSel = -1;
     const paper = col(1.0);
     let wi = 0;
     const printed: string[] = [];
@@ -233,7 +258,7 @@ export class StaffCard {
       row.forEach((w, k) => {
         const idx = wi++;
         const bw = m.ws[k];
-        this.boxes[idx] = { x: (x - ox) / s, y: R.base - cap - 1, w: bw / s, h: cap + 2.6, row: ri };
+        this.boxes[idx] = { x: (x - ox) / s, y: R.base - cap - 1, w: bw / s, h: cap + 2.6, row: ri, base: R.base };
         const top = baseY - cap * s;
         if (idx === this.blank) {
           // taken out: a dashed gap the width of the word, on the baseline
@@ -243,13 +268,20 @@ export class StaffCard {
           this.inkBar(c, x - 1.4 * s, top - 0.9 * s, bw + 2.8 * s, cap * s + 2.0 * s, idx);
         } else if (this.state === 'ready') {
           // the open-line sign: print readable under a thinned grey wash of the bars
-          c.fillStyle = INK; c.globalAlpha = 0.9; c.fillText(w, x, baseY); c.globalAlpha = 1; printed.push(w);
-          c.save(); c.globalAlpha = 0.28; this.inkBar(c, x - 1.4 * s, top - 0.9 * s, bw + 2.8 * s, cap * s + 2.0 * s, idx); c.restore();
+          c.fillStyle = INK; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, INK); printed.push(w);
+          c.save(); c.globalAlpha = 0.16; this.inkBar(c, x - 1.4 * s, top - 0.9 * s, bw + 2.8 * s, cap * s + 2.0 * s, idx); c.restore();
+          c.fillStyle = `rgba(96,236,242,${0.55 + 0.4 * this.glow})`; c.fillRect(x - 0.6 * s, baseY + 1.2 * s, bw + 1.2 * s, 0.9 * s);
         } else if (idx === this.sel) {
           // reverse print: a block of ink, the word knocked out to the card colour
-          c.fillStyle = INK; c.fillRect(x - 1.2 * s, top - 1.3 * s, bw + 2.4 * s, cap * s + 3.0 * s);
-          c.fillStyle = 'rgba(255,255,255,0.05)'; c.fillRect(x - 1.2 * s, top - 1.3 * s, bw + 2.4 * s, 0.6 * s);
-          c.fillStyle = paper; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, paper); printed.push(w);
+          this.drawnSel = idx;
+          const bx = x - 1.8 * s, bwid = bw + 3.6 * s, by = top - 1.6 * s, bh = cap * s + 3.4 * s;
+          c.fillStyle = 'rgb(8,12,20)'; c.fillRect(bx, by, bwid, bh);
+          if (this.selFlash > 0.02) { c.fillStyle = `rgba(110,236,244,${0.7 * this.selFlash})`; c.fillRect(bx, by, bwid, bh); }
+          c.fillStyle = 'rgba(255,255,255,0.07)'; c.fillRect(bx, by, bwid, 0.6 * s);
+          c.fillStyle = this.selFlash > 0.4 ? 'rgb(10,14,22)' : paper; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, this.selFlash > 0.4 ? 'rgb(10,14,22)' : paper); printed.push(w);
+          // the caret bar: a bright cyan underline under the selected word, with a short tick at each end
+          c.fillStyle = 'rgb(86,232,238)'; c.fillRect(bx, baseY + 1.0 * s, bwid, 1.3 * s);
+          c.fillRect(bx, by - 0.2 * s, 0.9 * s, 1.5 * s); c.fillRect(bx + bwid - 0.9 * s, by - 0.2 * s, 0.9 * s, 1.5 * s);
         } else if (idx === this.fresh) {
           // fresh re-print in teal, revealed by a short wipe with a print-head line
           const reveal = bw * this.wipe;
@@ -262,13 +294,18 @@ export class StaffCard {
           if (this.wipe < 1) { c.fillStyle = 'rgba(214,248,255,0.85)'; c.fillRect(x + reveal - 0.3 * s, top - 1.5 * s, 0.6 * s, cap * s + 3.5 * s); }
           printed.push(w);
         } else {
-          c.fillStyle = INK; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, INK); printed.push(w);
+          const dim = this.state === 'open' && this.sel >= 0 ? 'rgba(18,22,32,0.5)' : INK;   // inside a line, the words you are not on step back
+          c.fillStyle = dim; c.fillText(w, x, baseY); this.qTail(c, w, x, baseY, cap * s, dim); printed.push(w);
         }
         x += bw + m.sp;
       });
     });
     this.printed = this.state === 'hidden' ? '' : printed.join(' ');
-    if (this.state === 'ready') { c.fillStyle = `rgba(170,236,246,${0.16 * this.glow})`; c.fillRect(ox, oy, W, H); }
+    if (this.state === 'ready') { c.fillStyle = `rgba(150,238,248,${0.26 * this.glow})`; c.fillRect(ox, oy, W, H);
+      // the magstripe lights cyan and reads OPEN
+      c.fillStyle = `rgba(86,232,238,${0.75 + 0.2 * this.glow})`; c.fillRect(ox, oy + 2.5 * s, W, 3.25 * s);
+      c.font = `800 ${(3.1 / 0.70) * s}px ${FONT}`; try { (c as unknown as { letterSpacing: string }).letterSpacing = `${0.55 * s}px`; } catch { /* */ }
+      c.fillStyle = 'rgb(4,26,34)'; c.fillText('OPEN', ox + (CARD_W / 2 - 5.2) * s, oy + 5.2 * s); try { (c as unknown as { letterSpacing: string }).letterSpacing = '0px'; } catch { /* */ } }
     // footer: name and a staff-record barcode
     c.font = `800 ${(4.75 / 0.70) * s}px ${FONT}`;
     c.fillStyle = this.awake ? RED : GREY; c.fillText(this.rec.name, ox + INNER_L * s, oy + 37.5 * s);
@@ -297,8 +334,8 @@ export class StaffCard {
     c.fillStyle = 'rgba(10,14,20,0.35)'; c.fillRect(ox, oy + 2 * s, 0.6 * s, H - 4 * s);
     // open-line sign: a pale cyan edge, brighter on the pulse
     if (this.state === 'ready') {
-      c.save(); c.shadowColor = `rgba(150,236,250,${0.9 * this.glow})`; c.shadowBlur = 7 * s;
-      c.strokeStyle = `rgba(196,246,252,${0.6 + 0.4 * this.glow})`; c.lineWidth = 1.4 * s; rr(ox - 0.6 * s, oy - 0.6 * s, W + 1.2 * s, H + 1.2 * s, 2.4 * s); c.stroke(); c.restore();
+      c.save(); c.shadowColor = `rgba(150,236,250,${0.9 * this.glow})`; c.shadowBlur = 13 * s;
+      c.strokeStyle = `rgba(206,250,254,${0.75 + 0.25 * this.glow})`; c.lineWidth = 2.2 * s; rr(ox - 0.6 * s, oy - 0.6 * s, W + 1.2 * s, H + 1.2 * s, 2.4 * s); c.stroke(); c.restore();
     }
     if (this.rec.mount === 'lanyard') {
       // lanyard mount: a slot punched at the top and a small metal clip through it (the straps are the wearer's)

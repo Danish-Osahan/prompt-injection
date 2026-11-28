@@ -33,8 +33,9 @@ const LIGHT_FILE = 1.0;            // seconds in the lamp's light before Noor is
 const SWEEP_T = 10, SWEEP_A = 0.55, SWEEP_C = -0.14, HALF = 0.17;
 const LAND = { x0: 60, x1: 440, y0: 180, y1: 690 };
 const FAR_X = 150;                 // the light dies out before the doorway column (x < 160 is always dark)
-const DESK = { x0: 220, y0: 330, x1: 380, y1: 392 };   // Dez's desk on screen (the shadow it throws from the lamp)
+const DESK = { x0: 238, y0: 344, x1: 362, y1: 392 };   // Dez's desk on screen (the shadow it throws from the lamp)
 const SLOT = 2;
+const CH = CARD_H * 1.35;           // the archive's cards are 1.35x (84 x 57 px) so the line reads at 1x
 
 type Phase = 'idle' | 'toDez' | 'inDez' | 'home' | 'carry' | 'toKeeper' | 'inKeeper' | 'bounce' | 'done';
 
@@ -86,7 +87,7 @@ export class ArchiveRoom {
     const da = A13.dez_asleep;
     this.dez = s.add.image(0, 0, 'a13_dez_asleep').setOrigin(da.desk_front[0] / da.w, da.desk_front[1] / da.h).setScale(0.5);
     this.dezRig.add(this.dez);
-    STAFF_RECORDS.a_dez.anchor = { x: -50, y: -64 + CARD_H };   // hung over the desk's front lip, left of Dez
+    STAFF_RECORDS.a_dez.anchor = { x: -30, y: -51.6 + CH };   // hung over the desk's front lip, left of Dez
     this.dezCard = new StaffCard(s, this.dezRig, STAFF_RECORDS.a_dez, 'card_a_dez');
     this.dezCard.setAwake(false);
     // The Keeper: stilts in the water, archive boxes for a body, a card-catalogue drawer for a head, card on a lanyard
@@ -94,7 +95,7 @@ export class ArchiveRoom {
     const ka = A13.keeper_awake;
     this.keeper = s.add.image(0, 0, 'a13_keeper_awake').setOrigin(ka.foot[0] / ka.w, ka.foot[1] / ka.h).setScale(0.5 * KS);
     this.keeperRig.add(this.keeper);
-    STAFF_RECORDS.a_keeper.anchor = { x: (ka.card[0] - ka.foot[0]) * KS, y: (ka.card[1] - ka.foot[1]) * KS + CARD_H };
+    STAFF_RECORDS.a_keeper.anchor = { x: (ka.card[0] - ka.foot[0]) * KS, y: (ka.card[1] - ka.foot[1]) * KS + CH };
     this.keeperCard = new StaffCard(s, this.keeperRig, STAFF_RECORDS.a_keeper, 'card_a_keeper');
     this.waterLine = s.add.graphics().setDepth(P.keeper.y + 1);
     this.pole = s.add.graphics().setDepth(P.keeper.y + 2);
@@ -112,7 +113,7 @@ export class ArchiveRoom {
     this.wordChipText = s.add.text(0, -1, '', { fontFamily: '"Barlow Condensed", "Arial Narrow", sans-serif', fontSize: '13px', fontStyle: '800', color: '#12161f' }).setOrigin(0.5);
     this.wordChip.add([slip, this.wordChipText]);
     s.objs.push(this.dezRig, this.keeperRig, this.waterLine, this.pole, this.lantern, this.beam, this.beamMaskG, this.lampGlow, this.warm, this.chip.root, this.wordChip);
-    s.dyn.a13desk = { x: DESK.x0 + 2, y: 345, w: DESK.x1 - DESK.x0 - 4, h: 45 };
+    s.dyn.a13desk = { x: DESK.x0 + 2, y: 356, w: DESK.x1 - DESK.x0 - 4, h: 34 };
     const kb = s.input.keyboard;
     if (kb) { this.keyF = kb.addKey('F'); this.keyL = kb.addKey('LEFT'); this.keyR = kb.addKey('RIGHT'); this.keyQ = kb.addKey('Q'); }
     if (this.traded()) this.setTradedLook(true);
@@ -128,7 +129,7 @@ export class ArchiveRoom {
   traded() { return this.w('a_keeper') === 'ASLEEP' && this.w('a_dez') === 'AWAKE'; }
   inLine() { return this.phase === 'inDez' || this.phase === 'inKeeper'; }
   busyFlight() { return this.phase === 'toDez' || this.phase === 'toKeeper' || this.phase === 'home' || this.phase === 'bounce'; }
-  dezSpot() { return { x: A13_POS.dez.x + (this.traded() ? 120 : 30), y: A13_POS.dez.y - 50 }; }
+  dezSpot() { return this.traded() ? { x: A13_POS.dez.x + 104, y: A13_POS.dez.y - 62 } : { x: A13_POS.dez.x + 18, y: A13_POS.dez.y - 66 }; }
   private cardCentre(c: StaffCard) { const b = c.bounds(0); return { x: (b.x0 + b.x1) / 2, y: (b.y0 + b.y1) / 2 }; }
   private distTo(c: StaffCard) { const p = this.cardCentre(c); return Math.hypot(p.x - this.s.x, p.y - (this.s.y - 40)); }
   nearDez() { return this.distTo(this.dezCard) < DEZ_REACH; }
@@ -145,6 +146,9 @@ export class ArchiveRoom {
     const kState = done ? 'still' : this.phase === 'inKeeper' ? 'open' : this.keeperReady() ? 'ready' : 'hidden';
     if (this.dezCard.state !== dState || this.dezCard.words.join(' ') !== dw.join(' ')) this.dezCard.show(dw, dState);
     if (this.keeperCard.state !== kState || this.keeperCard.words.join(' ') !== kw.join(' ')) this.keeperCard.show(kw, kState);
+    // while a line is open the card is never hidden by Noor standing in front of it
+    this.dezRig.setDepth(this.phase === 'inDez' ? 3590 : A13_POS.dez.y);
+    this.keeperRig.setDepth(this.phase === 'inKeeper' ? 3590 : A13_POS.keeper.y);
     this.dezCard.setBlank(this.carried && !done ? SLOT : -1);
     this.dezCard.setSel(this.phase === 'inDez' ? this.sel : -1);
     this.keeperCard.setSel(this.phase === 'inKeeper' ? this.sel : -1);
@@ -184,7 +188,7 @@ export class ArchiveRoom {
 
   private select(i: number, n: number) {
     const k = Phaser.Math.Clamp(i, 0, n - 1);
-    if (k !== this.sel) { this.sel = k; sfx('impact_whoosh', 0.2); }
+    if (k !== this.sel) { this.sel = k; sfx('impact_whoosh', 0.2); this.refreshCards(); }   // the highlight moves on this very press
     if (k === SLOT) this.s.caretPickedQuick = true;
   }
 
@@ -417,7 +421,7 @@ export class ArchiveRoom {
   private setTradedLook(initial: boolean) {
     const s = this.s, ks = A13.keeper_asleep;
     this.keeper.setTexture('a13_keeper_asleep').setOrigin(ks.foot[0] / ks.w, ks.foot[1] / ks.h);
-    const anc = { x: (ks.card[0] - ks.foot[0]) * KS, y: (ks.card[1] - ks.foot[1]) * KS + CARD_H };
+    const anc = { x: (ks.card[0] - ks.foot[0]) * KS, y: (ks.card[1] - ks.foot[1]) * KS + CH };
     STAFF_RECORDS.a_keeper.anchor = anc; STAFF_RECORDS.a_keeper.tilt = 0.16;
     if (initial) { this.keeperCard.setLean(0); this.warm.setAlpha(1); }
     else { s.tweens.add({ targets: this.keeperCard.root, x: anc.x, y: anc.y, rotation: 0.16, duration: 700, ease: 'Sine.easeInOut' }); s.tweens.add({ targets: this.warm, alpha: 1, duration: 1600 }); }
