@@ -101,6 +101,10 @@ export const ROOMS: Record<RoomId, RoomDef> = {
       { x: 80, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },  // filing cabinets
       { x: 150, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },
       { x: 1100, y: 120, w: 60, h: 90, color: 0x26343e, top: 0x34444e, solid: true },
+      // GB-5b: right-half props (drawn by the render; these are their colliders)
+      { x: 890, y: 150, w: 140, h: 66, color: 0x26343e, solid: true },     // two records lockers on the back wall
+      { x: 1154, y: 330, w: 22, h: 20, color: 0x26343e, solid: true },     // floor lamp by the exit
+      { x: 1119, y: 566, w: 44, h: 32, color: 0x26343e, solid: true },     // stacked archive boxes
     ],
     // Two staff records, both cards (data anchors; ArchiveRoom draws the cards). The only change is one trade.
     plates: [

@@ -52,7 +52,7 @@ export class ArchiveRoom {
   private beam: Phaser.GameObjects.Graphics;
   private beamMaskG: Phaser.GameObjects.Graphics;
   private waterLine: Phaser.GameObjects.Graphics;
-  private warm: Phaser.GameObjects.Rectangle;
+  private warm?: Phaser.GameObjects.Image;   // the relit plate (cross-faded in after the trade)
   private lampGlow: Phaser.GameObjects.Graphics;
   private chip: InteractChip;
   private wordChip: Phaser.GameObjects.Container;
@@ -105,14 +105,14 @@ export class ArchiveRoom {
     this.beamMaskG = s.make.graphics({}, false); this.beamMaskG.fillStyle(0xffffff, 1).fillRect(LAND.x0, LAND.y0, LAND.x1 - LAND.x0, LAND.y1 - LAND.y0);
     this.beam.setMask(this.beamMaskG.createGeometryMask());
     this.lampGlow = s.add.graphics().setDepth(P.keeper.y - 2).setBlendMode(Phaser.BlendModes.ADD);
-    this.warm = s.add.rectangle(0, 0, 1280, 720, 0xffe2c0, 1).setOrigin(0).setAlpha(0).setDepth(-985).setBlendMode(Phaser.BlendModes.MULTIPLY);
+    this.warm = s.bg.warm;   // art plate 'warm': Dez's lamp up, the Keeper's lamp on the water, the left floor lit
     this.chip = new InteractChip(s, 9004);
     // the word riding on the Caret: a torn slip of card with the word printed on it
     this.wordChip = s.add.container(0, 0).setDepth(3610).setVisible(false);
     const slip = s.add.graphics(); slip.fillStyle(0x0a0e14, 0.5).fillRect(-26, -7, 54, 17); slip.fillStyle(0xe8e0cc, 1).fillRect(-27, -9, 54, 17); slip.lineStyle(1, 0x3a3226, 1).strokeRect(-27, -9, 54, 17);
     this.wordChipText = s.add.text(0, -1, '', { fontFamily: '"Barlow Condensed", "Arial Narrow", sans-serif', fontSize: '13px', fontStyle: '800', color: '#12161f' }).setOrigin(0.5);
     this.wordChip.add([slip, this.wordChipText]);
-    s.objs.push(this.dezRig, this.keeperRig, this.waterLine, this.pole, this.lantern, this.beam, this.beamMaskG, this.lampGlow, this.warm, this.chip.root, this.wordChip);
+    s.objs.push(this.dezRig, this.keeperRig, this.waterLine, this.pole, this.lantern, this.beam, this.beamMaskG, this.lampGlow, this.chip.root, this.wordChip);
     s.dyn.a13desk = { x: DESK.x0 + 2, y: 356, w: DESK.x1 - DESK.x0 - 4, h: 34 };
     const kb = s.input.keyboard;
     if (kb) { this.keyF = kb.addKey('F'); this.keyL = kb.addKey('LEFT'); this.keyR = kb.addKey('RIGHT'); this.keyQ = kb.addKey('Q'); }
@@ -423,8 +423,8 @@ export class ArchiveRoom {
     this.keeper.setTexture('a13_keeper_asleep').setOrigin(ks.foot[0] / ks.w, ks.foot[1] / ks.h);
     const anc = { x: (ks.card[0] - ks.foot[0]) * KS, y: (ks.card[1] - ks.foot[1]) * KS + CH };
     STAFF_RECORDS.a_keeper.anchor = anc; STAFF_RECORDS.a_keeper.tilt = 0.16;
-    if (initial) { this.keeperCard.setLean(0); this.warm.setAlpha(1); }
-    else { s.tweens.add({ targets: this.keeperCard.root, x: anc.x, y: anc.y, rotation: 0.16, duration: 700, ease: 'Sine.easeInOut' }); s.tweens.add({ targets: this.warm, alpha: 1, duration: 1600 }); }
+    if (initial) { this.keeperCard.setLean(0); this.warm?.setAlpha(1); }
+    else { s.tweens.add({ targets: this.keeperCard.root, x: anc.x, y: anc.y, rotation: 0.16, duration: 700, ease: 'Sine.easeInOut' }); if (this.warm) s.tweens.add({ targets: this.warm, alpha: 1, duration: 2200, ease: 'Sine.easeInOut' }); }
     const aw = A13.dez_awake; this.dez.setTexture('a13_dez_awake').setOrigin(aw.desk_front[0] / aw.w, aw.desk_front[1] / aw.h);
     try { this.breath?.stop(); } catch { /* */ }
     if (!initial) { this.playSample('sfx_dez_wake', 0.8); this.playSample('sfx_keeper_clunk', 0.6); }

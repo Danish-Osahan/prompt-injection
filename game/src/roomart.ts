@@ -310,12 +310,45 @@ export const ROOMART: Record<string, RoomArt> = {
  },
  "archive": {
   "images": {
-   "base": "rooms/archive13_bleed.jpg"
+   "base": "rooms/archive13_bleed.jpg",
+   "warm": "rooms/archive13_warm.jpg"
   },
   "code": {
    "base": "rooms/archive13_code.jpg"
   },
   "fg": [
+   {
+    "key": "fg_a13_shelf0",
+    "name": "shelf0",
+    "file": "rooms/fg/a13_shelf.png",
+    "x": 890,
+    "y": 86,
+    "baseY": 214
+   },
+   {
+    "key": "fg_a13_shelf",
+    "name": "shelf1",
+    "file": "rooms/fg/a13_shelf.png",
+    "x": 960,
+    "y": 86,
+    "baseY": 214
+   },
+   {
+    "key": "fg_a13_lamp",
+    "name": "floorlamp",
+    "file": "rooms/fg/a13_lamp.png",
+    "x": 1154,
+    "y": 236,
+    "baseY": 346
+   },
+   {
+    "key": "fg_a13_boxes",
+    "name": "boxes",
+    "file": "rooms/fg/a13_boxes.png",
+    "x": 1119,
+    "y": 540,
+    "baseY": 596
+   },
    {
     "key": "fg_a13_winch",
     "name": "winch",

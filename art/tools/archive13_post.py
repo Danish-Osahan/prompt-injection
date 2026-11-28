@@ -26,23 +26,23 @@ def light(base, poly, color, alpha, blur):
     add = ImageChops.multiply(Image.new('RGB', (W, HH), color), Image.merge('RGB', (m, m, m)))
     return ImageChops.add(base.convert('RGB'), add).convert('RGBA')
 
-def grade(im):
-    """the room grade: darker, colder (same for plate and overlays)"""
+def grade(im, warm=False):
+    """the room grade: darker, colder (same for plate and overlays). warm=True is the relit room after the trade."""
     rgb = im.convert('RGB'); a = im.split()[-1] if im.mode == 'RGBA' else None
-    rgb = ImageEnhance.Brightness(rgb).enhance(0.56)
-    rgb = ImageChops.multiply(rgb, Image.new('RGB', rgb.size, (200, 230, 240)))
+    rgb = ImageEnhance.Brightness(rgb).enhance(0.70 if warm else 0.56)
+    rgb = ImageChops.multiply(rgb, Image.new('RGB', rgb.size, (236, 228, 214) if warm else (200, 230, 240)))
     if a is None: return rgb.convert('RGBA')
     out = rgb.convert('RGBA'); out.putalpha(a); return out
 
 POOL = (446, 182, 836, 682)
-def plate():
+def plate(warm=False):
     b = Image.open(A + 'rooms/archive_H_bleed.jpg').convert('RGBA')
     # clutter out (1280x720 coords): wall lamp disc, cabinet-top box + trinket, side table, boots, white panel/towel,
     # floor drawer, bench, shelf, the old floor light spot
     for r in [(238, 100, 292, 146), (160, 172, 204, 202), (166, 108, 182, 123), (936, 164, 1014, 226), (870, 224, 930, 280),
               (1160, 300, 1202, 356), (70, 606, 130, 674), (890, 650, 1010, 686), (1143, 566, 1207, 682), (296, 626, 362, 692)]:
         b = erase(b, (r[0] - 10, r[1] - 10, r[2] + 10, r[3] + 10), pad=24, blur=5)
-    b = grade(b)
+    b = grade(b, warm)
     # the pool: one flat black-teal sheet, a hair lighter toward the window; faint horizontal sheen streaks only
     pw, ph = POOL[2] - POOL[0], POOL[3] - POOL[1]
     g = Image.new('RGBA', (pw, ph)); gd = ImageDraw.Draw(g)
@@ -57,10 +57,17 @@ def plate():
         d.rectangle((x, POOL[1], x + 3, POOL[3]), fill=(8, 12, 16, 255)); d.line((x + (3 if x > 600 else 0), POOL[1], x + (3 if x > 600 else 0), POOL[3]), fill=(40, 62, 70, 255))
     # light 1: the high window slit on the back wall (cold) and its long parallelogram on the water
     d.rectangle((566, 66, 714, 72), fill=(84, 120, 132, 255)); d.rectangle((566, 73, 714, 75), fill=(24, 36, 44, 255))
-    b = light(b, [(566, 182), (714, 182), (792, 560), (632, 560)], (54, 90, 104), 0.24, 26)
+    b = light(b, [(566, 182), (714, 182), (792, 560), (632, 560)], (54, 90, 104), 0.14 if warm else 0.24, 26)
     # light 2: Dez's shaded desk lamp (warm, low): a trapezoid on the floor around his desk
-    b = light(b, [(262, 318), (402, 318), (430, 448), (236, 456)], (132, 96, 54), 0.32, 24)
+    b = light(b, [(262, 318), (402, 318), (430, 448), (236, 456)], (150, 108, 60), 0.46 if warm else 0.32, 24)
     b = light(b, [(322, 276), (390, 276), (398, 318), (314, 322)], (150, 108, 60), 0.22, 12)
+    # light 4 (GB-5b): the floor lamp by the exit, a low warm pool on the right-hand floor so the far side is not empty
+    b = light(b, [(1090, 372), (1236, 372), (1250, 470), (1070, 474)], (130, 94, 52), 0.40 if warm else 0.30, 22)
+    b = light(b, [(1118, 330), (1190, 330), (1204, 376), (1104, 378)], (140, 100, 54), 0.18, 12)
+    if warm:   # the Keeper's lamp set down on the water at its feet, and the strip lights over the left floor come on warm
+        b = light(b, [(560, 560), (760, 560), (800, 690), (520, 690)], (150, 100, 52), 0.34, 30)
+        b = light(b, [(588, 596), (748, 596), (770, 660), (566, 660)], (176, 120, 64), 0.22, 14)
+        b = light(b, [(70, 260), (440, 260), (460, 640), (60, 640)], (92, 66, 36), 0.22, 40)
     return b.convert('RGB')
 
 def codeview(g):
@@ -113,14 +120,31 @@ def cast():
         meta[n] = dict(m, w=im.width // 2, h=im.height // 2)
     return meta
 
+# placements of the right-half props: (name, base point on the floor in 1x room px, depth baseY)
+PROPS = {'a13_shelf': [(924, 214), (994, 214)], 'a13_lamp': [(1164, 346)], 'a13_boxes': [(1134, 596)]}
+def props():
+    out = {}
+    for n, spots in PROPS.items():
+        im = Image.open(RD + n + '.png').convert('RGBA'); m = json.load(open(RD + n + '.json'))
+        bb = im.getchannel('A').point(lambda v: 255 if v > 18 else 0).getbbox(); im = im.crop(bb)
+        im = im.resize((max(1, round(im.width / 2)), max(1, round(im.height / 2))), Image.LANCZOS)
+        fx, fy = m['foot'][0] - bb[0] / 2, m['foot'][1] - bb[1] / 2
+        if n == 'a13_lamp':   # the lamp keeps its glow; only the stand is dimmed
+            rgb = ImageEnhance.Brightness(im.convert('RGB')).enhance(0.85); a = im.getchannel('A'); im = rgb.convert('RGBA'); im.putalpha(a)
+        else: im = grade(im)
+        im.save(A + 'rooms/fg/%s.png' % n, optimize=True)
+        out[n] = [dict(x=round(bx - fx), y=round(by - fy), baseY=by) for bx, by in spots]
+    return out
+
 if __name__ == '__main__':
-    p = plate(); p.save(A + 'rooms/archive13_bleed.jpg', quality=90); codeview(p).save(A + 'rooms/archive13_code.jpg', quality=88)
+    p = plate(); p.save(A + 'rooms/archive13_bleed.jpg', quality=90); plate(True).save(A + 'rooms/archive13_warm.jpg', quality=90); codeview(p).save(A + 'rooms/archive13_code.jpg', quality=88)
     for n in ['archive_winch', 'archive_exit'] + ['bridge_%02d' % k for k in range(8)]:
         grade(Image.open(A + 'rooms/fg/%s.png' % n).convert('RGBA')).save(A + 'rooms/fg/a13_%s.png' % n.replace('archive_', ''), optimize=True)
     ds, dm = drip_strip(); ds.save(A + 'rooms/amb/archive13_drip.png', optimize=True)
     ss, sm = sheen_strip(); ss.save(A + 'rooms/amb/archive13_sheen.png', optimize=True)
     grade(Image.open(A + 'rooms/amb/archive_H_line.png').convert('RGBA')).save(A + 'rooms/amb/archive13_line.png', optimize=True)
     meta = cast()
+    print('PROPS', json.dumps(props()))
     ts = ('// generated by art/tools/archive13_post.py from art/render/archive13 (archive13.py renders). 1x px; images are 2x.\n'
           'export const A13 = ' + json.dumps(meta) + ' as const;\n'
           'export const A13_DRIP = ' + json.dumps(dm) + ';\nexport const A13_SHEEN = ' + json.dumps(sm) + ';\n')
